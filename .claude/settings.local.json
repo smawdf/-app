@@ -38,7 +38,11 @@
       "Bash(git config *)",
       "Bash(git rm *)",
       "WebFetch(domain:fonts.google.com)",
-      "Bash(./gradlew compileDebugKotlin)"
+      "Bash(./gradlew compileDebugKotlin)",
+      "Bash(mv demo.html docs/)",
+      "Bash(mv yuxiangqiezi.png docs/)",
+      "Bash(rm -rf error/ .superpowers/)",
+      "mcp__plugin_claude-mem_mcp-search__search"
     ]
   }
 }

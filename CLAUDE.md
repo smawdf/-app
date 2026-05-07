@@ -143,11 +143,10 @@ mealRepo.syncFromCloud()
 
 | API | Key | 用途 |
 |-----|-----|------|
-| Juhe | `7fc3e0bdf2061a5c38781c2e82908d31` | 中餐搜索（type_name 作为分类） |
-| Spoonacular | `c4d077f93cbd4545ae6337c03b1c925a` | 西餐搜索 + 高质量图片（636x393） |
-| Supabase | `sb_publishable_8N_jUSyhvKOmWAPXGRAIhA__q96dF7a` | 在线数据库 |
+| Juhe | `7fc3e0bdf2061a5c38781c2e82908d31` | 菜谱搜索（type_name 作为分类），100次/天 |
+| Supabase | `sb_publishable_8N_jUSyhvKOmWAPXGRAIhA__q96dF7a` | 在线数据库 + 认证 |
 
-**注意**：Spoonacular 免费额度 150次/天，Juhe 100次/天。搜索结果自动缓存，避免重复调用。
+**注意**：Spoonacular 已于 2026-05-07 从搜索链路移除（日配额不足+国内网络问题），代码保留未删，可后续恢复。
 
 ## 关键设计决策
 
@@ -157,3 +156,36 @@ mealRepo.syncFromCloud()
 - **领域模型 @Json(name=snake_case)**：Dish/Profile/Meal 字段映射 Supabase 列名
 - **分类用 API 原始值**：不强行映射为标准分类，保留 Juhe `type_name` / Spoonacular `cuisines`
 - **搜索自动全量缓存**：`onlineResult.dishes.forEach { dishRepository.cacheSearchResult(it) }`
+
+## 2026-05-07 重设计 & 优化
+
+### UI 重设计（清简日常风格）
+- **色系**：暖橙 → 米白 `#F5F0E8` + 深棕 `#5C4B3A` + 淡绿 `#A8C5A0`
+- **字体**：Serif 标题 + SansSerif 正文
+- **动态颜色**：已禁用（`dynamicColor = false`）
+- **App 图标**：米色底 + 碗筷 + 淡绿蒸汽线
+- 所有 14 个页面统一翻新，Card 去阴影
+
+### 注册流程改造
+- OnboardingScreen 合并为三步流程：账号 → 个人资料 → 配对
+- 头像支持拍照/相册/URL 三种方式
+- 配对码生成/输入/跳过选项
+- ProfileSetupScreen 已废弃
+
+### 登录优化
+- `SessionManager` 记住邮箱，登录页自动填入
+- 错误信息细化：区分「未注册」「密码错误」「邮箱未验证」
+- 退出登录按钮（仅在在线时显示），确认后清 session
+
+### 搜索
+- Spoonacular 从 `DualRecipeSearchUseCase` 移除，仅用聚合数据
+- FoodTranslator 新增英→中反向翻译（`toChinese()`），Spoonacular 代码保留备用
+
+### 口味偏好
+- 6 个固定 Boolean → 用户自定义标签（`DietaryPreference.custom: List<String>`）
+- 自由添加/删除，最多 6 字/标签，云端同步
+
+### 文档
+- `docs/superpowers/specs/` — 设计规范 & 需求文档
+- `docs/superpowers/plans/` — 实施计划
+- `docs/demo.html` — UI Demo（可直接浏览器打开）
