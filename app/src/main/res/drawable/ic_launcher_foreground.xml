@@ -4,56 +4,73 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <!-- 圆角方形底 -->
+    <!-- 圆角底 -->
     <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M24,22 h60 a4,4 0 0,1 4,4 v56 a4,4 0 0,1 -4,4 h-60 a4,4 0 0,1 -4,-4 v-56 a4,4 0 0,1 4,-4 z" />
+        android:fillColor="#F5EFE8"
+        android:pathData="M20,18 h68 a4,4 0 0,1 4,4 v64 a4,4 0 0,1 -4,4 h-68 a4,4 0 0,1 -4,-4 v-64 a4,4 0 0,1 4,-4 z" />
 
-    <!-- 食 — 顶部人字头 -->
+    <!-- 食 - 人字头 左撇 -->
     <path
         android:fillColor="#00000000"
-        android:pathData="M30,38 L54,54 L78,38"
-        android:strokeWidth="6"
-        android:strokeColor="#5C4B3A"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round" />
-
-    <!-- 食 — 左竖 -->
-    <path
-        android:fillColor="#00000000"
-        android:pathData="M40,54 L40,78"
+        android:pathData="M36,38 L54,56"
         android:strokeWidth="5"
         android:strokeColor="#5C4B3A"
         android:strokeLineCap="round" />
 
-    <!-- 食 — 横折 -->
+    <!-- 食 - 人字头 右捺 -->
     <path
         android:fillColor="#00000000"
-        android:pathData="M40,60 L64,60 L64,72"
-        android:strokeWidth="5"
-        android:strokeColor="#5C4B3A"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round" />
-
-    <!-- 食 — 底部横 -->
-    <path
-        android:fillColor="#00000000"
-        android:pathData="M36,78 L72,78"
+        android:pathData="M54,56 L74,38"
         android:strokeWidth="5"
         android:strokeColor="#5C4B3A"
         android:strokeLineCap="round" />
 
-    <!-- 食 — 内部短横 -->
+    <!-- 食 - 左竖 -->
     <path
         android:fillColor="#00000000"
-        android:pathData="M44,66 L60,66"
-        android:strokeWidth="3.5"
+        android:pathData="M40,55 L40,82"
+        android:strokeWidth="5"
         android:strokeColor="#5C4B3A"
         android:strokeLineCap="round" />
 
-    <!-- 食 — 右点 -->
+    <!-- 食 - 上横 -->
     <path
-        android:fillColor="#5C4B3A"
-        android:pathData="M66,64 a3,3 0 1,0 6,0 a3,3 0 1,0 -6,0" />
+        android:fillColor="#00000000"
+        android:pathData="M40,60 L68,60"
+        android:strokeWidth="5"
+        android:strokeColor="#5C4B3A"
+        android:strokeLineCap="round" />
+
+    <!-- 食 - 右竖 -->
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M68,60 L68,74"
+        android:strokeWidth="5"
+        android:strokeColor="#5C4B3A"
+        android:strokeLineCap="round" />
+
+    <!-- 食 - 内横 -->
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M44,67 L64,67"
+        android:strokeWidth="4"
+        android:strokeColor="#5C4B3A"
+        android:strokeLineCap="round" />
+
+    <!-- 食 - 底横 -->
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M36,82 L72,82"
+        android:strokeWidth="5"
+        android:strokeColor="#5C4B3A"
+        android:strokeLineCap="round" />
+
+    <!-- 食 - 捺点 -->
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M66,68 L72,78"
+        android:strokeWidth="4"
+        android:strokeColor="#5C4B3A"
+        android:strokeLineCap="round" />
 
 </vector>
