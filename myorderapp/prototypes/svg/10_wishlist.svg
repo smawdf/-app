@@ -1,0 +1,94 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 800" width="360" height="800">
+  <defs>
+    <style>
+      .title { font-family: -apple-system, sans-serif; font-size: 18px; font-weight: 700; fill: #1a1a1a; }
+      .body { font-family: -apple-system, sans-serif; font-size: 13px; fill: #333; }
+      .label { font-family: -apple-system, sans-serif; font-size: 11px; fill: #999; }
+      .tab-text { font-family: -apple-system, sans-serif; font-size: 10px; fill: #999; }
+      .tab-active { font-family: -apple-system, sans-serif; font-size: 10px; fill: #FF6B35; font-weight: 600; }
+    </style>
+  </defs>
+
+  <rect x="10" y="10" width="340" height="780" rx="24" fill="#f8f8f8" stroke="#ddd" stroke-width="1"/>
+  <text x="30" y="42" class="label">18:41</text>
+
+  <!-- Header -->
+  <text x="30" y="80" class="title" style="font-size:22px;">💫 心愿单</text>
+  <text x="260" y="80" class="label">共 5 项</text>
+
+  <!-- Status Tabs -->
+  <g transform="translate(20, 96)">
+    <rect x="0" y="0" width="72" height="30" rx="15" fill="#FFF3E0" stroke="#FF6B35" stroke-width="0.5"/>
+    <text x="14" y="20" style="font-family:-apple-system,sans-serif;font-size:11px;fill:#FF6B35;font-weight:600;">待尝试 (3)</text>
+    <rect x="80" y="0" width="72" height="30" rx="15" fill="#f5f5f5"/>
+    <text x="94" y="20" style="font-family:-apple-system,sans-serif;font-size:11px;fill:#666;">已尝试 (1)</text>
+    <rect x="160" y="0" width="72" height="30" rx="15" fill="#f5f5f5"/>
+    <text x="174" y="20" style="font-family:-apple-system,sans-serif;font-size:11px;fill:#666;">已放弃 (1)</text>
+  </g>
+
+  <!-- Wishlist Item 1 -->
+  <rect x="20" y="144" width="320" height="100" rx="14" fill="#fff" stroke="#f0f0f0" stroke-width="1"/>
+  <rect x="30" y="154" width="80" height="80" rx="12" fill="#FFCCBC"/>
+  <text x="50" y="202" style="font-family:-apple-system,sans-serif;font-size:30px;">🍲</text>
+  <text x="122" y="176" class="body" style="font-weight:600;font-size:14px;">水煮鱼</text>
+  <text x="122" y="194" class="label">中餐 · 来自聚合数据</text>
+  <text x="122" y="212" class="label">小美添加 · 2026-05-01</text>
+  <text x="122" y="226" class="label" style="font-size:10px;color:#FF6B35;">想吃很久了！</text>
+  <!-- Action buttons -->
+  <rect x="274" y="154" width="56" height="24" rx="12" fill="#E8F5E9"/>
+  <text x="282" y="170" style="font-family:-apple-system,sans-serif;font-size:9px;fill:#4CAF50;font-weight:600;">✓ 试过了</text>
+  <rect x="274" y="184" width="56" height="24" rx="12" fill="#FFF3E0"/>
+  <text x="282" y="200" style="font-family:-apple-system,sans-serif;font-size:9px;fill:#FF6B35;font-weight:600;">🍽 点这个</text>
+
+  <!-- Wishlist Item 2 -->
+  <rect x="20" y="254" width="320" height="100" rx="14" fill="#fff" stroke="#f0f0f0" stroke-width="1"/>
+  <rect x="30" y="264" width="80" height="80" rx="12" fill="#FFF9C4"/>
+  <text x="50" y="312" style="font-family:-apple-system,sans-serif;font-size:30px;">🥘</text>
+  <text x="122" y="286" class="body" style="font-weight:600;font-size:14px;">泰式冬阴功</text>
+  <text x="122" y="304" class="label">东南亚 · 来自 Spoonacular</text>
+  <text x="122" y="322" class="label">你添加 · 2026-04-30</text>
+  <text x="122" y="336" class="label" style="font-size:10px;color:#FF6B35;">看图片就很想吃</text>
+  <rect x="274" y="264" width="56" height="24" rx="12" fill="#E8F5E9"/>
+  <text x="282" y="280" style="font-family:-apple-system,sans-serif;font-size:9px;fill:#4CAF50;font-weight:600;">✓ 试过了</text>
+  <rect x="274" y="294" width="56" height="24" rx="12" fill="#FFF3E0"/>
+  <text x="282" y="310" style="font-family:-apple-system,sans-serif;font-size:9px;fill:#FF6B35;font-weight:600;">🍽 点这个</text>
+
+  <!-- Wishlist Item 3 -->
+  <rect x="20" y="364" width="320" height="100" rx="14" fill="#fff" stroke="#f0f0f0" stroke-width="1"/>
+  <rect x="30" y="374" width="80" height="80" rx="12" fill="#C8E6C9"/>
+  <text x="50" y="422" style="font-family:-apple-system,sans-serif;font-size:30px;">🍕</text>
+  <text x="122" y="396" class="body" style="font-weight:600;font-size:14px;">手工披萨</text>
+  <text x="122" y="414" class="label">西餐 · 自定义菜谱</text>
+  <text x="122" y="432" class="label">小美添加 · 2026-04-29</text>
+  <text x="122" y="446" class="label" style="font-size:10px;color:#FF6B35;">周末一起做吧</text>
+  <rect x="274" y="374" width="56" height="24" rx="12" fill="#E8F5E9"/>
+  <text x="282" y="390" style="font-family:-apple-system,sans-serif;font-size:9px;fill:#4CAF50;font-weight:600;">✓ 试过了</text>
+  <rect x="274" y="404" width="56" height="24" rx="12" fill="#FFF3E0"/>
+  <text x="282" y="420" style="font-family:-apple-system,sans-serif;font-size:9px;fill:#FF6B35;font-weight:600;">🍽 点这个</text>
+
+  <!-- Already Tried Section -->
+  <text x="24" y="496" class="title" style="font-size:14px;">✅ 已尝试</text>
+  <rect x="20" y="508" width="320" height="68" rx="12" fill="#f9f9f9" stroke="#f0f0f0" stroke-width="1"/>
+  <rect x="30" y="516" width="52" height="52" rx="10" fill="#E8F5E9"/>
+  <text x="42" y="548" style="font-family:-apple-system,sans-serif;font-size:22px;">🍜</text>
+  <text x="92" y="538" class="body" style="font-weight:500;">日式拉面</text>
+  <text x="92" y="556" class="label">已尝试 · 评分: ⭐⭐⭐⭐</text>
+  <text x="260" y="546" style="font-family:-apple-system,sans-serif;font-size:10px;fill:#4CAF50;">好吃！已加入菜品库</text>
+
+  <!-- Add to Wishlist -->
+  <rect x="20" y="730" width="320" height="44" rx="22" fill="#FF6B35"/>
+  <text x="116" y="757" style="font-family:-apple-system,sans-serif;font-size:14px;fill:#fff;font-weight:600;">+ 添加到心愿单</text>
+
+  <!-- Bottom Tab Bar -->
+  <rect x="10" y="720" width="340" height="70" rx="0" fill="#fff" stroke="#f0f0f0" stroke-width="1"/>
+  <text x="40" y="750" style="font-family:-apple-system,sans-serif;font-size:18px;">🏠</text>
+  <text x="34" y="766" class="tab-text">首页</text>
+  <text x="110" y="750" style="font-family:-apple-system,sans-serif;font-size:18px;">📚</text>
+  <text x="102" y="766" class="tab-text">菜品库</text>
+  <text x="180" y="750" style="font-family:-apple-system,sans-serif;font-size:18px;">🍽️</text>
+  <text x="170" y="766" class="tab-text">点餐</text>
+  <text x="248" y="750" style="font-family:-apple-system,sans-serif;font-size:18px;">💫</text>
+  <text x="242" y="766" class="tab-active">心愿单</text>
+  <text x="310" y="750" style="font-family:-apple-system,sans-serif;font-size:18px;">👤</text>
+  <text x="306" y="766" class="tab-text">我的</text>
+</svg>

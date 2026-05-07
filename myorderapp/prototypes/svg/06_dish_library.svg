@@ -1,0 +1,108 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 800" width="360" height="800">
+  <defs>
+    <style>
+      .title { font-family: -apple-system, sans-serif; font-size: 18px; font-weight: 700; fill: #1a1a1a; }
+      .body { font-family: -apple-system, sans-serif; font-size: 13px; fill: #333; }
+      .label { font-family: -apple-system, sans-serif; font-size: 11px; fill: #999; }
+      .tab-text { font-family: -apple-system, sans-serif; font-size: 10px; fill: #999; }
+      .tab-active { font-family: -apple-system, sans-serif; font-size: 10px; fill: #FF6B35; font-weight: 600; }
+      .filter-active { font-family: -apple-system, sans-serif; font-size: 11px; fill: #FF6B35; font-weight: 500; }
+      .filter { font-family: -apple-system, sans-serif; font-size: 11px; fill: #666; }
+    </style>
+  </defs>
+
+  <rect x="10" y="10" width="340" height="780" rx="24" fill="#f8f8f8" stroke="#ddd" stroke-width="1"/>
+  <text x="30" y="42" class="label">18:41</text>
+
+  <!-- Header -->
+  <text x="30" y="80" class="title" style="font-size:22px;">菜品库</text>
+  <rect x="280" y="60" width="52" height="32" rx="16" fill="#FF6B35"/>
+  <text x="292" y="81" style="font-family:-apple-system,sans-serif;font-size:14px;fill:#fff;">+ 添加</text>
+
+  <!-- Search Bar -->
+  <rect x="20" y="96" width="320" height="38" rx="19" fill="#fff" stroke="#e8e8e8" stroke-width="1"/>
+  <text x="48" y="120" class="label">搜索菜品库...</text>
+  <text x="308" y="120" style="font-family:-apple-system,sans-serif;font-size:14px;">🔍</text>
+
+  <!-- Filter Tabs -->
+  <g transform="translate(20, 144)">
+    <rect x="0" y="0" width="48" height="26" rx="13" fill="#FFF3E0" stroke="#FF6B35" stroke-width="0.5"/>
+    <text x="10" y="17" class="filter-active">全部</text>
+    <rect x="56" y="0" width="48" height="26" rx="13" fill="#f5f5f5"/>
+    <text x="66" y="17" class="filter">自建</text>
+    <rect x="112" y="0" width="56" height="26" rx="13" fill="#f5f5f5"/>
+    <text x="122" y="17" class="filter">收藏</text>
+    <rect x="176" y="0" width="48" height="26" rx="13" fill="#f5f5f5"/>
+    <text x="186" y="17" class="filter">中餐</text>
+    <rect x="232" y="0" width="48" height="26" rx="13" fill="#f5f5f5"/>
+    <text x="242" y="17" class="filter">西餐</text>
+  </g>
+
+  <!-- Sort Bar -->
+  <text x="24" y="196" class="label">共 12 道菜 · 排序：最近添加 ▾</text>
+  <text x="280" y="196" style="font-family:-apple-system,sans-serif;font-size:12px;">☷ 列表</text>
+
+  <!-- Dish Grid (2 columns) -->
+  <!-- Row 1 -->
+  <rect x="20" y="210" width="152" height="180" rx="14" fill="#fff" stroke="#f0f0f0" stroke-width="1"/>
+  <rect x="28" y="218" width="136" height="100" rx="10" fill="#FFE0B2"/>
+  <text x="76" y="276" style="font-family:-apple-system,sans-serif;font-size:30px;">🍗</text>
+  <text x="28" y="332" class="body" style="font-weight:600;font-size:13px;">宫保鸡丁</text>
+  <text x="28" y="348" class="label">自建 · 30分钟</text>
+  <text x="28" y="364" style="font-family:-apple-system,sans-serif;font-size:10px;fill:#FF6B35;">❤️ 都爱吃</text>
+  <!-- Custom badge -->
+  <rect x="120" y="218" width="40" height="18" rx="9" fill="#FF6B35"/>
+  <text x="128" y="231" style="font-family:-apple-system,sans-serif;font-size:8px;fill:#fff;font-weight:600;">自建</text>
+
+  <rect x="188" y="210" width="152" height="180" rx="14" fill="#fff" stroke="#f0f0f0" stroke-width="1"/>
+  <rect x="196" y="218" width="136" height="100" rx="10" fill="#FFCCBC"/>
+  <text x="244" y="276" style="font-family:-apple-system,sans-serif;font-size:30px;">🍲</text>
+  <text x="196" y="332" class="body" style="font-weight:600;font-size:13px;">红烧肉</text>
+  <text x="196" y="348" class="label">收藏 · 60分钟</text>
+  <text x="196" y="364" style="font-family:-apple-system,sans-serif;font-size:10px;fill:#4CAF50;">⭐ 她爱吃</text>
+
+  <!-- Row 2 -->
+  <rect x="20" y="400" width="152" height="180" rx="14" fill="#fff" stroke="#f0f0f0" stroke-width="1"/>
+  <rect x="28" y="408" width="136" height="100" rx="10" fill="#C8E6C9"/>
+  <text x="76" y="466" style="font-family:-apple-system,sans-serif;font-size:30px;">🥗</text>
+  <text x="28" y="522" class="body" style="font-weight:600;font-size:13px;">凯撒沙拉</text>
+  <text x="28" y="538" class="label">收藏 · 15分钟</text>
+  <text x="28" y="554" style="font-family:-apple-system,sans-serif;font-size:10px;fill:#FF6B35;">❤️ 都爱吃</text>
+
+  <rect x="188" y="400" width="152" height="180" rx="14" fill="#fff" stroke="#f0f0f0" stroke-width="1"/>
+  <rect x="196" y="408" width="136" height="100" rx="10" fill="#F3E5F5"/>
+  <text x="244" y="466" style="font-family:-apple-system,sans-serif;font-size:30px;">🍝</text>
+  <text x="196" y="522" class="body" style="font-weight:600;font-size:13px;">番茄意面</text>
+  <text x="196" y="538" class="label">收藏 · 25分钟</text>
+  <text x="196" y="554" style="font-family:-apple-system,sans-serif;font-size:10px;fill:#FF6B35;">❤️ 都爱吃</text>
+
+  <!-- Row 3 -->
+  <rect x="20" y="590" width="152" height="180" rx="14" fill="#fff" stroke="#f0f0f0" stroke-width="1"/>
+  <rect x="28" y="598" width="136" height="100" rx="10" fill="#FFF9C4"/>
+  <text x="76" y="656" style="font-family:-apple-system,sans-serif;font-size:30px;">🥘</text>
+  <text x="28" y="712" class="body" style="font-weight:600;font-size:13px;">可乐鸡翅</text>
+  <text x="28" y="728" class="label">自建 · 40分钟</text>
+  <text x="28" y="744" style="font-family:-apple-system,sans-serif;font-size:10px;fill:#FF6B35;">❤️ 都爱吃</text>
+  <rect x="120" y="598" width="40" height="18" rx="9" fill="#FF6B35"/>
+  <text x="128" y="611" style="font-family:-apple-system,sans-serif;font-size:8px;fill:#fff;font-weight:600;">自建</text>
+
+  <rect x="188" y="590" width="152" height="180" rx="14" fill="#fff" stroke="#f0f0f0" stroke-width="1"/>
+  <rect x="196" y="598" width="136" height="100" rx="10" fill="#BBDEFB"/>
+  <text x="244" y="656" style="font-family:-apple-system,sans-serif;font-size:30px;">🍜</text>
+  <text x="196" y="712" class="body" style="font-weight:600;font-size:13px;">日式拉面</text>
+  <text x="196" y="728" class="label">收藏 · 90分钟</text>
+  <text x="196" y="744" style="font-family:-apple-system,sans-serif;font-size:10px;fill:#999;">未标记</text>
+
+  <!-- Bottom Tab Bar -->
+  <rect x="10" y="720" width="340" height="70" rx="0" fill="#fff" stroke="#f0f0f0" stroke-width="1"/>
+  <text x="40" y="750" style="font-family:-apple-system,sans-serif;font-size:18px;">🏠</text>
+  <text x="34" y="766" class="tab-text">首页</text>
+  <text x="110" y="750" style="font-family:-apple-system,sans-serif;font-size:18px;">📚</text>
+  <text x="102" y="766" class="tab-active">菜品库</text>
+  <text x="180" y="750" style="font-family:-apple-system,sans-serif;font-size:18px;">🍽️</text>
+  <text x="170" y="766" class="tab-text">点餐</text>
+  <text x="248" y="750" style="font-family:-apple-system,sans-serif;font-size:18px;">💫</text>
+  <text x="242" y="766" class="tab-text">心愿单</text>
+  <text x="310" y="750" style="font-family:-apple-system,sans-serif;font-size:18px;">👤</text>
+  <text x="306" y="766" class="tab-text">我的</text>
+</svg>

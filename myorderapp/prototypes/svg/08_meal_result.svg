@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 800" width="360" height="800">
+  <defs>
+    <style>
+      .title { font-family: -apple-system, sans-serif; font-size: 18px; font-weight: 700; fill: #1a1a1a; }
+      .body { font-family: -apple-system, sans-serif; font-size: 13px; fill: #333; }
+      .label { font-family: -apple-system, sans-serif; font-size: 11px; fill: #999; }
+    </style>
+  </defs>
+
+  <rect x="10" y="10" width="340" height="780" rx="24" fill="#f8f8f8" stroke="#ddd" stroke-width="1"/>
+
+  <!-- Header -->
+  <text x="24" y="46" style="font-family:-apple-system,sans-serif;font-size:14px;fill:#FF6B35;">← 返回</text>
+  <text x="110" y="82" class="title" style="font-size:20px;">点餐结果</text>
+
+  <!-- Status Banner -->
+  <rect x="20" y="100" width="320" height="60" rx="14" fill="#E8F5E9"/>
+  <text x="60" y="126" style="font-family:-apple-system,sans-serif;font-size:14px;fill:#2E7D32;font-weight:600;">✅ 双方都已提交！</text>
+  <text x="60" y="146" class="label" style="fill:#4CAF50;">2026年5月3日 · 午餐 · 共 4 道菜</text>
+
+  <!-- My Selections -->
+  <text x="24" y="192" class="title" style="font-size:15px;">🧑 我的选择 (2道)</text>
+
+  <rect x="20" y="204" width="320" height="68" rx="12" fill="#fff" stroke="#f0f0f0" stroke-width="1"/>
+  <rect x="30" y="212" width="52" height="52" rx="10" fill="#FFE0B2"/>
+  <text x="42" y="244" style="font-family:-apple-system,sans-serif;font-size:22px;">🍗</text>
+  <text x="92" y="234" class="body" style="font-weight:600;">宫保鸡丁</text>
+  <text x="92" y="252" class="label">中餐 · 30分钟 · 难度⭐⭐</text>
+
+  <rect x="20" y="280" width="320" height="68" rx="12" fill="#fff" stroke="#f0f0f0" stroke-width="1"/>
+  <rect x="30" y="288" width="52" height="52" rx="10" fill="#C8E6C9"/>
+  <text x="42" y="320" style="font-family:-apple-system,sans-serif;font-size:22px;">🥗</text>
+  <text x="92" y="310" class="body" style="font-weight:600;">凯撒沙拉</text>
+  <text x="92" y="328" class="label">西餐 · 15分钟 · 难度⭐</text>
+
+  <!-- Divider -->
+  <line x1="160" y1="366" x2="200" y2="366" stroke="#e0e0e0" stroke-width="1"/>
+  <text x="166" y="370" style="font-family:-apple-system,sans-serif;font-size:12px;fill:#ccc;">+</text>
+
+  <!-- Partner's Selections -->
+  <text x="24" y="400" class="title" style="font-size:15px;">👧 小美的选择 (2道)</text>
+
+  <rect x="20" y="412" width="320" height="68" rx="12" fill="#fff" stroke="#f0f0f0" stroke-width="1"/>
+  <rect x="30" y="420" width="52" height="52" rx="10" fill="#FFCCBC"/>
+  <text x="42" y="452" style="font-family:-apple-system,sans-serif;font-size:22px;">🍲</text>
+  <text x="92" y="442" class="body" style="font-weight:600;">红烧肉</text>
+  <text x="92" y="460" class="label">中餐 · 60分钟 · 难度⭐⭐⭐</text>
+
+  <rect x="20" y="488" width="320" height="68" rx="12" fill="#fff" stroke="#f0f0f0" stroke-width="1"/>
+  <rect x="30" y="496" width="52" height="52" rx="10" fill="#F3E5F5"/>
+  <text x="42" y="528" style="font-family:-apple-system,sans-serif;font-size:22px;">🍝</text>
+  <text x="92" y="518" class="body" style="font-weight:600;">番茄意面</text>
+  <text x="92" y="536" class="label">西餐 · 25分钟 · 难度⭐⭐</text>
+
+  <!-- Summary Card -->
+  <rect x="20" y="576" width="320" height="80" rx="14" fill="#FFF8E1"/>
+  <text x="36" y="600" class="title" style="font-size:14px;">📊 本次点餐摘要</text>
+  <text x="36" y="620" class="body" style="font-size:12px;">中餐 2道 · 西餐 2道</text>
+  <text x="36" y="638" class="body" style="font-size:12px;">预计总耗时：约 90 分钟（如果自己做）</text>
+
+  <!-- Action Buttons -->
+  <rect x="20" y="676" width="152" height="48" rx="24" fill="#FF6B35"/>
+  <text x="48" y="704" style="font-family:-apple-system,sans-serif;font-size:14px;fill:#fff;font-weight:700;">✅ 确认完成</text>
+
+  <rect x="180" y="676" width="160" height="48" rx="24" fill="#fff" stroke="#FF6B35" stroke-width="1.5"/>
+  <text x="208" y="704" style="font-family:-apple-system,sans-serif;font-size:14px;fill:#FF6B35;font-weight:600;">🎲 随机选一道</text>
+
+  <!-- Reorder hint -->
+  <text x="100" y="752" class="label">标记完成后将写入历史记录</text>
+</svg>

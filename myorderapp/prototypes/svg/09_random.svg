@@ -1,0 +1,84 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 800" width="360" height="800">
+  <defs>
+    <style>
+      .title { font-family: -apple-system, sans-serif; font-size: 18px; font-weight: 700; fill: #1a1a1a; }
+      .body { font-family: -apple-system, sans-serif; font-size: 13px; fill: #333; }
+      .label { font-family: -apple-system, sans-serif; font-size: 11px; fill: #999; }
+    </style>
+  </defs>
+
+  <rect x="10" y="10" width="340" height="780" rx="24" fill="#f8f8f8" stroke="#ddd" stroke-width="1"/>
+
+  <!-- Header -->
+  <text x="24" y="46" style="font-family:-apple-system,sans-serif;font-size:14px;fill:#FF6B35;">← 返回</text>
+  <text x="110" y="82" class="title" style="font-size:20px;">🎲 随机推荐</text>
+
+  <!-- Filter Section -->
+  <text x="24" y="118" class="title" style="font-size:13px;">筛选条件</text>
+  <g transform="translate(20, 128)">
+    <rect x="0" y="0" width="56" height="26" rx="13" fill="#FFF3E0" stroke="#FF6B35" stroke-width="0.5"/>
+    <text x="14" y="17" style="font-family:-apple-system,sans-serif;font-size:10px;fill:#FF6B35;font-weight:500;">全部</text>
+    <rect x="64" y="0" width="48" height="26" rx="13" fill="#f5f5f5"/>
+    <text x="74" y="17" style="font-family:-apple-system,sans-serif;font-size:10px;fill:#666;">中餐</text>
+    <rect x="120" y="0" width="48" height="26" rx="13" fill="#f5f5f5"/>
+    <text x="130" y="17" style="font-family:-apple-system,sans-serif;font-size:10px;fill:#666;">西餐</text>
+    <rect x="176" y="0" width="72" height="26" rx="13" fill="#f5f5f5"/>
+    <text x="186" y="17" style="font-family:-apple-system,sans-serif;font-size:10px;fill:#666;">最近没吃</text>
+  </g>
+
+  <!-- Wheel Area -->
+  <rect x="40" y="176" width="280" height="280" rx="140" fill="#fff" stroke="#f0f0f0" stroke-width="2"/>
+  <!-- Wheel segments -->
+  <path d="M180 176 A140 140 0 0 1 320 316 L180 316 Z" fill="#FFE0B2"/>
+  <path d="M320 316 A140 140 0 0 1 180 456 L180 316 Z" fill="#C8E6C9"/>
+  <path d="M180 456 A140 140 0 0 1 40 316 L180 316 Z" fill="#F3E5F5"/>
+  <path d="M40 316 A140 140 0 0 1 180 176 L180 316 Z" fill="#BBDEFB"/>
+  <path d="M180 176 A140 140 0 0 1 280 216 L180 316 Z" fill="#FFF9C4"/>
+  <path d="M280 216 A140 140 0 0 1 320 316 L180 316 Z" fill="#FFCCBC"/>
+  <path d="M40 316 A140 140 0 0 1 100 416 L180 316 Z" fill="#E1BEE7"/>
+  <path d="M100 416 A140 140 0 0 1 180 456 L180 316 Z" fill="#B2DFDB"/>
+
+  <!-- Center circle -->
+  <circle cx="180" cy="316" r="36" fill="#FF6B35"/>
+  <text x="162" y="322" style="font-family:-apple-system,sans-serif;font-size:14px;fill:#fff;font-weight:700;">GO!</text>
+
+  <!-- Pointer -->
+  <polygon points="180,172 172,186 188,186" fill="#E53935"/>
+
+  <!-- Dish labels on wheel -->
+  <text x="230" y="226" style="font-family:-apple-system,sans-serif;font-size:9px;fill:#333;">宫保鸡丁</text>
+  <text x="260" y="316" style="font-family:-apple-system,sans-serif;font-size:9px;fill:#333;">红烧肉</text>
+  <text x="220" y="406" style="font-family:-apple-system,sans-serif;font-size:9px;fill:#333;">凯撒沙拉</text>
+  <text x="100" y="406" style="font-family:-apple-system,sans-serif;font-size:9px;fill:#333;">番茄意面</text>
+  <text x="70" y="316" style="font-family:-apple-system,sans-serif;font-size:9px;fill:#333;">可乐鸡翅</text>
+  <text x="100" y="226" style="font-family:-apple-system,sans-serif;font-size:9px;fill:#333;">日式拉面</text>
+  <text x="200" y="266" style="font-family:-apple-system,sans-serif;font-size:9px;fill:#333;">麻婆豆腐</text>
+  <text x="140" y="376" style="font-family:-apple-system,sans-serif;font-size:9px;fill:#333;">糖醋排骨</text>
+
+  <!-- Shake hint -->
+  <text x="120" y="480" class="label" style="font-size:12px;">📱 摇一摇手机也可以触发</text>
+
+  <!-- Spin Button -->
+  <rect x="80" y="500" width="200" height="50" rx="25" fill="#FF6B35"/>
+  <text x="128" y="530" style="font-family:-apple-system,sans-serif;font-size:16px;fill:#fff;font-weight:700;">🎯 转一转！</text>
+
+  <!-- Result Area -->
+  <text x="24" y="586" class="title" style="font-size:14px;">🎯 本次推荐结果</text>
+
+  <rect x="20" y="598" width="320" height="90" rx="14" fill="#fff" stroke="#FF6B35" stroke-width="2"/>
+  <rect x="30" y="608" width="70" height="70" rx="12" fill="#FFE0B2"/>
+  <text x="48" y="650" style="font-family:-apple-system,sans-serif;font-size:28px;">🍗</text>
+  <text x="112" y="632" class="title" style="font-size:16px;">宫保鸡丁</text>
+  <text x="112" y="650" class="label">中餐 · 30分钟 · ⭐⭐</text>
+  <text x="112" y="668" class="label" style="fill:#FF6B35;">🎉 就决定是你了！</text>
+
+  <!-- Action Buttons -->
+  <rect x="20" y="704" width="152" height="44" rx="22" fill="#FF6B35"/>
+  <text x="48" y="731" style="font-family:-apple-system,sans-serif;font-size:13px;fill:#fff;font-weight:600;">🍽️ 就吃这个</text>
+
+  <rect x="180" y="704" width="160" height="44" rx="22" fill="#fff" stroke="#FF6B35" stroke-width="1.5"/>
+  <text x="208" y="731" style="font-family:-apple-system,sans-serif;font-size:13px;fill:#FF6B35;font-weight:600;">🔄 再摇一次</text>
+
+  <!-- History -->
+  <text x="120" y="776" class="label">本次已摇 2 次</text>
+</svg>

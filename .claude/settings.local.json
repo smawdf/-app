@@ -1,0 +1,42 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(./gradlew assembleDebug --no-daemon)",
+      "Bash(./gradlew assembleDebug)",
+      "WebSearch",
+      "Bash(./gradlew help *)",
+      "Read(//d/Andriod/SDK//**)",
+      "Read(//d/Andriod/SDK/build-tools//**)",
+      "Read(//d/Andriod/SDK/platforms//**)",
+      "Bash(./gradlew assembleDebug --offline)",
+      "Bash(java *)",
+      "Bash(curl -v --max-time 30 \"https://dl.google.com/dl/android/maven2/androidx/compose/compose-bom/2026.02.01/compose-bom-2026.02.01.pom\")",
+      "Bash(curl -v --max-time 15 \"https://repo1.maven.org/maven2/org/jetbrains/kotlin/kotlin-stdlib/2.2.10/kotlin-stdlib-2.2.10.pom\")",
+      "Bash(curl -v --max-time 15 \"http://repo1.maven.org/maven2/org/jetbrains/kotlin/kotlin-stdlib/2.2.10/kotlin-stdlib-2.2.10.pom\")",
+      "Bash(curl -v --max-time 30 \"https://maven.google.com/androidx/compose/compose-bom/2026.02.01/compose-bom-2026.02.01.pom\")",
+      "Bash(curl -s --max-time 15 \"https://maven.aliyun.com/repository/public/androidx/compose/compose-bom/2026.02.01/compose-bom-2026.02.01.pom\")",
+      "Bash(curl -s --max-time 15 \"https://maven.aliyun.com/repository/google/androidx/compose/compose-bom/2026.02.01/compose-bom-2026.02.01.pom\")",
+      "WebFetch(domain:repo.maven.apache.org)",
+      "WebFetch(domain:maven.aliyun.com)",
+      "Bash(./gradlew clean *)",
+      "Bash(./gradlew testDebugUnitTest)",
+      "Bash(./gradlew test *)",
+      "Bash(pdftotext \"D:\\\\kaifa\\\\myapp\\\\OrderDisk\\\\myorderapp\\\\dock\\\\菜谱查询-菜谱查询.pdf\" -)",
+      "Bash(python3 *)",
+      "Bash(pip install *)",
+      "Bash(python *)",
+      "Bash(curl *)",
+      "Bash(PYTHONIOENCODING=utf-8 python tools/fetch_recipe_images.py)",
+      "Bash(jar tf *)",
+      "Bash(node *)",
+      "Bash(git clone *)",
+      "Bash(bash *)",
+      "Bash(git init *)",
+      "Bash(ls .gitignore)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git config *)",
+      "Bash(git rm *)"
+    ]
+  }
+}
