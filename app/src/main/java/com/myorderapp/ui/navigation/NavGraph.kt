@@ -16,8 +16,8 @@ import com.myorderapp.ui.home.HomeScreen
 import com.myorderapp.ui.meal.MealResultScreen
 import com.myorderapp.ui.meal.StartMealScreen
 import com.myorderapp.ui.onboarding.OnboardingScreen
+import com.myorderapp.data.remote.supabase.SessionManager
 import com.myorderapp.ui.profile.ProfileScreen
-
 import com.myorderapp.ui.random.RandomScreen
 import com.myorderapp.ui.search.SearchScreen
 import com.myorderapp.ui.wishlist.WishlistScreen
@@ -90,9 +90,17 @@ fun NavGraph(
             )
         }
         composable(Routes.PROFILE) {
+            val sessionManager = org.koin.compose.getKoin().get<SessionManager>()
             ProfileScreen(
                 onHistoryClick = { navController.navigate(Routes.HISTORY) },
-                onLoginClick = { navController.navigate(Routes.AUTH) }
+                onLoginClick = { navController.navigate(Routes.AUTH) },
+                onDishManageClick = { navController.navigate(Routes.DISH_LIBRARY) },
+                onLogoutClick = {
+                    sessionManager.clear()
+                    navController.navigate(Routes.ONBOARDING) {
+                        popUpTo(0) { inclusive = true }
+                    }
+                }
             )
         }
         composable(Routes.SEARCH) {

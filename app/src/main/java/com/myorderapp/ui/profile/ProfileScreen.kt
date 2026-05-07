@@ -33,7 +33,9 @@ import java.io.File
 fun ProfileScreen(
     viewModel: ProfileViewModel = koinViewModel(),
     onHistoryClick: () -> Unit = {},
-    onLoginClick: () -> Unit = {}
+    onLoginClick: () -> Unit = {},
+    onDishManageClick: () -> Unit = {},
+    onLogoutClick: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
@@ -45,6 +47,14 @@ fun ProfileScreen(
     var showAvatarUrlDialog by remember { mutableStateOf(false) }
     var editAvatarUrl by remember { mutableStateOf(profile?.avatarUrl ?: "") }
     var cameraUri by remember { mutableStateOf<Uri?>(null) }
+    var showLogoutDialog by remember { mutableStateOf(false) }
+    val appVersion = remember {
+        try {
+            context.packageManager.getPackageInfo(context.packageName, 0).versionName
+        } catch (_: Exception) {
+            "1.0"
+        }
+    }
 
     val galleryLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
@@ -205,6 +215,32 @@ fun ProfileScreen(
             confirmButton = {},
             dismissButton = {
                 TextButton(onClick = { showAvatarSheet = false }) { Text("取消") }
+            }
+        )
+    }
+
+    // Logout confirmation dialog
+    if (showLogoutDialog) {
+        AlertDialog(
+            onDismissRequest = { showLogoutDialog = false },
+            title = { Text("退出登录", fontWeight = FontWeight.Bold) },
+            text = { Text("退出后需重新登录才能同步数据，确认退出？") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showLogoutDialog = false
+                        onLogoutClick()
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error
+                    ),
+                    shape = RoundedCornerShape(12.dp)
+                ) { Text("退出") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showLogoutDialog = false }) {
+                    Text("取消")
+                }
             }
         )
     }
@@ -513,9 +549,14 @@ fun ProfileScreen(
             Column {
                 SettingsRow("📊", "历史记录", "查看过往点餐", onClick = onHistoryClick)
                 HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-                SettingsRow("📋", "菜品管理", "管理你的菜品库")
+                SettingsRow("📋", "菜品管理", "管理你的菜品库", onClick = onDishManageClick)
                 HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-                SettingsRow("ℹ️", "关于", "今天吃什么？v1.0")
+                SettingsRow("ℹ️", "关于", "今天吃什么？v$appVersion")
+                if (uiState.isSynced) {
+                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                    SettingsRow("🚪", "退出登录", "切换账号或离线使用",
+                        onClick = { showLogoutDialog = true })
+                }
             }
         }
 
