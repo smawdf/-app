@@ -66,7 +66,10 @@
       "Bash(D:/Andriod/SDK/platform-tools/adb.exe shell *)",
       "Bash(\"D:/Andriod/SDK/platform-tools/adb.exe\" logcat *)",
       "Bash(\"D:/Andriod/SDK/platform-tools/adb.exe\" shell *)",
-      "Bash(\"D:/Andriod/SDK/platform-tools/adb.exe\" install *)"
+      "Bash(\"D:/Andriod/SDK/platform-tools/adb.exe\" install *)",
+      "Bash(gh auth *)",
+      "Bash(git remote *)",
+      "Bash(git push *)"
     ]
   }
 }
