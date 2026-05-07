@@ -54,9 +54,11 @@ object ApiConfig {
 |------|------|------|
 | 1 | `01_schema.sql` | 创建 6 张核心表 |
 | 2 | `02_indexes.sql` | 创建性能索引 |
-| 3 | `03_rls_policies.sql` | 配置行级安全策略 |
+| 3 | `03_rls_policies.sql` | 配置行级安全策略（pair 隔离） |
 | 4 | `04_realtime.sql` | 开启实时数据推送 |
 | 5 | `05_storage.sql` | 创建图片存储桶 |
+| 6 | `06_fix_rls_recursion.sql` | 修复 profiles RLS 递归问题 |
+| 7 | `07_global_dishes_rls.sql` | **菜品全局可见**（所有登录用户可见全部菜品） |
 
 > 验证：执行后在左侧 **Table Editor** 中应能看到 6 张表：
 > `profiles`, `dishes`, `dish_tags`, `meals`, `meal_items`, `wishlists`
@@ -70,74 +72,49 @@ object ApiConfig {
 3. 可选：关闭 **Confirm email**（开发阶段方便测试）
    - **Authentication** → **Settings** → 取消勾选 **Enable email confirmations**
 
-### 4.2 测试认证
+## 五、数据架构说明
 
-```kotlin
-// 注册
-val supabaseClient = createSupabaseClient(
-    supabaseUrl = ApiConfig.SUPABASE_URL,
-    supabaseKey = ApiConfig.SUPABASE_ANON_KEY
-)
-supabaseClient.auth.signUpWithEmail(email = "test@example.com", password = "123456")
+### 5.1 菜品：全局可见
 
-// 登录
-supabaseClient.auth.signInWithEmail(email = "test@example.com", password = "123456")
-```
-
-## 五、配对流程
-
-两人使用同一个 App 的配对机制：
-
-1. **用户 A** 注册/登录 → 生成一个配对码（用 `pair_id` 生成 6 位数字）
-2. **用户 B** 注册/登录 → 输入配对码 → 将 B 的 `pair_id` 更新为 A 的 `pair_id`
-3. 之后两人共享 `pair_id`，RLS 策略自动让他们看到彼此的数据
-
-```sql
--- A 生成配对码后，B 加入配对
-UPDATE profiles
-SET pair_id = 'A的pair_id'
-WHERE user_id = 'B的user_id';
-```
-
-## 六、Supabase Kotlin SDK 关键用法
-
-### 查询菜品（带本地缓存）
-
-```kotlin
-// 在线：Supabase Realtime 流
-supabaseClient.from("dishes")
-    .select { filter { eq("pair_id", pairId) } }
-    .decodeList<Dish>()
-
-// 离线：Room 本地缓存作为降级
-```
-
-### 实时订阅
-
-```kotlin
-val channel = supabaseClient.realtime.createChannel("dishes") {
-    broadcast<PostgresAction.Insert>("dishes")
-    broadcast<PostgresAction.Update>("dishes")
-    broadcast<PostgresAction.Delete>("dishes")
-}
-channel.subscribe()
-```
-
-### 上传菜品图片
-
-```kotlin
-val bucket = supabaseClient.storage.from("dish-images")
-val path = "$pairId/$dishId/${System.currentTimeMillis()}.jpg"
-bucket.upload(path, imageBytes).upsert()
-val publicUrl = bucket.publicUrl(path)
-```
-
-## 七、表结构快速参考
+所有登录用户可以看到全部菜品，不按 pair_id 隔离。
 
 ```
-profiles ──1:N── dishes
-profiles ──1:N── meals
-dishes   ──N:M── meals (through meal_items)
-dishes   ──1:N── wishlists
-dishes   ──1:N── dish_tags
+用户 A 添加的菜 → Supabase dishes 表 → 用户 B 也能看到
+用户 B 添加的菜 → Supabase dishes 表 → 用户 A 也能看到
+```
+
+RLS 策略通过 `07_global_dishes_rls.sql` 实现：
+- **SELECT**：所有认证用户可查看全部菜品
+- **INSERT/UPDATE/DELETE**：仅可操作自己 pair_id 的菜品
+
+### 5.2 配对：点餐同步
+
+配对仅用于**点餐功能**的实时同步，不影响菜品库的可见性。
+
+1. **用户 A** 注册/登录 → 生成配对码
+2. **用户 B** 注册/登录 → 输入配对码 → B 的 `pair_id` 更新为 A 的 `pair_id`
+3. 配对后，两人的点餐数据（meals/meal_items）实时同步
+
+### 5.3 本地持久化
+
+App 同时使用云端和本地两层存储，断网也能用：
+
+| 数据 | 在线（已登录+有网） | 离线（没网） |
+|------|-------------------|------------|
+| 菜品 | Supabase + 本地 JSON 文件 | 本地 JSON 文件 |
+| 个人资料 | Supabase + SharedPreferences | SharedPreferences |
+| 登录态 | JWT token (SharedPreferences) | JWT token（离线也保留） |
+
+- 本地文件路径：`filesDir/dishes.json`、`filesDir/dishes_cloud.json`
+- SharedPreferences key：`orderdisk_session`（token）、`profile_prefs`（昵称/头像）
+
+## 六、表结构快速参考
+
+```
+profiles ── 用户资料（昵称/头像/口味偏好）
+dishes   ── 菜品库（全局可见，所有用户共享）
+dish_tags ── 菜品标签
+meals    ── 点餐记录（按 pair_id 隔离）
+meal_items ── 点餐明细
+wishlists ── 心愿单（按 pair_id 隔离）
 ```
