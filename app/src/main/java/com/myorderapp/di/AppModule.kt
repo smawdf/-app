@@ -3,7 +3,6 @@ package com.myorderapp.di
 import com.myorderapp.ApiConfig
 import com.myorderapp.data.local.RecipeAssetLoader
 import com.myorderapp.data.remote.recipe.JuheRecipeRemoteDataSource
-import com.myorderapp.data.remote.recipe.SpoonacularRemoteDataSource
 import com.myorderapp.data.remote.supabase.SessionManager
 import com.myorderapp.data.repository.HybridDishRepository
 import com.myorderapp.data.repository.InMemoryDishRepository
@@ -37,10 +36,9 @@ import org.koin.dsl.module
 val appModule = module {
     // Data sources
     single { JuheRecipeRemoteDataSource(get(), ApiConfig.JUHE_API_KEY) }
-    single { SpoonacularRemoteDataSource(get(), ApiConfig.SPOONACULAR_API_KEY) }
 
     // Use cases
-    single { DualRecipeSearchUseCase(get(), get()) }
+    single { DualRecipeSearchUseCase(get()) }
 
     // Repositories — online when logged in, local as fallback
     // Dish
