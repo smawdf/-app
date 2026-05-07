@@ -36,6 +36,7 @@ class ProfileViewModel(
 
     init {
         viewModelScope.launch {
+            profileRepository.loadProfile()
             profileRepository.getProfile().collect { profile ->
                 val tags = profile?.tastePrefs?.custom ?: emptyList()
                 _uiState.value = _uiState.value.copy(
@@ -134,14 +135,31 @@ class ProfileViewModel(
     }
 
     fun updateNickname(nickname: String) {
+        val trimmed = nickname.trim()
+        if (trimmed.isBlank()) return
+        // 立即更新本地 UI
+        val current = _uiState.value.profile
+        if (current != null) {
+            _uiState.value = _uiState.value.copy(
+                profile = current.copy(nickname = trimmed),
+                saveMessage = "昵称已更新 ✓"
+            )
+        }
         viewModelScope.launch {
-            profileRepository.updateNickname(nickname)
+            profileRepository.updateNickname(trimmed)
             saveToCloud()
         }
     }
 
     fun updateAvatar(avatarUrl: String) {
         if (avatarUrl.isBlank()) return
+        val current = _uiState.value.profile
+        if (current != null) {
+            _uiState.value = _uiState.value.copy(
+                profile = current.copy(avatarUrl = avatarUrl),
+                saveMessage = "头像已更新 ✓"
+            )
+        }
         viewModelScope.launch {
             profileRepository.updateAvatar(avatarUrl)
             saveToCloud()
@@ -174,6 +192,10 @@ class ProfileViewModel(
     }
 
     private suspend fun saveToCloud() {
-        _uiState.value = _uiState.value.copy(saveMessage = "已保存 ✓")
+        if (_uiState.value.isSynced) {
+            _uiState.value = _uiState.value.copy(saveMessage = "已同步到云端 ✓")
+        } else {
+            _uiState.value = _uiState.value.copy(saveMessage = "已本地保存（登录后可同步）")
+        }
     }
 }

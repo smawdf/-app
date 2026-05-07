@@ -30,14 +30,21 @@ class SupabaseProfileRepository(
     }
 
     override suspend fun updateNickname(nickname: String) {
-        val current = _profile.value ?: return
+        val current = _profile.value ?: Profile()
         val updated = current.copy(nickname = nickname.trim())
+        _profile.value = updated
         saveProfile(updated)
     }
 
     override suspend fun updateAvatar(avatarUrl: String) {
-        val current = _profile.value ?: return
-        saveProfile(current.copy(avatarUrl = avatarUrl))
+        val current = _profile.value ?: Profile()
+        val updated = current.copy(avatarUrl = avatarUrl)
+        _profile.value = updated
+        saveProfile(updated)
+    }
+
+    override suspend fun loadProfile() {
+        loadFromCloud()
     }
 
     override suspend fun generatePairCode(): String {

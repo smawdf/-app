@@ -14,4 +14,5 @@ interface ProfileRepository {
     suspend fun unpair()
     suspend fun getPairInfo(): PairInfo
     fun isSynced(): Flow<Boolean>
+    suspend fun loadProfile()
 }

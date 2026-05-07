@@ -28,13 +28,17 @@ class InMemoryProfileRepository : ProfileRepository {
     }
 
     override suspend fun updateNickname(nickname: String) {
-        val current = _profile.value ?: return
+        val current = _profile.value ?: Profile()
         _profile.value = current.copy(nickname = nickname.trim())
     }
 
     override suspend fun updateAvatar(avatarUrl: String) {
-        val current = _profile.value ?: return
+        val current = _profile.value ?: Profile()
         _profile.value = current.copy(avatarUrl = avatarUrl)
+    }
+
+    override suspend fun loadProfile() {
+        // In-memory already has a default profile
     }
 
     override suspend fun generatePairCode(): String {
