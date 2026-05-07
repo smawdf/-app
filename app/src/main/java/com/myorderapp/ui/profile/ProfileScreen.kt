@@ -521,10 +521,10 @@ fun ProfileScreen(
 
         // Sync / Login status
         Surface(
+            onClick = { if (!uiState.isSynced) onLoginClick() },
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 20.dp)
-                .clickable { onLoginClick() },
+                .padding(horizontal = 20.dp),
             shape = RoundedCornerShape(12.dp),
             color = if (uiState.isSynced)
                 MaterialTheme.colorScheme.primaryContainer

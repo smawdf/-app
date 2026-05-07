@@ -71,45 +71,61 @@ class RandomViewModel(
         if (_uiState.value.isSpinning) return
 
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isSpinning = true, isFromApi = false)
+            try {
+                _uiState.value = _uiState.value.copy(isSpinning = true, isFromApi = false)
 
-            // 混合本地+API：50%概率从API随机抽取
-            val useApi = Random.nextFloat() < 0.5f
-            var candidates = _uiState.value.candidates.toList()
+                // 混合本地+API：50%概率从API随机抽取
+                val useApi = Random.nextFloat() < 0.5f
+                var candidates = _uiState.value.candidates.toList()
 
-            if (useApi) {
-                val query = randomQueries.random()
-                val result = dualSearch.search(query, numPerApi = 5)
-                if (result.dishes.isNotEmpty()) {
-                    candidates = result.dishes.shuffled(Random).take(8)
-                    // 缓存API结果
-                    result.dishes.forEach { dishRepository.cacheSearchResult(it) }
-                    _uiState.value = _uiState.value.copy(isFromApi = true)
+                if (useApi) {
+                    val query = randomQueries.random()
+                    val result = dualSearch.search(query, numPerApi = 5)
+                    if (result.dishes.isNotEmpty()) {
+                        candidates = result.dishes.shuffled(Random).take(8)
+                        // 缓存API结果
+                        result.dishes.forEach { dishRepository.cacheSearchResult(it) }
+                        _uiState.value = _uiState.value.copy(isFromApi = true)
+                    }
                 }
+
+                if (candidates.isEmpty()) {
+                    candidates = dishRepository.getAllDishes().first().shuffled(Random).take(8)
+                }
+
+                // 兜底：确保候选列表不为空
+                if (candidates.isEmpty()) {
+                    _uiState.value = _uiState.value.copy(
+                        isSpinning = false,
+                        currentName = "暂无菜品，请先添加"
+                    )
+                    return@launch
+                }
+
+                _uiState.value = _uiState.value.copy(candidates = candidates)
+
+                // 旋转动画：快速切换候选名称
+                val spins = 15 + Random.nextInt(10)
+                for (i in 0 until spins) {
+                    val name = candidates[Random.nextInt(candidates.size)].name
+                    _uiState.value = _uiState.value.copy(currentName = name)
+                    delay(50 + i * 15L)
+                }
+
+                // 最终结果
+                val winner = candidates.random()
+                _uiState.value = _uiState.value.copy(
+                    selectedDish = winner,
+                    isSpinning = false,
+                    currentName = winner.name,
+                    spinCount = _uiState.value.spinCount + 1
+                )
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    isSpinning = false,
+                    currentName = "出错了，请重试"
+                )
             }
-
-            if (candidates.isEmpty()) {
-                candidates = dishRepository.getAllDishes().first().shuffled(Random).take(8)
-            }
-
-            _uiState.value = _uiState.value.copy(candidates = candidates)
-
-            // 旋转动画：快速切换候选名称
-            val spins = 15 + Random.nextInt(10)
-            for (i in 0 until spins) {
-                val name = candidates[Random.nextInt(candidates.size)].name
-                _uiState.value = _uiState.value.copy(currentName = name)
-                delay(50 + i * 15L)
-            }
-
-            // 最终结果
-            val winner = candidates.random()
-            _uiState.value = _uiState.value.copy(
-                selectedDish = winner,
-                isSpinning = false,
-                currentName = winner.name,
-                spinCount = _uiState.value.spinCount + 1
-            )
         }
     }
 }
