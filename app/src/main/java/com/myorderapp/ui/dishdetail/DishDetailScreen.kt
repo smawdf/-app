@@ -186,9 +186,10 @@ fun DishDetailScreen(
                     Spacer(modifier = Modifier.height(8.dp))
 
                     // Edit button (custom dishes only)
-                    if (isCustom) {
+                    if (isCustom && dish != null) {
+                        val dishId = dish!!.id
                         OutlinedButton(
-                            onClick = { dish?.let { onEditClick(it.id) } },
+                            onClick = { onEditClick(dishId) },
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(20.dp),
                             colors = ButtonDefaults.outlinedButtonColors(
