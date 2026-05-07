@@ -119,6 +119,14 @@ class SupabaseProfileRepository(
                 _profile.value = profiles.first()
                 saveLocalProfile(profiles.first())
                 _synced.value = true
+            } else {
+                // 云端无 Profile — 用本地数据复写
+                val local = loadLocalProfile()
+                if (local.nickname.isNotBlank() || !local.avatarUrl.isNullOrBlank()) {
+                    api.createProfile(local, session.accessToken)
+                    _profile.value = local
+                    _synced.value = true
+                }
             }
         } catch (_: Exception) { }
     }

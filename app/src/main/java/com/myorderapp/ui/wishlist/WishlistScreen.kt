@@ -1,6 +1,8 @@
 package com.myorderapp.ui.wishlist
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -11,17 +13,28 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 import org.koin.androidx.compose.koinViewModel
 import com.myorderapp.ui.theme.CategoryDisplay
 
 data class WishDish(
-    val id: String, val name: String, val category: String, val source: String,
-    val addedBy: String, val addedDate: String, val note: String,
-    val status: String, val emoji: String, val bgColor: Color
+    val id: String,
+    val dishId: String,
+    val name: String,
+    val category: String,
+    val source: String,
+    val addedBy: String,
+    val addedDate: String,
+    val note: String,
+    val status: String,
+    val emoji: String,
+    val imageUrl: String? = null,
+    val bgColor: Color
 )
 
 @Composable
@@ -31,14 +44,8 @@ fun WishlistScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
-    val tabInfo = listOf(
-        Triple("pending", "待尝试", uiState.items.size),
-        Triple("tried", "已尝试", 0),
-        Triple("rejected", "已放弃", 0)
-    )
-
     val filteredItems = uiState.items
-    val totalCount = filteredItems.size + 0 // placeholder for total
+    val totalCount = filteredItems.size
 
     Column(
         modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)
@@ -70,52 +77,131 @@ fun WishlistScreen(
             items(filteredItems) { wish ->
                 val (emoji, bg) = CategoryDisplay.emojiAndBg(wish.dishCategory)
                 val wd = WishDish(
-                    id = wish.id, name = wish.dishName, category = wish.dishCategory,
+                    id = wish.id,
+                    dishId = wish.dishId,
+                    name = wish.dishName,
+                    category = wish.dishCategory,
                     source = wish.externalSource ?: "自定义菜谱",
-                    addedBy = wish.addedByName, addedDate = wish.createdAt, note = wish.notes,
-                    status = wish.status, emoji = emoji, bgColor = bg
+                    addedBy = wish.addedByName,
+                    addedDate = wish.createdAt,
+                    note = wish.notes,
+                    status = wish.status,
+                    emoji = emoji,
+                    imageUrl = wish.dishImageUrl,
+                    bgColor = bg
                 )
                 WishlistCard(
                     wish = wd,
+                    onClick = { onDishClick(wish.dishId, "custom") },
                     onMarkTried = { viewModel.markTried(wish.id) },
-                    onOrderNow = { onDishClick(wish.dishId, "custom") }
+                    onOrderNow = { onDishClick(wish.dishId, "custom") },
+                    onDelete = { viewModel.removeItem(wish.id) }
                 )
             }
         }
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun WishlistCard(wish: WishDish, onMarkTried: () -> Unit, onOrderNow: () -> Unit) {
-    Card(shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)) {
-        Row(modifier = Modifier.fillMaxWidth().padding(12.dp)) {
-            Box(modifier = Modifier.size(80.dp).clip(RoundedCornerShape(12.dp)).background(wish.bgColor),
-                contentAlignment = Alignment.Center) { Text(wish.emoji, fontSize = 30.sp) }
-            Spacer(modifier = Modifier.width(12.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(wish.name, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
-                Text("${wish.category} · 来自 ${wish.source}", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text("${wish.addedBy}添加 · ${wish.addedDate}", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                if (wish.note.isNotBlank()) {
-                    Text(wish.note, fontSize = 10.sp, color = MaterialTheme.colorScheme.primary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+fun WishlistCard(
+    wish: WishDish,
+    onClick: () -> Unit,
+    onMarkTried: () -> Unit,
+    onOrderNow: () -> Unit,
+    onDelete: () -> Unit
+) {
+    var showMenu by remember { mutableStateOf(false) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
+
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text("确认删除", fontWeight = FontWeight.Bold) },
+            text = { Text("确定要将「${wish.name}」从心愿单中删除吗？") },
+            confirmButton = {
+                Button(
+                    onClick = { showDeleteDialog = false; onDelete() },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
+                    shape = RoundedCornerShape(12.dp)
+                ) { Text("删除") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) { Text("取消") }
+            }
+        )
+    }
+
+    Box {
+        Card(
+            modifier = Modifier.combinedClickable(
+                onClick = onClick,
+                onLongClick = {
+                    if (wish.status == "pending" || wish.status == "rejected") {
+                        showMenu = true
+                    }
+                }
+            ),
+            shape = RoundedCornerShape(14.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+        ) {
+            Row(modifier = Modifier.fillMaxWidth().padding(12.dp)) {
+                Box(
+                    modifier = Modifier
+                        .size(80.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(wish.bgColor),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (wish.imageUrl != null) {
+                        AsyncImage(
+                            model = wish.imageUrl,
+                            contentDescription = wish.name,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    } else {
+                        Text(wish.emoji, fontSize = 30.sp)
+                    }
+                }
+                Spacer(modifier = Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(wish.name, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                    Text("${wish.category} · 来自 ${wish.source}", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("${wish.addedBy}添加 · ${wish.addedDate}", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    if (wish.note.isNotBlank()) {
+                        Text(wish.note, fontSize = 10.sp, color = MaterialTheme.colorScheme.primary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                }
+                if (wish.status == "pending") {
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Surface(shape = RoundedCornerShape(12.dp), color = MaterialTheme.colorScheme.primaryContainer, onClick = onMarkTried) {
+                            Text("✓ 试过了", modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                                fontSize = 9.sp, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
+                        }
+                        Surface(shape = RoundedCornerShape(12.dp), color = MaterialTheme.colorScheme.secondaryContainer, onClick = onOrderNow) {
+                            Text("🍽 点这个", modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                                fontSize = 9.sp, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
+                        }
+                    }
+                } else if (wish.status == "tried") {
+                    Text("好吃！已加入菜品库", fontSize = 10.sp, color = MaterialTheme.colorScheme.primary)
+                } else if (wish.status == "rejected") {
+                    Text("已放弃", fontSize = 10.sp, color = MaterialTheme.colorScheme.error)
                 }
             }
-            if (wish.status == "pending") {
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Surface(shape = RoundedCornerShape(12.dp), color = MaterialTheme.colorScheme.primaryContainer, onClick = onMarkTried) {
-                        Text("✓ 试过了", modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                            fontSize = 9.sp, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
-                    }
-                    Surface(shape = RoundedCornerShape(12.dp), color = MaterialTheme.colorScheme.secondaryContainer, onClick = onOrderNow) {
-                        Text("🍽 点这个", modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                            fontSize = 9.sp, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
-                    }
-                }
-            } else if (wish.status == "tried") {
-                Text("好吃！已加入菜品库", fontSize = 10.sp, color = MaterialTheme.colorScheme.primary)
-            }
+        }
+
+        // Long-press delete menu
+        DropdownMenu(
+            expanded = showMenu,
+            onDismissRequest = { showMenu = false }
+        ) {
+            DropdownMenuItem(
+                text = { Text("🗑 删除", color = MaterialTheme.colorScheme.error) },
+                onClick = { showMenu = false; showDeleteDialog = true }
+            )
         }
     }
 }

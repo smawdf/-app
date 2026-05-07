@@ -14,10 +14,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 import com.myorderapp.ui.theme.CategoryDisplay
 import com.myorderapp.ui.theme.whoLikesDisplay
 import org.koin.androidx.compose.koinViewModel
@@ -31,6 +33,7 @@ data class LibraryDish(
     val whoLikes: String,
     val whoLikesColor: Color,
     val emoji: String,
+    val imageUrl: String? = null,
     val bgColor: Color
 )
 
@@ -53,7 +56,7 @@ fun DishLibraryScreen(
             source = if (dish.source == "custom") "自建" else "收藏",
             category = dish.category, cookTimeMin = dish.cookTimeMin,
             whoLikes = whoStr, whoLikesColor = whoColor,
-            emoji = emoji, bgColor = bg
+            emoji = emoji, imageUrl = dish.imageUrl, bgColor = bg
         )
     }
 
@@ -204,7 +207,18 @@ fun DishGridCard(
                             .clip(RoundedCornerShape(10.dp))
                             .background(dish.bgColor),
                         contentAlignment = Alignment.Center
-                    ) { Text(dish.emoji, fontSize = 30.sp) }
+                    ) {
+                        if (dish.imageUrl != null) {
+                            AsyncImage(
+                                model = dish.imageUrl,
+                                contentDescription = dish.name,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        } else {
+                            Text(dish.emoji, fontSize = 30.sp)
+                        }
+                    }
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         dish.name,

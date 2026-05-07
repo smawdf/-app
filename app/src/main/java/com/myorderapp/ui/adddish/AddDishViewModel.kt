@@ -26,8 +26,8 @@ data class AddDishUiState(
     val ingredientInput: String = "",
     val cookSteps: List<CookStep> = emptyList(),
     val notes: String = "",
-    val whoLikesYou: Boolean = true,
-    val whoLikesPartner: Boolean = true,
+    val whoLikesYou: Boolean = false,
+    val whoLikesPartner: Boolean = false,
     val myName: String = "我",
     val partnerName: String = "她",
     val isSaving: Boolean = false,
@@ -119,8 +119,9 @@ class AddDishViewModel(
                 ingredients = dish.ingredients,
                 cookSteps = dish.cookSteps,
                 notes = dish.notes,
-                whoLikesYou = dish.whoLikes.any { it == _uiState.value.myName },
-                whoLikesPartner = dish.whoLikes.any { it == _uiState.value.partnerName || it == "她" }
+                whoLikesYou = dish.whoLikes.contains(_uiState.value.myName),
+                whoLikesPartner = dish.whoLikes.contains(_uiState.value.partnerName) ||
+                    dish.whoLikes.any { it != _uiState.value.myName && it != "我" && it != "你" }
             )
         }
     }
