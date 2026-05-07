@@ -17,7 +17,7 @@ import com.myorderapp.ui.meal.MealResultScreen
 import com.myorderapp.ui.meal.StartMealScreen
 import com.myorderapp.ui.onboarding.OnboardingScreen
 import com.myorderapp.ui.profile.ProfileScreen
-import com.myorderapp.ui.profilesetup.ProfileSetupScreen
+
 import com.myorderapp.ui.random.RandomScreen
 import com.myorderapp.ui.search.SearchScreen
 import com.myorderapp.ui.wishlist.WishlistScreen
@@ -160,22 +160,13 @@ fun NavGraph(
         composable(Routes.ONBOARDING) {
             OnboardingScreen(
                 onRegisterComplete = {
-                    navController.navigate(Routes.PROFILE_SETUP) {
-                        popUpTo(Routes.ONBOARDING) { inclusive = true }
+                    navController.navigate(Routes.HOME) {
+                        popUpTo(0) { inclusive = true }
                     }
                 },
                 onLoginClick = {
                     navController.navigate(Routes.AUTH) {
                         popUpTo(Routes.ONBOARDING) { inclusive = true }
-                    }
-                }
-            )
-        }
-        composable(Routes.PROFILE_SETUP) {
-            ProfileSetupScreen(
-                onComplete = {
-                    navController.navigate(Routes.HOME) {
-                        popUpTo(0) { inclusive = true }
                     }
                 }
             )

@@ -38,6 +38,8 @@ class AuthViewModel(
     val uiState: StateFlow<AuthUiState> = _uiState.asStateFlow()
 
     init {
+        val savedEmail = session.getSavedEmail()
+        _uiState.value = _uiState.value.copy(email = savedEmail)
         if (session.isLoggedIn.value) {
             _uiState.value = _uiState.value.copy(isLoggedIn = true)
         }
@@ -80,6 +82,7 @@ class AuthViewModel(
                     val profile = loadOrCreateProfile(userId, token)
                     val pairId = profile?.pairId ?: ""
                     session.setSession(token, userId, pairId)
+                    session.saveEmail(state.email)
                     // Sync all cloud data
                     dishRepo.syncFromCloud()
                     profileRepo.loadFromCloud()
@@ -92,9 +95,26 @@ class AuthViewModel(
                     )
                 }
             } catch (e: Exception) {
+                val msg = e.message ?: ""
+                val errorMsg = when {
+                    msg.contains("Invalid login credentials", ignoreCase = true) ||
+                    msg.contains("User not found", ignoreCase = true) ||
+                    msg.contains("invalid_grant", ignoreCase = true) ->
+                        "该邮箱尚未注册，请先创建账号"
+                    msg.contains("Email not confirmed", ignoreCase = true) ||
+                    msg.contains("email_not_confirmed", ignoreCase = true) ->
+                        "邮箱未验证，请检查邮件确认链接"
+                    msg.contains("Invalid password", ignoreCase = true) ||
+                    msg.contains("wrong password", ignoreCase = true) ->
+                        "密码错误，请重试"
+                    msg.contains("already registered", ignoreCase = true) ||
+                    msg.contains("already exists", ignoreCase = true) ->
+                        "该邮箱已注册，请直接登录"
+                    else -> msg.ifBlank { "请求失败，请稍后重试" }.take(100)
+                }
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
-                    errorMessage = e.message?.take(100) ?: "请求失败"
+                    errorMessage = errorMsg
                 )
             }
         }

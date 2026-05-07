@@ -52,6 +52,14 @@ class SessionManager(context: Context) {
         prefs.edit().putString("pair_id", pairId).apply()
     }
 
+    fun saveEmail(email: String) {
+        prefs.edit().putString("saved_email", email).apply()
+    }
+
+    fun getSavedEmail(): String {
+        return prefs.getString("saved_email", "") ?: ""
+    }
+
     fun clear() {
         accessToken = ""
         currentUserId = ""

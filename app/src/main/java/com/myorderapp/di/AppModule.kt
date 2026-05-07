@@ -69,5 +69,5 @@ val appModule = module {
     viewModel { HistoryViewModel(get(), get()) }
     viewModel { ProfileViewModel(get()) }
     viewModel { AuthViewModel(get(), get(), get(), get(), get(), get()) }
-    viewModel { OnboardingViewModel(get(), get(), get(), get(), get(), get()) }
+    viewModel { OnboardingViewModel(get(), get(), get(), get(), get(), get(), get()) }
 }
