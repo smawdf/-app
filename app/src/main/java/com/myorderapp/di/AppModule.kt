@@ -36,6 +36,7 @@ import org.koin.dsl.module
 
 val appModule = module {
     // Data sources
+    single { com.myorderapp.data.remote.supabase.SupabaseStorageUploader(get(), ApiConfig.SUPABASE_URL) }
     single { JuheRecipeRemoteDataSource(get(), ApiConfig.JUHE_API_KEY) }
     single { TheMealDBRemoteDataSource(get()) }
 
@@ -64,7 +65,7 @@ val appModule = module {
     viewModel { SearchViewModel(get(), get()) }
     viewModel { DishDetailViewModel(get(), get()) }
     viewModel { DishLibraryViewModel(get()) }
-    viewModel { AddDishViewModel(get(), get()) }
+    viewModel { AddDishViewModel(get(), get(), get(), androidContext()) }
     viewModel { MealViewModel(get(), get(), get()) }
     viewModel { RandomViewModel(get(), get(), get()) }
     viewModel { WishlistViewModel(get()) }

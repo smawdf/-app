@@ -1,7 +1,10 @@
 package com.myorderapp.ui.adddish
 
+import android.content.Context
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.myorderapp.data.remote.supabase.SupabaseStorageUploader
 import com.myorderapp.domain.model.CookStep
 import com.myorderapp.domain.model.Dish
 import com.myorderapp.domain.repository.DishRepository
@@ -33,7 +36,9 @@ data class AddDishUiState(
 
 class AddDishViewModel(
     private val dishRepository: DishRepository,
-    private val profileRepository: ProfileRepository
+    private val profileRepository: ProfileRepository,
+    private val storageUploader: SupabaseStorageUploader,
+    private val appContext: Context
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(AddDishUiState())
@@ -128,24 +133,55 @@ class AddDishViewModel(
                 if (state.whoLikesYou) add(state.myName)
                 if (state.whoLikesPartner) add(state.partnerName)
             }
-            val dish = Dish(
-                name = state.name,
-                category = state.category,
-                difficulty = state.difficulty,
-                cookTimeMin = state.cookTimeMin.toIntOrNull() ?: 0,
-                imageUrl = state.imageUrl,
-                ingredients = state.ingredients,
-                cookSteps = state.cookSteps,
-                notes = state.notes,
-                whoLikes = whoLikes,
-                source = "custom",
-                createdBy = "${state.myName}创建"
-            )
-            if (state.editDishId != null) {
-                dishRepository.updateDish(dish.copy(id = state.editDishId))
+
+            // 先保存菜品（获取 dishId）
+            val dishId = if (state.editDishId != null) {
+                dishRepository.updateDish(Dish(
+                    id = state.editDishId,
+                    name = state.name, category = state.category,
+                    difficulty = state.difficulty,
+                    cookTimeMin = state.cookTimeMin.toIntOrNull() ?: 0,
+                    imageUrl = state.imageUrl,
+                    ingredients = state.ingredients, cookSteps = state.cookSteps,
+                    notes = state.notes, whoLikes = whoLikes,
+                    source = "custom", createdBy = "${state.myName}创建"
+                ))
+                state.editDishId
             } else {
-                dishRepository.addDish(dish)
+                dishRepository.addDish(Dish(
+                    name = state.name, category = state.category,
+                    difficulty = state.difficulty,
+                    cookTimeMin = state.cookTimeMin.toIntOrNull() ?: 0,
+                    imageUrl = state.imageUrl,
+                    ingredients = state.ingredients, cookSteps = state.cookSteps,
+                    notes = state.notes, whoLikes = whoLikes,
+                    source = "custom", createdBy = "${state.myName}创建"
+                ))
             }
+
+            // 如果图片是本地 URI（拍照/相册），压缩并上传到云端
+            val imgUrl = state.imageUrl
+            if (imgUrl.isNotBlank() && (imgUrl.startsWith("content://") || imgUrl.startsWith("file://"))) {
+                try {
+                    val publicUrl = storageUploader.compressAndUpload(
+                        appContext, Uri.parse(imgUrl), dishId
+                    )
+                    if (publicUrl != null) {
+                        // 更新菜品图片为云端 URL
+                        dishRepository.updateDish(Dish(
+                            id = dishId, name = state.name, category = state.category,
+                            difficulty = state.difficulty,
+                            cookTimeMin = state.cookTimeMin.toIntOrNull() ?: 0,
+                            imageUrl = publicUrl,
+                            ingredients = state.ingredients, cookSteps = state.cookSteps,
+                            notes = state.notes, whoLikes = whoLikes,
+                            source = "custom", createdBy = "${state.myName}创建"
+                        ))
+                        _uiState.value = _uiState.value.copy(imageUrl = publicUrl)
+                    }
+                } catch (_: Exception) { }
+            }
+
             _uiState.value = _uiState.value.copy(isSaving = false, savedSuccess = true)
         }
     }
