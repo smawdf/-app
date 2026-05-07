@@ -1,7 +1,6 @@
 package com.myorderapp.ui.profilesetup
 
 import android.net.Uri
-import android.os.Environment
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -15,21 +14,17 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
 import coil.compose.AsyncImage
 import com.myorderapp.ui.profile.ProfileViewModel
 import org.koin.androidx.compose.koinViewModel
 import java.io.File
-import java.io.FileOutputStream
 
 @Composable
 fun ProfileSetupScreen(
@@ -93,8 +88,8 @@ fun ProfileSetupScreen(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            Text("📷", fontSize = 20.sp)
-                            Text("拍照", fontSize = 16.sp)
+                            Text("📷", style = MaterialTheme.typography.labelMedium)
+                            Text("拍照", style = MaterialTheme.typography.labelMedium)
                         }
                     }
                     TextButton(
@@ -105,8 +100,8 @@ fun ProfileSetupScreen(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            Text("🖼️", fontSize = 20.sp)
-                            Text("从相册选择", fontSize = 16.sp)
+                            Text("🖼️", style = MaterialTheme.typography.labelMedium)
+                            Text("从相册选择", style = MaterialTheme.typography.labelMedium)
                         }
                     }
                 }
@@ -121,11 +116,7 @@ fun ProfileSetupScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    listOf(Color(0xFFFF6B35), Color(0xFFFFCCBD), Color.White)
-                )
-            )
+            .background(MaterialTheme.colorScheme.background)
             .imePadding()
             .navigationBarsPadding()
     ) {
@@ -137,19 +128,21 @@ fun ProfileSetupScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            Text("🎉", fontSize = 48.sp)
+            Text(
+                "🎉",
+                style = MaterialTheme.typography.displayLarge
+            )
             Spacer(modifier = Modifier.height(12.dp))
             Text(
                 "完善你的资料",
-                fontSize = 24.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color.White
+                style = MaterialTheme.typography.displayLarge,
+                color = MaterialTheme.colorScheme.onBackground
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
                 "设置头像和昵称，让伴侣认识你",
-                fontSize = 13.sp,
-                color = Color.White.copy(alpha = 0.8f)
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onBackground
             )
 
             Spacer(modifier = Modifier.height(32.dp))
@@ -159,7 +152,7 @@ fun ProfileSetupScreen(
                 modifier = Modifier
                     .size(100.dp)
                     .clip(CircleShape)
-                    .background(Color.White.copy(alpha = 0.3f))
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
                     .clickable { showPhotoSheet = true },
                 contentAlignment = Alignment.Center
             ) {
@@ -172,11 +165,14 @@ fun ProfileSetupScreen(
                     )
                 } else {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("📷", fontSize = 32.sp)
+                        Text(
+                            "📷",
+                            style = MaterialTheme.typography.displayLarge
+                        )
                         Text(
                             "点击设置头像",
-                            fontSize = 10.sp,
-                            color = Color.White.copy(alpha = 0.8f)
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onBackground
                         )
                     }
                 }
@@ -193,8 +189,9 @@ fun ProfileSetupScreen(
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                 shape = RoundedCornerShape(12.dp),
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = Color.White,
-                    unfocusedContainerColor = Color.White.copy(alpha = 0.9f)
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    unfocusedBorderColor = Color.Transparent,
+                    focusedBorderColor = MaterialTheme.colorScheme.primary
                 ),
                 modifier = Modifier.fillMaxWidth()
             )
@@ -203,8 +200,8 @@ fun ProfileSetupScreen(
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     "昵称不能为空",
-                    fontSize = 11.sp,
-                    color = Color(0xFFFFCDD2)
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error
                 )
             }
         }
@@ -215,8 +212,8 @@ fun ProfileSetupScreen(
                 .fillMaxWidth()
                 .padding(horizontal = 24.dp),
             shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
-            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
         ) {
             Column(
                 modifier = Modifier.padding(24.dp),
@@ -235,15 +232,24 @@ fun ProfileSetupScreen(
                     enabled = nickname.isNotBlank(),
                     modifier = Modifier.fillMaxWidth().height(50.dp),
                     shape = RoundedCornerShape(14.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF6B35))
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary
+                    )
                 ) {
-                    Text("完成", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    Text(
+                        "完成",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
 
                 Spacer(modifier = Modifier.height(12.dp))
 
                 TextButton(onClick = onComplete) {
-                    Text("稍后设置", color = Color(0xFF999999))
+                    Text(
+                        "稍后设置",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             }
         }

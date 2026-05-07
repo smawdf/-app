@@ -71,7 +71,7 @@ fun RandomScreen(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("← 返回", color = Color(0xFFFF6B35), fontSize = 14.sp,
+            Text("← 返回", color = MaterialTheme.colorScheme.primary, fontSize = 14.sp,
                 modifier = Modifier.clickable { onBack() })
         }
         Spacer(modifier = Modifier.height(12.dp))
@@ -91,8 +91,8 @@ fun RandomScreen(
                     onClick = { viewModel.onCategorySelected(filter) },
                     label = { Text(filter, fontSize = 11.sp) },
                     colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = Color(0xFFFFF3E0),
-                        selectedLabelColor = Color(0xFFFF6B35)
+                        selectedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
+                        selectedLabelColor = MaterialTheme.colorScheme.primary
                     )
                 )
             }
@@ -111,19 +111,19 @@ fun RandomScreen(
                 modifier = Modifier
                     .size(240.dp)
                     .clip(CircleShape)
-                    .background(Color(0xFFFFF3E0))
+                    .background(MaterialTheme.colorScheme.secondaryContainer)
             )
             Box(
                 modifier = Modifier
                     .size(200.dp)
                     .clip(CircleShape)
-                    .background(Color(0xFFFFE0B2))
+                    .background(MaterialTheme.colorScheme.secondary.copy(alpha = 0.3f))
             )
             Box(
                 modifier = Modifier
                     .size(160.dp)
                     .clip(CircleShape)
-                    .background(Color(0xFFFFCC80))
+                    .background(MaterialTheme.colorScheme.secondary.copy(alpha = 0.5f))
             )
 
             // 当前菜名（旋转时快速切换）
@@ -132,7 +132,7 @@ fun RandomScreen(
                     uiState.currentName.ifBlank { "？" },
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFFFF6B35),
+                    color = MaterialTheme.colorScheme.primary,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.padding(16.dp),
                     maxLines = 3,
@@ -150,10 +150,10 @@ fun RandomScreen(
         Spacer(modifier = Modifier.height(8.dp))
         if (uiState.isFromApi && !uiState.isSpinning) {
             Surface(shape = RoundedCornerShape(9.dp),
-                color = Color(0xFF2196F3).copy(alpha = 0.1f)) {
+                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)) {
                 Text("来自在线随机抽取", fontSize = 10.sp,
                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
-                    color = Color(0xFF2196F3))
+                    color = MaterialTheme.colorScheme.primary)
             }
         }
 
@@ -168,8 +168,8 @@ fun RandomScreen(
                 .height(52.dp),
             shape = RoundedCornerShape(26.dp),
             colors = ButtonDefaults.buttonColors(
-                containerColor = Color(0xFFFF6B35),
-                disabledContainerColor = Color(0xFFFF6B35).copy(alpha = 0.5f)
+                containerColor = MaterialTheme.colorScheme.primary,
+                disabledContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
             )
         ) {
             Text(
@@ -205,7 +205,7 @@ fun RandomScreen(
                     },
                 shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
             ) {
                 Column(modifier = Modifier.fillMaxWidth()) {
                     // 图片或emoji
@@ -233,7 +233,7 @@ fun RandomScreen(
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
-                            Text("→", fontSize = 18.sp, color = Color(0xFFFF6B35))
+                            Text("→", fontSize = 18.sp, color = MaterialTheme.colorScheme.primary)
                         }
                         Spacer(modifier = Modifier.height(6.dp))
                         Text(
@@ -254,12 +254,7 @@ fun RandomScreen(
                         Spacer(modifier = Modifier.height(8.dp))
                         Surface(
                             shape = RoundedCornerShape(9.dp),
-                            color = when {
-                                dish.source == "builtin" -> Color(0xFFFF6B35).copy(alpha = 0.1f)
-                                dish.externalSource == "spoonacular" -> Color(0xFF2196F3).copy(alpha = 0.1f)
-                                dish.externalSource == "juhe" -> Color(0xFFFF6B35).copy(alpha = 0.1f)
-                                else -> Color(0xFF4CAF50).copy(alpha = 0.1f)
-                            }
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
                         ) {
                             Text(
                                 when {
@@ -271,10 +266,7 @@ fun RandomScreen(
                                 },
                                 fontSize = 10.sp,
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
-                                color = when {
-                                    dish.externalSource == "spoonacular" -> Color(0xFF2196F3)
-                                    else -> Color(0xFFFF6B35)
-                                }
+                                color = MaterialTheme.colorScheme.primary
                             )
                         }
                     }
@@ -317,7 +309,7 @@ fun RandomScreen(
                         },
                     shape = RoundedCornerShape(12.dp),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth().padding(12.dp),
@@ -334,7 +326,7 @@ fun RandomScreen(
                             Text("${dish.cookTimeMin}分钟 · ${"⭐".repeat(dish.difficulty)}",
                                 fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
-                        Text("→", fontSize = 16.sp, color = Color(0xFFFF6B35))
+                        Text("→", fontSize = 16.sp, color = MaterialTheme.colorScheme.primary)
                     }
                 }
             }

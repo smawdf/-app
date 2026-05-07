@@ -106,7 +106,7 @@ fun DishDetailScreen(
                         .align(Alignment.BottomStart)
                         .padding(16.dp),
                     shape = RoundedCornerShape(10.dp),
-                    color = Color(0xFFFF6B35)
+                    color = MaterialTheme.colorScheme.primary
                 ) {
                     Text("自定义",
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
@@ -127,8 +127,8 @@ fun DishDetailScreen(
                 Spacer(modifier = Modifier.height(12.dp))
 
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Chip("⏱ ${dish.cookTimeMin}分钟", Color(0xFFFF6B35), Color(0xFFFFF3E0))
-                    Chip("⭐".repeat(dish.difficulty), Color(0xFFFF6B35), Color(0xFFFFF3E0))
+                    Chip("⏱ ${dish.cookTimeMin}分钟", MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.secondaryContainer)
+                    Chip("⭐".repeat(dish.difficulty), MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.secondaryContainer)
                 }
                 Spacer(modifier = Modifier.height(24.dp))
 
@@ -137,7 +137,7 @@ fun DishDetailScreen(
                 Card(
                     shape = RoundedCornerShape(12.dp),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    elevation = CardDefaults.cardElevation(1.dp)
+                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         dish.ingredients.chunked(2).forEach { row ->
@@ -164,10 +164,10 @@ fun DishDetailScreen(
                     Spacer(modifier = Modifier.height(8.dp))
                     Card(
                         shape = RoundedCornerShape(12.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF8E1))
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
                     ) {
                         Text("💡 备注：${dish.notes}",
-                            modifier = Modifier.padding(12.dp), fontSize = 11.sp, color = Color(0xFFF9A825))
+                            modifier = Modifier.padding(12.dp), fontSize = 11.sp, color = MaterialTheme.colorScheme.primary)
                     }
                 }
 
@@ -179,7 +179,7 @@ fun DishDetailScreen(
                             onClick = { viewModel.addToWishlist() },
                             modifier = Modifier.weight(1f),
                             shape = RoundedCornerShape(20.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF6B35))
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                         ) { Text("💫 加入心愿单", fontSize = 13.sp) }
                     }
                 }
@@ -202,10 +202,10 @@ fun CookStepCard(step: CookStep) {
     Card(
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(1.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Row(modifier = Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(modifier = Modifier.size(24.dp).clip(CircleShape).background(Color(0xFFFF6B35)),
+            Box(modifier = Modifier.size(24.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primary),
                 contentAlignment = Alignment.Center) {
                 Text("${step.step}", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
             }

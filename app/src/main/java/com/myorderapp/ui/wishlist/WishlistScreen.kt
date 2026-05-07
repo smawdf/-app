@@ -58,9 +58,9 @@ fun WishlistScreen(
                     selected = isSelected,
                     onClick = { viewModel.onTabSelected(tab) },
                     label = { Text(tab, fontSize = 11.sp) },
-                    colors = FilterChipDefaults.filterChipColors(selectedContainerColor = Color(0xFFFFF3E0), selectedLabelColor = Color(0xFFFF6B35)),
+                    colors = FilterChipDefaults.filterChipColors(selectedContainerColor = MaterialTheme.colorScheme.secondaryContainer, selectedLabelColor = MaterialTheme.colorScheme.primary),
                     border = FilterChipDefaults.filterChipBorder(enabled = true, selected = isSelected,
-                        selectedBorderColor = Color(0xFFFF6B35), borderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
+                        selectedBorderColor = MaterialTheme.colorScheme.primary, borderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
                 )
             }
         }
@@ -89,7 +89,7 @@ fun WishlistScreen(
 fun WishlistCard(wish: WishDish, onMarkTried: () -> Unit, onOrderNow: () -> Unit) {
     Card(shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(1.dp)) {
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)) {
         Row(modifier = Modifier.fillMaxWidth().padding(12.dp)) {
             Box(modifier = Modifier.size(80.dp).clip(RoundedCornerShape(12.dp)).background(wish.bgColor),
                 contentAlignment = Alignment.Center) { Text(wish.emoji, fontSize = 30.sp) }
@@ -99,22 +99,22 @@ fun WishlistCard(wish: WishDish, onMarkTried: () -> Unit, onOrderNow: () -> Unit
                 Text("${wish.category} · 来自 ${wish.source}", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text("${wish.addedBy}添加 · ${wish.addedDate}", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 if (wish.note.isNotBlank()) {
-                    Text(wish.note, fontSize = 10.sp, color = Color(0xFFFF6B35), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(wish.note, fontSize = 10.sp, color = MaterialTheme.colorScheme.primary, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
             }
             if (wish.status == "pending") {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Surface(shape = RoundedCornerShape(12.dp), color = Color(0xFFE8F5E9), onClick = onMarkTried) {
+                    Surface(shape = RoundedCornerShape(12.dp), color = MaterialTheme.colorScheme.primaryContainer, onClick = onMarkTried) {
                         Text("✓ 试过了", modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                            fontSize = 9.sp, color = Color(0xFF4CAF50), fontWeight = FontWeight.SemiBold)
+                            fontSize = 9.sp, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
                     }
-                    Surface(shape = RoundedCornerShape(12.dp), color = Color(0xFFFFF3E0), onClick = onOrderNow) {
+                    Surface(shape = RoundedCornerShape(12.dp), color = MaterialTheme.colorScheme.secondaryContainer, onClick = onOrderNow) {
                         Text("🍽 点这个", modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                            fontSize = 9.sp, color = Color(0xFFFF6B35), fontWeight = FontWeight.SemiBold)
+                            fontSize = 9.sp, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
                     }
                 }
             } else if (wish.status == "tried") {
-                Text("好吃！已加入菜品库", fontSize = 10.sp, color = Color(0xFF4CAF50))
+                Text("好吃！已加入菜品库", fontSize = 10.sp, color = MaterialTheme.colorScheme.primary)
             }
         }
     }

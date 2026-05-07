@@ -45,10 +45,10 @@ fun AddDishScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            TextButton(onClick = onBack) { Text("取消", color = Color(0xFFFF6B35)) }
+            TextButton(onClick = onBack) { Text("取消", color = MaterialTheme.colorScheme.primary) }
             Text("添加菜品", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
             TextButton(onClick = { viewModel.save() }) {
-                Text("保存", color = Color(0xFFFF6B35), fontWeight = FontWeight.SemiBold)
+                Text("保存", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
             }
         }
 
@@ -64,7 +64,7 @@ fun AddDishScreen(
                     .fillMaxWidth().height(140.dp)
                     .clip(RoundedCornerShape(16.dp))
                     .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f), RoundedCornerShape(16.dp))
-                    .background(Color(0xFFF5F0EA))
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
                     .clickable { /* image picker - placeholder for Gallery/Camera intent */ },
                 contentAlignment = Alignment.Center
             ) {
@@ -148,13 +148,13 @@ fun AddDishScreen(
                     selected = uiState.whoLikesYou,
                     onClick = { viewModel.toggleWhoLikesYou() },
                     label = { Text("🧑 我", fontSize = 11.sp) },
-                    colors = FilterChipDefaults.filterChipColors(selectedContainerColor = Color(0xFFFFF3E0), selectedLabelColor = Color(0xFFFF6B35))
+                    colors = FilterChipDefaults.filterChipColors(selectedContainerColor = MaterialTheme.colorScheme.secondaryContainer, selectedLabelColor = MaterialTheme.colorScheme.primary)
                 )
                 FilterChip(
                     selected = uiState.whoLikesPartner,
                     onClick = { viewModel.toggleWhoLikesPartner() },
                     label = { Text("👧 她", fontSize = 11.sp) },
-                    colors = FilterChipDefaults.filterChipColors(selectedContainerColor = Color(0xFFFFF3E0), selectedLabelColor = Color(0xFFFF6B35))
+                    colors = FilterChipDefaults.filterChipColors(selectedContainerColor = MaterialTheme.colorScheme.secondaryContainer, selectedLabelColor = MaterialTheme.colorScheme.primary)
                 )
             }
             Spacer(modifier = Modifier.height(16.dp))
@@ -171,7 +171,7 @@ fun AddDishScreen(
                 FilledIconButton(
                     onClick = { viewModel.addIngredient() },
                     shape = RoundedCornerShape(10.dp),
-                    colors = IconButtonDefaults.filledIconButtonColors(containerColor = Color(0xFFFF6B35))
+                    colors = IconButtonDefaults.filledIconButtonColors(containerColor = MaterialTheme.colorScheme.primary)
                 ) { Text("+", color = Color.White, fontSize = 16.sp) }
             }
             Spacer(modifier = Modifier.height(8.dp))
@@ -180,7 +180,7 @@ fun AddDishScreen(
                 uiState.ingredients.forEachIndexed { index, ingredient ->
                     Surface(shape = RoundedCornerShape(13.dp), color = MaterialTheme.colorScheme.surfaceVariant) {
                         Row(modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Text(ingredient, fontSize = 11.sp, color = Color(0xFF555555))
+                            Text(ingredient, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             Spacer(modifier = Modifier.width(4.dp))
                             Text("✕", fontSize = 11.sp, modifier = Modifier.clickable { viewModel.removeIngredient(index) })
                         }
@@ -195,12 +195,12 @@ fun AddDishScreen(
                 Card(
                     shape = RoundedCornerShape(12.dp),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    elevation = CardDefaults.cardElevation(1.dp),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(modifier = Modifier.padding(12.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box(modifier = Modifier.size(20.dp).clip(CircleShape).background(Color(0xFFFF6B35)),
+                            Box(modifier = Modifier.size(20.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primary),
                                 contentAlignment = Alignment.Center) {
                                 Text("${step.step}", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                             }
@@ -215,7 +215,7 @@ fun AddDishScreen(
                             Spacer(modifier = Modifier.width(4.dp))
                             Surface(
                                 shape = RoundedCornerShape(8.dp),
-                                color = Color(0xFFFFEBEE),
+                                color = MaterialTheme.colorScheme.errorContainer,
                                 modifier = Modifier.size(28.dp),
                                 onClick = { viewModel.removeStep(index) }
                             ) { Box(contentAlignment = Alignment.Center) { Text("🗑", fontSize = 12.sp) } }
@@ -229,7 +229,7 @@ fun AddDishScreen(
                 onClick = { viewModel.addStep() },
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFFF6B35))
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.primary)
             ) { Text("+ 添加步骤", fontWeight = FontWeight.Medium, fontSize = 12.sp) }
 
             // Notes

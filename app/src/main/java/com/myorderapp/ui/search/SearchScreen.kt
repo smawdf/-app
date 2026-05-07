@@ -6,6 +6,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -13,7 +15,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -79,10 +80,15 @@ fun SearchScreen(
     ) {
         item {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("←", fontSize = 18.sp,
-                    modifier = Modifier.clickable { onBack() })
-                Spacer(modifier = Modifier.width(16.dp))
-                Text("搜索菜谱", style = MaterialTheme.typography.titleLarge)
+                IconButton(onClick = onBack) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "返回",
+                        tint = MaterialTheme.colorScheme.onBackground
+                    )
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("搜索菜谱", style = MaterialTheme.typography.displayLarge)
             }
             Spacer(modifier = Modifier.height(16.dp))
         }
@@ -93,28 +99,34 @@ fun SearchScreen(
                 onValueChange = { viewModel.onQueryChanged(it) },
                 placeholder = { Text("搜索菜品、食材...", color = MaterialTheme.colorScheme.onSurfaceVariant) },
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(22.dp),
+                shape = RoundedCornerShape(14.dp),
                 singleLine = true,
                 colors = OutlinedTextFieldDefaults.colors(
-                    unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    unfocusedBorderColor = Color.Transparent,
+                    focusedBorderColor = MaterialTheme.colorScheme.primary
                 )
             )
             Spacer(modifier = Modifier.height(8.dp))
 
-            // 状态指示
             Row(verticalAlignment = Alignment.CenterVertically) {
                 if (uiState.isSearching) {
                     CircularProgressIndicator(
                         modifier = Modifier.size(14.dp),
                         strokeWidth = 2.dp,
-                        color = Color(0xFFFF6B35)
+                        color = MaterialTheme.colorScheme.primary
                     )
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("搜索中...", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(
+                        "搜索中...",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 } else if (uiState.results.isNotEmpty()) {
                     Text(
                         "共 ${uiState.results.size} 条结果",
-                        fontSize = 11.sp,
+                        style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     if (uiState.sources.isNotEmpty()) {
@@ -123,14 +135,19 @@ fun SearchScreen(
                             val isSpoonacular = src.contains("Spoonacular")
                             Surface(
                                 shape = RoundedCornerShape(9.dp),
-                                color = if (isSpoonacular) Color(0xFF2196F3).copy(alpha = 0.1f)
-                                       else Color(0xFFFF6B35).copy(alpha = 0.1f)
+                                color = if (isSpoonacular)
+                                    MaterialTheme.colorScheme.secondaryContainer
+                                else
+                                    MaterialTheme.colorScheme.primaryContainer
                             ) {
                                 Text(
                                     src,
-                                    fontSize = 9.sp,
+                                    style = MaterialTheme.typography.labelSmall,
                                     modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                                    color = if (isSpoonacular) Color(0xFF2196F3) else Color(0xFFFF6B35)
+                                    color = if (isSpoonacular)
+                                        MaterialTheme.colorScheme.onSecondaryContainer
+                                    else
+                                        MaterialTheme.colorScheme.onPrimaryContainer
                                 )
                             }
                             Spacer(modifier = Modifier.width(4.dp))
@@ -143,14 +160,14 @@ fun SearchScreen(
                 Spacer(modifier = Modifier.height(4.dp))
                 Surface(
                     shape = RoundedCornerShape(9.dp),
-                    color = Color(0xFFE53935).copy(alpha = 0.1f),
+                    color = MaterialTheme.colorScheme.errorContainer,
                     modifier = Modifier.clickable { viewModel.dismissError() }
                 ) {
                     Text(
                         uiState.errorMessage!!,
-                        fontSize = 11.sp,
+                        style = MaterialTheme.typography.labelMedium,
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                        color = Color(0xFFE53935)
+                        color = MaterialTheme.colorScheme.error
                     )
                 }
             }
@@ -164,15 +181,18 @@ fun SearchScreen(
                     FilterChip(
                         selected = isSelected,
                         onClick = { viewModel.onCategorySelected(category) },
-                        label = { Text(category, fontSize = 11.sp) },
+                        label = { Text(category, style = MaterialTheme.typography.labelMedium) },
                         colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = Color(0xFFFFF3E0),
-                            selectedLabelColor = Color(0xFFFF6B35)
+                            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                            selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
                         ),
                         border = FilterChipDefaults.filterChipBorder(
                             enabled = true, selected = isSelected,
-                            borderColor = if (isSelected) Color(0xFFFF6B35) else MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
-                            selectedBorderColor = Color(0xFFFF6B35)
+                            borderColor = if (isSelected)
+                                MaterialTheme.colorScheme.primary
+                            else
+                                MaterialTheme.colorScheme.outlineVariant,
+                            selectedBorderColor = MaterialTheme.colorScheme.primary
                         )
                     )
                 }
@@ -182,7 +202,7 @@ fun SearchScreen(
 
         if (uiState.results.isNotEmpty()) {
             item {
-                Text("搜索结果", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                Text("搜索结果", style = MaterialTheme.typography.headlineMedium)
                 Spacer(modifier = Modifier.height(8.dp))
             }
         }
@@ -206,7 +226,7 @@ fun SearchResultCard(result: SearchResult, onClick: () -> Unit) {
         onClick = onClick,
         shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Row(modifier = Modifier.fillMaxWidth().padding(12.dp)) {
             Box(
@@ -231,20 +251,19 @@ fun SearchResultCard(result: SearchResult, onClick: () -> Unit) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     result.name,
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 14.sp,
+                    style = MaterialTheme.typography.titleMedium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     "${result.category} · ${result.cookTimeMin}分钟 · ${"⭐".repeat(result.difficulty)}",
-                    fontSize = 11.sp,
+                    style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Text(
                     result.description,
-                    fontSize = 11.sp,
+                    style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                     maxLines = 1
                 )
@@ -256,7 +275,7 @@ fun SearchResultCard(result: SearchResult, onClick: () -> Unit) {
                     Text(
                         result.source,
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
-                        fontSize = 9.sp,
+                        style = MaterialTheme.typography.labelSmall,
                         color = result.sourceColor
                     )
                 }

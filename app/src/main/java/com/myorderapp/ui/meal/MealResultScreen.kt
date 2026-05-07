@@ -46,8 +46,7 @@ fun MealResultScreen(
         // ── Hero Header ──
         Surface(
             modifier = Modifier.fillMaxWidth(),
-            color = Color(0xFF4CAF50),
-            shadowElevation = 4.dp
+            color = MaterialTheme.colorScheme.primary
         ) {
             Column(
                 modifier = Modifier.fillMaxWidth().padding(24.dp),
@@ -79,14 +78,14 @@ fun MealResultScreen(
 
         // ── My Selection ──
         SectionHeader(emoji = "🧑", title = "我的选择", count = myDishes.size,
-            color = Color(0xFFFF6B35))
+            color = MaterialTheme.colorScheme.primary)
         Spacer(modifier = Modifier.height(8.dp))
 
         if (myDishes.isEmpty()) {
             EmptyState("你还没有选菜")
         } else {
             myDishes.forEach { item ->
-                DishResultCard(item = item, accentColor = Color(0xFFFF6B35))
+                DishResultCard(item = item, accentColor = MaterialTheme.colorScheme.primary)
                 Spacer(modifier = Modifier.height(8.dp))
             }
         }
@@ -98,11 +97,10 @@ fun MealResultScreen(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp),
             contentAlignment = Alignment.Center
         ) {
-            HorizontalDivider(thickness = 1.dp, color = Color(0xFFEEEEEE))
+            HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outlineVariant)
             Surface(
                 shape = CircleShape,
-                color = MaterialTheme.colorScheme.background,
-                shadowElevation = 1.dp
+                color = MaterialTheme.colorScheme.background
             ) {
                 Text("VS", fontSize = 11.sp, fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -113,14 +111,14 @@ fun MealResultScreen(
 
         // ── Partner Selection ──
         SectionHeader(emoji = "👧", title = "${partnerName}的选择", count = partnerDishes.size,
-            color = Color(0xFF4CAF50))
+            color = MaterialTheme.colorScheme.primary)
 
         if (partnerDishes.isEmpty()) {
             EmptyState("${partnerName}还没有选菜")
         } else {
             Spacer(modifier = Modifier.height(8.dp))
             partnerDishes.forEach { item ->
-                DishResultCard(item = item, accentColor = Color(0xFF4CAF50))
+                DishResultCard(item = item, accentColor = MaterialTheme.colorScheme.primary)
                 Spacer(modifier = Modifier.height(8.dp))
             }
         }
@@ -131,7 +129,7 @@ fun MealResultScreen(
         Card(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp),
             shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF8E1)),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
             elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
@@ -180,7 +178,7 @@ fun MealResultScreen(
                 onClick = { viewModel.confirmMeal(); onNewMeal() },
                 modifier = Modifier.weight(1.5f),
                 shape = RoundedCornerShape(24.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
             ) {
                 Text("✅ 确认完成，写入记录", fontWeight = FontWeight.Bold, fontSize = 14.sp)
             }
@@ -270,7 +268,7 @@ private fun EmptyState(text: String) {
     Card(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp),
         shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F5F5))
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
     ) {
         Text(
             text,

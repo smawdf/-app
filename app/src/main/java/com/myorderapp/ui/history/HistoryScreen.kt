@@ -35,9 +35,9 @@ fun HistoryScreen(
 
     val historyEntries = uiState.meals.mapIndexed { index, meal ->
         val color = when (meal.mealType) {
-            "breakfast" -> Color(0xFFFF9800); "lunch" -> Color(0xFF4CAF50)
-            "dinner" -> Color(0xFFFF6B35); "supper" -> Color(0xFF9C27B0)
-            else -> Color(0xFF999999)
+            "breakfast" -> MaterialTheme.colorScheme.secondary; "lunch" -> MaterialTheme.colorScheme.primary
+            "dinner" -> MaterialTheme.colorScheme.primary; "supper" -> MaterialTheme.colorScheme.secondary
+            else -> MaterialTheme.colorScheme.onSurfaceVariant
         }
         HistoryEntry(
             id = meal.id, date = meal.date, dayOfMonth = meal.date.split("-").lastOrNull()?.toIntOrNull() ?: 0,
@@ -45,7 +45,7 @@ fun HistoryScreen(
             dishes = meal.items.joinToString(" + ") { it.dishName },
             myCount = meal.items.count { it.chosenBy == "u1" },
             partnerCount = meal.items.count { it.chosenBy != "u1" },
-            note = "", noteColor = Color(0xFFFF6B35), bgColor = Color(0xFFF5F5F5)
+            note = "", noteColor = MaterialTheme.colorScheme.primary, bgColor = MaterialTheme.colorScheme.surfaceVariant
         )
     }
 
@@ -58,10 +58,10 @@ fun HistoryScreen(
         .take(5)
         .mapIndexed { index, (name, count) ->
             val (medal, color) = when (index) {
-                0 -> "🥇" to Color(0xFFFF6B35)
-                1 -> "🥈" to Color(0xFFFFA726)
-                2 -> "🥉" to Color(0xFFA1887F)
-                else -> "${index + 1}" to Color(0xFFCCCCCC)
+                0 -> "🥇" to MaterialTheme.colorScheme.primary
+                1 -> "🥈" to MaterialTheme.colorScheme.secondary
+                2 -> "🥉" to MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
+                else -> "${index + 1}" to MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
             }
             TopDish(index + 1, name, count, medal, color)
         }
@@ -75,17 +75,17 @@ fun HistoryScreen(
                 Text("📊 历史记录", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
                 Row(horizontalArrangement = Arrangement.spacedBy(0.dp)) {
                     Surface(shape = RoundedCornerShape(14.dp, 0.dp, 0.dp, 14.dp),
-                        color = if (uiState.viewMode == "calendar") Color(0xFFFFF3E0) else MaterialTheme.colorScheme.surfaceVariant,
+                        color = if (uiState.viewMode == "calendar") MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceVariant,
                         onClick = { if (uiState.viewMode != "calendar") viewModel.toggleViewMode() }) {
                         Text("📅 日历", modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp), fontSize = 10.sp,
-                            color = if (uiState.viewMode == "calendar") Color(0xFFFF6B35) else Color(0xFF666666),
+                            color = if (uiState.viewMode == "calendar") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                             fontWeight = if (uiState.viewMode == "calendar") FontWeight.SemiBold else FontWeight.Normal)
                     }
                     Surface(shape = RoundedCornerShape(0.dp, 14.dp, 14.dp, 0.dp),
-                        color = if (uiState.viewMode == "list") Color(0xFFFFF3E0) else MaterialTheme.colorScheme.surfaceVariant,
+                        color = if (uiState.viewMode == "list") MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceVariant,
                         onClick = { if (uiState.viewMode != "list") viewModel.toggleViewMode() }) {
                         Text("📋 列表", modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp), fontSize = 10.sp,
-                            color = if (uiState.viewMode == "list") Color(0xFFFF6B35) else Color(0xFF666666),
+                            color = if (uiState.viewMode == "list") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                             fontWeight = if (uiState.viewMode == "list") FontWeight.SemiBold else FontWeight.Normal)
                     }
                 }
@@ -148,9 +148,9 @@ fun HistoryScreen(
 fun StatCard(value: String, label: String, subLabel: String, modifier: Modifier = Modifier) {
     Card(modifier = modifier, shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(1.dp)) {
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)) {
         Column(modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(value, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color(0xFFFF6B35))
+            Text(value, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
             Text(label, fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Text(subLabel, fontSize = 9.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f))
         }
@@ -161,7 +161,7 @@ fun StatCard(value: String, label: String, subLabel: String, modifier: Modifier 
 fun HistoryCard(entry: HistoryEntry, partnerName: String) {
     Card(shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(1.dp)) {
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)) {
         Row(modifier = Modifier.fillMaxWidth().padding(12.dp)) {
             Column(modifier = Modifier.size(56.dp).clip(RoundedCornerShape(10.dp)).background(entry.bgColor),
                 horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {

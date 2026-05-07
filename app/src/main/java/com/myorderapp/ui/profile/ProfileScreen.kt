@@ -7,7 +7,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -23,7 +22,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
@@ -76,7 +74,6 @@ fun ProfileScreen(
         cameraLauncher.launch(cameraUri!!)
     }
 
-    // Edit nickname dialog
     if (showEditNameDialog) {
         AlertDialog(
             onDismissRequest = { showEditNameDialog = false },
@@ -88,7 +85,12 @@ fun ProfileScreen(
                     placeholder = { Text("输入新昵称") },
                     singleLine = true,
                     shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        unfocusedBorderColor = Color.Transparent,
+                        focusedBorderColor = MaterialTheme.colorScheme.primary
+                    )
                 )
             },
             confirmButton = {
@@ -97,7 +99,9 @@ fun ProfileScreen(
                         viewModel.updateNickname(editName)
                         showEditNameDialog = false
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF6B35)),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary
+                    ),
                     shape = RoundedCornerShape(12.dp)
                 ) { Text("保存") }
             },
@@ -107,14 +111,14 @@ fun ProfileScreen(
         )
     }
 
-    // Avatar URL dialog
     if (showAvatarUrlDialog) {
         AlertDialog(
             onDismissRequest = { showAvatarUrlDialog = false },
             title = { Text("设置头像URL", fontWeight = FontWeight.Bold) },
             text = {
                 Column {
-                    Text("输入图片链接地址", fontSize = 12.sp,
+                    Text("输入图片链接地址",
+                        style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Spacer(modifier = Modifier.height(8.dp))
                     OutlinedTextField(
@@ -123,7 +127,12 @@ fun ProfileScreen(
                         placeholder = { Text("https://...") },
                         singleLine = true,
                         shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            unfocusedBorderColor = Color.Transparent,
+                            focusedBorderColor = MaterialTheme.colorScheme.primary
+                        )
                     )
                 }
             },
@@ -133,7 +142,9 @@ fun ProfileScreen(
                         viewModel.updateAvatar(editAvatarUrl)
                         showAvatarUrlDialog = false
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF6B35)),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary
+                    ),
                     shape = RoundedCornerShape(12.dp)
                 ) { Text("保存") }
             },
@@ -143,7 +154,6 @@ fun ProfileScreen(
         )
     }
 
-    // Avatar source picker (photo / gallery / url)
     if (showAvatarSheet) {
         AlertDialog(
             onDismissRequest = { showAvatarSheet = false },
@@ -205,8 +215,8 @@ fun ProfileScreen(
             .background(MaterialTheme.colorScheme.background)
             .verticalScroll(rememberScrollState())
     ) {
-        // ── Hero Header ──
-        Surface(modifier = Modifier.fillMaxWidth(), color = Color.White, shadowElevation = 1.dp) {
+        // Hero Header
+        Surface(modifier = Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.surface) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -214,12 +224,16 @@ fun ProfileScreen(
                     .padding(20.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Avatar — click to choose photo/gallery/url
+                // Avatar
                 Box(
-                    modifier = Modifier.size(80.dp).clip(CircleShape)
-                        .background(Brush.linearGradient(
-                            listOf(Color(0xFFFF6B35), Color(0xFFFF8A65))
-                        ))
+                    modifier = Modifier
+                        .size(80.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(
+                            Brush.linearGradient(
+                                listOf(Color(0xFFD4A574), Color(0xFFE8D5C0))
+                            )
+                        )
                         .clickable { showAvatarSheet = true },
                     contentAlignment = Alignment.Center
                 ) {
@@ -241,7 +255,7 @@ fun ProfileScreen(
                 }
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // Name row with edit
+                // Name
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.clickable {
@@ -251,8 +265,7 @@ fun ProfileScreen(
                 ) {
                     Text(
                         profile?.nickname?.ifBlank { "点击设置昵称" } ?: "点击设置昵称",
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold
+                        style = MaterialTheme.typography.headlineMedium
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text("✏️", fontSize = 14.sp)
@@ -262,16 +275,20 @@ fun ProfileScreen(
                 // Pair status
                 Surface(
                     shape = RoundedCornerShape(12.dp),
-                    color = if (uiState.pairInfo.isPaired) Color(0xFFE8F5E9) else Color(0xFFFFF3E0)
+                    color = if (uiState.pairInfo.isPaired)
+                        MaterialTheme.colorScheme.primaryContainer
+                    else MaterialTheme.colorScheme.secondaryContainer
                 ) {
                     Text(
                         if (uiState.pairInfo.isPaired) {
                             val name = uiState.pairInfo.partnerName
                             "💕 已配对" + if (name.isNotBlank()) " · $name" else ""
                         } else "🔗 尚未配对",
-                        fontSize = 12.sp,
+                        style = MaterialTheme.typography.labelMedium,
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
-                        color = if (uiState.pairInfo.isPaired) Color(0xFF4CAF50) else Color(0xFFFF6B35)
+                        color = if (uiState.pairInfo.isPaired)
+                            MaterialTheme.colorScheme.primary
+                        else MaterialTheme.colorScheme.secondary
                     )
                 }
 
@@ -280,16 +297,20 @@ fun ProfileScreen(
                     Spacer(modifier = Modifier.height(6.dp))
                     Surface(
                         shape = RoundedCornerShape(8.dp),
-                        color = if (uiState.saveMessage!!.contains("✓") || uiState.saveMessage!!.contains("💕"))
-                            Color(0xFFE8F5E9) else Color(0xFFFFF8E1),
+                        color = if (uiState.saveMessage!!.contains("✓") ||
+                                   uiState.saveMessage!!.contains("💕"))
+                            MaterialTheme.colorScheme.primaryContainer
+                        else MaterialTheme.colorScheme.secondaryContainer,
                         onClick = { viewModel.dismissMessage() }
                     ) {
                         Text(
                             uiState.saveMessage!!,
-                            fontSize = 10.sp,
+                            style = MaterialTheme.typography.labelSmall,
                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp),
-                            color = if (uiState.saveMessage!!.contains("✓") || uiState.saveMessage!!.contains("💕"))
-                                Color(0xFF4CAF50) else Color(0xFFFF6B35)
+                            color = if (uiState.saveMessage!!.contains("✓") ||
+                                       uiState.saveMessage!!.contains("💕"))
+                                MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.secondary
                         )
                     }
                 }
@@ -298,10 +319,12 @@ fun ProfileScreen(
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        // ── Taste Preferences ──
-        Text("口味偏好", fontSize = 14.sp, fontWeight = FontWeight.Bold,
+        // Taste Preferences
+        Text("口味偏好",
+            style = MaterialTheme.typography.titleMedium,
             modifier = Modifier.padding(horizontal = 20.dp))
-        Text("选择你的口味，推荐更精准", fontSize = 11.sp,
+        Text("选择你的口味，推荐更精准",
+            style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(horizontal = 20.dp, vertical = 2.dp))
         Spacer(modifier = Modifier.height(8.dp))
@@ -310,7 +333,7 @@ fun ProfileScreen(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp),
             shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Row(
@@ -320,7 +343,9 @@ fun ProfileScreen(
                     preferences.forEach { pref ->
                         Surface(
                             shape = RoundedCornerShape(20.dp),
-                            color = if (pref.value) Color(0xFFFFF3E0) else Color(0xFFF5F5F5),
+                            color = if (pref.value)
+                                MaterialTheme.colorScheme.primaryContainer
+                            else MaterialTheme.colorScheme.surfaceVariant,
                             onClick = {
                                 val idx = preferences.indexOf(pref)
                                 if (idx >= 0) viewModel.togglePreference(idx)
@@ -333,9 +358,11 @@ fun ProfileScreen(
                             ) {
                                 Text(pref.emoji, fontSize = 22.sp)
                                 Spacer(modifier = Modifier.height(4.dp))
-                                Text(pref.label, fontSize = 11.sp,
-                                    fontWeight = if (pref.value) FontWeight.SemiBold else FontWeight.Normal,
-                                    color = if (pref.value) Color(0xFFFF6B35) else Color(0xFF999999))
+                                Text(pref.label,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = if (pref.value)
+                                        MaterialTheme.colorScheme.primary
+                                    else MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         }
                     }
@@ -345,8 +372,9 @@ fun ProfileScreen(
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        // ── Pairing ──
-        Text("配对管理", fontSize = 14.sp, fontWeight = FontWeight.Bold,
+        // Pairing
+        Text("配对管理",
+            style = MaterialTheme.typography.titleMedium,
             modifier = Modifier.padding(horizontal = 20.dp))
         Spacer(modifier = Modifier.height(8.dp))
 
@@ -354,14 +382,15 @@ fun ProfileScreen(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp),
             shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth().padding(16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Surface(
-                    shape = CircleShape, color = Color(0xFFFFF3E0),
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.secondaryContainer,
                     modifier = Modifier.size(44.dp)
                 ) {
                     Box(contentAlignment = Alignment.Center) { Text("👥", fontSize = 20.sp) }
@@ -370,28 +399,32 @@ fun ProfileScreen(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         if (uiState.pairInfo.isPaired) "已配对" else "生成配对码",
-                        fontWeight = FontWeight.SemiBold, fontSize = 14.sp
+                        style = MaterialTheme.typography.titleMedium
                     )
                     Text(
                         if (uiState.pairInfo.isPaired) "对方可以通过配对码加入" else "让对方输入此码完成配对",
-                        fontSize = 11.sp,
+                        style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
                 if (uiState.pairInfo.isPaired) {
                     Surface(
                         shape = RoundedCornerShape(14.dp),
-                        color = Color(0xFFFFEBEE),
+                        color = MaterialTheme.colorScheme.errorContainer,
                         onClick = { viewModel.unpair() }
                     ) {
-                        Text("解除", fontSize = 11.sp, color = Color(0xFFE53935),
+                        Text("解除",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.error,
                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp))
                     }
                 } else {
                     Button(
                         onClick = { viewModel.generatePairCode() },
                         shape = RoundedCornerShape(14.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF6B35)),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary
+                        ),
                         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp)
                     ) {
                         Text("生成", fontSize = 12.sp)
@@ -399,7 +432,6 @@ fun ProfileScreen(
                 }
             }
 
-            // Generated pair code display
             if (uiState.pairCode.isNotBlank()) {
                 HorizontalDivider(modifier = Modifier.padding(horizontal = 12.dp))
                 Column(
@@ -407,17 +439,21 @@ fun ProfileScreen(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Row(horizontalArrangement = Arrangement.Center) {
-                        Text("配对码：", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text(uiState.pairCode, fontSize = 18.sp, fontWeight = FontWeight.Bold,
-                            color = Color(0xFFFF6B35), letterSpacing = 3.sp)
+                        Text("配对码：",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(uiState.pairCode,
+                            style = MaterialTheme.typography.headlineMedium,
+                            color = MaterialTheme.colorScheme.primary,
+                            letterSpacing = 3.sp)
                     }
                     Spacer(modifier = Modifier.height(4.dp))
                     Text("将此码分享给对方，对方在下方输入即可配对",
-                        fontSize = 10.sp, color = Color(0xFF999999))
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
 
-            // Join pair input area (always show when not paired)
             if (!uiState.pairInfo.isPaired) {
                 HorizontalDivider(modifier = Modifier.padding(horizontal = 12.dp))
                 Row(
@@ -438,13 +474,20 @@ fun ProfileScreen(
                         modifier = Modifier.weight(1f).height(48.dp),
                         textStyle = LocalTextStyle.current.copy(
                             fontSize = 14.sp, letterSpacing = 2.sp
+                        ),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            unfocusedBorderColor = Color.Transparent,
+                            focusedBorderColor = MaterialTheme.colorScheme.primary
                         )
                     )
                     Button(
                         onClick = { viewModel.joinPair(uiState.joinPairCode) },
                         enabled = uiState.joinPairCode.length == 6,
                         shape = RoundedCornerShape(10.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF6B35)),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary
+                        ),
                         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
                     ) {
                         Text("加入", fontSize = 12.sp)
@@ -455,8 +498,9 @@ fun ProfileScreen(
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        // ── More ──
-        Text("更多", fontSize = 14.sp, fontWeight = FontWeight.Bold,
+        // More
+        Text("更多",
+            style = MaterialTheme.typography.titleMedium,
             modifier = Modifier.padding(horizontal = 20.dp))
         Spacer(modifier = Modifier.height(8.dp))
 
@@ -464,7 +508,7 @@ fun ProfileScreen(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp),
             shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
         ) {
             Column {
                 SettingsRow("📊", "历史记录", "查看过往点餐", onClick = onHistoryClick)
@@ -477,9 +521,14 @@ fun ProfileScreen(
 
         // Sync / Login status
         Surface(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp).clickable { onLoginClick() },
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp)
+                .clickable { onLoginClick() },
             shape = RoundedCornerShape(12.dp),
-            color = if (uiState.isSynced) Color(0xFFE8F5E9) else Color(0xFFFFF3E0)
+            color = if (uiState.isSynced)
+                MaterialTheme.colorScheme.primaryContainer
+            else MaterialTheme.colorScheme.secondaryContainer
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth().padding(12.dp),
@@ -487,15 +536,19 @@ fun ProfileScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Box(
-                    modifier = Modifier.size(8.dp).clip(CircleShape)
-                        .background(if (uiState.isSynced) Color(0xFF4CAF50) else Color(0xFFFFA726))
+                    modifier = Modifier.size(8.dp).clip(RoundedCornerShape(4.dp))
+                        .background(if (uiState.isSynced)
+                            MaterialTheme.colorScheme.primary
+                        else MaterialTheme.colorScheme.secondary)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     if (uiState.isSynced) "在线模式 · 数据实时同步"
                     else "离线模式 · 点击登录同步数据",
-                    fontSize = 12.sp,
-                    color = if (uiState.isSynced) Color(0xFF4CAF50) else Color(0xFFFF6B35)
+                    style = MaterialTheme.typography.labelMedium,
+                    color = if (uiState.isSynced)
+                        MaterialTheme.colorScheme.primary
+                    else MaterialTheme.colorScheme.secondary
                 )
             }
         }
@@ -516,9 +569,11 @@ private fun SettingsRow(emoji: String, title: String, subtitle: String = "", onC
         Text(emoji, fontSize = 18.sp)
         Spacer(modifier = Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
-            Text(title, fontSize = 14.sp)
+            Text(title, style = MaterialTheme.typography.bodyLarge)
             if (subtitle.isNotBlank()) {
-                Text(subtitle, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
         Text("›", fontSize = 18.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)

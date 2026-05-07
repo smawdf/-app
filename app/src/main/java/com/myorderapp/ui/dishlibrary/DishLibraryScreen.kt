@@ -12,7 +12,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -67,12 +66,15 @@ fun DishLibraryScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("菜品库", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+            Text("菜品库", style = MaterialTheme.typography.displayLarge)
             FilledTonalButton(
                 onClick = onAddDishClick,
                 shape = RoundedCornerShape(16.dp),
-                colors = ButtonDefaults.filledTonalButtonColors(containerColor = Color(0xFFFF6B35))
-            ) { Text("+ 添加", color = Color.White, fontSize = 14.sp) }
+                colors = ButtonDefaults.filledTonalButtonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
+                )
+            ) { Text("+ 添加", style = MaterialTheme.typography.labelLarge) }
         }
         Spacer(modifier = Modifier.height(12.dp))
 
@@ -80,10 +82,15 @@ fun DishLibraryScreen(
             value = uiState.searchQuery,
             onValueChange = { viewModel.onSearchQueryChanged(it) },
             modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text("搜索菜品库...", fontSize = 12.sp) },
-            shape = RoundedCornerShape(19.dp),
+            placeholder = { Text("搜索菜品库...", style = MaterialTheme.typography.bodySmall) },
+            shape = RoundedCornerShape(14.dp),
             singleLine = true,
-            colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
+            colors = OutlinedTextFieldDefaults.colors(
+                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                unfocusedBorderColor = Color.Transparent,
+                focusedBorderColor = MaterialTheme.colorScheme.primary
+            )
         )
         Spacer(modifier = Modifier.height(12.dp))
 
@@ -105,21 +112,26 @@ fun DishLibraryScreen(
                             else -> viewModel.onCategoryFilterChanged(filter)
                         }
                     },
-                    label = { Text(filter, fontSize = 11.sp) },
+                    label = { Text(filter, style = MaterialTheme.typography.labelMedium) },
                     colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = Color(0xFFFFF3E0), selectedLabelColor = Color(0xFFFF6B35)
+                        selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                        selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
                     ),
                     border = FilterChipDefaults.filterChipBorder(
                         enabled = true, selected = isSelected,
-                        borderColor = if (isSelected) Color(0xFFFF6B35) else MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
-                        selectedBorderColor = Color(0xFFFF6B35)
+                        borderColor = MaterialTheme.colorScheme.outlineVariant,
+                        selectedBorderColor = MaterialTheme.colorScheme.primary
                     )
                 )
             }
         }
         Spacer(modifier = Modifier.height(8.dp))
 
-        Text("共 ${dishes.size} 道菜", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(
+            "共 ${dishes.size} 道菜",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
         Spacer(modifier = Modifier.height(12.dp))
 
         LazyVerticalGrid(
@@ -143,7 +155,7 @@ fun DishGridCard(dish: LibraryDish, onClick: () -> Unit) {
         onClick = onClick,
         shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(1.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Box {
             Column(modifier = Modifier.padding(8.dp)) {
@@ -155,20 +167,34 @@ fun DishGridCard(dish: LibraryDish, onClick: () -> Unit) {
                     contentAlignment = Alignment.Center
                 ) { Text(dish.emoji, fontSize = 30.sp) }
                 Spacer(modifier = Modifier.height(8.dp))
-                Text(dish.name, fontWeight = FontWeight.SemiBold, fontSize = 13.sp,
-                    maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text("${dish.source} · ${dish.cookTimeMin}分钟",
-                    fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text(dish.whoLikes, fontSize = 10.sp, color = dish.whoLikesColor)
+                Text(
+                    dish.name,
+                    style = MaterialTheme.typography.titleMedium,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    "${dish.source} · ${dish.cookTimeMin}分钟",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    dish.whoLikes,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = dish.whoLikesColor
+                )
             }
             if (dish.source == "自建") {
                 Surface(
                     modifier = Modifier.align(Alignment.TopEnd).padding(8.dp),
                     shape = RoundedCornerShape(9.dp),
-                    color = Color(0xFFFF6B35)
+                    color = MaterialTheme.colorScheme.primary
                 ) {
-                    Text("自建", modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
-                        color = Color.White, fontSize = 8.sp, fontWeight = FontWeight.SemiBold)
+                    Text(
+                        "自建",
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onPrimary
+                    )
                 }
             }
         }

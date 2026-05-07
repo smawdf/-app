@@ -4,30 +4,49 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <!-- Bowl body -->
+    <!-- Rounded square plate -->
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M18,66 C18,96 90,96 90,66 Z" />
+        android:pathData="M28,30 h52 a4,4 0 0,1 4,4 v40 a4,4 0 0,1 -4,4 h-52 a4,4 0 0,1 -4,-4 v-40 a4,4 0 0,1 4,-4 z" />
 
-    <!-- Bowl rim highlight -->
+    <!-- Inner bowl -->
     <path
-        android:fillColor="#F0F0F0"
-        android:pathData="M16,66 C16,58 92,58 92,66 C92,72 16,72 16,66 Z" />
+        android:fillColor="#F0EBE3"
+        android:pathData="M34,38 h40 a20,20 0 0,1 0,28 h-40 a20,20 0 0,1 0,-28 z" />
 
     <!-- Left chopstick -->
     <path
         android:fillColor="#00000000"
-        android:pathData="M36,18 L56,64"
-        android:strokeWidth="3.5"
-        android:strokeColor="#5D4037"
+        android:pathData="M37,18 L53,62"
+        android:strokeWidth="3.2"
+        android:strokeColor="#5C4B3A"
         android:strokeLineCap="round" />
 
     <!-- Right chopstick -->
     <path
         android:fillColor="#00000000"
-        android:pathData="M48,16 L64,64"
-        android:strokeWidth="3.5"
-        android:strokeColor="#5D4037"
+        android:pathData="M49,16 L61,62"
+        android:strokeWidth="3.2"
+        android:strokeColor="#5C4B3A"
         android:strokeLineCap="round" />
 
+    <!-- Steam lines -->
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M42,28 Q45,22 42,18"
+        android:strokeWidth="2"
+        android:strokeColor="#A8C5A0"
+        android:strokeLineCap="round" />
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M50,26 Q53,20 50,16"
+        android:strokeWidth="2"
+        android:strokeColor="#A8C5A0"
+        android:strokeLineCap="round" />
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M58,28 Q61,22 58,18"
+        android:strokeWidth="2"
+        android:strokeColor="#A8C5A0"
+        android:strokeLineCap="round" />
 </vector>
