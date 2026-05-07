@@ -1,21 +1,48 @@
-# Add project specific ProGuard rules here.
-# You can control the set of applied configuration files using the
-# proguardFiles setting in build.gradle.
-#
-# For more details, see
-#   http://developer.android.com/guide/developing/tools/proguard.html
+# ── Moshi (JSON 序列化) ──
+-keep class com.squareup.moshi.** { *; }
+-keep @com.squareup.moshi.JsonQualifier interface *
+-keepclassmembers class * {
+    @com.squareup.moshi.Json <fields>;
+}
+-keep class com.myorderapp.domain.model.** { *; }
+-keep class com.myorderapp.data.remote.** { *; }
 
-# If your project uses WebView with JS, uncomment the following
-# and specify the fully qualified class name to the JavaScript interface
-# class:
-#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
-#   public *;
-#}
+# ── Retrofit ──
+-keepattributes Signature, InnerClasses, EnclosingMethod
+-keepattributes RuntimeVisibleAnnotations, RuntimeVisibleParameterAnnotations
+-keepclassmembers,allowshrinking,allowobfuscation interface * {
+    @retrofit2.http.* <methods>;
+}
+-dontwarn javax.annotation.**
+-dontwarn kotlin.Unit
+-dontwarn retrofit2.KotlinExtensions
+-dontwarn retrofit2.KotlinExtensions$*
 
-# Uncomment this to preserve the line number information for
-# debugging stack traces.
-#-keepattributes SourceFile,LineNumberTable
+# ── OkHttp ──
+-dontwarn okhttp3.**
+-dontwarn okio.**
 
-# If you keep the line number information, uncomment this to
-# hide the original source file name.
-#-renamesourcefileattribute SourceFile
+# ── Koin DI ──
+-keep class org.koin.** { *; }
+-keep class com.myorderapp.di.** { *; }
+
+# ── Coroutines ──
+-keepnames class kotlinx.coroutines.internal.MainDispatcherFactory {}
+-keepnames class kotlinx.coroutines.CoroutineExceptionHandler {}
+
+# ── ViewModel ──
+-keep class * extends androidx.lifecycle.ViewModel { *; }
+-keep class com.myorderapp.ui.**ViewModel { *; }
+
+# ── Supabase ──
+-keep class io.github.jan.supabase.** { *; }
+
+# ── Coil ──
+-dontwarn coil.**
+
+# ── SLF4J (Koin 等库引用但未使用) ──
+-dontwarn org.slf4j.**
+
+# ── 保留行号，调试用 ──
+-keepattributes SourceFile,LineNumberTable
+-renamesourcefileattribute SourceFile
