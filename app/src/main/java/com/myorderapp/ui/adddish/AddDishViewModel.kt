@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 data class AddDishUiState(
+    val editDishId: String? = null,
     val name: String = "",
     val category: String = "中餐",
     val difficulty: Int = 1,
@@ -102,6 +103,26 @@ class AddDishViewModel(
     fun toggleWhoLikesYou() { _uiState.value = _uiState.value.copy(whoLikesYou = !_uiState.value.whoLikesYou) }
     fun toggleWhoLikesPartner() { _uiState.value = _uiState.value.copy(whoLikesPartner = !_uiState.value.whoLikesPartner) }
 
+    fun loadDishForEdit(dishId: String) {
+        viewModelScope.launch {
+            val dish = dishRepository.getDishById(dishId) ?: return@launch
+            _uiState.value = _uiState.value.copy(
+                editDishId = dishId,
+                name = dish.name,
+                category = dish.category,
+                difficulty = dish.difficulty,
+                cookTimeMin = dish.cookTimeMin.toString(),
+                servings = "2",
+                imageUrl = dish.imageUrl ?: "",
+                ingredients = dish.ingredients,
+                cookSteps = dish.cookSteps,
+                notes = dish.notes,
+                whoLikesYou = dish.whoLikes.any { it == _uiState.value.myName },
+                whoLikesPartner = dish.whoLikes.any { it == _uiState.value.partnerName || it == "她" }
+            )
+        }
+    }
+
     fun save() {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isSaving = true)
@@ -110,21 +131,24 @@ class AddDishViewModel(
                 if (state.whoLikesYou) add(state.myName)
                 if (state.whoLikesPartner) add(state.partnerName)
             }
-            dishRepository.addDish(
-                Dish(
-                    name = state.name,
-                    category = state.category,
-                    difficulty = state.difficulty,
-                    cookTimeMin = state.cookTimeMin.toIntOrNull() ?: 0,
-                    imageUrl = state.imageUrl,
-                    ingredients = state.ingredients,
-                    cookSteps = state.cookSteps,
-                    notes = state.notes,
-                    whoLikes = whoLikes,
-                    source = "custom",
-                    createdBy = "你创建"
-                )
+            val dish = Dish(
+                name = state.name,
+                category = state.category,
+                difficulty = state.difficulty,
+                cookTimeMin = state.cookTimeMin.toIntOrNull() ?: 0,
+                imageUrl = state.imageUrl,
+                ingredients = state.ingredients,
+                cookSteps = state.cookSteps,
+                notes = state.notes,
+                whoLikes = whoLikes,
+                source = "custom",
+                createdBy = "你创建"
             )
+            if (state.editDishId != null) {
+                dishRepository.updateDish(dish.copy(id = state.editDishId))
+            } else {
+                dishRepository.addDish(dish)
+            }
             _uiState.value = _uiState.value.copy(isSaving = false, savedSuccess = true)
         }
     }

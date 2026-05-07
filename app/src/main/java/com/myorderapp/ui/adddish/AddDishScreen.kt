@@ -33,12 +33,16 @@ import java.io.File
 fun AddDishScreen(
     onBack: () -> Unit = {},
     onSave: () -> Unit = {},
+    editDishId: String? = null,
     viewModel: AddDishViewModel = koinViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val categories = listOf("中餐", "西餐", "甜品", "饮品", "日料", "韩餐", "东南亚")
     val categoryExpanded = remember { mutableStateOf(false) }
 
+    LaunchedEffect(editDishId) {
+        if (editDishId != null) viewModel.loadDishForEdit(editDishId)
+    }
     LaunchedEffect(uiState.savedSuccess) {
         if (uiState.savedSuccess) onSave()
     }
@@ -54,7 +58,8 @@ fun AddDishScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             TextButton(onClick = onBack) { Text("取消", color = MaterialTheme.colorScheme.primary) }
-            Text("添加菜品", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Text(if (editDishId != null) "编辑菜品" else "添加菜品",
+                style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
             TextButton(onClick = { viewModel.save() }) {
                 Text("保存", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
             }

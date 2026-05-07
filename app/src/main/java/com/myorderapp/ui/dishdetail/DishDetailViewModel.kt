@@ -12,7 +12,8 @@ import kotlinx.coroutines.launch
 
 data class DishDetailUiState(
     val dish: Dish? = null,
-    val isLoading: Boolean = true
+    val isLoading: Boolean = true,
+    val isDeleted: Boolean = false
 )
 
 class DishDetailViewModel(
@@ -41,6 +42,14 @@ class DishDetailViewModel(
                 addedBy = "u1",
                 addedByName = "你"
             )
+        }
+    }
+
+    fun deleteDish() {
+        val dish = _uiState.value.dish ?: return
+        viewModelScope.launch {
+            dishRepository.deleteDish(dish.id)
+            _uiState.value = _uiState.value.copy(isDeleted = true)
         }
     }
 }

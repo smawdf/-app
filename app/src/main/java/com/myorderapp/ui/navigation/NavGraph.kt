@@ -33,7 +33,8 @@ object Routes {
     const val PROFILE = "profile"
     const val SEARCH = "search"
     const val DISH_DETAIL = "dish_detail/{dishId}/{source}"
-    const val ADD_DISH = "add_dish"
+    const val ADD_DISH = "add_dish?editDishId={editDishId}"
+    fun addDish(editDishId: String? = null) = if (editDishId != null) "add_dish?editDishId=$editDishId" else "add_dish"
     const val START_MEAL = "start_meal/{mealType}"
     const val MEAL_RESULT = "meal_result/{mealId}"
     const val RANDOM = "random"
@@ -185,13 +186,21 @@ fun NavGraph(
             DishDetailScreen(
                 dishId = dishId,
                 source = source,
-                onBack = { navController.popBackStack() }
+                onBack = { navController.popBackStack() },
+                onEditClick = { id -> navController.navigate(Routes.addDish(id)) }
             )
         }
-        composable(Routes.ADD_DISH) {
+        composable(
+            route = Routes.ADD_DISH,
+            arguments = listOf(navArgument("editDishId") {
+                type = NavType.StringType; defaultValue = ""; nullable = true
+            })
+        ) { backStackEntry ->
+            val editDishId = backStackEntry.arguments?.getString("editDishId")?.ifBlank { null }
             AddDishScreen(
                 onBack = { navController.popBackStack() },
-                onSave = { navController.popBackStack() }
+                onSave = { navController.popBackStack() },
+                editDishId = editDishId
             )
         }
         composable(
