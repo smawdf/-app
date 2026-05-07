@@ -46,7 +46,9 @@
       "Bash(where magick *)",
       "Bash(where convert *)",
       "WebFetch(domain:www.themealdb.com)",
-      "WebFetch(domain:so.meishichina.com)"
+      "WebFetch(domain:so.meishichina.com)",
+      "Bash(keytool -genkey -v -keystore orderdisk.jks -keyalg RSA -keysize 2048 -validity 10000 -alias orderdisk -storepass orderdisk123 -keypass orderdisk123 -dname \"CN=OrderDisk, OU=Dev, O=MyOrderApp, L=Beijing, ST=Beijing, C=CN\")",
+      "Bash(./gradlew assembleRelease)"
     ]
   }
 }
