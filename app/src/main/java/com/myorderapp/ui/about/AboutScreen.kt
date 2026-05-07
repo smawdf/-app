@@ -2,6 +2,7 @@ package com.myorderapp.ui.about
 
 import android.content.Context
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -9,25 +10,29 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.launch
 
 @Composable
 fun AboutScreen(onBack: () -> Unit = {}) {
     val context = LocalContext.current
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
     val version = remember {
         try { context.packageManager.getPackageInfo(context.packageName, 0).versionName }
-        catch (_: Exception) { "1.0.1" }
+        catch (_: Exception) { "1.1.1" }
     }
 
+    Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) }
+    ) { padding ->
     Column(
-        modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)
+        modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).padding(padding)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth().statusBarsPadding().padding(8.dp),
@@ -46,7 +51,14 @@ fun AboutScreen(onBack: () -> Unit = {}) {
             Text("🍽️", style = MaterialTheme.typography.displayLarge)
             Spacer(modifier = Modifier.height(12.dp))
             Text("今天吃什么？", style = MaterialTheme.typography.displayLarge, color = MaterialTheme.colorScheme.onBackground)
-            Text("v$version", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(
+                "v$version",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.clickable {
+                    scope.launch { snackbarHostState.showSnackbar("已经是最新版本了") }
+                }
+            )
             Spacer(modifier = Modifier.height(32.dp))
 
             // 更新日志
@@ -59,6 +71,13 @@ fun AboutScreen(onBack: () -> Unit = {}) {
                 Column(modifier = Modifier.padding(20.dp)) {
                     Text("更新日志", style = MaterialTheme.typography.headlineMedium)
                     Spacer(modifier = Modifier.height(16.dp))
+                    VersionItem("v1.1.1", "2026-05-08", listOf(
+                        "搜索优先本地数据库，减少 API 调用",
+                        "随机选菜：自定义筛选 + 不重复机制",
+                        "移除英文 API，仅保留聚合数据",
+                        "新增关于页面",
+                        "首页卡片展示菜品图片"
+                    ))
                     VersionItem("v1.0.1", "2026-05-08", listOf("修复启动闪退问题"))
                     VersionItem("v1.0.0", "2026-05-07", listOf(
                         "全新 UI 设计（清简日常风格）",
@@ -72,6 +91,7 @@ fun AboutScreen(onBack: () -> Unit = {}) {
             }
             Spacer(modifier = Modifier.height(32.dp))
         }
+    }
     }
 }
 
