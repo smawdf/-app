@@ -181,22 +181,25 @@ fun DishDetailScreen(
                             modifier = Modifier.weight(1f),
                             shape = RoundedCornerShape(20.dp),
                             colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-                        ) { Text("💫 加入心愿单", fontSize = 13.sp) }
+                        ) {
+                            Text(
+                                if (uiState.wishlistAdded) "✅ 已收藏" else "💫 加入心愿单",
+                                fontSize = 13.sp
+                            ) }
                     }
-                    Spacer(modifier = Modifier.height(8.dp))
+                }
 
-                    // Edit button (custom dishes only)
-                    if (isCustom && dish != null) {
-                        val dishId = dish!!.id
-                        OutlinedButton(
-                            onClick = { onEditClick(dishId) },
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(20.dp),
-                            colors = ButtonDefaults.outlinedButtonColors(
-                                contentColor = MaterialTheme.colorScheme.primary
-                            )
-                        ) { Text("✏️ 编辑", fontSize = 13.sp) }
-                    }
+                // Edit button — custom dishes only
+                if (isCustom) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedButton(
+                        onClick = { onEditClick(dish.id) },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(20.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = MaterialTheme.colorScheme.primary
+                        )
+                    ) { Text("✏️ 编辑", fontSize = 13.sp) }
                 }
                 Spacer(modifier = Modifier.height(32.dp))
             }

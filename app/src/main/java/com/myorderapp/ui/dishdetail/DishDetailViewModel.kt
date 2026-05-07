@@ -13,7 +13,8 @@ import kotlinx.coroutines.launch
 data class DishDetailUiState(
     val dish: Dish? = null,
     val isLoading: Boolean = true,
-    val isDeleted: Boolean = false
+    val isDeleted: Boolean = false,
+    val wishlistAdded: Boolean = false
 )
 
 class DishDetailViewModel(
@@ -34,6 +35,7 @@ class DishDetailViewModel(
 
     fun addToWishlist() {
         val dish = _uiState.value.dish ?: return
+        if (_uiState.value.wishlistAdded) return
         viewModelScope.launch {
             wishlistRepository.addToWishlist(
                 dishId = dish.id,
@@ -42,6 +44,7 @@ class DishDetailViewModel(
                 addedBy = "u1",
                 addedByName = "你"
             )
+            _uiState.value = _uiState.value.copy(wishlistAdded = true)
         }
     }
 
