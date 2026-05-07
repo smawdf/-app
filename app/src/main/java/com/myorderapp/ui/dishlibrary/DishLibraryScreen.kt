@@ -139,10 +139,14 @@ fun DishLibraryScreen(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            items(dishes) { dish ->
-                DishGridCard(dish = dish, onClick = {
-                    onDishClick(dish.id, if (dish.source == "自建") "custom" else "external")
-                })
+            items(dishes, key = { it.id }) { dish ->
+                DishGridCard(
+                    dish = dish,
+                    onClick = {
+                        onDishClick(dish.id, if (dish.source == "自建") "custom" else "external")
+                    },
+                    modifier = Modifier.animateItem()
+                )
             }
             item { Spacer(modifier = Modifier.height(80.dp)) }
         }
@@ -150,8 +154,9 @@ fun DishLibraryScreen(
 }
 
 @Composable
-fun DishGridCard(dish: LibraryDish, onClick: () -> Unit) {
+fun DishGridCard(dish: LibraryDish, onClick: () -> Unit, modifier: Modifier = Modifier) {
     Card(
+        modifier = modifier,
         onClick = onClick,
         shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),

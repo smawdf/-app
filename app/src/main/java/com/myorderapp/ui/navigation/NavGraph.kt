@@ -1,5 +1,7 @@
 package com.myorderapp.ui.navigation
 
+import androidx.compose.animation.*
+import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -8,6 +10,7 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
+import com.myorderapp.data.remote.supabase.SessionManager
 import com.myorderapp.ui.adddish.AddDishScreen
 import com.myorderapp.ui.auth.AuthScreen
 import com.myorderapp.ui.dishdetail.DishDetailScreen
@@ -17,7 +20,6 @@ import com.myorderapp.ui.home.HomeScreen
 import com.myorderapp.ui.meal.MealResultScreen
 import com.myorderapp.ui.meal.StartMealScreen
 import com.myorderapp.ui.onboarding.OnboardingScreen
-import com.myorderapp.data.remote.supabase.SessionManager
 import com.myorderapp.ui.profile.ProfileScreen
 import com.myorderapp.ui.random.RandomScreen
 import com.myorderapp.ui.search.SearchScreen
@@ -45,6 +47,23 @@ object Routes {
     fun mealResult(mealId: String) = "meal_result/$mealId"
 }
 
+// Shared animation specs
+private const val ANIM_DURATION = 300
+private val enterSlide = slideInHorizontally(tween(ANIM_DURATION)) { it }
+private val exitSlide = slideOutHorizontally(tween(ANIM_DURATION)) { -it }
+private val popEnterSlide = slideInHorizontally(tween(ANIM_DURATION)) { -it }
+private val popExitSlide = slideOutHorizontally(tween(ANIM_DURATION)) { it }
+private val enterFade = fadeIn(tween(ANIM_DURATION))
+private val exitFade = fadeOut(tween(ANIM_DURATION))
+private val enterSlideFade = enterSlide + enterFade
+private val exitSlideFade = exitSlide + exitFade
+private val popEnterSlideFade = popEnterSlide + enterFade
+private val popExitSlideFade = popExitSlide + exitFade
+
+// Scale-down for push transitions (subtle depth effect)
+private val enterScale = scaleIn(tween(ANIM_DURATION), initialScale = 0.92f)
+private val exitScale = scaleOut(tween(ANIM_DURATION), targetScale = 0.92f)
+
 @Composable
 fun NavGraph(
     navController: NavHostController,
@@ -54,9 +73,20 @@ fun NavGraph(
     NavHost(
         navController = navController,
         startDestination = startDestination,
-        modifier = modifier
+        modifier = modifier,
+        enterTransition = { enterSlideFade },
+        exitTransition = { exitSlideFade + exitScale },
+        popEnterTransition = { popEnterSlideFade },
+        popExitTransition = { popExitSlideFade + exitScale }
     ) {
-        composable(Routes.HOME) {
+        // ── Bottom nav tabs: crossfade instead of slide ──
+        composable(
+            Routes.HOME,
+            enterTransition = { enterFade },
+            exitTransition = { exitFade },
+            popEnterTransition = { enterFade },
+            popExitTransition = { exitFade }
+        ) {
             HomeScreen(
                 onSearchClick = { navController.navigate(Routes.SEARCH) },
                 onRandomClick = { navController.navigate(Routes.RANDOM) },
@@ -68,7 +98,13 @@ fun NavGraph(
                 onHistoryClick = { navController.navigate(Routes.HISTORY) }
             )
         }
-        composable(Routes.DISH_LIBRARY) {
+        composable(
+            Routes.DISH_LIBRARY,
+            enterTransition = { enterFade },
+            exitTransition = { exitFade },
+            popEnterTransition = { enterFade },
+            popExitTransition = { exitFade }
+        ) {
             DishLibraryScreen(
                 onDishClick = { dishId, source ->
                     navController.navigate(Routes.dishDetail(dishId, source))
@@ -76,21 +112,39 @@ fun NavGraph(
                 onAddDishClick = { navController.navigate(Routes.ADD_DISH) }
             )
         }
-        composable(Routes.MEAL) {
+        composable(
+            Routes.MEAL,
+            enterTransition = { enterFade },
+            exitTransition = { exitFade },
+            popEnterTransition = { enterFade },
+            popExitTransition = { exitFade }
+        ) {
             StartMealScreen(
                 onResultClick = { mealId ->
                     navController.navigate(Routes.mealResult(mealId))
                 }
             )
         }
-        composable(Routes.WISHLIST) {
+        composable(
+            Routes.WISHLIST,
+            enterTransition = { enterFade },
+            exitTransition = { exitFade },
+            popEnterTransition = { enterFade },
+            popExitTransition = { exitFade }
+        ) {
             WishlistScreen(
                 onDishClick = { dishId, source ->
                     navController.navigate(Routes.dishDetail(dishId, source))
                 }
             )
         }
-        composable(Routes.PROFILE) {
+        composable(
+            Routes.PROFILE,
+            enterTransition = { enterFade },
+            exitTransition = { exitFade },
+            popEnterTransition = { enterFade },
+            popExitTransition = { exitFade }
+        ) {
             val sessionManager = org.koin.compose.getKoin().get<SessionManager>()
             ProfileScreen(
                 onHistoryClick = { navController.navigate(Routes.HISTORY) },
@@ -109,6 +163,8 @@ fun NavGraph(
                 }
             )
         }
+
+        // ── Push screens: slide from right ──
         composable(Routes.SEARCH) {
             SearchScreen(
                 onBack = { navController.popBackStack() },

@@ -202,11 +202,13 @@ fun HomeScreen(
             Spacer(modifier = Modifier.height(8.dp))
         }
 
-        items(recentDishes) { dish ->
+        items(recentDishes, key = { it.id }) { dish ->
             RecentDishCard(
                 dish = dish,
                 onClick = { onDishClick(dish.id, dish.source) },
-                modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp)
+                modifier = Modifier
+                    .animateItem()
+                    .padding(horizontal = 20.dp, vertical = 4.dp)
             )
         }
 
