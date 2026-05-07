@@ -5,9 +5,11 @@ import androidx.lifecycle.viewModelScope
 import com.myorderapp.domain.model.CookStep
 import com.myorderapp.domain.model.Dish
 import com.myorderapp.domain.repository.DishRepository
+import com.myorderapp.domain.repository.ProfileRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 data class AddDishUiState(
@@ -23,16 +25,29 @@ data class AddDishUiState(
     val notes: String = "",
     val whoLikesYou: Boolean = true,
     val whoLikesPartner: Boolean = true,
+    val myName: String = "我",
+    val partnerName: String = "她",
     val isSaving: Boolean = false,
     val savedSuccess: Boolean = false
 )
 
 class AddDishViewModel(
-    private val dishRepository: DishRepository
+    private val dishRepository: DishRepository,
+    private val profileRepository: ProfileRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(AddDishUiState())
     val uiState: StateFlow<AddDishUiState> = _uiState.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            val profile = profileRepository.getProfile().first()
+            val myNick = profile?.nickname?.ifBlank { null } ?: "我"
+            val pairInfo = profileRepository.getPairInfo()
+            val partnerNick = pairInfo.partnerName.ifBlank { "她" }
+            _uiState.value = _uiState.value.copy(myName = myNick, partnerName = partnerNick)
+        }
+    }
 
     fun onNameChanged(name: String) { _uiState.value = _uiState.value.copy(name = name) }
     fun onCategoryChanged(category: String) { _uiState.value = _uiState.value.copy(category = category) }
@@ -92,8 +107,8 @@ class AddDishViewModel(
             _uiState.value = _uiState.value.copy(isSaving = true)
             val state = _uiState.value
             val whoLikes = buildList {
-                if (state.whoLikesYou) add("你")
-                if (state.whoLikesPartner) add("她")
+                if (state.whoLikesYou) add(state.myName)
+                if (state.whoLikesPartner) add(state.partnerName)
             }
             dishRepository.addDish(
                 Dish(

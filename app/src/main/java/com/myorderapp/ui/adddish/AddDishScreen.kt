@@ -257,13 +257,13 @@ fun AddDishScreen(
                 FilterChip(
                     selected = uiState.whoLikesYou,
                     onClick = { viewModel.toggleWhoLikesYou() },
-                    label = { Text("🧑 我", fontSize = 11.sp) },
+                    label = { Text("🧑 ${uiState.myName}", fontSize = 11.sp) },
                     colors = FilterChipDefaults.filterChipColors(selectedContainerColor = MaterialTheme.colorScheme.secondaryContainer, selectedLabelColor = MaterialTheme.colorScheme.primary)
                 )
                 FilterChip(
                     selected = uiState.whoLikesPartner,
                     onClick = { viewModel.toggleWhoLikesPartner() },
-                    label = { Text("👧 她", fontSize = 11.sp) },
+                    label = { Text("👧 ${uiState.partnerName}", fontSize = 11.sp) },
                     colors = FilterChipDefaults.filterChipColors(selectedContainerColor = MaterialTheme.colorScheme.secondaryContainer, selectedLabelColor = MaterialTheme.colorScheme.primary)
                 )
             }

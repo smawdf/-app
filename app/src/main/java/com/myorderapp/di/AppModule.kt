@@ -62,7 +62,7 @@ val appModule = module {
     viewModel { SearchViewModel(get(), get()) }
     viewModel { DishDetailViewModel(get(), get()) }
     viewModel { DishLibraryViewModel(get()) }
-    viewModel { AddDishViewModel(get()) }
+    viewModel { AddDishViewModel(get(), get()) }
     viewModel { MealViewModel(get(), get(), get()) }
     viewModel { RandomViewModel(get(), get()) }
     viewModel { WishlistViewModel(get()) }
