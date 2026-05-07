@@ -142,7 +142,7 @@ class AddDishViewModel(
                 notes = state.notes,
                 whoLikes = whoLikes,
                 source = "custom",
-                createdBy = "你创建"
+                createdBy = "${state.myName}创建"
             )
             if (state.editDishId != null) {
                 dishRepository.updateDish(dish.copy(id = state.editDishId))

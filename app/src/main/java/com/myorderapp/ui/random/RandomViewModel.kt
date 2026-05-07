@@ -2,6 +2,8 @@ package com.myorderapp.ui.random
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.myorderapp.data.remote.recipe.TheMealDBRemoteDataSource
+import com.myorderapp.data.remote.recipe.TheMealDBResult
 import com.myorderapp.domain.model.Dish
 import com.myorderapp.domain.repository.DishRepository
 import com.myorderapp.domain.usecase.DualRecipeSearchUseCase
@@ -25,7 +27,8 @@ data class RandomUiState(
 
 class RandomViewModel(
     private val dishRepository: DishRepository,
-    private val dualSearch: DualRecipeSearchUseCase
+    private val dualSearch: DualRecipeSearchUseCase,
+    private val theMealDB: TheMealDBRemoteDataSource
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(RandomUiState())
@@ -79,13 +82,24 @@ class RandomViewModel(
                 var candidates = _uiState.value.candidates.toList()
 
                 if (useApi) {
-                    val query = randomQueries.random()
-                    val result = dualSearch.search(query, numPerApi = 5)
-                    if (result.dishes.isNotEmpty()) {
-                        candidates = result.dishes.shuffled(Random).take(8)
-                        // 缓存API结果
-                        result.dishes.forEach { dishRepository.cacheSearchResult(it) }
-                        _uiState.value = _uiState.value.copy(isFromApi = true)
+                    // 50%概率使用TheMealDB随机菜谱，50%使用关键词搜索
+                    val useTheMealDB = Random.nextFloat() < 0.5f
+                    if (useTheMealDB) {
+                        val result = theMealDB.randomRecipe()
+                        if (result is TheMealDBResult.Success && result.dishes.isNotEmpty()) {
+                            candidates = result.dishes.shuffled(Random).take(8)
+                            result.dishes.forEach { dishRepository.cacheSearchResult(it) }
+                            _uiState.value = _uiState.value.copy(isFromApi = true)
+                        }
+                    } else {
+                        val query = randomQueries.random()
+                        val result = dualSearch.search(query, numPerApi = 5)
+                        if (result.dishes.isNotEmpty()) {
+                            candidates = result.dishes.shuffled(Random).take(8)
+                            // 缓存API结果
+                            result.dishes.forEach { dishRepository.cacheSearchResult(it) }
+                            _uiState.value = _uiState.value.copy(isFromApi = true)
+                        }
                     }
                 }
 

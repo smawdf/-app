@@ -192,7 +192,9 @@ fun NavGraph(
         }
         composable(
             route = Routes.ADD_DISH,
-            arguments = listOf(navArgument("editDishId") { type = NavType.StringType })
+            arguments = listOf(navArgument("editDishId") {
+                type = NavType.StringType; defaultValue = "new"
+            })
         ) { backStackEntry ->
             val editDishId = backStackEntry.arguments?.getString("editDishId")
                 ?.takeIf { it != "new" }
