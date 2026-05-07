@@ -5,11 +5,10 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -23,6 +22,7 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -37,9 +37,6 @@ fun RandomScreen(
     onDishClick: (String, String) -> Unit = { _, _ -> }
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val filters = remember(uiState.candidates) {
-        listOf("全部") + uiState.candidates.map { it.category }.distinct().sorted()
-    }
 
     // 旋转动画
     val spinAngle = remember { Animatable(0f) }
@@ -102,38 +99,78 @@ fun RandomScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // 分类筛选 - horizontal scrollable chips
-        LazyRow(
-            contentPadding = PaddingValues(horizontal = 20.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        // ── 自定义筛选 ──
+        Text(
+            "筛选条件",
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp)
+        )
+        Spacer(modifier = Modifier.height(10.dp))
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            items(filters) { filter ->
-                val selected = filter == uiState.selectedCategory
-                FilterChip(
-                    selected = selected,
-                    onClick = { viewModel.onCategorySelected(filter) },
-                    label = {
-                        Text(
-                            "${CategoryDisplay.emoji(filter)} $filter",
-                            style = MaterialTheme.typography.labelMedium
-                        )
-                    },
-                    colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                        selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
-                    ),
-                    border = FilterChipDefaults.filterChipBorder(
-                        enabled = true,
-                        selected = selected,
-                        borderColor = if (selected) MaterialTheme.colorScheme.primary
-                                      else MaterialTheme.colorScheme.outlineVariant,
-                        selectedBorderColor = MaterialTheme.colorScheme.primary
-                    )
+            OutlinedTextField(
+                value = uiState.categoryFilter,
+                onValueChange = { viewModel.onCategoryFilterChanged(it) },
+                label = { Text("分类") },
+                placeholder = { Text("如：中餐、川菜") },
+                singleLine = true,
+                modifier = Modifier.weight(1f),
+                shape = RoundedCornerShape(12.dp)
+            )
+            OutlinedTextField(
+                value = uiState.maxTimeFilter,
+                onValueChange = { viewModel.onMaxTimeChanged(it) },
+                label = { Text("时间(分钟)") },
+                placeholder = { Text("最大时长") },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                modifier = Modifier.weight(1f),
+                shape = RoundedCornerShape(12.dp)
+            )
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // 难度选择
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Text(
+                "难度：",
+                style = MaterialTheme.typography.labelLarge,
+                modifier = Modifier.padding(end = 4.dp)
+            )
+            for (i in 1..5) {
+                Text(
+                    text = if (i <= uiState.difficultyFilter && uiState.difficultyFilter > 0) "⭐" else "☆",
+                    fontSize = 22.sp,
+                    modifier = Modifier.clickable { viewModel.onDifficultyChanged(i) }
+                )
+            }
+            if (uiState.difficultyFilter > 0) {
+                Text(
+                    text = "不限",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier
+                        .clickable { viewModel.onDifficultyChanged(0) }
+                        .padding(start = 8.dp)
                 )
             }
         }
 
-        Spacer(modifier = Modifier.height(28.dp))
+        Spacer(modifier = Modifier.height(20.dp))
 
         // ── 转盘区域 ──
         Box(
@@ -261,7 +298,7 @@ fun RandomScreen(
         Spacer(modifier = Modifier.height(6.dp))
 
         Text(
-            "已摇 ${uiState.spinCount} 次",
+            "已随机 ${uiState.spinCount} 次 · 已尝 ${uiState.shownDishIds.size} 道不重复",
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )

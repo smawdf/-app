@@ -11,6 +11,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.myorderapp.data.remote.supabase.SessionManager
+import com.myorderapp.ui.about.AboutScreen
 import com.myorderapp.ui.adddish.AddDishScreen
 import com.myorderapp.ui.auth.AuthScreen
 import com.myorderapp.ui.dishdetail.DishDetailScreen
@@ -42,6 +43,7 @@ object Routes {
     const val AUTH = "auth"
     const val ONBOARDING = "onboarding"
     const val PROFILE_SETUP = "profile_setup"
+    const val ABOUT = "about"
 
     fun dishDetail(dishId: String, source: String) = "dish_detail/$dishId/$source"
     fun startMeal(mealType: String) = "start_meal/$mealType"
@@ -156,6 +158,7 @@ fun NavGraph(
                         launchSingleTop = true
                     }
                 },
+                onAboutClick = { navController.navigate(Routes.ABOUT) },
                 onLogoutClick = {
                     sessionManager.clear()
                     navController.navigate(Routes.ONBOARDING) {
@@ -263,6 +266,9 @@ fun NavGraph(
         }
         composable(Routes.HISTORY) {
             HistoryScreen(onBack = { navController.popBackStack() })
+        }
+        composable(Routes.ABOUT) {
+            AboutScreen(onBack = { navController.popBackStack() })
         }
     }
 }

@@ -3,7 +3,6 @@ package com.myorderapp.di
 import com.myorderapp.ApiConfig
 import com.myorderapp.data.local.RecipeAssetLoader
 import com.myorderapp.data.remote.recipe.JuheRecipeRemoteDataSource
-import com.myorderapp.data.remote.recipe.TheMealDBRemoteDataSource
 import com.myorderapp.data.remote.supabase.SessionManager
 import com.myorderapp.data.repository.HybridDishRepository
 import com.myorderapp.data.repository.InMemoryDishRepository
@@ -38,10 +37,8 @@ val appModule = module {
     // Data sources
     single { com.myorderapp.data.remote.supabase.SupabaseStorageUploader(get(), ApiConfig.SUPABASE_URL) }
     single { JuheRecipeRemoteDataSource(get(), ApiConfig.JUHE_API_KEY) }
-    single { TheMealDBRemoteDataSource(get()) }
-
     // Use cases
-    single { DualRecipeSearchUseCase(get(), get()) }
+    single { DualRecipeSearchUseCase(get(), get<DishRepository>()) }
 
     // Repositories — online when logged in, local as fallback
     // Dish
@@ -67,7 +64,7 @@ val appModule = module {
     viewModel { DishLibraryViewModel(get()) }
     viewModel { AddDishViewModel(get(), get(), get(), androidContext()) }
     viewModel { MealViewModel(get(), get(), get()) }
-    viewModel { RandomViewModel(get(), get(), get()) }
+    viewModel { RandomViewModel(get(), get(), androidContext()) }
     viewModel { WishlistViewModel(get()) }
     viewModel { HistoryViewModel(get(), get()) }
     viewModel { ProfileViewModel(get(), get()) }

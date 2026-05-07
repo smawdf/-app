@@ -35,6 +35,7 @@ fun ProfileScreen(
     onHistoryClick: () -> Unit = {},
     onLoginClick: () -> Unit = {},
     onDishManageClick: () -> Unit = {},
+    onAboutClick: () -> Unit = {},
     onLogoutClick: () -> Unit = {}
 ) {
     val context = LocalContext.current
@@ -593,7 +594,7 @@ fun ProfileScreen(
                 HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
                 SettingsRow("📋", "菜品管理", "管理你的菜品库", onClick = onDishManageClick)
                 HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-                SettingsRow("ℹ️", "关于", "今天吃什么？v$appVersion")
+                SettingsRow("ℹ️", "关于", "今天吃什么？v$appVersion", onClick = onAboutClick)
                 if (uiState.isSynced) {
                     HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
                     SettingsRow("🚪", "退出登录", "切换账号或离线使用",

@@ -14,6 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -26,7 +27,8 @@ data class RecentDish(
     val id: String, val name: String, val category: String,
     val difficulty: Int, val cookTimeMin: Int,
     val whoLikes: String, val whoLikesColor: Color,
-    val emoji: String, val bgColor: Color, val source: String = "custom"
+    val emoji: String, val bgColor: Color, val source: String = "custom",
+    val imageUrl: String? = null
 )
 
 fun Dish.toHomeRecent(): RecentDish {
@@ -35,7 +37,8 @@ fun Dish.toHomeRecent(): RecentDish {
     return RecentDish(id = id, name = name, category = category,
         difficulty = difficulty, cookTimeMin = cookTimeMin,
         whoLikes = whoStr, whoLikesColor = whoColor,
-        emoji = emoji, bgColor = bg, source = source)
+        emoji = emoji, bgColor = bg, source = source,
+        imageUrl = imageUrl)
 }
 
 // 根据时间生成问候语
@@ -269,7 +272,16 @@ private fun RecentDishCard(dish: RecentDish, onClick: () -> Unit, modifier: Modi
                     .background(dish.bgColor),
                 contentAlignment = Alignment.Center
             ) {
-                Text(dish.emoji, fontSize = 26.sp)
+                if (dish.imageUrl != null) {
+                    coil.compose.AsyncImage(
+                        model = dish.imageUrl,
+                        contentDescription = dish.name,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                } else {
+                    Text(dish.emoji, fontSize = 26.sp)
+                }
             }
             Spacer(modifier = Modifier.width(14.dp))
             Column(modifier = Modifier.weight(1f)) {

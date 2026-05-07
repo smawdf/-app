@@ -2,49 +2,60 @@ package com.myorderapp.domain.usecase
 
 import com.myorderapp.data.remote.recipe.JuheRecipeRemoteDataSource
 import com.myorderapp.data.remote.recipe.JuheResult
-import com.myorderapp.data.remote.recipe.TheMealDBRemoteDataSource
-import com.myorderapp.data.remote.recipe.TheMealDBResult
 import com.myorderapp.domain.model.Dish
+import com.myorderapp.domain.repository.DishRepository
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.first
 
 class DualRecipeSearchUseCase(
     private val juheDataSource: JuheRecipeRemoteDataSource,
-    private val theMealDBDataSource: TheMealDBRemoteDataSource
+    private val dishRepository: DishRepository
 ) {
 
     suspend fun search(query: String, numPerApi: Int = 20): DualSearchResult {
         return coroutineScope {
-            val juheDeferred = async { juheDataSource.searchRecipes(query, numPerApi) }
-            val themealdbDeferred = async { theMealDBDataSource.searchRecipes(query, numPerApi) }
+            // 1. 先查本地/Supabase（getAllDishes 查所有，客户端过滤）
+            val allLocal = dishRepository.getAllDishes().first()
+            val localDishes = allLocal.filter {
+                it.name.contains(query, ignoreCase = true) ||
+                it.category.contains(query, ignoreCase = true)
+            }
 
+            if (localDishes.size >= 5) {
+                return@coroutineScope DualSearchResult(
+                    dishes = localDishes,
+                    sources = listOf("本地数据库(${localDishes.size}条)"),
+                    errors = emptyList(),
+                    juheTotal = localDishes.size,
+                    spoonacularTotal = 0
+                )
+            }
+
+            // 2. 不够 → 调 Juhe API
+            val juheDeferred = async { juheDataSource.searchRecipes(query, numPerApi) }
             val juheResult = juheDeferred.await()
-            val themealdbResult = themealdbDeferred.await()
 
             val allDishes = mutableListOf<Dish>()
             val sources = mutableListOf<String>()
-            var juheTotal = 0
-            var themealdbTotal = 0
             val errors = mutableListOf<String>()
+            var juheTotal = 0
+
+            // 添加本地结果
+            allDishes.addAll(localDishes)
+            if (localDishes.isNotEmpty()) sources.add("本地(${localDishes.size}条)")
 
             when (juheResult) {
                 is JuheResult.Success -> {
                     allDishes.addAll(juheResult.dishes)
                     sources.add("聚合数据(${juheResult.total}条)")
                     juheTotal = juheResult.total
+                    // 缓存到本地 + Supabase
+                    juheResult.dishes.forEach { dishRepository.cacheSearchResult(it) }
                 }
                 is JuheResult.ApiError -> errors.add("聚合数据: ${juheResult.message}")
                 is JuheResult.NetworkError -> errors.add("聚合数据: ${juheResult.message}")
                 is JuheResult.NoKey -> errors.add("聚合数据: 未配置API Key")
-            }
-
-            when (themealdbResult) {
-                is TheMealDBResult.Success -> {
-                    allDishes.addAll(themealdbResult.dishes)
-                    sources.add("TheMealDB(${themealdbResult.total}条)")
-                    themealdbTotal = themealdbResult.total
-                }
-                is TheMealDBResult.NetworkError -> errors.add("TheMealDB: ${themealdbResult.message}")
             }
 
             DualSearchResult(
@@ -52,7 +63,7 @@ class DualRecipeSearchUseCase(
                 sources = sources,
                 errors = errors,
                 juheTotal = juheTotal,
-                spoonacularTotal = themealdbTotal
+                spoonacularTotal = 0
             )
         }
     }
