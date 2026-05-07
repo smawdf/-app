@@ -60,6 +60,22 @@ class SessionManager(context: Context) {
         return prefs.getString("saved_email", "") ?: ""
     }
 
+    fun saveNickname(nickname: String) {
+        prefs.edit().putString("saved_nickname", nickname).apply()
+    }
+
+    fun getSavedNickname(): String {
+        return prefs.getString("saved_nickname", "") ?: ""
+    }
+
+    fun saveAvatar(avatarUrl: String) {
+        prefs.edit().putString("saved_avatar", avatarUrl).apply()
+    }
+
+    fun getSavedAvatar(): String {
+        return prefs.getString("saved_avatar", "") ?: ""
+    }
+
     fun clear() {
         accessToken = ""
         currentUserId = ""

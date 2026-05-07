@@ -71,6 +71,14 @@ fun AboutScreen(onBack: () -> Unit = {}) {
                 Column(modifier = Modifier.padding(20.dp)) {
                     Text("更新日志", style = MaterialTheme.typography.headlineMedium)
                     Spacer(modifier = Modifier.height(16.dp))
+                    VersionItem("v1.1.2", "2026-05-08", listOf(
+                        "修复昵称/头像与账号绑定，卸载重装可恢复",
+                        "菜品库列表展示菜品缩略图",
+                        "心愿单点击跳转详情 + 长按删除",
+                        "谁爱吃默认不选，选中后显示",
+                        "菜品库分类改为下拉框选择",
+                        "心愿单已尝试页签支持删除"
+                    ))
                     VersionItem("v1.1.1", "2026-05-08", listOf(
                         "搜索优先本地数据库，减少 API 调用",
                         "随机选菜：自定义筛选 + 不重复机制",

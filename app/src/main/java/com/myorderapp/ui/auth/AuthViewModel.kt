@@ -123,23 +123,26 @@ class AuthViewModel(
     private suspend fun loadOrCreateProfile(userId: String, token: String): Profile? {
         return try {
             val profiles = supabaseApi.getProfile(userId, "Bearer $token")
-            profiles.firstOrNull() ?: createDefaultProfile(userId, token)
+            profiles.firstOrNull() ?: run {
+                // 云端无 Profile，用本地数据创建（不建空的）
+                val localNick = session.getSavedNickname()
+                val localAvatar = session.getSavedAvatar()
+                val profile = Profile(
+                    userId = userId,
+                    pairId = "00000000-0000-0000-0000-000000000000",
+                    nickname = localNick,
+                    avatarUrl = localAvatar.ifBlank { null }
+                )
+                supabaseApi.createProfile(profile, "Bearer $token")
+                profile
+            }
         } catch (_: Exception) {
-            createDefaultProfile(userId, token)
-        }
-    }
-
-    private suspend fun createDefaultProfile(userId: String, token: String): Profile? {
-        return try {
-            val profile = Profile(
+            // 网络/RLS 异常 — 用本地数据兜底，不同步
+            Profile(
                 userId = userId,
-                pairId = "00000000-0000-0000-0000-000000000000",
-                nickname = ""
+                nickname = session.getSavedNickname(),
+                avatarUrl = session.getSavedAvatar().ifBlank { null }
             )
-            val created = supabaseApi.createProfile(profile, "Bearer $token")
-            created.firstOrNull()
-        } catch (_: Exception) {
-            null
         }
     }
 

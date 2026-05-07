@@ -37,6 +37,7 @@ data class LibraryDish(
     val bgColor: Color
 )
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DishLibraryScreen(
     viewModel: DishLibraryViewModel = koinViewModel(),
@@ -100,35 +101,71 @@ fun DishLibraryScreen(
         )
         Spacer(modifier = Modifier.height(12.dp))
 
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            filters.forEach { filter ->
-                val isSelected = when (filter) {
-                    "全部" -> uiState.sourceFilter == "全部" && uiState.categoryFilter == "全部"
-                    "自建" -> uiState.sourceFilter == "自建"
-                    "收藏" -> uiState.sourceFilter == "收藏"
-                    else -> uiState.categoryFilter == filter
-                }
-                FilterChip(
-                    selected = isSelected,
-                    onClick = {
-                        when (filter) {
-                            "全部" -> { viewModel.onSourceFilterChanged("全部"); viewModel.onCategoryFilterChanged("全部") }
-                            "自建" -> viewModel.onSourceFilterChanged("自建")
-                            "收藏" -> viewModel.onSourceFilterChanged("收藏")
-                            else -> viewModel.onCategoryFilterChanged(filter)
-                        }
-                    },
-                    label = { Text(filter, style = MaterialTheme.typography.labelMedium) },
-                    colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                        selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
-                    ),
-                    border = FilterChipDefaults.filterChipBorder(
-                        enabled = true, selected = isSelected,
-                        borderColor = MaterialTheme.colorScheme.outlineVariant,
-                        selectedBorderColor = MaterialTheme.colorScheme.primary
-                    )
+        // 来源筛选 + 分类筛选 下拉框
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            // 来源下拉
+            var sourceExpanded by remember { mutableStateOf(false) }
+            val sourceOptions = listOf("全部", "自建", "收藏")
+            ExposedDropdownMenuBox(
+                expanded = sourceExpanded,
+                onExpandedChange = { sourceExpanded = it },
+                modifier = Modifier.weight(1f)
+            ) {
+                OutlinedTextField(
+                    value = uiState.sourceFilter,
+                    onValueChange = {},
+                    readOnly = true,
+                    modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable).fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = sourceExpanded) },
+                    singleLine = true,
+                    textStyle = MaterialTheme.typography.labelMedium
                 )
+                ExposedDropdownMenu(expanded = sourceExpanded, onDismissRequest = { sourceExpanded = false }) {
+                    sourceOptions.forEach { opt ->
+                        DropdownMenuItem(
+                            text = { Text(opt) },
+                            onClick = {
+                                viewModel.onSourceFilterChanged(opt)
+                                if (opt == "全部") viewModel.onCategoryFilterChanged("全部")
+                                sourceExpanded = false
+                            }
+                        )
+                    }
+                }
+            }
+
+            // 分类下拉
+            var catExpanded by remember { mutableStateOf(false) }
+            val categories = remember(uiState.dishes) {
+                listOf("全部") + uiState.dishes.map { it.category }.distinct().sorted()
+            }
+            ExposedDropdownMenuBox(
+                expanded = catExpanded,
+                onExpandedChange = { catExpanded = it },
+                modifier = Modifier.weight(1f)
+            ) {
+                OutlinedTextField(
+                    value = uiState.categoryFilter,
+                    onValueChange = {},
+                    readOnly = true,
+                    modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable).fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = catExpanded) },
+                    singleLine = true,
+                    textStyle = MaterialTheme.typography.labelMedium
+                )
+                ExposedDropdownMenu(expanded = catExpanded, onDismissRequest = { catExpanded = false }) {
+                    categories.forEach { cat ->
+                        DropdownMenuItem(
+                            text = { Text(cat) },
+                            onClick = {
+                                viewModel.onCategoryFilterChanged(cat)
+                                catExpanded = false
+                            }
+                        )
+                    }
+                }
             }
         }
         Spacer(modifier = Modifier.height(8.dp))

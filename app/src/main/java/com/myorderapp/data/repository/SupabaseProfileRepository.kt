@@ -30,6 +30,8 @@ class SupabaseProfileRepository(
     override suspend fun saveProfile(profile: Profile) {
         _profile.value = profile
         saveLocalProfile(profile)
+        session.saveNickname(profile.nickname)
+        session.saveAvatar(profile.avatarUrl ?: "")
         if (session.isLoggedIn.value) {
             try {
                 api.upsertProfile(profile, session.accessToken)

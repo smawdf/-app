@@ -137,7 +137,7 @@ fun WishlistCard(
             modifier = Modifier.combinedClickable(
                 onClick = onClick,
                 onLongClick = {
-                    if (wish.status == "pending" || wish.status == "rejected") {
+                    if (wish.status == "pending" || wish.status == "tried" || wish.status == "rejected") {
                         showMenu = true
                     }
                 }
