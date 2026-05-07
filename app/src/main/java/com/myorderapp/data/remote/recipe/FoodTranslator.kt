@@ -130,6 +130,86 @@ object FoodTranslator {
         return result.trim().replace(Regex("\\s+"), " ")
     }
 
+    // 英→中反向映射（取最短中文词作为默认翻译）
+    private val en2cn: Map<String, String> by lazy {
+        val map = mutableMapOf<String, String>()
+        for ((cn, en) in cn2en) {
+            val existing = map[en]
+            if (existing == null || cn.length < existing.length) {
+                map[en] = cn
+            }
+        }
+        // 补充常见食材/分类翻译
+        map.putAll(mapOf(
+            "chicken breast" to "鸡胸肉", "chicken thigh" to "鸡腿",
+            "chicken wings" to "鸡翅", "chicken leg" to "鸡腿",
+            "pork belly" to "五花肉", "pork ribs" to "排骨",
+            "pork tenderloin" to "猪里脊", "minced pork" to "肉末",
+            "shredded chicken" to "鸡丝", "roast chicken" to "烤鸡",
+            "fried chicken" to "炸鸡", "grilled chicken" to "烤鸡",
+            "beef brisket" to "牛腩", "beef steak" to "牛排",
+            "steak" to "牛排", "salmon fillet" to "三文鱼",
+            "shrimp paste" to "虾酱", "fish sauce" to "鱼露",
+            "soy sauce" to "酱油", "olive oil" to "橄榄油",
+            "vegetable oil" to "植物油", "sesame oil" to "芝麻油",
+            "rice vinegar" to "米醋", "balsamic vinegar" to "黑醋",
+            "white wine" to "白葡萄酒", "red wine" to "红葡萄酒",
+            "coconut milk" to "椰奶", "tomato sauce" to "番茄酱",
+            "soybean paste" to "豆瓣酱", "chili sauce" to "辣椒酱",
+            "oyster sauce" to "蚝油", "hoisin sauce" to "海鲜酱",
+            "black pepper" to "黑胡椒", "white pepper" to "白胡椒",
+            "salt" to "盐", "sugar" to "糖", "brown sugar" to "红糖",
+            "green onion" to "葱", "spring onion" to "葱",
+            "bell pepper" to "甜椒", "sweet potato" to "红薯",
+            "rice noodle" to "米粉", "egg noodle" to "鸡蛋面",
+            "bread" to "面包", "sandwich" to "三明治",
+            "salad" to "沙拉", "soup" to "汤", "stew" to "炖菜",
+            "curry" to "咖喱", "stir fry" to "炒菜", "stir-fry" to "炒菜",
+            "roast" to "烤", "grilled" to "烤", "fried" to "炸",
+            "steamed" to "蒸", "braised" to "红烧",
+            "breakfast" to "早餐", "lunch" to "午餐", "dinner" to "晚餐",
+            "appetizer" to "开胃菜", "main course" to "主菜",
+            "side dish" to "配菜", "dessert" to "甜品",
+            "snack" to "小吃", "beverage" to "饮品",
+            "Italian" to "意大利", "Chinese" to "中餐",
+            "Japanese" to "日料", "Korean" to "韩餐",
+            "Mexican" to "墨西哥", "Indian" to "印度",
+            "Thai" to "泰国", "Vietnamese" to "越南",
+            "French" to "法国", "Mediterranean" to "地中海",
+            "American" to "美国", "Southern" to "美国南方",
+            "European" to "欧洲", "Asian" to "亚洲",
+            "Middle Eastern" to "中东", "Latin American" to "拉美",
+            "Caribbean" to "加勒比", "African" to "非洲",
+            "Greek" to "希腊", "Spanish" to "西班牙",
+            "Cajun" to "卡津", "Creole" to "克里奥尔",
+            "soup" to "汤", "salad" to "沙拉", "bread" to "面包",
+            "seafood" to "海鲜", "pasta" to "意面",
+            "pizza" to "披萨", "burger" to "汉堡",
+            "sauce" to "酱汁", "marinade" to "腌料",
+            "dip" to "蘸酱", "dressing" to "调味汁",
+            "gluten free" to "无麸质", "gluten-free" to "无麸质",
+            "vegan" to "纯素", "vegetarian" to "素食",
+            "dairy free" to "无乳", "dairy-free" to "无乳",
+            "healthy" to "健康", "quick" to "快手",
+            "easy" to "简单", "comfort food" to "家常",
+        ))
+        map
+    }
+
+    /** 将英文食材/分类名称翻译为中文 */
+    fun toChinese(text: String): String {
+        if (text.isBlank()) return text
+        var result = text.trim()
+        // 按 key 长度降序，优先匹配长词
+        val sortedKeys = en2cn.keys.sortedByDescending { it.length }
+        for (en in sortedKeys) {
+            if (result.lowercase().contains(en.lowercase())) {
+                result = result.replace(en, en2cn[en]!!, ignoreCase = true)
+            }
+        }
+        return result.trim()
+    }
+
     fun hasEnglishMeaning(query: String): Boolean {
         val sortedKeys = cn2en.keys.sortedByDescending { it.length }
         return sortedKeys.any { query.contains(it) }

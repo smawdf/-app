@@ -9,19 +9,21 @@ object SpoonacularMapper {
         Dish(
             id = "sp_$id",
             pairId = "",
-            name = title.trim(),
+            name = FoodTranslator.toChinese(title.trim()),
             source = "external",
             externalId = id.toString(),
             externalSource = "spoonacular",
-            category = mapCategory(cuisines, dishTypes),
+            category = FoodTranslator.toChinese(mapCategory(cuisines, dishTypes)),
             imageUrl = mapImageUrl(image),
             cookSteps = parseSteps(analyzedInstructions),
-            ingredients = extendedIngredients.map { it.original.ifBlank { it.name } },
+            ingredients = extendedIngredients.map {
+                FoodTranslator.toChinese(it.original.ifBlank { it.name })
+            },
             difficulty = estimateDifficulty(readyInMinutes, analyzedInstructions),
             cookTimeMin = readyInMinutes,
             whoLikes = emptyList(),
             rating = (spoonacularScore / 20f).coerceIn(0f, 5f),
-            notes = cleanSummary(summary),
+            notes = FoodTranslator.toChinese(cleanSummary(summary)),
             createdBy = "Spoonacular",
             createdAt = "",
             updatedAt = ""
@@ -32,19 +34,21 @@ object SpoonacularMapper {
         Dish(
             id = "sp_$id",
             pairId = "",
-            name = title.trim(),
+            name = FoodTranslator.toChinese(title.trim()),
             source = "external",
             externalId = id.toString(),
             externalSource = "spoonacular",
-            category = mapCategory(cuisines, dishTypes),
+            category = FoodTranslator.toChinese(mapCategory(cuisines, dishTypes)),
             imageUrl = mapImageUrl(image),
             cookSteps = parseSteps(analyzedInstructions),
-            ingredients = extendedIngredients.map { it.original.ifBlank { it.name } },
+            ingredients = extendedIngredients.map {
+                FoodTranslator.toChinese(it.original.ifBlank { it.name })
+            },
             difficulty = estimateDifficulty(readyInMinutes, analyzedInstructions),
             cookTimeMin = readyInMinutes,
             whoLikes = emptyList(),
             rating = 0f,
-            notes = cleanSummary(summary),
+            notes = FoodTranslator.toChinese(cleanSummary(summary)),
             createdBy = "Spoonacular",
             createdAt = "",
             updatedAt = ""
@@ -62,7 +66,7 @@ object SpoonacularMapper {
             instruction.steps.map { step ->
                 CookStep(
                     step = step.number,
-                    description = step.step.cleanHtml(),
+                    description = FoodTranslator.toChinese(step.step.cleanHtml()),
                     tip = null,
                     imageUrl = step.equipment.firstOrNull()?.image
                 )
