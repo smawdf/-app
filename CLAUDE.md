@@ -87,16 +87,14 @@ com.myorderapp/
 
 ## 菜谱数据源
 
-### 四层数据 + 动态分类
+### 菜谱数据源
 
 | 来源 | source 值 | 位置 |
 |------|----------|------|
 | 内置菜谱 | `"builtin"` | `assets/recipes.json` 90 道 |
-| Juhe API | `"external"` / `externalSource="juhe"` | 在线查询 |
-| Spoonacular | `"external"` / `externalSource="spoonacular"` | 在线查询（中→英自动翻译） |
+| Juhe API | `"external"` / `externalSource="juhe"` | 在线，100次/天 |
+| TheMealDB | `"external"` / `externalSource="themealdb"` | 在线，免费无限 |
 | 用户自建 | `"custom"` | 本地/Supabase |
-
-**分类**：直接使用 API 原始值（Juhe `type_name` 如"川菜""猪肉"，Spoonacular `cuisines` 如"Italian"），筛选标签随搜索结果动态变化。
 
 ### 搜索流程
 
@@ -105,8 +103,8 @@ com.myorderapp/
   ├── dishRepository.searchDishes()    → 本地内置
   └── dualSearch.search(query)
         ├── Juhe API（中文原词）
-        └── Spoonacular（FoodTranslator 中→英）
-  → 合并去重 → 统一展示 → 全量缓存到本地仓库
+        └── TheMealDB（FoodTranslator 中→英翻译后查询）
+  → 结果英→中回译 → 合并去重 → 展示 → 缓存
 ```
 
 ## 在线/离线架构
@@ -143,10 +141,11 @@ mealRepo.syncFromCloud()
 
 | API | Key | 用途 |
 |-----|-----|------|
-| Juhe | `7fc3e0bdf2061a5c38781c2e82908d31` | 菜谱搜索（type_name 作为分类），100次/天 |
-| Supabase | `sb_publishable_8N_jUSyhvKOmWAPXGRAIhA__q96dF7a` | 在线数据库 + 认证 |
+| Juhe | `7fc3e0bdf2061a5c38781c2e82908d31` | 菜谱搜索，100次/天 |
+| TheMealDB | `1`（test key） | 全球菜谱，免费无日配额 |
+| Supabase | `sb_publishable_8N_jUSyhvKOmWAPXGRAIhA__q96dF7a` | 数据库 + Auth + Storage |
 
-**注意**：Spoonacular 已于 2026-05-07 从搜索链路移除（日配额不足+国内网络问题），代码保留未删，可后续恢复。
+**注意**：Spoonacular 已移除。Juhe 使用 `/fapigx/caipu/query` 端点（POST + FormUrlEncoded）。
 
 ## 关键设计决策
 
@@ -163,7 +162,7 @@ mealRepo.syncFromCloud()
 - **色系**：暖橙 → 米白 `#F5F0E8` + 深棕 `#5C4B3A` + 淡绿 `#A8C5A0`
 - **字体**：Serif 标题 + SansSerif 正文
 - **动态颜色**：已禁用（`dynamicColor = false`）
-- **App 图标**：米色底 + 碗筷 + 淡绿蒸汽线
+- **App 图标**：「食」字图标（用户提供 1254x1254 图 → 5 密度 webp）
 - 所有 14 个页面统一翻新，Card 去阴影
 
 ### 注册流程改造
@@ -184,6 +183,40 @@ mealRepo.syncFromCloud()
 ### 口味偏好
 - 6 个固定 Boolean → 用户自定义标签（`DietaryPreference.custom: List<String>`）
 - 自由添加/删除，最多 6 字/标签，云端同步
+
+### 菜品编辑与删除
+- 详情页右上角 ✏️ 图标 → 编辑页（复用 AddDishScreen，预填数据）
+- 菜品库**长按**自建菜 → DropdownMenu → 删除确认 → 删 Supabase + 本地文件
+- `createdBy` 使用实际昵称（`"${myName}创建"`）
+- AddDishScreen 移除份量字段（Dish 模型无用）
+
+### TheMealDB 免费 API
+- `https://www.themealdb.com/api/json/v1/1/`，key=`1`，无日配额
+- `DualRecipeSearchUseCase`：Juhe + TheMealDB 并行搜索
+- `RandomViewModel`：50% 概率用 TheMealDB 随机全球菜谱
+- 结果通过 `FoodTranslator.toChinese()` 英→中自动翻译
+- 新增文件：`TheMealDBApi.kt`、`TheMealDBResponse.kt`、`TheMealDBMapper.kt`、`TheMealDBRemoteDataSource.kt`
+
+### 图片云端存储
+- 拍照/相册选图 → `SupabaseStorageUploader` 压缩（800px/JPEG85%）→ 上传 Supabase Storage `dish-images` bucket
+- 成功后 `dish.imageUrl` 更新为公开 URL，永久可访问
+- 离线时保留本地 URI 兜底
+- 需执行 `table/08_storage_global_upload.sql` 更新 RLS
+
+### 本地持久化
+- `InMemoryDishRepository`：Moshi JSON → `filesDir/dishes.json`
+- `SupabaseDishRepository`：Moshi JSON → `filesDir/dishes_cloud.json`
+- `SupabaseProfileRepository`：SharedPreferences 存 nickname/avatar
+- 离线数据不丢，重启恢复
+
+### 导航动画
+- Push 页面：右滑 + 淡入 + 微缩放 (300ms)
+- 底部 Tab：交叉淡入淡出
+- 列表项：`Modifier.animateItem()` 平滑位移
+
+### 在线/离线判断
+- `ProfileViewModel` 直接观察 `SessionManager.isLoggedIn`，不依赖 `isSynced`
+- 我的页显示：`在线模式 · 数据云端同步中` / `本地模式 · 点击登录云端保存`
 
 ### 文档
 - `docs/superpowers/specs/` — 设计规范 & 需求文档

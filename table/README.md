@@ -59,6 +59,7 @@ object ApiConfig {
 | 5 | `05_storage.sql` | 创建图片存储桶 |
 | 6 | `06_fix_rls_recursion.sql` | 修复 profiles RLS 递归问题 |
 | 7 | `07_global_dishes_rls.sql` | **菜品全局可见**（所有登录用户可见全部菜品） |
+| 8 | `08_storage_global_upload.sql` | **图片上传**（所有认证用户可上传到 dish-images） |
 
 > 验证：执行后在左侧 **Table Editor** 中应能看到 6 张表：
 > `profiles`, `dishes`, `dish_tags`, `meals`, `meal_items`, `wishlists`
