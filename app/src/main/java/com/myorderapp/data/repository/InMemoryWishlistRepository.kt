@@ -8,7 +8,7 @@ import kotlinx.coroutines.flow.map
 
 class InMemoryWishlistRepository : WishlistRepository {
 
-    private val _items = MutableStateFlow(sampleWishlist)
+    private val _items = MutableStateFlow<List<WishlistItem>>(emptyList())
 
     override fun getWishlistItems(status: String?): Flow<List<WishlistItem>> =
         _items.map { list ->
@@ -43,33 +43,4 @@ class InMemoryWishlistRepository : WishlistRepository {
         _items.value = _items.value.filter { it.id != id }
     }
 
-    companion object {
-        val sampleWishlist = listOf(
-            WishlistItem(
-                id = "w1", dishId = "s1", dishName = "红烧肉",
-                dishCategory = "中餐", externalSource = "Spoonacular",
-                addedBy = "u1", addedByName = "你", status = "pending"
-            ),
-            WishlistItem(
-                id = "w2", dishId = "s2", dishName = "凯撒沙拉",
-                dishCategory = "西餐", externalSource = "Spoonacular",
-                addedBy = "u2", addedByName = "她", status = "pending"
-            ),
-            WishlistItem(
-                id = "w3", dishId = "3", dishName = "芒果糯米饭",
-                dishCategory = "甜品", externalSource = "Spoonacular",
-                addedBy = "u1", addedByName = "你", status = "tried"
-            ),
-            WishlistItem(
-                id = "w4", dishId = "4", dishName = "焦糖布丁",
-                dishCategory = "甜品",
-                addedBy = "u2", addedByName = "她", status = "pending"
-            ),
-            WishlistItem(
-                id = "w5", dishId = "5", dishName = "法式焗蜗牛",
-                dishCategory = "西餐",
-                addedBy = "u1", addedByName = "你", status = "rejected"
-            )
-        )
-    }
 }

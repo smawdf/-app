@@ -303,8 +303,6 @@ fun ProfileScreen(
                         profile?.nickname?.ifBlank { "点击设置昵称" } ?: "点击设置昵称",
                         style = MaterialTheme.typography.headlineMedium
                     )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("✏️", fontSize = 14.sp)
                 }
                 Spacer(modifier = Modifier.height(6.dp))
 
