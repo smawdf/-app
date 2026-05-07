@@ -48,7 +48,25 @@
       "WebFetch(domain:www.themealdb.com)",
       "WebFetch(domain:so.meishichina.com)",
       "Bash(keytool -genkey -v -keystore orderdisk.jks -keyalg RSA -keysize 2048 -validity 10000 -alias orderdisk -storepass orderdisk123 -keypass orderdisk123 -dname \"CN=OrderDisk, OU=Dev, O=MyOrderApp, L=Beijing, ST=Beijing, C=CN\")",
-      "Bash(./gradlew assembleRelease)"
+      "Bash(./gradlew assembleRelease)",
+      "Bash(taskkill /F /IM \"qemu-system-x86_64.exe\")",
+      "Bash(taskkill /F /IM \"emulator.exe\")",
+      "Bash(nohup \"D:/Andriod/SDK/emulator/emulator.exe\" -avd New_Device_1 -no-boot-anim)",
+      "Bash(echo \"Emulator starting in background... PID: $!\")",
+      "Bash(\"D:/Andriod/SDK/platform-tools/adb.exe\" devices *)",
+      "Bash(tasklist)",
+      "Bash(\"D:/Andriod/SDK/platform-tools/adb.exe\" kill-server *)",
+      "Bash(\"D:/Andriod/SDK/platform-tools/adb.exe\" start-server *)",
+      "Bash(netstat -ano)",
+      "Bash(\"D:/Andriod/SDK/platform-tools/adb.exe\" connect *)",
+      "Bash(cmd //c \"taskkill /F /IM qemu-system-x86_64.exe & taskkill /F /IM emulator.exe\")",
+      "Bash(nohup \"D:/Andriod/SDK/emulator/emulator.exe\" -avd New_Device_1 -no-boot-anim -gpu swiftshader_indirect -port 5554)",
+      "Bash(echo \"Starting with software GPU... PID: $!\")",
+      "Bash(D:/Andriod/SDK/platform-tools/adb.exe install *)",
+      "Bash(D:/Andriod/SDK/platform-tools/adb.exe shell *)",
+      "Bash(\"D:/Andriod/SDK/platform-tools/adb.exe\" logcat *)",
+      "Bash(\"D:/Andriod/SDK/platform-tools/adb.exe\" shell *)",
+      "Bash(\"D:/Andriod/SDK/platform-tools/adb.exe\" install *)"
     ]
   }
 }
