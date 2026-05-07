@@ -602,14 +602,16 @@ fun ProfileScreen(
             }
         }
 
-        // Sync / Login status
+        // Login / Sync status
         Surface(
-            onClick = { if (!uiState.isSynced) onLoginClick() },
+            onClick = {
+                if (!uiState.isLoggedIn) onLoginClick()
+            },
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 20.dp),
             shape = RoundedCornerShape(12.dp),
-            color = if (uiState.isSynced)
+            color = if (uiState.isLoggedIn)
                 MaterialTheme.colorScheme.primaryContainer
             else MaterialTheme.colorScheme.surfaceVariant
         ) {
@@ -620,16 +622,16 @@ fun ProfileScreen(
             ) {
                 Box(
                     modifier = Modifier.size(8.dp).clip(RoundedCornerShape(4.dp))
-                        .background(if (uiState.isSynced)
+                        .background(if (uiState.isLoggedIn)
                             MaterialTheme.colorScheme.primary
                         else MaterialTheme.colorScheme.outlineVariant)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    if (uiState.isSynced) "已登录 · 点餐数据云端同步"
-                    else "本地模式 · 登录后可开启双人点餐",
+                    if (uiState.isLoggedIn) "在线模式 · 数据云端同步中"
+                    else "本地模式 · 点击登录云端保存",
                     style = MaterialTheme.typography.labelMedium,
-                    color = if (uiState.isSynced)
+                    color = if (uiState.isLoggedIn)
                         MaterialTheme.colorScheme.primary
                     else MaterialTheme.colorScheme.onSurfaceVariant
                 )

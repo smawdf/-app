@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.myorderapp.data.remote.supabase.SessionManager
 import com.myorderapp.domain.model.PairInfo
 import com.myorderapp.domain.model.Profile
 import com.myorderapp.domain.repository.ProfileRepository
@@ -18,6 +19,7 @@ import java.util.UUID
 data class ProfileUiState(
     val profile: Profile? = null,
     val pairInfo: PairInfo = PairInfo(),
+    val isLoggedIn: Boolean = false,
     val isSynced: Boolean = false,
     val pairCode: String = "",
     val joinPairCode: String = "",
@@ -28,13 +30,21 @@ data class ProfileUiState(
 )
 
 class ProfileViewModel(
-    private val profileRepository: ProfileRepository
+    private val profileRepository: ProfileRepository,
+    private val sessionManager: SessionManager
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ProfileUiState())
     val uiState: StateFlow<ProfileUiState> = _uiState.asStateFlow()
 
     init {
+        // 登录状态直接来自 SessionManager，不依赖仓库的 isSynced
+        _uiState.value = _uiState.value.copy(isLoggedIn = sessionManager.isLoggedIn.value)
+        viewModelScope.launch {
+            sessionManager.isLoggedIn.collect { loggedIn ->
+                _uiState.value = _uiState.value.copy(isLoggedIn = loggedIn)
+            }
+        }
         viewModelScope.launch {
             profileRepository.loadProfile()
             profileRepository.getProfile().collect { profile ->

@@ -67,7 +67,7 @@ val appModule = module {
     viewModel { RandomViewModel(get(), get()) }
     viewModel { WishlistViewModel(get()) }
     viewModel { HistoryViewModel(get(), get()) }
-    viewModel { ProfileViewModel(get()) }
+    viewModel { ProfileViewModel(get(), get()) }
     viewModel { AuthViewModel(get(), get(), get(), get(), get(), get()) }
     viewModel { OnboardingViewModel(get(), get(), get(), get(), get(), get(), get()) }
 }
