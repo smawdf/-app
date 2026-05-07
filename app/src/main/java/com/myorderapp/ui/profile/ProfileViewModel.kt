@@ -38,11 +38,20 @@ class ProfileViewModel(
     val uiState: StateFlow<ProfileUiState> = _uiState.asStateFlow()
 
     init {
-        // 登录状态直接来自 SessionManager，不依赖仓库的 isSynced
-        _uiState.value = _uiState.value.copy(isLoggedIn = sessionManager.isLoggedIn.value)
+        // 登录状态直接来自 SessionManager
+        val loggedIn = sessionManager.isLoggedIn.value
+        // 本地预填充 — 避免加载闪烁
+        val localNick = sessionManager.getSavedNickname()
+        val localAvatar = sessionManager.getSavedAvatar()
+        _uiState.value = _uiState.value.copy(
+            isLoggedIn = loggedIn,
+            profile = if (localNick.isNotBlank() || localAvatar.isNotBlank())
+                com.myorderapp.domain.model.Profile(nickname = localNick, avatarUrl = localAvatar.ifBlank { null })
+            else null
+        )
         viewModelScope.launch {
-            sessionManager.isLoggedIn.collect { loggedIn ->
-                _uiState.value = _uiState.value.copy(isLoggedIn = loggedIn)
+            sessionManager.isLoggedIn.collect { loggedIn2 ->
+                _uiState.value = _uiState.value.copy(isLoggedIn = loggedIn2)
             }
         }
         viewModelScope.launch {

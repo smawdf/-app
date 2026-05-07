@@ -593,7 +593,7 @@ fun ProfileScreen(
                 SettingsRow("📋", "菜品管理", "管理你的菜品库", onClick = onDishManageClick)
                 HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
                 SettingsRow("ℹ️", "关于", "今天吃什么？v$appVersion", onClick = onAboutClick)
-                if (uiState.isSynced) {
+                if (uiState.isLoggedIn) {
                     HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
                     SettingsRow("🚪", "退出登录", "切换账号或离线使用",
                         onClick = { showLogoutDialog = true })
