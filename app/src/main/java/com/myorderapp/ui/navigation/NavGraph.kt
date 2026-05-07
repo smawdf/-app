@@ -2,6 +2,7 @@ package com.myorderapp.ui.navigation
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -94,7 +95,12 @@ fun NavGraph(
             ProfileScreen(
                 onHistoryClick = { navController.navigate(Routes.HISTORY) },
                 onLoginClick = { navController.navigate(Routes.AUTH) },
-                onDishManageClick = { navController.navigate(Routes.DISH_LIBRARY) },
+                onDishManageClick = {
+                    navController.navigate(Routes.DISH_LIBRARY) {
+                        popUpTo(navController.graph.findStartDestination().id)
+                        launchSingleTop = true
+                    }
+                },
                 onLogoutClick = {
                     sessionManager.clear()
                     navController.navigate(Routes.ONBOARDING) {
