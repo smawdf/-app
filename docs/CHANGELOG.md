@@ -1,0 +1,45 @@
+# OrderDisk 更新日志
+
+## v1.0.1 (2026-05-08)
+- 修复：R8 混淆导致 Moshi 反射失败，启动闪退
+
+## v1.0.0 (2026-05-07) — 首个正式版
+
+### UI 重设计
+- 清簡日常风格：米白+深棕+淡绿色系，Serif 标题
+- 14 个页面统一翻新，Card 去阴影
+- 「食」字 App 图标
+- 导航过渡动画（滑入+淡入）+ 列表动画
+
+### 菜谱搜索
+- 聚合数据 API（100次/天）+ TheMealDB API（免费无限）
+- FoodTranslator 英→中自动翻译
+- 搜索结果全量缓存
+
+### 注册与登录
+- 三步注册流程：账号 → 个人资料 → 配对
+- 登录错误细化（未注册/密码错误/邮箱未验证）
+- 记住邮箱，自动填入
+- 在线/离线判断基于 SessionManager.isLoggedIn
+
+### 菜品管理
+- 添加菜品：拍照/相册/URL，图片压缩上传 Supabase Storage
+- 编辑菜品：详情页右上角 ✏️ 图标
+- 删除菜品：菜品库长按 → 确认删除
+- 创建者显示实际昵称
+- 菜品全局可见（所有用户共享）
+
+### 个人中心
+- 昵称/头像修改，离线时本地兜底
+- 口味偏好：自定义标签替代固定选项
+- 退出登录（确认弹窗）
+- 动态版本号
+
+### 数据层
+- 本地 JSON 文件持久化（dishes.json）+ SharedPreferences（profile）
+- Supabase 菜品全局可见（RLS 更新）
+- 图片上传到 Supabase Storage（800px/JPEG85%）
+
+### 技术
+- R8 混淆关闭（AGP 9.x + Moshi KotlinJsonAdapterFactory 反射冲突）
+- versionCode 2, versionName 1.0.1
