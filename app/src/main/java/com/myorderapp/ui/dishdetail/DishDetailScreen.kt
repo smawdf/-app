@@ -30,35 +30,13 @@ fun DishDetailScreen(
     viewModel: DishDetailViewModel = koinViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    var showDeleteDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(dishId) {
         viewModel.loadDish(dishId)
     }
-    LaunchedEffect(uiState.isDeleted) {
-        if (uiState.isDeleted) onBack()
-    }
 
     val dish = uiState.dish
     val isCustom = dish?.source == "custom"
-
-    if (showDeleteDialog) {
-        AlertDialog(
-            onDismissRequest = { showDeleteDialog = false },
-            title = { Text("确认删除", fontWeight = FontWeight.Bold) },
-            text = { Text("确定要删除「${dish?.name ?: ""}」吗？此操作不可撤销。") },
-            confirmButton = {
-                Button(
-                    onClick = { showDeleteDialog = false; viewModel.deleteDish() },
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
-                    shape = RoundedCornerShape(12.dp)
-                ) { Text("删除") }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDeleteDialog = false }) { Text("取消") }
-            }
-        )
-    }
 
     Column(
         modifier = Modifier
@@ -207,30 +185,16 @@ fun DishDetailScreen(
                     }
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    // Edit / Delete buttons (custom dishes only)
+                    // Edit button (custom dishes only)
                     if (isCustom) {
-                        Row(
+                        OutlinedButton(
+                            onClick = { dish?.let { onEditClick(it.id) } },
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            OutlinedButton(
-                                onClick = { dish?.let { onEditClick(it.id) } },
-                                modifier = Modifier.weight(1f),
-                                shape = RoundedCornerShape(20.dp),
-                                colors = ButtonDefaults.outlinedButtonColors(
-                                    contentColor = MaterialTheme.colorScheme.primary
-                                )
-                            ) { Text("✏️ 编辑", fontSize = 13.sp) }
-
-                            OutlinedButton(
-                                onClick = { showDeleteDialog = true },
-                                modifier = Modifier.weight(1f),
-                                shape = RoundedCornerShape(20.dp),
-                                colors = ButtonDefaults.outlinedButtonColors(
-                                    contentColor = MaterialTheme.colorScheme.error
-                                )
-                            ) { Text("🗑 删除", fontSize = 13.sp) }
-                        }
+                            shape = RoundedCornerShape(20.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                contentColor = MaterialTheme.colorScheme.primary
+                            )
+                        ) { Text("✏️ 编辑", fontSize = 13.sp) }
                     }
                 }
                 Spacer(modifier = Modifier.height(32.dp))

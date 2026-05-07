@@ -53,6 +53,12 @@ class DishLibraryViewModel(
         }
     }
 
+    fun deleteDish(dishId: String) {
+        viewModelScope.launch {
+            dishRepository.deleteDish(dishId)
+        }
+    }
+
     private fun applyFilters(allDishes: List<Dish>) {
         val state = _uiState.value
         var filtered = allDishes

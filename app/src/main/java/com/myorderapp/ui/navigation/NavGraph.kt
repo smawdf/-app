@@ -33,8 +33,8 @@ object Routes {
     const val PROFILE = "profile"
     const val SEARCH = "search"
     const val DISH_DETAIL = "dish_detail/{dishId}/{source}"
-    const val ADD_DISH = "add_dish?editDishId={editDishId}"
-    fun addDish(editDishId: String? = null) = if (editDishId != null) "add_dish?editDishId=$editDishId" else "add_dish"
+    const val ADD_DISH = "add_dish/{editDishId}"
+    fun addDish(editDishId: String? = null) = "add_dish/${editDishId ?: "new"}"
     const val START_MEAL = "start_meal/{mealType}"
     const val MEAL_RESULT = "meal_result/{mealId}"
     const val RANDOM = "random"
@@ -91,7 +91,7 @@ fun NavGraph(
             HomeScreen(
                 onSearchClick = { navController.navigate(Routes.SEARCH) },
                 onRandomClick = { navController.navigate(Routes.RANDOM) },
-                onAddDishClick = { navController.navigate(Routes.ADD_DISH) },
+                onAddDishClick = { navController.navigate(Routes.addDish()) },
                 onDishClick = { dishId, source ->
                     navController.navigate(Routes.dishDetail(dishId, source))
                 },
@@ -110,7 +110,7 @@ fun NavGraph(
                 onDishClick = { dishId, source ->
                     navController.navigate(Routes.dishDetail(dishId, source))
                 },
-                onAddDishClick = { navController.navigate(Routes.ADD_DISH) }
+                onAddDishClick = { navController.navigate(Routes.addDish()) }
             )
         }
         composable(
@@ -192,11 +192,10 @@ fun NavGraph(
         }
         composable(
             route = Routes.ADD_DISH,
-            arguments = listOf(navArgument("editDishId") {
-                type = NavType.StringType; defaultValue = ""; nullable = true
-            })
+            arguments = listOf(navArgument("editDishId") { type = NavType.StringType })
         ) { backStackEntry ->
-            val editDishId = backStackEntry.arguments?.getString("editDishId")?.ifBlank { null }
+            val editDishId = backStackEntry.arguments?.getString("editDishId")
+                ?.takeIf { it != "new" }
             AddDishScreen(
                 onBack = { navController.popBackStack() },
                 onSave = { navController.popBackStack() },

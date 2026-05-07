@@ -1,6 +1,8 @@
 package com.myorderapp.ui.dishlibrary
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -12,6 +14,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -145,7 +148,8 @@ fun DishLibraryScreen(
                     onClick = {
                         onDishClick(dish.id, if (dish.source == "自建") "custom" else "external")
                     },
-                    modifier = Modifier.animateItem()
+                    modifier = Modifier.animateItem(),
+                    onDeleteClick = if (dish.source == "自建") {{ viewModel.deleteDish(dish.id) }} else null
                 )
             }
             item { Spacer(modifier = Modifier.height(80.dp)) }
@@ -153,35 +157,65 @@ fun DishLibraryScreen(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun DishGridCard(dish: LibraryDish, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    Card(
-        modifier = modifier,
-        onClick = onClick,
-        shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-    ) {
-        Box {
-            Column(modifier = Modifier.padding(8.dp)) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth().height(100.dp)
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(dish.bgColor),
-                    contentAlignment = Alignment.Center
-                ) { Text(dish.emoji, fontSize = 30.sp) }
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    dish.name,
-                    style = MaterialTheme.typography.titleMedium,
-                    maxLines = 1, overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    "${dish.source} · ${dish.cookTimeMin}分钟",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+fun DishGridCard(
+    dish: LibraryDish,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    onDeleteClick: (() -> Unit)? = null
+) {
+    var showMenu by remember { mutableStateOf(false) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
+
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text("确认删除", fontWeight = FontWeight.Bold) },
+            text = { Text("确定要删除「${dish.name}」吗？") },
+            confirmButton = {
+                Button(
+                    onClick = { showDeleteDialog = false; onDeleteClick?.invoke() },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
+                    shape = RoundedCornerShape(12.dp)
+                ) { Text("删除") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) { Text("取消") }
+            }
+        )
+    }
+
+    Box(modifier = modifier) {
+        Card(
+            modifier = Modifier.combinedClickable(
+                onClick = onClick,
+                onLongClick = { if (dish.source == "自建") showMenu = true }
+            ),
+            shape = RoundedCornerShape(14.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+        ) {
+            Box {
+                Column(modifier = Modifier.padding(8.dp)) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth().height(100.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(dish.bgColor),
+                        contentAlignment = Alignment.Center
+                    ) { Text(dish.emoji, fontSize = 30.sp) }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        dish.name,
+                        style = MaterialTheme.typography.titleMedium,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        "${dish.source} · ${dish.cookTimeMin}分钟",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 Text(
                     dish.whoLikes,
                     style = MaterialTheme.typography.labelSmall,
@@ -202,6 +236,18 @@ fun DishGridCard(dish: LibraryDish, onClick: () -> Unit, modifier: Modifier = Mo
                     )
                 }
             }
+        }
+    }
+
+        // Long-press menu
+        DropdownMenu(
+            expanded = showMenu,
+            onDismissRequest = { showMenu = false }
+        ) {
+            DropdownMenuItem(
+                text = { Text("🗑 删除", color = MaterialTheme.colorScheme.error) },
+                onClick = { showMenu = false; showDeleteDialog = true }
+            )
         }
     }
 }
