@@ -38,15 +38,14 @@ class ProfileViewModel(
     init {
         viewModelScope.launch {
             profileRepository.getProfile().collect { profile ->
-                val prefs = profile?.let { p ->
-                    listOf(
-                        TastePreference("🌶", "重辣", p.tastePrefs.spicy),
-                        TastePreference("🍬", "甜口", p.tastePrefs.sweet),
-                        TastePreference("🧂", "重口", p.tastePrefs.salty || p.tastePrefs.heavy),
-                        TastePreference("🥬", "清淡", p.tastePrefs.light),
-                        TastePreference("🍋", "酸口", p.tastePrefs.sour)
-                    )
-                } ?: emptyList()
+                val prefs = listOf(
+                    TastePreference("🌶", "重辣", profile?.tastePrefs?.spicy ?: false),
+                    TastePreference("🍬", "甜口", profile?.tastePrefs?.sweet ?: false),
+                    TastePreference("🧂", "重口",
+                        (profile?.tastePrefs?.salty ?: false) || (profile?.tastePrefs?.heavy ?: false)),
+                    TastePreference("🥬", "清淡", profile?.tastePrefs?.light ?: false),
+                    TastePreference("🍋", "酸口", profile?.tastePrefs?.sour ?: false)
+                )
                 _uiState.value = _uiState.value.copy(
                     profile = profile, preferences = prefs, isLoading = false
                 )
@@ -110,18 +109,23 @@ class ProfileViewModel(
     }
 
     fun togglePreference(index: Int) {
-        val profile = _uiState.value.profile ?: return
         val prefs = _uiState.value.preferences.toMutableList()
+        if (index !in prefs.indices) return
         val updated = prefs[index].copy(value = !prefs[index].value)
         prefs[index] = updated
-        val tastePrefs = profile.tastePrefs.copy(
-            spicy = prefs[0].value, sweet = prefs[1].value,
-            salty = prefs[2].value, light = prefs[3].value, sour = prefs[4].value
-        )
-        viewModelScope.launch {
-            profileRepository.saveProfile(profile.copy(tastePrefs = tastePrefs))
-            saveToCloud()
+        val profile = _uiState.value.profile
+        if (profile != null) {
+            val tastePrefs = profile.tastePrefs.copy(
+                spicy = prefs[0].value, sweet = prefs[1].value,
+                salty = prefs[2].value, light = prefs[3].value, sour = prefs[4].value
+            )
+            viewModelScope.launch {
+                profileRepository.saveProfile(profile.copy(tastePrefs = tastePrefs))
+                saveToCloud()
+            }
         }
+        // Always update local UI state (works offline too)
+        _uiState.value = _uiState.value.copy(preferences = prefs)
     }
 
     fun updateNickname(nickname: String) {
