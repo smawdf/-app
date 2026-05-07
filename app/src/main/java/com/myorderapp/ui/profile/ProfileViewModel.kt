@@ -22,11 +22,10 @@ data class ProfileUiState(
     val pairCode: String = "",
     val joinPairCode: String = "",
     val isLoading: Boolean = true,
-    val preferences: List<TastePreference> = emptyList(),
+    val customTags: List<String> = emptyList(),
+    val newTag: String = "",
     val saveMessage: String? = null
 )
-
-data class TastePreference(val emoji: String, val label: String, val value: Boolean)
 
 class ProfileViewModel(
     private val profileRepository: ProfileRepository
@@ -38,16 +37,9 @@ class ProfileViewModel(
     init {
         viewModelScope.launch {
             profileRepository.getProfile().collect { profile ->
-                val prefs = listOf(
-                    TastePreference("🌶", "重辣", profile?.tastePrefs?.spicy ?: false),
-                    TastePreference("🍬", "甜口", profile?.tastePrefs?.sweet ?: false),
-                    TastePreference("🧂", "重口",
-                        (profile?.tastePrefs?.salty ?: false) || (profile?.tastePrefs?.heavy ?: false)),
-                    TastePreference("🥬", "清淡", profile?.tastePrefs?.light ?: false),
-                    TastePreference("🍋", "酸口", profile?.tastePrefs?.sour ?: false)
-                )
+                val tags = profile?.tastePrefs?.custom ?: emptyList()
                 _uiState.value = _uiState.value.copy(
-                    profile = profile, preferences = prefs, isLoading = false
+                    profile = profile, customTags = tags, isLoading = false
                 )
             }
         }
@@ -108,24 +100,37 @@ class ProfileViewModel(
         }
     }
 
-    fun togglePreference(index: Int) {
-        val prefs = _uiState.value.preferences.toMutableList()
-        if (index !in prefs.indices) return
-        val updated = prefs[index].copy(value = !prefs[index].value)
-        prefs[index] = updated
-        val profile = _uiState.value.profile
-        if (profile != null) {
-            val tastePrefs = profile.tastePrefs.copy(
-                spicy = prefs[0].value, sweet = prefs[1].value,
-                salty = prefs[2].value, light = prefs[3].value, sour = prefs[4].value
-            )
-            viewModelScope.launch {
-                profileRepository.saveProfile(profile.copy(tastePrefs = tastePrefs))
-                saveToCloud()
-            }
+    fun onNewTagChanged(tag: String) {
+        _uiState.value = _uiState.value.copy(newTag = tag)
+    }
+
+    fun addTag() {
+        val tag = _uiState.value.newTag.trim()
+        if (tag.isBlank() || tag.length > 6) return
+        val tags = _uiState.value.customTags.toMutableList()
+        if (tags.contains(tag)) {
+            _uiState.value = _uiState.value.copy(newTag = "", saveMessage = "标签已存在")
+            return
         }
-        // Always update local UI state (works offline too)
-        _uiState.value = _uiState.value.copy(preferences = prefs)
+        tags.add(tag)
+        _uiState.value = _uiState.value.copy(customTags = tags, newTag = "", saveMessage = null)
+        saveTagsToCloud(tags)
+    }
+
+    fun removeTag(tag: String) {
+        val tags = _uiState.value.customTags.toMutableList()
+        tags.remove(tag)
+        _uiState.value = _uiState.value.copy(customTags = tags)
+        saveTagsToCloud(tags)
+    }
+
+    private fun saveTagsToCloud(tags: List<String>) {
+        val profile = _uiState.value.profile ?: return
+        val newTastePrefs = profile.tastePrefs.copy(custom = tags)
+        viewModelScope.launch {
+            profileRepository.saveProfile(profile.copy(tastePrefs = newTastePrefs))
+            saveToCloud()
+        }
     }
 
     fun updateNickname(nickname: String) {

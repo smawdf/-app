@@ -39,7 +39,6 @@ fun ProfileScreen(
 ) {
     val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
-    val preferences = uiState.preferences
     val profile = uiState.profile
     var showEditNameDialog by remember { mutableStateOf(false) }
     var editName by remember { mutableStateOf(profile?.nickname ?: "") }
@@ -359,7 +358,7 @@ fun ProfileScreen(
         Text("口味偏好",
             style = MaterialTheme.typography.titleMedium,
             modifier = Modifier.padding(horizontal = 20.dp))
-        Text("选择你的口味，推荐更精准",
+        Text("添加自定义口味标签",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(horizontal = 20.dp, vertical = 2.dp))
@@ -372,36 +371,79 @@ fun ProfileScreen(
             elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    preferences.forEach { pref ->
-                        Surface(
-                            shape = RoundedCornerShape(20.dp),
-                            color = if (pref.value)
-                                MaterialTheme.colorScheme.primaryContainer
-                            else MaterialTheme.colorScheme.surfaceVariant,
-                            onClick = {
-                                val idx = preferences.indexOf(pref)
-                                if (idx >= 0) viewModel.togglePreference(idx)
-                            },
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Column(
-                                modifier = Modifier.padding(vertical = 12.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally
+                // Custom tags
+                if (uiState.customTags.isNotEmpty()) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        uiState.customTags.forEach { tag ->
+                            Surface(
+                                shape = RoundedCornerShape(20.dp),
+                                color = MaterialTheme.colorScheme.primaryContainer,
+                                onClick = { viewModel.removeTag(tag) }
                             ) {
-                                Text(pref.emoji, fontSize = 22.sp)
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text(pref.label,
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = if (pref.value)
-                                        MaterialTheme.colorScheme.primary
-                                    else MaterialTheme.colorScheme.onSurfaceVariant)
+                                Row(
+                                    modifier = Modifier.padding(start = 14.dp, end = 10.dp, top = 8.dp, bottom = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        tag,
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        "✕",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.6f)
+                                    )
+                                }
                             }
                         }
                     }
+                    Spacer(modifier = Modifier.height(12.dp))
+                }
+
+                // Add new tag
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedTextField(
+                        value = uiState.newTag,
+                        onValueChange = { if (it.length <= 6) viewModel.onNewTagChanged(it) },
+                        placeholder = { Text("输入口味标签", style = MaterialTheme.typography.bodySmall) },
+                        singleLine = true,
+                        shape = RoundedCornerShape(12.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            unfocusedBorderColor = Color.Transparent,
+                            focusedBorderColor = MaterialTheme.colorScheme.primary
+                        ),
+                        modifier = Modifier.weight(1f).height(48.dp)
+                    )
+                    FilledTonalButton(
+                        onClick = { viewModel.addTag() },
+                        enabled = uiState.newTag.isNotBlank(),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.filledTonalButtonColors(
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary
+                        )
+                    ) {
+                        Text("+", style = MaterialTheme.typography.titleLarge)
+                    }
+                }
+
+                if (uiState.saveMessage != null) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        uiState.saveMessage!!,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             }
         }

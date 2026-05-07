@@ -44,5 +44,6 @@ data class DietaryPreference(
     val sour: Boolean = false,
     val salty: Boolean = false,
     val light: Boolean = false,
-    val heavy: Boolean = false
+    val heavy: Boolean = false,
+    @Json(name = "custom") val custom: List<String> = emptyList()
 )
