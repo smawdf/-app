@@ -1,5 +1,8 @@
 package com.myorderapp.ui.adddish
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -14,11 +17,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.FileProvider
+import coil.compose.AsyncImage
 import org.koin.androidx.compose.koinViewModel
 import com.myorderapp.domain.model.CookStep
+import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -59,19 +67,121 @@ fun AddDishScreen(
                 .padding(horizontal = 20.dp)
         ) {
             // Image Upload
+            val context = LocalContext.current
+            var showPhotoSheet by remember { mutableStateOf(false) }
+            var showUrlDialog by remember { mutableStateOf(false) }
+            var urlInput by remember { mutableStateOf(uiState.imageUrl) }
+            var cameraUri by remember { mutableStateOf<Uri?>(null) }
+
+            val galleryLauncher = rememberLauncherForActivityResult(
+                contract = ActivityResultContracts.GetContent()
+            ) { uri: Uri? ->
+                uri?.let { viewModel.onImageUrlChanged(it.toString()) }
+            }
+
+            val cameraLauncher = rememberLauncherForActivityResult(
+                contract = ActivityResultContracts.TakePicture()
+            ) { success ->
+                if (success && cameraUri != null) {
+                    viewModel.onImageUrlChanged(cameraUri.toString())
+                }
+            }
+
+            fun launchCamera() {
+                val photoFile = File(
+                    context.externalCacheDir ?: context.cacheDir,
+                    "dish_${System.currentTimeMillis()}.jpg"
+                )
+                photoFile.parentFile?.mkdirs()
+                cameraUri = FileProvider.getUriForFile(
+                    context,
+                    "${context.packageName}.fileprovider",
+                    photoFile
+                )
+                cameraLauncher.launch(cameraUri!!)
+            }
+
+            if (showPhotoSheet) {
+                AlertDialog(
+                    onDismissRequest = { showPhotoSheet = false },
+                    title = { Text("上传展示图", fontWeight = FontWeight.Bold) },
+                    text = {
+                        Column {
+                            TextButton(onClick = { showPhotoSheet = false; launchCamera() },
+                                modifier = Modifier.fillMaxWidth()) {
+                                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                    Text("📷"); Text("拍照")
+                                }
+                            }
+                            TextButton(onClick = { showPhotoSheet = false; galleryLauncher.launch("image/*") },
+                                modifier = Modifier.fillMaxWidth()) {
+                                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                    Text("🖼️"); Text("从相册选择")
+                                }
+                            }
+                            TextButton(onClick = {
+                                showPhotoSheet = false
+                                urlInput = uiState.imageUrl
+                                showUrlDialog = true
+                            }, modifier = Modifier.fillMaxWidth()) {
+                                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                    Text("🔗"); Text("输入URL")
+                                }
+                            }
+                        }
+                    },
+                    confirmButton = {},
+                    dismissButton = { TextButton(onClick = { showPhotoSheet = false }) { Text("取消") } }
+                )
+            }
+
+            if (showUrlDialog) {
+                AlertDialog(
+                    onDismissRequest = { showUrlDialog = false },
+                    title = { Text("输入图片URL", fontWeight = FontWeight.Bold) },
+                    text = {
+                        OutlinedTextField(
+                            value = urlInput,
+                            onValueChange = { urlInput = it },
+                            placeholder = { Text("https://...") },
+                            singleLine = true,
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    },
+                    confirmButton = {
+                        Button(onClick = {
+                            viewModel.onImageUrlChanged(urlInput)
+                            showUrlDialog = false
+                        }, colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                            shape = RoundedCornerShape(12.dp)) { Text("确定") }
+                    },
+                    dismissButton = { TextButton(onClick = { showUrlDialog = false }) { Text("取消") } }
+                )
+            }
+
             Box(
                 modifier = Modifier
                     .fillMaxWidth().height(140.dp)
                     .clip(RoundedCornerShape(16.dp))
                     .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f), RoundedCornerShape(16.dp))
                     .background(MaterialTheme.colorScheme.surfaceVariant)
-                    .clickable { /* image picker - placeholder for Gallery/Camera intent */ },
+                    .clickable { showPhotoSheet = true },
                 contentAlignment = Alignment.Center
             ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("📷", fontSize = 32.sp)
-                    Text("点击上传展示图", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text("拍照 / 从相册选择 / 输入URL", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f))
+                if (uiState.imageUrl.isNotBlank()) {
+                    AsyncImage(
+                        model = uiState.imageUrl,
+                        contentDescription = "展示图",
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("📷", fontSize = 32.sp)
+                        Text("点击上传展示图", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("拍照 / 从相册选择 / 输入URL", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f))
+                    }
                 }
             }
             Spacer(modifier = Modifier.height(20.dp))
