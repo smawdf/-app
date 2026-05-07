@@ -51,6 +51,13 @@ interface SupabaseApi {
         @Query("select") select: String = "*"
     ): List<Dish>
 
+    @GET("dishes")
+    suspend fun getAllDishes(
+        @Header("Authorization") token: String,
+        @Query("select") select: String = "*",
+        @Query("order") order: String = "created_at.desc"
+    ): List<Dish>
+
     @POST("dishes")
     suspend fun createDish(
         @Body dish: Dish,

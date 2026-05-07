@@ -43,13 +43,13 @@ val appModule = module {
     // Repositories — online when logged in, local as fallback
     // Dish
     single { RecipeAssetLoader(androidContext()) }
-    single { InMemoryDishRepository(get<RecipeAssetLoader>().loadRecipes()) }
-    single { SupabaseDishRepository(get(), get()) }
+    single { InMemoryDishRepository(androidContext(), get<RecipeAssetLoader>().loadRecipes()) }
+    single { SupabaseDishRepository(get(), get(), androidContext().filesDir) }
     single { HybridDishRepository(get(), get(), get()) }
     single<DishRepository> { get<HybridDishRepository>() }
     // Profile
     single { InMemoryProfileRepository() }
-    single { SupabaseProfileRepository(get(), get()) }
+    single { SupabaseProfileRepository(get(), get(), androidContext()) }
     single<ProfileRepository> { get<SupabaseProfileRepository>() }
     // Meal
     single { InMemoryMealRepository() }
