@@ -195,7 +195,7 @@ class ProfileViewModel(
         if (_uiState.value.isSynced) {
             _uiState.value = _uiState.value.copy(saveMessage = "已同步到云端 ✓")
         } else {
-            _uiState.value = _uiState.value.copy(saveMessage = "已本地保存（登录后可同步）")
+            _uiState.value = _uiState.value.copy(saveMessage = "已保存（登录后可同步到云端）")
         }
     }
 }

@@ -87,7 +87,7 @@ fun OnboardingScreen(
                 when (uiState.step) {
                     1 -> "创建账号"
                     2 -> "完善你的资料"
-                    else -> "与伴侣配对"
+                    else -> "开启双人点餐"
                 },
                 style = MaterialTheme.typography.displayLarge,
                 color = MaterialTheme.colorScheme.onBackground
@@ -95,9 +95,9 @@ fun OnboardingScreen(
             Spacer(modifier = Modifier.height(4.dp))
             Text(
                 when (uiState.step) {
-                    1 -> "注册后即可与伴侣实时点餐"
-                    2 -> "设置头像和昵称，让伴侣认识你"
-                    else -> "配对后即可同步双方的点餐数据"
+                    1 -> "探索菜谱，开启美食日常"
+                    2 -> "设置头像和昵称，打造你的美食名片"
+                    else -> "配对后点餐数据实时同步，也可稍后设置"
                 },
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant

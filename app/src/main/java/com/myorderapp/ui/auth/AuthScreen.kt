@@ -48,7 +48,7 @@ fun AuthScreen(
             )
 
             Text(
-                "双人在线点餐，实时同步",
+                "登录后可开启双人点餐同步",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

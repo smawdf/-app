@@ -611,7 +611,7 @@ fun ProfileScreen(
             shape = RoundedCornerShape(12.dp),
             color = if (uiState.isSynced)
                 MaterialTheme.colorScheme.primaryContainer
-            else MaterialTheme.colorScheme.secondaryContainer
+            else MaterialTheme.colorScheme.surfaceVariant
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth().padding(12.dp),
@@ -622,16 +622,16 @@ fun ProfileScreen(
                     modifier = Modifier.size(8.dp).clip(RoundedCornerShape(4.dp))
                         .background(if (uiState.isSynced)
                             MaterialTheme.colorScheme.primary
-                        else MaterialTheme.colorScheme.secondary)
+                        else MaterialTheme.colorScheme.outlineVariant)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    if (uiState.isSynced) "在线模式 · 数据实时同步"
-                    else "离线模式 · 点击登录同步数据",
+                    if (uiState.isSynced) "已登录 · 点餐数据云端同步"
+                    else "本地模式 · 登录后可开启双人点餐",
                     style = MaterialTheme.typography.labelMedium,
                     color = if (uiState.isSynced)
                         MaterialTheme.colorScheme.primary
-                    else MaterialTheme.colorScheme.secondary
+                    else MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
