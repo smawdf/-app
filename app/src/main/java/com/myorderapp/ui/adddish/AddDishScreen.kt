@@ -238,22 +238,11 @@ fun AddDishScreen(
             Spacer(modifier = Modifier.height(16.dp))
 
             // Cook Time
-            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                Column(modifier = Modifier.weight(1f)) {
-                    InputLabel("烹饪时间（分钟）")
-                    OutlinedTextField(
-                        value = uiState.cookTimeMin, onValueChange = { viewModel.onCookTimeChanged(it) },
-                        modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(10.dp), singleLine = true
-                    )
-                }
-                Column(modifier = Modifier.weight(1f)) {
-                    InputLabel("份量")
-                    OutlinedTextField(
-                        value = uiState.servings, onValueChange = { viewModel.onServingsChanged(it) },
-                        modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(10.dp), singleLine = true
-                    )
-                }
-            }
+            InputLabel("烹饪时间（分钟）")
+            OutlinedTextField(
+                value = uiState.cookTimeMin, onValueChange = { viewModel.onCookTimeChanged(it) },
+                modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(10.dp), singleLine = true
+            )
             Spacer(modifier = Modifier.height(16.dp))
 
             // Who Likes

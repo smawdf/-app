@@ -18,7 +18,6 @@ data class AddDishUiState(
     val category: String = "中餐",
     val difficulty: Int = 1,
     val cookTimeMin: String = "",
-    val servings: String = "2",
     val imageUrl: String = "",
     val ingredients: List<String> = emptyList(),
     val ingredientInput: String = "",
@@ -99,7 +98,6 @@ class AddDishViewModel(
 
     fun onImageUrlChanged(url: String) { _uiState.value = _uiState.value.copy(imageUrl = url) }
     fun onNotesChanged(notes: String) { _uiState.value = _uiState.value.copy(notes = notes) }
-    fun onServingsChanged(servings: String) { _uiState.value = _uiState.value.copy(servings = servings) }
     fun toggleWhoLikesYou() { _uiState.value = _uiState.value.copy(whoLikesYou = !_uiState.value.whoLikesYou) }
     fun toggleWhoLikesPartner() { _uiState.value = _uiState.value.copy(whoLikesPartner = !_uiState.value.whoLikesPartner) }
 
@@ -112,7 +110,6 @@ class AddDishViewModel(
                 category = dish.category,
                 difficulty = dish.difficulty,
                 cookTimeMin = dish.cookTimeMin.toString(),
-                servings = "2",
                 imageUrl = dish.imageUrl ?: "",
                 ingredients = dish.ingredients,
                 cookSteps = dish.cookSteps,

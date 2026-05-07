@@ -79,24 +79,15 @@ fun DishDetailScreen(
                     .align(Alignment.TopEnd)
                     .padding(16.dp)
             ) {
-                Surface(
-                    shape = CircleShape,
-                    color = Color.Black.copy(alpha = 0.3f),
-                    modifier = Modifier.size(32.dp)
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Text(if (isCustom) "✏️" else "🤍", fontSize = 14.sp)
-                    }
-                }
-                Spacer(modifier = Modifier.height(8.dp))
-                if (!isCustom) {
+                if (isCustom) {
                     Surface(
                         shape = CircleShape,
                         color = Color.Black.copy(alpha = 0.3f),
-                        modifier = Modifier.size(32.dp)
+                        modifier = Modifier.size(32.dp),
+                        onClick = { dish?.let { onEditClick(it.id) } }
                     ) {
                         Box(contentAlignment = Alignment.Center) {
-                            Text("↗️", fontSize = 14.sp)
+                            Text("✏️", fontSize = 14.sp, color = Color.White)
                         }
                     }
                 }
@@ -189,18 +180,6 @@ fun DishDetailScreen(
                     }
                 }
 
-                // Edit button — custom dishes only
-                if (isCustom) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    OutlinedButton(
-                        onClick = { onEditClick(dish.id) },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(20.dp),
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            contentColor = MaterialTheme.colorScheme.primary
-                        )
-                    ) { Text("✏️ 编辑", fontSize = 13.sp) }
-                }
                 Spacer(modifier = Modifier.height(32.dp))
             }
         }
