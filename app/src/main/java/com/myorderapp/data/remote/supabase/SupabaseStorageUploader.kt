@@ -24,8 +24,7 @@ data class UploadResult(
 
 class SupabaseStorageUploader(
     private val client: OkHttpClient,
-    private val supabaseUrl: String,
-    private val sessionManager: SessionManager
+    private val supabaseUrl: String
 ) {
     private val bucket = "dish-images"
     private val tag = "StorageUploader"
@@ -54,14 +53,13 @@ class SupabaseStorageUploader(
 
             Log.d(tag, "压缩后: ${compressed.size} bytes")
 
-            // 3. 上传
+            // 3. 上传（公开 bucket 无需 auth）
             val fileName = "${UUID.randomUUID().toString().take(8)}.jpg"
             val path = "$dishId/$fileName"
-            val token = sessionManager.accessToken.ifBlank { null }
 
-            Log.d(tag, "开始上传: path=$path, token=${if (token != null) "有" else "无"}")
+            Log.d(tag, "开始上传: path=$path, size=${compressed.size}")
 
-            upload(path, compressed, token)
+            upload(path, compressed)
         } catch (e: Exception) {
             Log.e(tag, "上传异常: ${e.javaClass.simpleName}: ${e.message}", e)
             UploadResult(error = "${e.javaClass.simpleName}: ${e.message}")
@@ -92,7 +90,7 @@ class SupabaseStorageUploader(
         }
     }
 
-    private fun upload(path: String, bytes: ByteArray, token: String?): UploadResult {
+    private fun upload(path: String, bytes: ByteArray): UploadResult {
         return try {
             val url = "$supabaseUrl/storage/v1/object/$bucket/$path"
             val request = Request.Builder()
@@ -100,9 +98,6 @@ class SupabaseStorageUploader(
                 .post(bytes.toRequestBody("image/jpeg".toMediaType()))
                 .header("Content-Type", "image/jpeg")
                 .header("apikey", ApiConfig.SUPABASE_ANON_KEY)
-                .apply {
-                    if (token != null) header("Authorization", token)
-                }
                 .build()
 
             val response = client.newCall(request).execute()

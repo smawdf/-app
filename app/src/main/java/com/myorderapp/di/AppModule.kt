@@ -37,7 +37,7 @@ import org.koin.dsl.module
 
 val appModule = module {
     // Data sources
-    single { com.myorderapp.data.remote.supabase.SupabaseStorageUploader(get(), ApiConfig.SUPABASE_URL, get()) }
+    single { com.myorderapp.data.remote.supabase.SupabaseStorageUploader(get(), ApiConfig.SUPABASE_URL) }
     single { JuheRecipeRemoteDataSource(get(), ApiConfig.JUHE_API_KEY) }
     single { TianRecipeRemoteDataSource(get(), ApiConfig.TIAN_API_KEY) }
     single { JisuRecipeRemoteDataSource(get(), ApiConfig.JISU_API_KEY) }
