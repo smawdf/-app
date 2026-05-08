@@ -125,21 +125,6 @@ fun SearchScreen(
                 }
             }
 
-            if (uiState.errorMessage != null) {
-                Spacer(modifier = Modifier.height(4.dp))
-                Surface(
-                    shape = RoundedCornerShape(9.dp),
-                    color = MaterialTheme.colorScheme.errorContainer,
-                    modifier = Modifier.clickable { viewModel.dismissError() }
-                ) {
-                    Text(
-                        uiState.errorMessage!!,
-                        style = MaterialTheme.typography.labelMedium,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                        color = MaterialTheme.colorScheme.error
-                    )
-                }
-            }
             Spacer(modifier = Modifier.height(12.dp))
         }
 

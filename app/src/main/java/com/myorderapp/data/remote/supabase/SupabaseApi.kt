@@ -106,4 +106,10 @@ interface SupabaseApi {
         @Header("Authorization") token: String,
         @Header("Prefer") prefer: String = "return=representation"
     ): List<MealItem>
+
+    @DELETE("meal_items")
+    suspend fun deleteMealItem(
+        @Query("id") itemId: String,
+        @Header("Authorization") token: String
+    )
 }

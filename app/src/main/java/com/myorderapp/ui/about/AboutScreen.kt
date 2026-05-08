@@ -71,6 +71,10 @@ fun AboutScreen(onBack: () -> Unit = {}) {
                 Column(modifier = Modifier.padding(20.dp)) {
                     Text("更新日志", style = MaterialTheme.typography.headlineMedium)
                     Spacer(modifier = Modifier.height(16.dp))
+                    VersionItem("v1.4.1", "2026-05-08 19:50", listOf(
+                        "点菜页双方昵称展示",
+                        "对方选菜实时可见（3秒同步）"
+                    ))
                     VersionItem("v1.4.0", "2026-05-08 19:20", listOf(
                         "单设备登录，新设备登录原设备下线"
                     ))

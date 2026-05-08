@@ -2,14 +2,17 @@ package com.myorderapp.ui.meal
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.myorderapp.data.remote.supabase.SessionManager
 import com.myorderapp.domain.model.Dish
 import com.myorderapp.domain.model.MealItem
 import com.myorderapp.domain.repository.DishRepository
 import com.myorderapp.domain.repository.MealRepository
 import com.myorderapp.domain.repository.ProfileRepository
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 data class MealUiState(
@@ -20,6 +23,7 @@ data class MealUiState(
     val mySelections: List<MealItem> = emptyList(),
     val partnerSelections: List<MealItem> = emptyList(),
     val mealId: String = "",
+    val myName: String = "我",
     val partnerName: String = "对方",
     val partnerConnected: Boolean = false,
     val partnerSubmitted: Boolean = false,
@@ -30,7 +34,8 @@ data class MealUiState(
 class MealViewModel(
     private val mealRepository: MealRepository,
     private val dishRepository: DishRepository,
-    private val profileRepository: ProfileRepository
+    private val profileRepository: ProfileRepository,
+    private val sessionManager: SessionManager
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(MealUiState())
@@ -40,6 +45,14 @@ class MealViewModel(
         viewModelScope.launch {
             dishRepository.getAllDishes().collect { dishes ->
                 _uiState.value = _uiState.value.copy(allDishes = dishes)
+            }
+        }
+        viewModelScope.launch {
+            val profile = profileRepository.getProfile()
+            profile.collect { p ->
+                _uiState.value = _uiState.value.copy(
+                    myName = p?.nickname?.ifBlank { "我" } ?: "我"
+                )
             }
         }
         viewModelScope.launch {
@@ -67,8 +80,10 @@ class MealViewModel(
     fun selectMealType(type: String) {
         _uiState.value = _uiState.value.copy(mealType = type, step = 1)
         viewModelScope.launch {
-            val id = mealRepository.createMeal(type, "你")
+            val id = mealRepository.createMeal(type, _uiState.value.myName)
             _uiState.value = _uiState.value.copy(mealId = id)
+            // 开始轮询对方菜品
+            startPollingPartnerItems(id)
         }
     }
 
@@ -79,14 +94,20 @@ class MealViewModel(
     fun addDish(dish: Dish) {
         val item = MealItem(
             id = "mi_${System.currentTimeMillis()}",
+            mealId = _uiState.value.mealId,
             dishId = dish.id, dishName = dish.name,
             dishCategory = dish.category, dishImageUrl = dish.imageUrl,
             cookTimeMin = dish.cookTimeMin, difficulty = dish.difficulty,
-            chosenBy = "u1", chosenByName = "你"
+            chosenBy = sessionManager.currentUserId.ifBlank { "u1" },
+            chosenByName = _uiState.value.myName
         )
         _uiState.value = _uiState.value.copy(
             mySelections = _uiState.value.mySelections + item
         )
+        // 同步到云端
+        viewModelScope.launch {
+            mealRepository.addDishToMeal(_uiState.value.mealId, item)
+        }
     }
 
     fun removeMyDish(itemId: String) {
@@ -94,6 +115,27 @@ class MealViewModel(
             mySelections = _uiState.value.mySelections.filter { it.id != itemId },
             mySubmitted = false
         )
+        // 同步删除到云端
+        viewModelScope.launch {
+            mealRepository.removeDishFromMeal(_uiState.value.mealId, itemId)
+        }
+    }
+
+    private fun startPollingPartnerItems(mealId: String) {
+        viewModelScope.launch {
+            while (isActive) {
+                delay(3000)
+                try {
+                    val items = mealRepository.getMealItems(mealId)
+                    val partnerItems = items.filter {
+                        it.chosenBy != sessionManager.currentUserId
+                    }
+                    _uiState.value = _uiState.value.copy(
+                        partnerSelections = partnerItems
+                    )
+                } catch (_: Exception) { }
+            }
+        }
     }
 
     fun submitMySelection() {

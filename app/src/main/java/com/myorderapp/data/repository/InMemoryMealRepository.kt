@@ -47,6 +47,11 @@ class InMemoryMealRepository : MealRepository {
         }
     }
 
+    override suspend fun getMealItems(mealId: String): List<MealItem> {
+        val meal = _todayMeal.value
+        return if (meal?.id == mealId) meal.items else emptyList()
+    }
+
     override suspend fun submitSelection(mealId: String, chosenBy: String) {
         // Mark selection as submitted for this user
         // When both have submitted, status becomes "confirmed"

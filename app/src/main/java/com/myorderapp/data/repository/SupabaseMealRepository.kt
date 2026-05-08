@@ -54,7 +54,24 @@ class SupabaseMealRepository(
     }
 
     override suspend fun removeDishFromMeal(mealId: String, itemId: String) {
+        try {
+            if (session.isLoggedIn.value) {
+                api.deleteMealItem(itemId, session.accessToken)
+            }
+        } catch (_: Exception) { }
         localFallback.removeDishFromMeal(mealId, itemId)
+    }
+
+    override suspend fun getMealItems(mealId: String): List<MealItem> {
+        return try {
+            if (session.isLoggedIn.value) {
+                api.getMealItems(mealId, session.accessToken)
+            } else {
+                localFallback.getMealItems(mealId)
+            }
+        } catch (_: Exception) {
+            localFallback.getMealItems(mealId)
+        }
     }
 
     override suspend fun submitSelection(mealId: String, chosenBy: String) {

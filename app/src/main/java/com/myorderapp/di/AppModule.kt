@@ -67,7 +67,7 @@ val appModule = module {
     viewModel { DishDetailViewModel(get(), get()) }
     viewModel { DishLibraryViewModel(get()) }
     viewModel { AddDishViewModel(get(), get(), get(), androidContext()) }
-    viewModel { MealViewModel(get(), get(), get()) }
+    viewModel { MealViewModel(get(), get(), get(), get()) }
     viewModel { RandomViewModel(get(), get(), androidContext()) }
     viewModel { WishlistViewModel(get()) }
     viewModel { HistoryViewModel(get(), get()) }

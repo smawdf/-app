@@ -191,7 +191,7 @@ fun StartMealScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("🧑 我", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        Text(uiState.myName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                         if (uiState.mySubmitted) {
                             Surface(shape = RoundedCornerShape(6.dp), color = MaterialTheme.colorScheme.primaryContainer) {
                                 Text("已提交 ✓", style = MaterialTheme.typography.labelSmall,
@@ -202,7 +202,7 @@ fun StartMealScreen(
                     }
                     if (uiState.mySelections.isEmpty()) {
                         Box(modifier = Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
-                            Text("点击右侧菜品添加 👉", style = MaterialTheme.typography.bodySmall,
+                            Text("点击菜品添加", style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     } else {
