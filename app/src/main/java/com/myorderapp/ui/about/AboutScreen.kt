@@ -71,6 +71,14 @@ fun AboutScreen(onBack: () -> Unit = {}) {
                 Column(modifier = Modifier.padding(20.dp)) {
                     Text("更新日志", style = MaterialTheme.typography.headlineMedium)
                     Spacer(modifier = Modifier.height(16.dp))
+                    VersionItem("v1.1.6", "2026-05-08", listOf(
+                        "天行数据 + 极速数据双菜谱搜索源",
+                        "三 API 并行搜索，结果合并去重"
+                    ))
+                    VersionItem("v1.1.5", "2026-05-08", listOf(
+                        "退出登录按钮根据登录状态显示",
+                        "昵称/头像本地预填充，加载不闪烁"
+                    ))
                     VersionItem("v1.1.4", "2026-05-08 02:18", listOf(
                         "移除心愿单内置测试数据",
                         "移除昵称旁编辑图标"
