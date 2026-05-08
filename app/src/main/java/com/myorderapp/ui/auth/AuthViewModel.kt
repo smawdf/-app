@@ -83,8 +83,6 @@ class AuthViewModel(
                     val pairId = profile?.pairId ?: ""
                     session.setSession(token, userId, pairId)
                     session.saveEmail(state.email)
-                    // 写入 sessionId 用于单设备登录检测
-                    writeSessionId(userId, token)
                     // Sync all cloud data
                     dishRepo.syncFromCloud()
                     profileRepo.loadFromCloud()

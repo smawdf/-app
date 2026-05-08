@@ -144,7 +144,6 @@ class OnboardingViewModel(
                     createProfileWithDetails(userId, token)
                     session.setSession(token, userId, "")
                     session.saveEmail(state.email)
-                    writeSessionId(userId, token)
                     dishRepo.syncFromCloud()
                     profileRepo.loadFromCloud()
                     mealRepo.syncFromCloud()
