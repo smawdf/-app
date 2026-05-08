@@ -42,17 +42,7 @@ fun SearchScreen(
     onDishClick: (String, String) -> Unit = { _, _ -> }
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val dataSources = remember(uiState.results) {
-        val sourceLabels = uiState.results.map { dish ->
-            when (dish.externalSource) {
-                "juhe" -> "聚合数据"
-                "tianapi" -> "天行数据"
-                "jisuapi" -> "极速数据"
-                else -> if (dish.source == "custom" || dish.source == "builtin") "本地" else null
-            }
-        }.filterNotNull().distinct()
-        listOf("全部") + sourceLabels
-    }
+    val dataSources = uiState.availableSources
 
     val searchResults = uiState.results.map { dish ->
         val defaultEmoji = "🍽️"

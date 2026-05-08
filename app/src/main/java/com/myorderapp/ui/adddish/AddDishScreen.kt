@@ -71,8 +71,16 @@ fun AddDishScreen(
             TextButton(onClick = onBack) { Text("取消", color = MaterialTheme.colorScheme.primary) }
             Text(if (editDishId != null) "编辑菜品" else "添加菜品",
                 style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-            TextButton(onClick = { viewModel.save() }) {
-                Text("保存", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
+            TextButton(
+                onClick = { viewModel.save() },
+                enabled = !uiState.isSaving
+            ) {
+                Text(
+                    if (uiState.isSaving) "保存中..." else "保存",
+                    color = if (uiState.isSaving) MaterialTheme.colorScheme.onSurfaceVariant
+                            else MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.SemiBold
+                )
             }
         }
 

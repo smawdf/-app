@@ -71,6 +71,11 @@ fun AboutScreen(onBack: () -> Unit = {}) {
                 Column(modifier = Modifier.padding(20.dp)) {
                     Text("更新日志", style = MaterialTheme.typography.headlineMedium)
                     Spacer(modifier = Modifier.height(16.dp))
+                    VersionItem("v1.1.9", "2026-05-08 13:34", listOf(
+                        "数据源 Tab 始终显示，切换不消失",
+                        "修复快速连击保存导致重复菜品",
+                        "保存中按钮禁用，显示\"保存中...\""
+                    ))
                     VersionItem("v1.1.8", "2026-05-08 13:17", listOf(
                         "上传失败不再删除菜品，保留本地图片",
                         "上传成功/失败 Snackbar 提示",

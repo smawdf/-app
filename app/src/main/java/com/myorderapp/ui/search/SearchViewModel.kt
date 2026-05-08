@@ -19,6 +19,7 @@ data class SearchUiState(
     val query: String = "",
     val selectedSource: String = "全部",
     val results: List<Dish> = emptyList(),
+    val availableSources: List<String> = emptyList(),
     val isSearching: Boolean = false,
     val sources: List<String> = emptyList(),
     val errorMessage: String? = null
@@ -89,12 +90,16 @@ class SearchViewModel(
         allResults.addAll(mergedResults)
         val filtered = applySourceFilter(mergedResults, _uiState.value.selectedSource)
 
+        val sourceLabels = mergedResults.map { resolveSourceLabel(it) }.distinct()
+        val tabs = listOf("全部") + sourceLabels
+
         val sources = mutableListOf<String>()
         if (localResults.isNotEmpty()) sources.add("内置")
         sources.addAll(onlineResult.sources)
 
         _uiState.value = _uiState.value.copy(
             results = filtered,
+            availableSources = tabs,
             isSearching = false,
             sources = sources
         )
