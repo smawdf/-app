@@ -71,6 +71,19 @@ fun AboutScreen(onBack: () -> Unit = {}) {
                 Column(modifier = Modifier.padding(20.dp)) {
                     Text("更新日志", style = MaterialTheme.typography.headlineMedium)
                     Spacer(modifier = Modifier.height(16.dp))
+                    VersionItem("v1.1.16", "2026-05-08 14:40", listOf(
+                        "修复拍照闪退（FileProvider 路径）",
+                        "移除 URL 输入上传选项"
+                    ))
+                    VersionItem("v1.1.15", "2026-05-08 14:36", listOf(
+                        "修复过期 JWT 导致上传 HTTP 400"
+                    ))
+                    VersionItem("v1.1.14", "2026-05-08 14:32", listOf(
+                        "上传失败显示具体错误原因"
+                    ))
+                    VersionItem("v1.1.13", "2026-05-08 14:29", listOf(
+                        "修复上传双 Bearer，公开上传测试"
+                    ))
                     VersionItem("v1.1.12", "2026-05-08 14:26", listOf(
                         "修复图片上传双 Bearer 认证失败"
                     ))
