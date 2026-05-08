@@ -161,7 +161,7 @@ fun NavGraph(
                 onAboutClick = { navController.navigate(Routes.ABOUT) },
                 onLogoutClick = {
                     sessionManager.clear()
-                    navController.navigate(Routes.ONBOARDING) {
+                    navController.navigate(Routes.AUTH) {
                         popUpTo(0) { inclusive = true }
                     }
                 }

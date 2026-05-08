@@ -144,6 +144,8 @@ class OnboardingViewModel(
                     createProfileWithDetails(userId, token)
                     session.setSession(token, userId, "")
                     session.saveEmail(state.email)
+                    session.saveNickname(state.nickname)
+                    session.saveAvatar(state.avatarUrl)
                     dishRepo.syncFromCloud()
                     profileRepo.loadFromCloud()
                     mealRepo.syncFromCloud()

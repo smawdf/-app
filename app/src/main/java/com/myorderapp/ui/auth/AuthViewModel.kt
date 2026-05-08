@@ -83,6 +83,11 @@ class AuthViewModel(
                     val pairId = profile?.pairId ?: ""
                     session.setSession(token, userId, pairId)
                     session.saveEmail(state.email)
+                    // 立即保存昵称头像到 SessionManager（防止后续异步加载失败）
+                    if (profile != null) {
+                        session.saveNickname(profile.nickname)
+                        session.saveAvatar(profile.avatarUrl ?: "")
+                    }
                     // Sync all cloud data
                     dishRepo.syncFromCloud()
                     profileRepo.loadFromCloud()
