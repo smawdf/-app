@@ -40,14 +40,10 @@ class SupabaseStorageUploader(
             val compressed = compressImage(originalBytes)
                 ?: originalBytes  // 压缩失败就用原图
 
-            // 3. 上传（使用 access token 认证）
+            // 3. 上传
             val fileName = "${UUID.randomUUID().toString().take(8)}.jpg"
             val path = "$dishId/$fileName"
             val token = sessionManager.accessToken
-
-            if (token.isBlank()) {
-                return@withContext null
-            }
 
             upload(path, compressed, token)
 
@@ -92,7 +88,9 @@ class SupabaseStorageUploader(
                 .post(body)
                 .header("Content-Type", "image/jpeg")
                 .header("apikey", ApiConfig.SUPABASE_ANON_KEY)
-                .header("Authorization", token)
+                .apply {
+                    if (token.isNotBlank()) header("Authorization", token)
+                }
                 .build()
 
             val response = client.newCall(request).execute()
