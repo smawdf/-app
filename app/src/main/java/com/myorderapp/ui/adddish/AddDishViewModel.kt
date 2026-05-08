@@ -166,24 +166,22 @@ class AddDishViewModel(
             // 如果图片是本地 URI（拍照/相册），压缩并上传到云端
             val imgUrl = state.imageUrl
             if (imgUrl.isNotBlank() && (imgUrl.startsWith("content://") || imgUrl.startsWith("file://"))) {
-                val publicUrl = storageUploader.compressAndUpload(
+                val result = storageUploader.compressAndUpload(
                     appContext, Uri.parse(imgUrl), dishId
                 )
-                if (publicUrl != null) {
-                    // 更新菜品图片为云端 URL
+                if (result.publicUrl != null) {
                     dishRepository.updateDish(Dish(
                         id = dishId, name = state.name, category = state.category,
                         difficulty = state.difficulty,
                         cookTimeMin = state.cookTimeMin.toIntOrNull() ?: 0,
-                        imageUrl = publicUrl,
+                        imageUrl = result.publicUrl,
                         ingredients = state.ingredients, cookSteps = state.cookSteps,
                         notes = state.notes, whoLikes = whoLikes,
                         source = "custom", createdBy = "${state.myName}创建"
                     ))
-                    _uiState.value = _uiState.value.copy(imageUrl = publicUrl, savedSuccess = true, isSaving = false, uploadMessage = "图片上传成功")
+                    _uiState.value = _uiState.value.copy(imageUrl = result.publicUrl, savedSuccess = true, isSaving = false, uploadMessage = "图片上传成功")
                 } else {
-                    // 上传失败：保留菜品，提示用户，使用本地图片
-                    _uiState.value = _uiState.value.copy(savedSuccess = true, isSaving = false, uploadMessage = "图片未上传到云端，更新版本后可能丢失")
+                    _uiState.value = _uiState.value.copy(savedSuccess = true, isSaving = false, uploadMessage = result.error ?: "图片未上传到云端")
                 }
             } else {
                 _uiState.value = _uiState.value.copy(savedSuccess = true, isSaving = false)
