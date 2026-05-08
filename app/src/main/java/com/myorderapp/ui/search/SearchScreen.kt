@@ -143,32 +143,34 @@ fun SearchScreen(
             Spacer(modifier = Modifier.height(12.dp))
         }
 
-        item {
-            PrimaryScrollableTabRow(
-                selectedTabIndex = dataSources.indexOf(uiState.selectedSource).coerceAtLeast(0),
-                modifier = Modifier.fillMaxWidth(),
-                edgePadding = 0.dp,
-                divider = {},
-                containerColor = Color.Transparent,
-                contentColor = MaterialTheme.colorScheme.primary
-            ) {
-                dataSources.forEach { source ->
-                    val selected = source == uiState.selectedSource
-                    Tab(
-                        selected = selected,
-                        onClick = { viewModel.onSourceSelected(source) },
-                        text = {
-                            Text(
-                                source,
-                                style = MaterialTheme.typography.labelMedium,
-                                color = if (selected) MaterialTheme.colorScheme.primary
-                                        else MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    )
+        if (dataSources.isNotEmpty()) {
+            item {
+                PrimaryScrollableTabRow(
+                    selectedTabIndex = dataSources.indexOf(uiState.selectedSource).coerceAtLeast(0),
+                    modifier = Modifier.fillMaxWidth(),
+                    edgePadding = 0.dp,
+                    divider = {},
+                    containerColor = Color.Transparent,
+                    contentColor = MaterialTheme.colorScheme.primary
+                ) {
+                    dataSources.forEach { source ->
+                        val selected = source == uiState.selectedSource
+                        Tab(
+                            selected = selected,
+                            onClick = { viewModel.onSourceSelected(source) },
+                            text = {
+                                Text(
+                                    source,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = if (selected) MaterialTheme.colorScheme.primary
+                                            else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        )
+                    }
                 }
+                Spacer(modifier = Modifier.height(12.dp))
             }
-            Spacer(modifier = Modifier.height(12.dp))
         }
 
         if (uiState.results.isNotEmpty()) {

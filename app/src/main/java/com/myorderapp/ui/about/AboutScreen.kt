@@ -71,6 +71,9 @@ fun AboutScreen(onBack: () -> Unit = {}) {
                 Column(modifier = Modifier.padding(20.dp)) {
                     Text("更新日志", style = MaterialTheme.typography.headlineMedium)
                     Spacer(modifier = Modifier.height(16.dp))
+                    VersionItem("v1.1.10", "2026-05-08 13:42", listOf(
+                        "修复搜索页进入时闪退"
+                    ))
                     VersionItem("v1.1.9", "2026-05-08 13:34", listOf(
                         "数据源 Tab 始终显示，切换不消失",
                         "修复快速连击保存导致重复菜品",
