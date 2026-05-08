@@ -93,8 +93,6 @@ fun AddDishScreen(
             // Image Upload
             val context = LocalContext.current
             var showPhotoSheet by remember { mutableStateOf(false) }
-            var showUrlDialog by remember { mutableStateOf(false) }
-            var urlInput by remember { mutableStateOf(uiState.imageUrl) }
             var cameraUri by remember { mutableStateOf<Uri?>(null) }
 
             val galleryLauncher = rememberLauncherForActivityResult(
@@ -143,44 +141,10 @@ fun AddDishScreen(
                                     Text("🖼️"); Text("从相册选择")
                                 }
                             }
-                            TextButton(onClick = {
-                                showPhotoSheet = false
-                                urlInput = uiState.imageUrl
-                                showUrlDialog = true
-                            }, modifier = Modifier.fillMaxWidth()) {
-                                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                    Text("🔗"); Text("输入URL")
-                                }
-                            }
                         }
                     },
                     confirmButton = {},
                     dismissButton = { TextButton(onClick = { showPhotoSheet = false }) { Text("取消") } }
-                )
-            }
-
-            if (showUrlDialog) {
-                AlertDialog(
-                    onDismissRequest = { showUrlDialog = false },
-                    title = { Text("输入图片URL", fontWeight = FontWeight.Bold) },
-                    text = {
-                        OutlinedTextField(
-                            value = urlInput,
-                            onValueChange = { urlInput = it },
-                            placeholder = { Text("https://...") },
-                            singleLine = true,
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    },
-                    confirmButton = {
-                        Button(onClick = {
-                            viewModel.onImageUrlChanged(urlInput)
-                            showUrlDialog = false
-                        }, colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                            shape = RoundedCornerShape(12.dp)) { Text("确定") }
-                    },
-                    dismissButton = { TextButton(onClick = { showUrlDialog = false }) { Text("取消") } }
                 )
             }
 
@@ -204,7 +168,7 @@ fun AddDishScreen(
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text("📷", fontSize = 32.sp)
                         Text("点击上传展示图", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text("拍照 / 从相册选择 / 输入URL", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f))
+                        Text("拍照 / 从相册选择", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f))
                     }
                 }
             }
