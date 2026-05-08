@@ -140,8 +140,12 @@ class SupabaseProfileRepository(
         try {
             val profiles = api.getProfile(session.currentUserId, session.accessToken)
             if (profiles.isNotEmpty()) {
-                _profile.value = profiles.first()
-                saveLocalProfile(profiles.first())
+                val p = profiles.first()
+                _profile.value = p
+                saveLocalProfile(p)
+                // 同步到 SessionManager（用于即时加载）
+                session.saveNickname(p.nickname)
+                session.saveAvatar(p.avatarUrl ?: "")
                 _synced.value = true
             } else {
                 // 云端无 Profile — 用本地数据复写
