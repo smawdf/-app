@@ -27,8 +27,8 @@ class SessionManager(context: Context) {
     var currentPairId: String = ""
         private set
 
-    val currentSessionId: String
-        get() = prefs.getString("session_id", "") ?: ""
+    private var _sessionId: String = ""
+    val currentSessionId: String get() = _sessionId
 
     init {
         restoreSession()
@@ -43,13 +43,13 @@ class SessionManager(context: Context) {
         _pairId.value = this.currentPairId
 
         // 生成新 sessionId（用于单设备登录检测）
-        val sessionId = java.util.UUID.randomUUID().toString()
+        _sessionId = java.util.UUID.randomUUID().toString()
 
         prefs.edit()
             .putString("token", token)
             .putString("user_id", userId)
             .putString("pair_id", this.currentPairId)
-            .putString("session_id", sessionId)
+            .putString("session_id", _sessionId)
             .apply()
     }
 
@@ -87,6 +87,7 @@ class SessionManager(context: Context) {
         accessToken = ""
         currentUserId = ""
         currentPairId = ""
+        _sessionId = ""
         _isLoggedIn.value = false
         _userId.value = ""
         _pairId.value = ""
@@ -97,10 +98,12 @@ class SessionManager(context: Context) {
         val token = prefs.getString("token", null)
         val uid = prefs.getString("user_id", null)
         val pid = prefs.getString("pair_id", null)
+        val sid = prefs.getString("session_id", null)
         if (token != null && uid != null) {
             accessToken = "Bearer $token"
             currentUserId = uid
             currentPairId = pid ?: "00000000-0000-0000-0000-000000000000"
+            _sessionId = sid ?: ""
             _isLoggedIn.value = true
             _userId.value = uid
             _pairId.value = this.currentPairId
