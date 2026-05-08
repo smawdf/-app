@@ -92,7 +92,7 @@ class SupabaseStorageUploader(
                 .post(body)
                 .header("Content-Type", "image/jpeg")
                 .header("apikey", ApiConfig.SUPABASE_ANON_KEY)
-                .header("Authorization", "Bearer $token")
+                .header("Authorization", token)
                 .build()
 
             val response = client.newCall(request).execute()

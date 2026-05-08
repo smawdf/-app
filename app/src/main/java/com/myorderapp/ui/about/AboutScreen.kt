@@ -71,6 +71,9 @@ fun AboutScreen(onBack: () -> Unit = {}) {
                 Column(modifier = Modifier.padding(20.dp)) {
                     Text("更新日志", style = MaterialTheme.typography.headlineMedium)
                     Spacer(modifier = Modifier.height(16.dp))
+                    VersionItem("v1.1.12", "2026-05-08 14:26", listOf(
+                        "修复图片上传双 Bearer 认证失败"
+                    ))
                     VersionItem("v1.1.11", "2026-05-08 14:19", listOf(
                         "修复图片上传缺 apikey 导致失败",
                         "修复连击保存导致重复菜品",
