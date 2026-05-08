@@ -1,5 +1,6 @@
 package com.myorderapp.ui.meal
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -42,6 +43,11 @@ fun StartMealScreen(
         if (uiState.bothSubmitted && uiState.mealId.isNotBlank()) {
             onResultClick(uiState.mealId)
         }
+    }
+
+    // 系统返回键：Step 1 → Step 0
+    BackHandler(enabled = uiState.step == 1) {
+        viewModel.goBackToStep0()
     }
 
     if (uiState.step == 0) {
@@ -122,22 +128,27 @@ fun StartMealScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .statusBarsPadding()
-                .padding(horizontal = 20.dp, vertical = 12.dp),
+                .padding(horizontal = 12.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    "🍽️ 点菜中",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onBackground
-                )
-                Text(
-                    mealTypes.find { it.type == uiState.mealType }?.label ?: uiState.mealType,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.primary
-                )
+            TextButton(onClick = { viewModel.goBackToStep0() }) {
+                Text("← 返回", style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary)
             }
+            Spacer(modifier = Modifier.weight(1f))
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("🍽️ 点菜中", style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                mealTypes.find { it.type == uiState.mealType }?.label ?: uiState.mealType,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.primary
+            )
         }
 
         // Search bar

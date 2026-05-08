@@ -72,6 +72,10 @@ class MealViewModel(
         }
     }
 
+    fun goBackToStep0() {
+        _uiState.value = _uiState.value.copy(step = 0, mySelections = emptyList(), mySubmitted = false)
+    }
+
     fun addDish(dish: Dish) {
         val item = MealItem(
             id = "mi_${System.currentTimeMillis()}",
