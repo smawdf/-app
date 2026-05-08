@@ -203,7 +203,12 @@ fun NavGraph(
                 ?.takeIf { it != "new" }
             AddDishScreen(
                 onBack = { navController.popBackStack() },
-                onSave = { navController.popBackStack() },
+                onSave = {
+                    navController.popBackStack()
+                    navController.navigate(Routes.DISH_LIBRARY) {
+                        launchSingleTop = true
+                    }
+                },
                 editDishId = editDishId
             )
         }

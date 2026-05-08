@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
+import com.myorderapp.ApiConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
@@ -90,6 +91,7 @@ class SupabaseStorageUploader(
                 .url(url)
                 .post(body)
                 .header("Content-Type", "image/jpeg")
+                .header("apikey", ApiConfig.SUPABASE_ANON_KEY)
                 .header("Authorization", "Bearer $token")
                 .build()
 

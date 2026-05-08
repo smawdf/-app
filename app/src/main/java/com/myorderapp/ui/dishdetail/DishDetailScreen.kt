@@ -188,17 +188,30 @@ fun CookStepCard(step: CookStep) {
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
-        Row(modifier = Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(modifier = Modifier.size(24.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primary),
-                contentAlignment = Alignment.Center) {
-                Text("${step.step}", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-            }
-            Spacer(modifier = Modifier.width(12.dp))
-            Column {
-                Text(step.description, fontSize = 12.sp)
-                if (step.tip != null) {
-                    Text(step.tip!!, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Column(modifier = Modifier.fillMaxWidth().padding(12.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(modifier = Modifier.size(24.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primary),
+                    contentAlignment = Alignment.Center) {
+                    Text("${step.step}", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                 }
+                Spacer(modifier = Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(step.description, fontSize = 12.sp)
+                    if (step.tip != null) {
+                        Text(step.tip!!, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+            }
+            if (step.imageUrl != null) {
+                Spacer(modifier = Modifier.height(8.dp))
+                AsyncImage(
+                    model = step.imageUrl,
+                    contentDescription = "步骤 ${step.step}",
+                    contentScale = ContentScale.FillWidth,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(8.dp))
+                )
             }
         }
     }

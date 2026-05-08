@@ -128,9 +128,10 @@ class AddDishViewModel(
     }
 
     fun save() {
-        if (_uiState.value.isSaving) return
+        val current = _uiState.value
+        if (current.isSaving) return
+        _uiState.value = current.copy(isSaving = true, uploadMessage = null)
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isSaving = true, uploadMessage = null)
             val state = _uiState.value
             val whoLikes = buildList {
                 if (state.whoLikesYou) add(state.myName)
