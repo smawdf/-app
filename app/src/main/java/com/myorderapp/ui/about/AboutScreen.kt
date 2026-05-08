@@ -71,6 +71,13 @@ fun AboutScreen(onBack: () -> Unit = {}) {
                 Column(modifier = Modifier.padding(20.dp)) {
                     Text("更新日志", style = MaterialTheme.typography.headlineMedium)
                     Spacer(modifier = Modifier.height(16.dp))
+                    VersionItem("v1.2.0", "2026-05-08 15:12", listOf(
+                        "搜索页新增\"我的菜单\"数据源 Tab",
+                        "自建菜品详情支持加入心愿单",
+                        "保存速度大幅提升（图片后台异步上传）",
+                        "首页\"最近菜品\"改为\"我的菜单\"",
+                        "\"自建\"统一改名为\"我的菜单\""
+                    ))
                     VersionItem("v1.1.16", "2026-05-08 14:40", listOf(
                         "修复拍照闪退（FileProvider 路径）",
                         "移除 URL 输入上传选项"

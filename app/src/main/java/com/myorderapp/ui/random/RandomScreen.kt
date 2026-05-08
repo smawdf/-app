@@ -429,7 +429,7 @@ fun RandomScreen(
                                     when {
                                         dish.externalSource == "juhe" -> "聚合数据"
                                         dish.source == "builtin" -> "内置菜谱"
-                                        dish.source == "custom" -> "自建菜品"
+                                        dish.source == "custom" -> "我的菜单"
                                         else -> dish.externalSource ?: "推荐"
                                     },
                                     style = MaterialTheme.typography.labelSmall,

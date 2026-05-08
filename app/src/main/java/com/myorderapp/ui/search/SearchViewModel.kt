@@ -138,7 +138,7 @@ class SearchViewModel(
             "juhe" -> "聚合数据"
             "tianapi" -> "天行数据"
             "jisuapi" -> "极速数据"
-            else -> "本地"
+            else -> if (dish.source == "custom") "我的菜单" else "本地"
         }
     }
 }

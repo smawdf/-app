@@ -61,7 +61,7 @@ fun SearchScreen(
                 dish.externalSource == "juhe" -> "聚合数据"
                 dish.externalSource == "tianapi" -> "天行数据"
                 dish.externalSource == "jisuapi" -> "极速数据"
-                dish.source == "custom" -> "自建"
+                dish.source == "custom" -> "我的菜单"
                 dish.source == "builtin" -> "内置"
                 else -> dish.externalSource ?: "外部"
             },

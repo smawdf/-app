@@ -64,7 +64,7 @@ class DishLibraryViewModel(
         var filtered = allDishes
 
         when (state.sourceFilter) {
-            "自建" -> filtered = filtered.filter { it.source == "custom" }
+            "我的菜单" -> filtered = filtered.filter { it.source == "custom" }
             "收藏" -> filtered = filtered.filter { it.source == "external" }
         }
         if (state.categoryFilter != "全部") {

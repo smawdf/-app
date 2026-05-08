@@ -152,19 +152,17 @@ fun DishDetailScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                if (!isCustom) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Button(
-                            onClick = { viewModel.addToWishlist() },
-                            modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(20.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-                        ) {
-                            Text(
-                                if (uiState.wishlistAdded) "✅ 已收藏" else "💫 加入心愿单",
-                                fontSize = 13.sp
-                            ) }
-                    }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(
+                        onClick = { viewModel.addToWishlist() },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(20.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                    ) {
+                        Text(
+                            if (uiState.wishlistAdded) "✅ 已收藏" else "💫 加入心愿单",
+                            fontSize = 13.sp
+                        ) }
                 }
 
                 Spacer(modifier = Modifier.height(32.dp))

@@ -46,7 +46,7 @@ fun DishLibraryScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val filters = remember(uiState.dishes) {
-        listOf("全部", "自建", "收藏") + uiState.dishes.map { it.category }.distinct().sorted()
+        listOf("全部", "我的菜单", "收藏") + uiState.dishes.map { it.category }.distinct().sorted()
     }
 
     val dishes = uiState.dishes.map { dish ->
@@ -54,7 +54,7 @@ fun DishLibraryScreen(
         val (whoStr, whoColor) = whoLikesDisplay(dish.whoLikes)
         LibraryDish(
             id = dish.id, name = dish.name,
-            source = if (dish.source == "custom") "自建" else "收藏",
+            source = if (dish.source == "custom") "我的菜单" else "收藏",
             category = dish.category, cookTimeMin = dish.cookTimeMin,
             whoLikes = whoStr, whoLikesColor = whoColor,
             emoji = emoji, imageUrl = dish.imageUrl, bgColor = bg
@@ -105,7 +105,7 @@ fun DishLibraryScreen(
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             // 来源下拉
             var sourceExpanded by remember { mutableStateOf(false) }
-            val sourceOptions = listOf("全部", "自建", "收藏")
+            val sourceOptions = listOf("全部", "我的菜单", "收藏")
             ExposedDropdownMenuBox(
                 expanded = sourceExpanded,
                 onExpandedChange = { sourceExpanded = it },
@@ -186,10 +186,10 @@ fun DishLibraryScreen(
                 DishGridCard(
                     dish = dish,
                     onClick = {
-                        onDishClick(dish.id, if (dish.source == "自建") "custom" else "external")
+                        onDishClick(dish.id, if (dish.source == "我的菜单") "custom" else "external")
                     },
                     modifier = Modifier.animateItem(),
-                    onDeleteClick = if (dish.source == "自建") {{ viewModel.deleteDish(dish.id) }} else null
+                    onDeleteClick = if (dish.source == "我的菜单") {{ viewModel.deleteDish(dish.id) }} else null
                 )
             }
             item { Spacer(modifier = Modifier.height(80.dp)) }
@@ -230,7 +230,7 @@ fun DishGridCard(
         Card(
             modifier = Modifier.combinedClickable(
                 onClick = onClick,
-                onLongClick = { if (dish.source == "自建") showMenu = true }
+                onLongClick = { if (dish.source == "我的菜单") showMenu = true }
             ),
             shape = RoundedCornerShape(14.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -273,14 +273,14 @@ fun DishGridCard(
                     color = dish.whoLikesColor
                 )
             }
-            if (dish.source == "自建") {
+            if (dish.source == "我的菜单") {
                 Surface(
                     modifier = Modifier.align(Alignment.TopEnd).padding(8.dp),
                     shape = RoundedCornerShape(9.dp),
                     color = MaterialTheme.colorScheme.primary
                 ) {
                     Text(
-                        "自建",
+                        "我的菜单",
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onPrimary

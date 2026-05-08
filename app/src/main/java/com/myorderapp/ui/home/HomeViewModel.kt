@@ -32,8 +32,9 @@ class HomeViewModel(
             }
         }
         viewModelScope.launch {
-            dishRepository.getRecentDishes(5).collect { dishes ->
-                _uiState.value = _uiState.value.copy(recentDishes = dishes, isLoading = false)
+            dishRepository.getRecentDishes(20).collect { dishes ->
+                val myDishes = dishes.filter { it.source == "custom" }.take(5)
+                _uiState.value = _uiState.value.copy(recentDishes = myDishes, isLoading = false)
             }
         }
     }
