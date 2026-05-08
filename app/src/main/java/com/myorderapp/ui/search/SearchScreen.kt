@@ -42,14 +42,13 @@ fun SearchScreen(
     onDishClick: (String, String) -> Unit = { _, _ -> }
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val dataSources = remember(uiState.sources) {
-        val sourceLabels = uiState.sources.map { src ->
-            when {
-                src.startsWith("本地") -> "本地"
-                src.startsWith("聚合") -> "聚合数据"
-                src.startsWith("天行") -> "天行数据"
-                src.startsWith("极速") -> "极速数据"
-                else -> null
+    val dataSources = remember(uiState.results) {
+        val sourceLabels = uiState.results.map { dish ->
+            when (dish.externalSource) {
+                "juhe" -> "聚合数据"
+                "tianapi" -> "天行数据"
+                "jisuapi" -> "极速数据"
+                else -> if (dish.source == "custom" || dish.source == "builtin") "本地" else null
             }
         }.filterNotNull().distinct()
         listOf("全部") + sourceLabels
@@ -120,8 +119,8 @@ fun SearchScreen(
             )
             Spacer(modifier = Modifier.height(8.dp))
 
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                if (uiState.isSearching) {
+            if (uiState.isSearching) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
                     CircularProgressIndicator(
                         modifier = Modifier.size(14.dp),
                         strokeWidth = 2.dp,
@@ -133,36 +132,6 @@ fun SearchScreen(
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                } else if (uiState.results.isNotEmpty()) {
-                    Text(
-                        "共 ${uiState.results.size} 条结果",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    if (uiState.sources.isNotEmpty()) {
-                        Spacer(modifier = Modifier.width(10.dp))
-                        uiState.sources.forEach { src ->
-                            val isSpoonacular = src.contains("Spoonacular")
-                            Surface(
-                                shape = RoundedCornerShape(9.dp),
-                                color = if (isSpoonacular)
-                                    MaterialTheme.colorScheme.secondaryContainer
-                                else
-                                    MaterialTheme.colorScheme.primaryContainer
-                            ) {
-                                Text(
-                                    src,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                                    color = if (isSpoonacular)
-                                        MaterialTheme.colorScheme.onSecondaryContainer
-                                    else
-                                        MaterialTheme.colorScheme.onPrimaryContainer
-                                )
-                            }
-                            Spacer(modifier = Modifier.width(4.dp))
-                        }
-                    }
                 }
             }
 

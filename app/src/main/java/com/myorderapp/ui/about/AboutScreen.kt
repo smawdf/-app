@@ -71,6 +71,12 @@ fun AboutScreen(onBack: () -> Unit = {}) {
                 Column(modifier = Modifier.padding(20.dp)) {
                     Text("更新日志", style = MaterialTheme.typography.headlineMedium)
                     Spacer(modifier = Modifier.height(16.dp))
+                    VersionItem("v1.1.8", "2026-05-08 13:17", listOf(
+                        "上传失败不再删除菜品，保留本地图片",
+                        "上传成功/失败 Snackbar 提示",
+                        "数据源 Tab 切换即时过滤",
+                        "无结果数据源自动隐藏"
+                    ))
                     VersionItem("v1.1.7", "2026-05-08 12:43", listOf(
                         "修复图片上传失败导致菜品图片丢失",
                         "搜索结果按数据源 Tab 切换",

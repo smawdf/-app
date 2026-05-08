@@ -43,14 +43,25 @@ fun AddDishScreen(
     LaunchedEffect(editDishId) {
         if (editDishId != null) viewModel.loadDishForEdit(editDishId)
     }
+    val snackbarHostState = remember { SnackbarHostState() }
+
     LaunchedEffect(uiState.savedSuccess) {
-        if (uiState.savedSuccess) onSave()
+        if (uiState.savedSuccess) {
+            if (uiState.uploadMessage != null) {
+                snackbarHostState.showSnackbar(uiState.uploadMessage!!)
+            }
+            onSave()
+        }
     }
 
+    Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) }
+    ) { padding ->
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
+            .padding(padding)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(16.dp),
@@ -346,6 +357,7 @@ fun AddDishScreen(
             )
             Spacer(modifier = Modifier.height(32.dp))
         }
+    }
     }
 }
 

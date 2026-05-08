@@ -47,8 +47,13 @@ class SearchViewModel(
         }
     }
 
+    private var allResults = mutableListOf<Dish>()
+
     fun onSourceSelected(source: String) {
-        _uiState.value = _uiState.value.copy(selectedSource = source)
+        _uiState.value = _uiState.value.copy(
+            selectedSource = source,
+            results = applySourceFilter(allResults, source)
+        )
     }
 
     fun cacheClickedDish(dishId: String) {
@@ -80,7 +85,9 @@ class SearchViewModel(
 
         // 合并结果：本地优先，在线补充（去重）
         val mergedResults = mergeResults(localResults, onlineResult.dishes)
-        val filtered = applySourceFilter(mergedResults)
+        allResults.clear()
+        allResults.addAll(mergedResults)
+        val filtered = applySourceFilter(mergedResults, _uiState.value.selectedSource)
 
         val sources = mutableListOf<String>()
         if (localResults.isNotEmpty()) sources.add("内置")
@@ -116,8 +123,7 @@ class SearchViewModel(
         return result
     }
 
-    private fun applySourceFilter(dishes: List<Dish>): List<Dish> {
-        val source = _uiState.value.selectedSource
+    private fun applySourceFilter(dishes: List<Dish>, source: String): List<Dish> {
         return if (source == "全部") dishes
         else dishes.filter { resolveSourceLabel(it) == source }
     }

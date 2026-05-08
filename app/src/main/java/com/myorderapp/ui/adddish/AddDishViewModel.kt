@@ -31,7 +31,8 @@ data class AddDishUiState(
     val myName: String = "我",
     val partnerName: String = "她",
     val isSaving: Boolean = false,
-    val savedSuccess: Boolean = false
+    val savedSuccess: Boolean = false,
+    val uploadMessage: String? = null
 )
 
 class AddDishViewModel(
@@ -162,7 +163,7 @@ class AddDishViewModel(
 
             // 如果图片是本地 URI（拍照/相册），压缩并上传到云端
             val imgUrl = state.imageUrl
-            val finalImageUrl: String? = if (imgUrl.isNotBlank() && (imgUrl.startsWith("content://") || imgUrl.startsWith("file://"))) {
+            if (imgUrl.isNotBlank() && (imgUrl.startsWith("content://") || imgUrl.startsWith("file://"))) {
                 val publicUrl = storageUploader.compressAndUpload(
                     appContext, Uri.parse(imgUrl), dishId
                 )
@@ -177,19 +178,14 @@ class AddDishViewModel(
                         notes = state.notes, whoLikes = whoLikes,
                         source = "custom", createdBy = "${state.myName}创建"
                     ))
-                    _uiState.value = _uiState.value.copy(imageUrl = publicUrl)
-                    publicUrl
+                    _uiState.value = _uiState.value.copy(imageUrl = publicUrl, savedSuccess = true, isSaving = false, uploadMessage = "图片上传成功")
                 } else {
-                    // 上传失败：删除已保存的菜品（避免死链）
-                    dishRepository.deleteDish(dishId)
-                    _uiState.value = _uiState.value.copy(isSaving = false, savedSuccess = false)
-                    return@launch
+                    // 上传失败：保留菜品，提示用户，使用本地图片
+                    _uiState.value = _uiState.value.copy(savedSuccess = true, isSaving = false, uploadMessage = "图片未上传到云端，更新版本后可能丢失")
                 }
             } else {
-                imgUrl.ifBlank { null }
+                _uiState.value = _uiState.value.copy(savedSuccess = true, isSaving = false)
             }
-
-            _uiState.value = _uiState.value.copy(isSaving = false, savedSuccess = true)
         }
     }
 }
