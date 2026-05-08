@@ -17,7 +17,8 @@ import org.koin.androidx.compose.koinViewModel
 @Composable
 fun AuthScreen(
     viewModel: AuthViewModel = koinViewModel(),
-    onLoggedIn: () -> Unit = {}
+    onLoggedIn: () -> Unit = {},
+    onRegisterClick: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
@@ -62,7 +63,7 @@ fun AuthScreen(
             ) {
                 Column(modifier = Modifier.padding(24.dp)) {
                     Text(
-                        if (uiState.mode == "login") "登录" else "注册",
+                        "登录",
                         style = MaterialTheme.typography.headlineMedium,
                         color = MaterialTheme.colorScheme.onSurface
                     )
@@ -123,9 +124,7 @@ fun AuthScreen(
                         )
                     ) {
                         Text(
-                            if (uiState.isLoading) "请稍候..."
-                            else if (uiState.mode == "login") "登录"
-                            else "注册",
+                            if (uiState.isLoading) "请稍候..." else "登录",
                             fontWeight = FontWeight.Bold,
                             fontSize = 16.sp,
                             color = MaterialTheme.colorScheme.onPrimary
@@ -134,10 +133,9 @@ fun AuthScreen(
 
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    TextButton(onClick = { viewModel.switchMode() }) {
+                    TextButton(onClick = onRegisterClick) {
                         Text(
-                            if (uiState.mode == "login") "没有账号？点击注册"
-                            else "已有账号？点击登录",
+                            "没有账号？点击注册",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.primary
                         )

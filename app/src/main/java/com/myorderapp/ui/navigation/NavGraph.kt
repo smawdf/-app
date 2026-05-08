@@ -266,6 +266,11 @@ fun NavGraph(
                     navController.navigate(Routes.HOME) {
                         popUpTo(Routes.AUTH) { inclusive = true }
                     }
+                },
+                onRegisterClick = {
+                    navController.navigate(Routes.ONBOARDING) {
+                        popUpTo(Routes.AUTH) { inclusive = true }
+                    }
                 }
             )
         }
