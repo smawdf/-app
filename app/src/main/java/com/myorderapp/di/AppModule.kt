@@ -2,7 +2,9 @@ package com.myorderapp.di
 
 import com.myorderapp.ApiConfig
 import com.myorderapp.data.local.RecipeAssetLoader
+import com.myorderapp.data.remote.recipe.JisuRecipeRemoteDataSource
 import com.myorderapp.data.remote.recipe.JuheRecipeRemoteDataSource
+import com.myorderapp.data.remote.recipe.TianRecipeRemoteDataSource
 import com.myorderapp.data.remote.supabase.SessionManager
 import com.myorderapp.data.repository.HybridDishRepository
 import com.myorderapp.data.repository.InMemoryDishRepository
@@ -37,8 +39,10 @@ val appModule = module {
     // Data sources
     single { com.myorderapp.data.remote.supabase.SupabaseStorageUploader(get(), ApiConfig.SUPABASE_URL) }
     single { JuheRecipeRemoteDataSource(get(), ApiConfig.JUHE_API_KEY) }
+    single { TianRecipeRemoteDataSource(get(), ApiConfig.TIAN_API_KEY) }
+    single { JisuRecipeRemoteDataSource(get(), ApiConfig.JISU_API_KEY) }
     // Use cases
-    single { DualRecipeSearchUseCase(get(), get<DishRepository>()) }
+    single { DualRecipeSearchUseCase(get(), get(), get(), get<DishRepository>()) }
 
     // Repositories — online when logged in, local as fallback
     // Dish
