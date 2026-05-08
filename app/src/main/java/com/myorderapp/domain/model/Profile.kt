@@ -11,7 +11,8 @@ data class Profile(
     @Json(name = "taste_prefs") val tastePrefs: DietaryPreference = DietaryPreference(),
     val allergies: List<String> = emptyList(),
     @Json(name = "created_at") val createdAt: String = "",
-    @Json(name = "updated_at") val updatedAt: String = ""
+    @Json(name = "updated_at") val updatedAt: String = "",
+    @Json(name = "session_id") val sessionId: String = ""
 )
 
 data class PairInfo(

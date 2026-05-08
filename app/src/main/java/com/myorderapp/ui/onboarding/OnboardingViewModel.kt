@@ -144,6 +144,7 @@ class OnboardingViewModel(
                     createProfileWithDetails(userId, token)
                     session.setSession(token, userId, "")
                     session.saveEmail(state.email)
+                    writeSessionId(userId, token)
                     dishRepo.syncFromCloud()
                     profileRepo.loadFromCloud()
                     mealRepo.syncFromCloud()
@@ -172,6 +173,16 @@ class OnboardingViewModel(
                 )
             }
         }
+    }
+
+    private suspend fun writeSessionId(userId: String, token: String) {
+        try {
+            supabaseApi.updateProfile(
+                userId = userId,
+                fields = mapOf("session_id" to session.currentSessionId),
+                token = "Bearer $token"
+            )
+        } catch (_: Exception) { }
     }
 
     private suspend fun createProfileWithDetails(userId: String, token: String) {

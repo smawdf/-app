@@ -123,6 +123,18 @@ class SupabaseProfileRepository(
 
     override fun isSynced(): Flow<Boolean> = _synced.asStateFlow()
 
+    suspend fun checkSessionValid(): Boolean {
+        if (!session.isLoggedIn.value) return true
+        try {
+            val profiles = api.getProfile(session.currentUserId, session.accessToken)
+            val cloudSessionId = profiles.firstOrNull()?.sessionId ?: ""
+            // 云端无 sessionId（旧数据）视为有效；有则必须匹配
+            return cloudSessionId.isBlank() || cloudSessionId == session.currentSessionId
+        } catch (_: Exception) {
+            return true // 网络异常不踢下线
+        }
+    }
+
     suspend fun loadFromCloud() {
         if (!session.isLoggedIn.value) return
         try {

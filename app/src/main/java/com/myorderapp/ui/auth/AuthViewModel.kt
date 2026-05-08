@@ -83,6 +83,8 @@ class AuthViewModel(
                     val pairId = profile?.pairId ?: ""
                     session.setSession(token, userId, pairId)
                     session.saveEmail(state.email)
+                    // 写入 sessionId 用于单设备登录检测
+                    writeSessionId(userId, token)
                     // Sync all cloud data
                     dishRepo.syncFromCloud()
                     profileRepo.loadFromCloud()
@@ -152,5 +154,15 @@ class AuthViewModel(
             session.clear()
             _uiState.value = AuthUiState()
         }
+    }
+
+    private suspend fun writeSessionId(userId: String, token: String) {
+        try {
+            supabaseApi.updateProfile(
+                userId = userId,
+                fields = mapOf("session_id" to session.currentSessionId),
+                token = "Bearer $token"
+            )
+        } catch (_: Exception) { }
     }
 }

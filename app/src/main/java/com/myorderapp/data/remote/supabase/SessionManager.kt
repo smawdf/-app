@@ -27,6 +27,9 @@ class SessionManager(context: Context) {
     var currentPairId: String = ""
         private set
 
+    val currentSessionId: String
+        get() = prefs.getString("session_id", "") ?: ""
+
     init {
         restoreSession()
     }
@@ -39,10 +42,14 @@ class SessionManager(context: Context) {
         _userId.value = userId
         _pairId.value = this.currentPairId
 
+        // 生成新 sessionId（用于单设备登录检测）
+        val sessionId = java.util.UUID.randomUUID().toString()
+
         prefs.edit()
             .putString("token", token)
             .putString("user_id", userId)
             .putString("pair_id", this.currentPairId)
+            .putString("session_id", sessionId)
             .apply()
     }
 
