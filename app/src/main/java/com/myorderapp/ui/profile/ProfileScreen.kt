@@ -3,8 +3,10 @@ package com.myorderapp.ui.profile
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -15,13 +17,22 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Outline
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
@@ -260,70 +271,111 @@ fun ProfileScreen(
                     .padding(20.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Avatar
-                Box(
-                    modifier = Modifier
-                        .size(80.dp)
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(
-                            Brush.linearGradient(
-                                listOf(Color(0xFFD4A574), Color(0xFFE8D5C0))
+                // Paired: 双人头像 + 爱心
+                if (uiState.pairInfo.isPaired) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        // 我的头像
+                        Box(
+                            modifier = Modifier.size(60.dp).clip(HeartShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            val myAv = profile?.avatarUrl
+                            if (!myAv.isNullOrBlank()) {
+                                AsyncImage(model = myAv, contentDescription = "我",
+                                    modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                            } else {
+                                Box(modifier = Modifier.fillMaxSize().background(Color(0xFFD4A574)),
+                                    contentAlignment = Alignment.Center) {
+                                    Text(profile?.nickname?.firstOrNull()?.toString() ?: "👤",
+                                        fontSize = 24.sp, color = Color.White)
+                                }
+                            }
+                        }
+                        Text("💕", fontSize = 32.sp, modifier = Modifier.padding(horizontal = 4.dp))
+                        // 对方头像
+                        Box(
+                            modifier = Modifier.size(60.dp).clip(HeartShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Box(modifier = Modifier.fillMaxSize().background(Color(0xFFC4A882)),
+                                contentAlignment = Alignment.Center) {
+                                Text(
+                                    uiState.pairInfo.partnerName.firstOrNull()?.toString() ?: "👤",
+                                    fontSize = 24.sp, color = Color.White
+                                )
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        uiState.pairInfo.partnerName.ifBlank { "已配对" },
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Text("💕 已配对", style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary)
+                } else {
+                    // 未配对：单人头像
+                    Box(
+                        modifier = Modifier
+                            .size(80.dp)
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(
+                                Brush.linearGradient(
+                                    listOf(Color(0xFFD4A574), Color(0xFFE8D5C0))
+                                )
                             )
-                        )
-                        .clickable { showAvatarSheet = true },
-                    contentAlignment = Alignment.Center
-                ) {
-                    val av = profile?.avatarUrl
-                    if (!av.isNullOrBlank()) {
-                        AsyncImage(
-                            model = av,
-                            contentDescription = "头像",
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Crop
-                        )
-                    } else {
+                            .clickable { showAvatarSheet = true },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        val av = profile?.avatarUrl
+                        if (!av.isNullOrBlank()) {
+                            AsyncImage(
+                                model = av,
+                                contentDescription = "头像",
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop
+                            )
+                        } else {
+                            Text(
+                                if (profile?.nickname.isNullOrBlank()) "👤"
+                                else profile!!.nickname.first().toString(),
+                                fontSize = 32.sp, color = Color.White
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Name
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.clickable {
+                            editName = profile?.nickname ?: ""
+                            showEditNameDialog = true
+                        }
+                    ) {
                         Text(
-                            if (profile?.nickname.isNullOrBlank()) "👤"
-                            else profile!!.nickname.first().toString(),
-                            fontSize = 32.sp, color = Color.White
+                            profile?.nickname?.ifBlank { "点击设置昵称" } ?: "点击设置昵称",
+                            style = MaterialTheme.typography.headlineMedium
                         )
                     }
-                }
-                Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(6.dp))
 
-                // Name
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.clickable {
-                        editName = profile?.nickname ?: ""
-                        showEditNameDialog = true
+                    // Pair status
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.secondaryContainer
+                    ) {
+                        Text("🔗 尚未配对",
+                            style = MaterialTheme.typography.labelMedium,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                            color = MaterialTheme.colorScheme.secondary
+                        )
                     }
-                ) {
-                    Text(
-                        profile?.nickname?.ifBlank { "点击设置昵称" } ?: "点击设置昵称",
-                        style = MaterialTheme.typography.headlineMedium
-                    )
-                }
-                Spacer(modifier = Modifier.height(6.dp))
-
-                // Pair status
-                Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = if (uiState.pairInfo.isPaired)
-                        MaterialTheme.colorScheme.primaryContainer
-                    else MaterialTheme.colorScheme.secondaryContainer
-                ) {
-                    Text(
-                        if (uiState.pairInfo.isPaired) {
-                            val name = uiState.pairInfo.partnerName
-                            "💕 已配对" + if (name.isNotBlank()) " · $name" else ""
-                        } else "🔗 尚未配对",
-                        style = MaterialTheme.typography.labelMedium,
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
-                        color = if (uiState.pairInfo.isPaired)
-                            MaterialTheme.colorScheme.primary
-                        else MaterialTheme.colorScheme.secondary
-                    )
                 }
 
                 // Save status message
@@ -511,11 +563,22 @@ fun ProfileScreen(
 
             if (uiState.pairCode.isNotBlank()) {
                 HorizontalDivider(modifier = Modifier.padding(horizontal = 12.dp))
+                @Suppress("DEPRECATION") val clipboard = LocalClipboardManager.current
+                var showCopyTip by remember { mutableStateOf(false) }
                 Column(
                     modifier = Modifier.fillMaxWidth().padding(12.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Row(horizontalArrangement = Arrangement.Center) {
+                    Row(
+                        horizontalArrangement = Arrangement.Center,
+                        modifier = Modifier.combinedClickable(
+                            onClick = {},
+                            onLongClick = {
+                                clipboard.setText(AnnotatedString(uiState.pairCode))
+                                showCopyTip = true
+                            }
+                        )
+                    ) {
                         Text("配对码：",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -525,9 +588,12 @@ fun ProfileScreen(
                             letterSpacing = 3.sp)
                     }
                     Spacer(modifier = Modifier.height(4.dp))
-                    Text("将此码分享给对方，对方在下方输入即可配对",
+                    Text(
+                        if (showCopyTip) "✅ 已复制" else "将此码分享给对方，长按可复制",
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        color = if (showCopyTip) MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             }
 
@@ -661,5 +727,21 @@ private fun SettingsRow(emoji: String, title: String, subtitle: String = "", onC
             }
         }
         Text("›", fontSize = 18.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+object HeartShape : Shape {
+    override fun createOutline(size: Size, layoutDirection: LayoutDirection, density: Density): Outline {
+        val path = Path().apply {
+            val w = size.width
+            val h = size.height
+            moveTo(w / 2, h * 0.85f)
+            cubicTo(w * 0.05f, h * 0.5f, 0f, h * 0.15f, w * 0.25f, h * 0.05f)
+            cubicTo(w * 0.4f, 0f, w * 0.47f, h * 0.2f, w / 2, h * 0.35f)
+            cubicTo(w * 0.53f, h * 0.2f, w * 0.6f, 0f, w * 0.75f, h * 0.05f)
+            cubicTo(w, h * 0.15f, w * 0.95f, h * 0.5f, w / 2, h * 0.85f)
+            close()
+        }
+        return Outline.Generic(path)
     }
 }

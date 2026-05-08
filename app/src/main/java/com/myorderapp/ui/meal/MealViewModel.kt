@@ -87,7 +87,8 @@ class MealViewModel(
 
     fun removeMyDish(itemId: String) {
         _uiState.value = _uiState.value.copy(
-            mySelections = _uiState.value.mySelections.filter { it.id != itemId }
+            mySelections = _uiState.value.mySelections.filter { it.id != itemId },
+            mySubmitted = false
         )
     }
 

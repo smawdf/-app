@@ -71,6 +71,12 @@ fun AboutScreen(onBack: () -> Unit = {}) {
                 Column(modifier = Modifier.padding(20.dp)) {
                     Text("更新日志", style = MaterialTheme.typography.headlineMedium)
                     Spacer(modifier = Modifier.height(16.dp))
+                    VersionItem("v1.3.0", "2026-05-08 18:31", listOf(
+                        "配对展示双人心形头像",
+                        "配对码长按复制",
+                        "点菜页双人左右布局",
+                        "删除已提交菜品自动重置"
+                    ))
                     VersionItem("v1.2.0", "2026-05-08 15:12", listOf(
                         "搜索页新增\"我的菜单\"数据源 Tab",
                         "自建菜品详情支持加入心愿单",

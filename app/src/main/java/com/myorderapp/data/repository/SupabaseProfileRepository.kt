@@ -109,6 +109,16 @@ class SupabaseProfileRepository(
         val defaultId = "00000000-0000-0000-0000-000000000000"
         saveProfile(current.copy(pairId = defaultId))
         session.setPairId(defaultId)
+        // 云端同步解除
+        if (session.isLoggedIn.value) {
+            try {
+                api.updateProfile(
+                    userId = session.currentUserId,
+                    fields = mapOf("pair_id" to defaultId),
+                    token = session.accessToken
+                )
+            } catch (_: Exception) { }
+        }
     }
 
     override fun isSynced(): Flow<Boolean> = _synced.asStateFlow()

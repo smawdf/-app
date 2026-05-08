@@ -107,219 +107,186 @@ fun StartMealScreen(
         return
     }
 
-    // Step 1: 点菜界面
+    // Step 1: 点菜界面 — 双人左右布局
     val filteredDishes = remember(uiState.searchQuery, uiState.allDishes) {
         viewModel.getFilteredDishes()
     }
 
-    LazyColumn(
+    Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background),
-        contentPadding = PaddingValues(top = 56.dp, bottom = 100.dp)
+            .background(MaterialTheme.colorScheme.background)
     ) {
         // Header
-        item {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        "🍽️ 点菜中",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onBackground
-                    )
-                    Text(
-                        mealTypes.find { it.type == uiState.mealType }?.label ?: uiState.mealType,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .statusBarsPadding()
+                .padding(horizontal = 20.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    "🍽️ 点菜中",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+                Text(
+                    mealTypes.find { it.type == uiState.mealType }?.label ?: uiState.mealType,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
             }
-            Spacer(modifier = Modifier.height(12.dp))
         }
 
         // Search bar
-        item {
-            OutlinedTextField(
-                value = uiState.searchQuery,
-                onValueChange = { viewModel.onSearchChanged(it) },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp),
-                placeholder = {
-                    Text(
-                        "搜索菜品添加到点餐...",
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                },
-                shape = RoundedCornerShape(22.dp),
-                singleLine = true,
-                colors = OutlinedTextFieldDefaults.colors(
-                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                    focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                    unfocusedBorderColor = Color.Transparent,
-                    focusedBorderColor = MaterialTheme.colorScheme.primary
-                )
+        OutlinedTextField(
+            value = uiState.searchQuery,
+            onValueChange = { viewModel.onSearchChanged(it) },
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp),
+            placeholder = { Text("搜索菜品添加到点餐...", style = MaterialTheme.typography.bodySmall) },
+            shape = RoundedCornerShape(22.dp), singleLine = true,
+            colors = OutlinedTextFieldDefaults.colors(
+                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                unfocusedBorderColor = Color.Transparent,
+                focusedBorderColor = MaterialTheme.colorScheme.primary
             )
-            Spacer(modifier = Modifier.height(12.dp))
-        }
+        )
+        Spacer(modifier = Modifier.height(8.dp))
 
-        // My selections panel
-        item {
+        // ── 双人左右面板 ──
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
+                .padding(horizontal = 20.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            // 左侧：我的选择
             Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp),
+                modifier = Modifier.weight(1f).fillMaxHeight(),
                 shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                 elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
             ) {
-                Column(modifier = Modifier.padding(12.dp)) {
+                Column(modifier = Modifier.fillMaxWidth()) {
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth().padding(10.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            "🧑 我的选择 (${uiState.mySelections.size}道)",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
+                        Text("🧑 我", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                         if (uiState.mySubmitted) {
-                            Surface(
-                                shape = RoundedCornerShape(8.dp),
-                                color = MaterialTheme.colorScheme.primaryContainer
-                            ) {
-                                Text(
-                                    "已提交 ✓",
-                                    style = MaterialTheme.typography.labelMedium,
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                                )
+                            Surface(shape = RoundedCornerShape(6.dp), color = MaterialTheme.colorScheme.primaryContainer) {
+                                Text("已提交 ✓", style = MaterialTheme.typography.labelSmall,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer)
                             }
                         }
                     }
-
                     if (uiState.mySelections.isEmpty()) {
-                        Text(
-                            "从下方搜索并添加菜品 👇",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        Box(modifier = Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
+                            Text("点击右侧菜品添加 👉", style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
                     } else {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        uiState.mySelections.forEach { item ->
-                            MyDishChip(item, onRemove = { viewModel.removeMyDish(it) })
-                            Spacer(modifier = Modifier.height(6.dp))
-                        }
-                    }
-                }
-            }
-            Spacer(modifier = Modifier.height(10.dp))
-        }
-
-        // Partner selections panel — 只在有真实对方数据时才显示
-        item {
-            val hasPartnerActivity = uiState.partnerSelections.isNotEmpty() || uiState.partnerSubmitted
-            AnimatedVisibility(
-                visible = hasPartnerActivity,
-                enter = fadeIn() + expandVertically(),
-                exit = fadeOut() + shrinkVertically()
-            ) {
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 20.dp),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-                ) {
-                    Column(modifier = Modifier.padding(12.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                "👧 ${uiState.partnerName}的选择 (${uiState.partnerSelections.size}道)",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold
-                            )
-                            if (uiState.partnerSubmitted) {
-                                Surface(
-                                    shape = RoundedCornerShape(8.dp),
-                                    color = MaterialTheme.colorScheme.primaryContainer
-                                ) {
-                                    Text(
-                                        "已提交 ✓",
-                                        style = MaterialTheme.typography.labelMedium,
-                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
-                                        color = MaterialTheme.colorScheme.onPrimaryContainer
-                                    )
-                                }
+                        LazyColumn(modifier = Modifier.weight(1f)) {
+                            items(uiState.mySelections) { item ->
+                                MyDishChip(item, onRemove = { viewModel.removeMyDish(it) })
+                                Spacer(modifier = Modifier.height(4.dp))
                             }
                         }
+                    }
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text("${uiState.mySelections.size}道", style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(start = 10.dp, bottom = 8.dp))
+                }
+            }
 
-                        if (uiState.partnerSelections.isEmpty()) {
-                            Text(
-                                "${uiState.partnerName}已加入，尚未选菜",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        } else {
-                            Spacer(modifier = Modifier.height(8.dp))
-                            uiState.partnerSelections.forEach { item ->
+            // 右侧：对方选择
+            Card(
+                modifier = Modifier.weight(1f).fillMaxHeight(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+            ) {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(10.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("👧 ${uiState.partnerName}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        if (uiState.partnerSubmitted) {
+                            Surface(shape = RoundedCornerShape(6.dp), color = MaterialTheme.colorScheme.primaryContainer) {
+                                Text("已提交 ✓", style = MaterialTheme.typography.labelSmall,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer)
+                            }
+                        }
+                    }
+                    if (uiState.partnerSelections.isEmpty()) {
+                        Box(modifier = Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
+                            Text("等待选菜...", style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    } else {
+                        LazyColumn(modifier = Modifier.weight(1f)) {
+                            items(uiState.partnerSelections) { item ->
                                 PartnerDishChip(item)
-                                Spacer(modifier = Modifier.height(6.dp))
+                                Spacer(modifier = Modifier.height(4.dp))
                             }
                         }
                     }
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text("${uiState.partnerSelections.size}道", style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(start = 10.dp, bottom = 8.dp))
                 }
             }
-            Spacer(modifier = Modifier.height(12.dp))
         }
 
-        // Available dishes header
-        item {
-            Text(
-                "📋 菜品库 · 点击添加",
-                modifier = Modifier.padding(horizontal = 20.dp),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onBackground
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-        }
+        Spacer(modifier = Modifier.height(8.dp))
 
-        // Dish grid
-        items(filteredDishes.chunked(2)) { row ->
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                row.forEach { dish ->
-                    val isSelected = uiState.mySelections.any { it.dishId == dish.id }
-                    DishGridCard(
-                        dish = dish,
-                        isSelected = isSelected,
-                        onClick = {
-                            if (!isSelected) viewModel.addDish(dish)
-                        },
-                        modifier = Modifier.weight(1f)
-                    )
+        // ── 菜品库 ──
+        Text(
+            "📋 菜品库 · 点击添加",
+            modifier = Modifier.padding(horizontal = 20.dp),
+            style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold
+        )
+        Spacer(modifier = Modifier.height(4.dp))
+
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1.2f)
+                .padding(horizontal = 20.dp)
+        ) {
+            items(filteredDishes.chunked(2)) { row ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    row.forEach { dish ->
+                        val isSelected = uiState.mySelections.any { it.dishId == dish.id }
+                        DishGridCard(
+                            dish = dish, isSelected = isSelected,
+                            onClick = { if (!isSelected) viewModel.addDish(dish) },
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                    if (row.size == 1) Spacer(modifier = Modifier.weight(1f))
                 }
-                if (row.size == 1) Spacer(modifier = Modifier.weight(1f))
+                Spacer(modifier = Modifier.height(8.dp))
             }
-            Spacer(modifier = Modifier.height(8.dp))
+            item { Spacer(modifier = Modifier.height(100.dp)) }
         }
     }
 
@@ -345,17 +312,11 @@ fun StartMealScreen(
                         fontWeight = FontWeight.SemiBold
                     )
                     if (uiState.partnerSubmitted) {
-                        Text(
-                            "对方已提交选择",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.primary
-                        )
+                        Text("对方已提交选择", style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.primary)
                     } else if (uiState.mySubmitted) {
-                        Text(
-                            "等待对方提交...",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        Text("等待对方提交...", style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
                 Button(
