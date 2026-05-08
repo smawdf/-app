@@ -71,6 +71,11 @@ fun AboutScreen(onBack: () -> Unit = {}) {
                 Column(modifier = Modifier.padding(20.dp)) {
                     Text("更新日志", style = MaterialTheme.typography.headlineMedium)
                     Spacer(modifier = Modifier.height(16.dp))
+                    VersionItem("v1.1.7", "2026-05-08 12:43", listOf(
+                        "修复图片上传失败导致菜品图片丢失",
+                        "搜索结果按数据源 Tab 切换",
+                        "移除菜品详情页\"自定义\"标签"
+                    ))
                     VersionItem("v1.1.6", "2026-05-08", listOf(
                         "天行数据 + 极速数据双菜谱搜索源",
                         "三 API 并行搜索，结果合并去重"

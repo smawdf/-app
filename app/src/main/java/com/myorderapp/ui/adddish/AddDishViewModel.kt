@@ -162,25 +162,31 @@ class AddDishViewModel(
 
             // 如果图片是本地 URI（拍照/相册），压缩并上传到云端
             val imgUrl = state.imageUrl
-            if (imgUrl.isNotBlank() && (imgUrl.startsWith("content://") || imgUrl.startsWith("file://"))) {
-                try {
-                    val publicUrl = storageUploader.compressAndUpload(
-                        appContext, Uri.parse(imgUrl), dishId
-                    )
-                    if (publicUrl != null) {
-                        // 更新菜品图片为云端 URL
-                        dishRepository.updateDish(Dish(
-                            id = dishId, name = state.name, category = state.category,
-                            difficulty = state.difficulty,
-                            cookTimeMin = state.cookTimeMin.toIntOrNull() ?: 0,
-                            imageUrl = publicUrl,
-                            ingredients = state.ingredients, cookSteps = state.cookSteps,
-                            notes = state.notes, whoLikes = whoLikes,
-                            source = "custom", createdBy = "${state.myName}创建"
-                        ))
-                        _uiState.value = _uiState.value.copy(imageUrl = publicUrl)
-                    }
-                } catch (_: Exception) { }
+            val finalImageUrl: String? = if (imgUrl.isNotBlank() && (imgUrl.startsWith("content://") || imgUrl.startsWith("file://"))) {
+                val publicUrl = storageUploader.compressAndUpload(
+                    appContext, Uri.parse(imgUrl), dishId
+                )
+                if (publicUrl != null) {
+                    // 更新菜品图片为云端 URL
+                    dishRepository.updateDish(Dish(
+                        id = dishId, name = state.name, category = state.category,
+                        difficulty = state.difficulty,
+                        cookTimeMin = state.cookTimeMin.toIntOrNull() ?: 0,
+                        imageUrl = publicUrl,
+                        ingredients = state.ingredients, cookSteps = state.cookSteps,
+                        notes = state.notes, whoLikes = whoLikes,
+                        source = "custom", createdBy = "${state.myName}创建"
+                    ))
+                    _uiState.value = _uiState.value.copy(imageUrl = publicUrl)
+                    publicUrl
+                } else {
+                    // 上传失败：删除已保存的菜品（避免死链）
+                    dishRepository.deleteDish(dishId)
+                    _uiState.value = _uiState.value.copy(isSaving = false, savedSuccess = false)
+                    return@launch
+                }
+            } else {
+                imgUrl.ifBlank { null }
             }
 
             _uiState.value = _uiState.value.copy(isSaving = false, savedSuccess = true)

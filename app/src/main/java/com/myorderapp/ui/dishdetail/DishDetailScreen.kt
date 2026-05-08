@@ -92,19 +92,6 @@ fun DishDetailScreen(
                     }
                 }
             }
-            if (isCustom) {
-                Surface(
-                    modifier = Modifier
-                        .align(Alignment.BottomStart)
-                        .padding(16.dp),
-                    shape = RoundedCornerShape(10.dp),
-                    color = MaterialTheme.colorScheme.primary
-                ) {
-                    Text("自定义",
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
-                        color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.SemiBold)
-                }
-            }
         }
 
         if (dish != null) {

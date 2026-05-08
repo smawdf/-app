@@ -17,7 +17,7 @@ import kotlinx.coroutines.launch
 
 data class SearchUiState(
     val query: String = "",
-    val selectedCategory: String = "全部",
+    val selectedSource: String = "全部",
     val results: List<Dish> = emptyList(),
     val isSearching: Boolean = false,
     val sources: List<String> = emptyList(),
@@ -47,9 +47,8 @@ class SearchViewModel(
         }
     }
 
-    fun onCategorySelected(category: String) {
-        _uiState.value = _uiState.value.copy(selectedCategory = category)
-        viewModelScope.launch { performUnifiedSearch() }
+    fun onSourceSelected(source: String) {
+        _uiState.value = _uiState.value.copy(selectedSource = source)
     }
 
     fun cacheClickedDish(dishId: String) {
@@ -81,7 +80,7 @@ class SearchViewModel(
 
         // 合并结果：本地优先，在线补充（去重）
         val mergedResults = mergeResults(localResults, onlineResult.dishes)
-        val filtered = applyCategoryFilter(mergedResults)
+        val filtered = applySourceFilter(mergedResults)
 
         val sources = mutableListOf<String>()
         if (localResults.isNotEmpty()) sources.add("内置")
@@ -117,9 +116,18 @@ class SearchViewModel(
         return result
     }
 
-    private fun applyCategoryFilter(dishes: List<Dish>): List<Dish> {
-        val category = _uiState.value.selectedCategory
-        return if (category == "全部") dishes
-        else dishes.filter { it.category == category }
+    private fun applySourceFilter(dishes: List<Dish>): List<Dish> {
+        val source = _uiState.value.selectedSource
+        return if (source == "全部") dishes
+        else dishes.filter { resolveSourceLabel(it) == source }
+    }
+
+    private fun resolveSourceLabel(dish: Dish): String {
+        return when (dish.externalSource) {
+            "juhe" -> "聚合数据"
+            "tianapi" -> "天行数据"
+            "jisuapi" -> "极速数据"
+            else -> "本地"
+        }
     }
 }

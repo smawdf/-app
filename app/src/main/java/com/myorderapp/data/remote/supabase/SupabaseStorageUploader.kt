@@ -15,7 +15,8 @@ import java.util.UUID
 
 class SupabaseStorageUploader(
     private val client: OkHttpClient,
-    private val supabaseUrl: String
+    private val supabaseUrl: String,
+    private val sessionManager: SessionManager
 ) {
 
     private val bucket = "dish-images"
@@ -38,13 +39,16 @@ class SupabaseStorageUploader(
             val compressed = compressImage(originalBytes)
                 ?: originalBytes  // 压缩失败就用原图
 
-            // 3. 上传
+            // 3. 上传（使用 access token 认证）
             val fileName = "${UUID.randomUUID().toString().take(8)}.jpg"
             val path = "$dishId/$fileName"
-            val token = ""
+            val token = sessionManager.accessToken
 
-            upload(path, compressed, null)  // 先试不需要 auth（bucket 公开上传）
-                ?: uploadWithAuth(path, compressed)
+            if (token.isBlank()) {
+                return@withContext null
+            }
+
+            upload(path, compressed, token)
 
         } catch (e: Exception) {
             e.printStackTrace()
@@ -77,7 +81,7 @@ class SupabaseStorageUploader(
         }
     }
 
-    private fun upload(path: String, bytes: ByteArray, token: String?): String? {
+    private fun upload(path: String, bytes: ByteArray, token: String): String? {
         return try {
             val mediaType = "image/jpeg".toMediaType()
             val body = bytes.toRequestBody(mediaType)
@@ -86,9 +90,7 @@ class SupabaseStorageUploader(
                 .url(url)
                 .post(body)
                 .header("Content-Type", "image/jpeg")
-                .apply {
-                    if (token != null) header("Authorization", token)
-                }
+                .header("Authorization", "Bearer $token")
                 .build()
 
             val response = client.newCall(request).execute()
@@ -100,11 +102,5 @@ class SupabaseStorageUploader(
         } catch (e: Exception) {
             null
         }
-    }
-
-    private suspend fun uploadWithAuth(path: String, bytes: ByteArray): String? {
-        // Auth required — will be called when not logged in
-        // When offline or no auth, upload won't work; return null to use local URI
-        return null
     }
 }

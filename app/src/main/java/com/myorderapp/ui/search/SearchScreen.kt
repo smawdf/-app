@@ -20,7 +20,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import org.koin.androidx.compose.koinViewModel
-import com.myorderapp.ui.theme.CategoryDisplay
 
 data class SearchResult(
     val id: String,
@@ -43,30 +42,41 @@ fun SearchScreen(
     onDishClick: (String, String) -> Unit = { _, _ -> }
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val categories = remember(uiState.results) {
-        listOf("全部") + uiState.results.map { it.category }.distinct().sorted()
+    val dataSources = remember(uiState.sources) {
+        val sourceLabels = uiState.sources.map { src ->
+            when {
+                src.startsWith("本地") -> "本地"
+                src.startsWith("聚合") -> "聚合数据"
+                src.startsWith("天行") -> "天行数据"
+                src.startsWith("极速") -> "极速数据"
+                else -> null
+            }
+        }.filterNotNull().distinct()
+        listOf("全部") + sourceLabels
     }
 
     val searchResults = uiState.results.map { dish ->
-        val emoji = CategoryDisplay.emoji(dish.category)
-        val bgColor = CategoryDisplay.bgColor(dish.category)
+        val defaultEmoji = "🍽️"
+        val defaultBgColor = Color(0xFFF5F0E8)
         val sourceColor = when (dish.externalSource) {
-            "spoonacular" -> Color(0xFF2196F3)
             "juhe" -> Color(0xFFFF6B35)
+            "tianapi" -> Color(0xFF2196F3)
+            "jisuapi" -> Color(0xFF9C27B0)
             else -> if (dish.source == "custom") Color(0xFF4CAF50) else Color(0xFFFF6B35)
         }
         SearchResult(
             id = dish.id, name = dish.name, category = dish.category,
             cookTimeMin = dish.cookTimeMin, difficulty = dish.difficulty,
-            description = dish.notes.ifBlank { "${dish.category}风味" },
+            description = dish.notes.ifBlank { "" },
             source = when {
-                dish.externalSource == "spoonacular" -> "Spoonacular"
                 dish.externalSource == "juhe" -> "聚合数据"
+                dish.externalSource == "tianapi" -> "天行数据"
+                dish.externalSource == "jisuapi" -> "极速数据"
                 dish.source == "custom" -> "自建"
                 dish.source == "builtin" -> "内置"
                 else -> dish.externalSource ?: "外部"
             },
-            sourceColor = sourceColor, emoji = emoji, bgColor = bgColor,
+            sourceColor = sourceColor, emoji = defaultEmoji, bgColor = defaultBgColor,
             imageUrl = dish.imageUrl
         )
     }
@@ -175,29 +185,31 @@ fun SearchScreen(
         }
 
         item {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                categories.forEach { category ->
-                    val isSelected = category == uiState.selectedCategory
-                    FilterChip(
-                        selected = isSelected,
-                        onClick = { viewModel.onCategorySelected(category) },
-                        label = { Text(category, style = MaterialTheme.typography.labelMedium) },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                            selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
-                        ),
-                        border = FilterChipDefaults.filterChipBorder(
-                            enabled = true, selected = isSelected,
-                            borderColor = if (isSelected)
-                                MaterialTheme.colorScheme.primary
-                            else
-                                MaterialTheme.colorScheme.outlineVariant,
-                            selectedBorderColor = MaterialTheme.colorScheme.primary
-                        )
+            PrimaryScrollableTabRow(
+                selectedTabIndex = dataSources.indexOf(uiState.selectedSource).coerceAtLeast(0),
+                modifier = Modifier.fillMaxWidth(),
+                edgePadding = 0.dp,
+                divider = {},
+                containerColor = Color.Transparent,
+                contentColor = MaterialTheme.colorScheme.primary
+            ) {
+                dataSources.forEach { source ->
+                    val selected = source == uiState.selectedSource
+                    Tab(
+                        selected = selected,
+                        onClick = { viewModel.onSourceSelected(source) },
+                        text = {
+                            Text(
+                                source,
+                                style = MaterialTheme.typography.labelMedium,
+                                color = if (selected) MaterialTheme.colorScheme.primary
+                                        else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     )
                 }
             }
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(12.dp))
         }
 
         if (uiState.results.isNotEmpty()) {
@@ -257,7 +269,7 @@ fun SearchResultCard(result: SearchResult, onClick: () -> Unit) {
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    "${result.category} · ${result.cookTimeMin}分钟 · ${"⭐".repeat(result.difficulty)}",
+                    "${result.cookTimeMin}分钟 · ${"⭐".repeat(result.difficulty)}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
