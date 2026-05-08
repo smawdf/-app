@@ -101,9 +101,8 @@ fun DishLibraryScreen(
         )
         Spacer(modifier = Modifier.height(12.dp))
 
-        // 来源筛选 + 分类筛选 下拉框
+        // 来源筛选
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            // 来源下拉
             var sourceExpanded by remember { mutableStateOf(false) }
             val sourceOptions = listOf("全部", "我的菜单", "收藏")
             ExposedDropdownMenuBox(
@@ -127,41 +126,7 @@ fun DishLibraryScreen(
                             text = { Text(opt) },
                             onClick = {
                                 viewModel.onSourceFilterChanged(opt)
-                                if (opt == "全部") viewModel.onCategoryFilterChanged("全部")
                                 sourceExpanded = false
-                            }
-                        )
-                    }
-                }
-            }
-
-            // 分类下拉
-            var catExpanded by remember { mutableStateOf(false) }
-            val categories = remember(uiState.dishes) {
-                listOf("全部") + uiState.dishes.map { it.category }.distinct().sorted()
-            }
-            ExposedDropdownMenuBox(
-                expanded = catExpanded,
-                onExpandedChange = { catExpanded = it },
-                modifier = Modifier.weight(1f)
-            ) {
-                OutlinedTextField(
-                    value = uiState.categoryFilter,
-                    onValueChange = {},
-                    readOnly = true,
-                    modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable).fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = catExpanded) },
-                    singleLine = true,
-                    textStyle = MaterialTheme.typography.labelMedium
-                )
-                ExposedDropdownMenu(expanded = catExpanded, onDismissRequest = { catExpanded = false }) {
-                    categories.forEach { cat ->
-                        DropdownMenuItem(
-                            text = { Text(cat) },
-                            onClick = {
-                                viewModel.onCategoryFilterChanged(cat)
-                                catExpanded = false
                             }
                         )
                     }

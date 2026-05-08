@@ -4,6 +4,7 @@ import com.myorderapp.data.remote.supabase.SessionManager
 import com.myorderapp.domain.model.Dish
 import com.myorderapp.domain.repository.DishRepository
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 
 class HybridDishRepository(
@@ -14,7 +15,18 @@ class HybridDishRepository(
 
     private val active: DishRepository get() = if (session.isLoggedIn.value) cloudRepo else localRepo
 
-    override fun getAllDishes(): Flow<List<Dish>> = active.getAllDishes()
+    override fun getAllDishes(): Flow<List<Dish>> {
+        // 合并本地和云端，确保首次打开即有数据
+        return kotlinx.coroutines.flow.combine(
+            localRepo.getAllDishes(), cloudRepo.getAllDishes()
+        ) { local, cloud ->
+            val merged = mutableListOf<Dish>()
+            val seen = mutableSetOf<String>()
+            cloud.forEach { if (seen.add(it.name.lowercase())) merged.add(it) }
+            local.forEach { if (seen.add(it.name.lowercase())) merged.add(it) }
+            merged
+        }
+    }
 
     override fun getDishesByCategory(category: String): Flow<List<Dish>> =
         active.getDishesByCategory(category)
@@ -52,11 +64,7 @@ class HybridDishRepository(
 
     suspend fun syncFromCloud() {
         if (session.isLoggedIn.value) {
-            cloudRepo.syncFromCloud()
-            // Also sync cloud dishes to local cache
-            cloudRepo.getAllDishes().map { dishes ->
-                dishes.forEach { localRepo.cacheSearchResult(it) }
-            }
+            cloudRepo.loadFromCloud()
         }
     }
 }

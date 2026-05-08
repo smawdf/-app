@@ -81,15 +81,24 @@
 └──────────────────────┘
 ```
 
-### 2.4 点菜防删除 Bug
+### 2.4 点菜删除后重置提交状态
 
-```kotlin
-// 修复：已提交后禁止删除
-fun removeMyDish(dishId: String) {
-    if (_uiState.value.mySubmitted) return  // 已提交，禁止操作
-    // 正常删除逻辑...
-}
 ```
+用户提交了 3 道菜 → "已提交 ✓"
+用户又删了 1 道 → 我的选择变了
+                → mySubmitted 应重置为 false
+                → 用户可以重新提交
+```
+
+修复：
+```kotlin
+fun removeMyDish(dishId: String) {
+    // 正常删除
+    _uiState.value = _uiState.value.copy(
+        mySelections = _uiState.value.mySelections.filter { it.id != dishId },
+        mySubmitted = false  // 删除后重置提交状态
+    )
+}
 
 ### 2.5 解除配对双向同步
 
@@ -176,7 +185,7 @@ ALTER TABLE profiles ADD COLUMN pair_status VARCHAR DEFAULT 'none';
 
 | 优先级 | 内容 |
 |--------|------|
-| P0 | 点菜删除 Bug 修复 |
+| P0 | 点菜删除后重置提交状态 Bug 修复 |
 | P0 | 点菜双人左右布局 |
 | P1 | 配对爱心展示（个人中心） |
 | P1 | 解除配对双向同步 |
