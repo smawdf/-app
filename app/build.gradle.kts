@@ -1,6 +1,15 @@
+import java.util.Properties
+
+val localProps = Properties().apply {
+    val f = rootProject.file("local.properties")
+    if (f.exists()) load(f.inputStream())
+}
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.ksp)
 }
 
 android {
@@ -20,6 +29,13 @@ android {
         versionName = "1.4.7"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        buildConfigField("String", "JUHE_API_KEY", "\"${localProps.getProperty("JUHE_API_KEY", "")}\"")
+        buildConfigField("String", "SPOONACULAR_API_KEY", "\"${localProps.getProperty("SPOONACULAR_API_KEY", "")}\"")
+        buildConfigField("String", "TIAN_API_KEY", "\"${localProps.getProperty("TIAN_API_KEY", "")}\"")
+        buildConfigField("String", "JISU_API_KEY", "\"${localProps.getProperty("JISU_API_KEY", "")}\"")
+        buildConfigField("String", "SUPABASE_URL", "\"${localProps.getProperty("SUPABASE_URL", "")}\"")
+        buildConfigField("String", "SUPABASE_ANON_KEY", "\"${localProps.getProperty("SUPABASE_ANON_KEY", "")}\"")
     }
 
     signingConfigs {
@@ -34,7 +50,8 @@ android {
     buildTypes {
         release {
             signingConfig = signingConfigs.getByName("release")
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -50,6 +67,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 
@@ -82,6 +100,7 @@ dependencies {
     implementation(libs.okhttp)
     implementation(libs.okhttp.logging)
     implementation(libs.moshi.kotlin)
+    implementation(libs.kotlinx.serialization.json)
     implementation(libs.kotlin.reflect)
 
     // Supabase
@@ -93,15 +112,29 @@ dependencies {
 
     // Image Loading
     implementation(libs.coil.compose)
+    implementation(libs.coil.network.okhttp)
 
     // Coroutines
     implementation(libs.kotlinx.coroutines.android)
+
+    // Room Database
+    implementation(libs.room.runtime)
+    implementation(libs.room.ktx)
+    ksp(libs.room.compiler)
+    implementation(libs.room.paging)
+
+    // Paging
+    implementation(libs.androidx.paging.runtime)
+    implementation(libs.androidx.paging.compose)
+
+    // WorkManager (upload queue)
+    implementation(libs.work.runtime.ktx)
 
     // Animations
     implementation(libs.lottie.compose)
 
     // Accompanist
-    implementation(libs.accompanist.permissions)
+    // Accompanist removed — use Compose Foundation built-in permissions API
 
     // Koin DI
     implementation(platform(libs.koin.bom))

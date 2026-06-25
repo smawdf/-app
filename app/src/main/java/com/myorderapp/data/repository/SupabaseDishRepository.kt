@@ -1,9 +1,10 @@
 package com.myorderapp.data.repository
 
 import com.myorderapp.data.remote.supabase.SessionManager
-import com.myorderapp.data.remote.supabase.SupabaseApi
+import com.myorderapp.data.remote.supabase.SupabaseClientProvider
 import com.myorderapp.domain.model.Dish
 import com.myorderapp.domain.repository.DishRepository
+import io.github.jan.supabase.postgrest.from
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -12,13 +13,13 @@ import kotlinx.coroutines.withContext
 import java.io.File
 
 class SupabaseDishRepository(
-    private val api: SupabaseApi,
     private val session: SessionManager,
     private val filesDir: File
 ) : DishRepository {
 
+    private val client = SupabaseClientProvider.client
     private val _dishes = MutableStateFlow<List<Dish>>(emptyList())
-    private var loaded = false
+    private val loadState = CloudDishLoadState()
 
     override fun getAllDishes(): Flow<List<Dish>> = _dishes
 
@@ -42,21 +43,27 @@ class SupabaseDishRepository(
     }
 
     override suspend fun addDish(dish: Dish): String {
-        val result = api.createDish(dish, session.accessToken)
-        val created = result.firstOrNull() ?: dish
+        val pairId = requireActivePairId()
+        val created = client.from("dishes").insert(dish.copy(pairId = pairId)) {
+            select()
+        }.decodeSingle<Dish>()
         _dishes.value = _dishes.value + created
         return created.id
     }
 
     override suspend fun updateDish(dish: Dish) {
-        try {
-            api.updateDish(dish.id, dish, session.accessToken)
-        } catch (_: Exception) { }
-        _dishes.value = _dishes.value.map { if (it.id == dish.id) dish else it }
+        val pairId = dish.pairId.ifBlank { requireActivePairId() }
+        val updated = client.from("dishes").update(dish.copy(pairId = pairId)) {
+            select()
+            filter { eq("id", dish.id) }
+        }.decodeSingle<Dish>()
+        _dishes.value = _dishes.value.map { if (it.id == dish.id) updated else it }
     }
 
     override suspend fun deleteDish(id: String) {
-        api.deleteDish(id, session.accessToken)
+        client.from("dishes").delete {
+            filter { eq("id", id) }
+        }
         _dishes.value = _dishes.value.filter { it.id != id }
     }
 
@@ -64,14 +71,34 @@ class SupabaseDishRepository(
         _dishes.map { list -> list.sortedByDescending { it.createdAt }.take(limit) }
 
     suspend fun loadFromCloud() {
-        if (!session.isLoggedIn.value) return
-        if (loaded) return
+        val userId = session.currentUserId
+        val pairId = session.currentPairId
+        if (!loadState.shouldLoad(session.isLoggedIn.value, userId, pairId)) return
+
+        _dishes.value = emptyList()
         try {
             withContext(Dispatchers.IO) {
-                val dishes = api.getAllDishes(session.accessToken)
+                val dishes = client.from("dishes").select {
+                    filter { eq("pair_id", pairId) }
+                }.decodeList<Dish>()
                 _dishes.value = dishes
-                loaded = true
+                loadState.markLoaded(userId, pairId)
             }
-        } catch (_: Exception) { }
+        } catch (_: Exception) {
+            loadState.reset()
+        }
+    }
+
+    fun clearCloudCache() {
+        loadState.reset()
+        _dishes.value = emptyList()
+    }
+
+    private fun requireActivePairId(): String {
+        val pairId = session.currentPairId
+        require(session.isLoggedIn.value && pairId.isNotBlank()) {
+            "登录后才能保存云端菜品"
+        }
+        return pairId
     }
 }

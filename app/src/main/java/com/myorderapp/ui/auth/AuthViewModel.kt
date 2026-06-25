@@ -2,15 +2,16 @@ package com.myorderapp.ui.auth
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.myorderapp.ApiConfig
-import com.myorderapp.data.remote.supabase.AuthBody
 import com.myorderapp.data.remote.supabase.SessionManager
-import com.myorderapp.data.remote.supabase.SupabaseAuthApi
-import com.myorderapp.data.remote.supabase.SupabaseApi
+import com.myorderapp.data.remote.supabase.SupabaseClientProvider
 import com.myorderapp.data.repository.HybridDishRepository
 import com.myorderapp.data.repository.SupabaseMealRepository
 import com.myorderapp.data.repository.SupabaseProfileRepository
 import com.myorderapp.domain.model.Profile
+import io.github.jan.supabase.gotrue.auth
+import io.github.jan.supabase.gotrue.providers.builtin.Email
+import io.github.jan.supabase.postgrest.from
+
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -26,14 +27,13 @@ data class AuthUiState(
 )
 
 class AuthViewModel(
-    private val authApi: SupabaseAuthApi,
-    private val supabaseApi: SupabaseApi,
     private val session: SessionManager,
     private val dishRepo: HybridDishRepository,
     private val profileRepo: SupabaseProfileRepository,
     private val mealRepo: SupabaseMealRepository
 ) : ViewModel() {
 
+    private val client = SupabaseClientProvider.client
     private val _uiState = MutableStateFlow(AuthUiState())
     val uiState: StateFlow<AuthUiState> = _uiState.asStateFlow()
 
@@ -68,27 +68,30 @@ class AuthViewModel(
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
             try {
-                val body = AuthBody(state.email, state.password)
-                val response = if (state.mode == "register") {
-                    authApi.signUp(body, ApiConfig.SUPABASE_ANON_KEY)
+                if (state.mode == "register") {
+                    client.auth.signUpWith(Email) {
+                        email = state.email
+                        password = state.password
+                    }
                 } else {
-                    authApi.signIn(body, ApiConfig.SUPABASE_ANON_KEY)
+                    client.auth.signInWith(Email) {
+                        email = state.email
+                        password = state.password
+                    }
                 }
 
-                val token = response.accessToken
-                val userId = response.user?.id ?: ""
-                if (token.isNotBlank() && userId.isNotBlank()) {
-                    // Load or create profile
-                    val profile = loadOrCreateProfile(userId, token)
+                val user = client.auth.currentUserOrNull()
+                val token = client.auth.currentAccessTokenOrNull()
+                val userId = user?.id ?: ""
+                if (token != null && userId.isNotBlank()) {
+                    val profile = loadOrCreateProfile(userId)
                     val pairId = profile?.pairId ?: ""
                     session.setSession(token, userId, pairId)
                     session.saveEmail(state.email)
-                    // 立即保存昵称头像到 SessionManager（防止后续异步加载失败）
                     if (profile != null) {
                         session.saveNickname(profile.nickname)
                         session.saveAvatar(profile.avatarUrl ?: "")
                     }
-                    // Sync all cloud data
                     dishRepo.syncFromCloud()
                     profileRepo.loadFromCloud()
                     mealRepo.syncFromCloud()
@@ -125,11 +128,12 @@ class AuthViewModel(
         }
     }
 
-    private suspend fun loadOrCreateProfile(userId: String, token: String): Profile? {
+    private suspend fun loadOrCreateProfile(userId: String): Profile? {
         return try {
-            val profiles = supabaseApi.getProfile(userId, "Bearer $token")
+            val profiles = client.from("profiles").select {
+                filter { eq("user_id", userId) }
+            }.decodeList<Profile>()
             profiles.firstOrNull() ?: run {
-                // 云端无 Profile，用本地数据创建（不建空的）
                 val localNick = session.getSavedNickname()
                 val localAvatar = session.getSavedAvatar()
                 val profile = Profile(
@@ -138,11 +142,10 @@ class AuthViewModel(
                     nickname = localNick,
                     avatarUrl = localAvatar.ifBlank { null }
                 )
-                supabaseApi.createProfile(profile, "Bearer $token")
+                client.from("profiles").insert(profile) { select() }
                 profile
             }
         } catch (_: Exception) {
-            // 网络/RLS 异常 — 用本地数据兜底，不同步
             Profile(
                 userId = userId,
                 nickname = session.getSavedNickname(),
@@ -153,19 +156,9 @@ class AuthViewModel(
 
     fun logout() {
         viewModelScope.launch {
-            try { authApi.signOut(session.accessToken, ApiConfig.SUPABASE_ANON_KEY) } catch (_: Exception) { }
+            try { client.auth.signOut() } catch (_: Exception) { }
             session.clear()
             _uiState.value = AuthUiState()
         }
-    }
-
-    private suspend fun writeSessionId(userId: String, token: String) {
-        try {
-            supabaseApi.updateProfile(
-                userId = userId,
-                fields = mapOf("session_id" to session.currentSessionId),
-                token = "Bearer $token"
-            )
-        } catch (_: Exception) { }
     }
 }

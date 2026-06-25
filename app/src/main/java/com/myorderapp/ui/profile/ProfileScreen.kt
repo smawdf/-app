@@ -36,7 +36,7 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
-import coil.compose.AsyncImage
+import coil3.compose.AsyncImage
 import org.koin.androidx.compose.koinViewModel
 import java.io.File
 

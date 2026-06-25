@@ -34,14 +34,32 @@
 -keep class * extends androidx.lifecycle.ViewModel { *; }
 -keep class com.myorderapp.ui.**ViewModel { *; }
 
-# ── Supabase ──
+# ── Supabase / Ktor ──
 -keep class io.github.jan.supabase.** { *; }
-
-# ── Coil ──
--dontwarn coil.**
-
-# ── SLF4J (Koin 等库引用但未使用) ──
+-dontwarn io.ktor.**
 -dontwarn org.slf4j.**
+
+# ── Room ──
+-keep class * extends androidx.room.RoomDatabase
+-dontwarn androidx.room.paging.**
+
+# ── Coil 3 ──
+-dontwarn coil3.**
+
+# ── Lottie ──
+-dontwarn com.airbnb.lottie.**
+-keep class com.airbnb.lottie.** {*;}
+
+# ── Retrofit extra ──
+-keepattributes Exceptions
+-dontwarn retrofit2.**
+-keep class retrofit2.** { *; }
+
+# ── OkHttp extra ──
+-dontwarn okhttp3.internal.platform.**
+-dontwarn org.conscrypt.**
+-dontwarn org.bouncycastle.**
+-dontwarn org.openjsse.**
 
 # ── 保留行号，调试用 ──
 -keepattributes SourceFile,LineNumberTable

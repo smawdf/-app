@@ -2,39 +2,37 @@ package com.myorderapp.ui.onboarding
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.myorderapp.ApiConfig
-import com.myorderapp.data.remote.supabase.AuthBody
 import com.myorderapp.data.remote.supabase.SessionManager
-import com.myorderapp.data.remote.supabase.SupabaseAuthApi
-import com.myorderapp.data.remote.supabase.SupabaseApi
+import com.myorderapp.data.remote.supabase.SupabaseClientProvider
 import com.myorderapp.data.repository.HybridDishRepository
 import com.myorderapp.data.repository.SupabaseMealRepository
 import com.myorderapp.data.repository.SupabaseProfileRepository
 import com.myorderapp.domain.model.Profile
 import com.myorderapp.domain.repository.ProfileRepository
+import io.github.jan.supabase.gotrue.auth
+import io.github.jan.supabase.gotrue.providers.builtin.Email
+import io.github.jan.supabase.postgrest.from
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 data class OnboardingUiState(
-    val step: Int = 1,                     // 1=账号, 2=个人资料, 3=配对
+    val step: Int = 1,
     val email: String = "",
     val password: String = "",
     val confirmPassword: String = "",
     val nickname: String = "",
     val avatarUrl: String = "",
-    val pairCode: String = "",             // 生成的配对码
-    val joinPairCode: String = "",         // 输入的对方配对码
-    val pairSkipped: Boolean = false,      // 跳过配对
+    val pairCode: String = "",
+    val joinPairCode: String = "",
+    val pairSkipped: Boolean = false,
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
     val registrationComplete: Boolean = false
 )
 
 class OnboardingViewModel(
-    private val authApi: SupabaseAuthApi,
-    private val supabaseApi: SupabaseApi,
     private val session: SessionManager,
     private val dishRepo: HybridDishRepository,
     private val profileRepo: SupabaseProfileRepository,
@@ -42,6 +40,7 @@ class OnboardingViewModel(
     private val profileRepository: ProfileRepository
 ) : ViewModel() {
 
+    private val client = SupabaseClientProvider.client
     private val _uiState = MutableStateFlow(OnboardingUiState())
     val uiState: StateFlow<OnboardingUiState> = _uiState.asStateFlow()
 
@@ -90,7 +89,6 @@ class OnboardingViewModel(
             _uiState.value = _uiState.value.copy(errorMessage = "请输入昵称")
             return
         }
-        // 先注册账号，再进入配对步骤
         registerAccount()
     }
 
@@ -135,13 +133,16 @@ class OnboardingViewModel(
         viewModelScope.launch {
             _uiState.value = state.copy(isLoading = true, errorMessage = null)
             try {
-                val body = AuthBody(state.email, state.password)
-                val response = authApi.signUp(body, ApiConfig.SUPABASE_ANON_KEY)
+                client.auth.signUpWith(Email) {
+                    email = state.email
+                    password = state.password
+                }
 
-                val token = response.accessToken
-                val userId = response.user?.id ?: ""
-                if (token.isNotBlank() && userId.isNotBlank()) {
-                    createProfileWithDetails(userId, token)
+                val user = client.auth.currentUserOrNull()
+                val token = client.auth.currentAccessTokenOrNull()
+                val userId = user?.id ?: ""
+                if (token != null && userId.isNotBlank()) {
+                    createProfileWithDetails(userId)
                     session.setSession(token, userId, "")
                     session.saveEmail(state.email)
                     session.saveNickname(state.nickname)
@@ -176,17 +177,7 @@ class OnboardingViewModel(
         }
     }
 
-    private suspend fun writeSessionId(userId: String, token: String) {
-        try {
-            supabaseApi.updateProfile(
-                userId = userId,
-                fields = mapOf("session_id" to session.currentSessionId),
-                token = "Bearer $token"
-            )
-        } catch (_: Exception) { }
-    }
-
-    private suspend fun createProfileWithDetails(userId: String, token: String) {
+    private suspend fun createProfileWithDetails(userId: String) {
         val state = _uiState.value
         try {
             val profile = Profile(
@@ -195,19 +186,7 @@ class OnboardingViewModel(
                 nickname = state.nickname,
                 avatarUrl = state.avatarUrl
             )
-            supabaseApi.createProfile(profile, "Bearer $token")
-        } catch (_: Exception) {
-            // Fallback: try update if already exists
-            try {
-                supabaseApi.updateProfile(
-                    userId = userId,
-                    fields = mapOf(
-                        "nickname" to state.nickname,
-                        "avatar_url" to state.avatarUrl
-                    ),
-                    token = "Bearer $token"
-                )
-            } catch (_: Exception) { }
-        }
+            client.from("profiles").insert(profile) { select() }
+        } catch (_: Exception) { }
     }
 }

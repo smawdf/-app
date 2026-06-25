@@ -2,25 +2,23 @@ package com.myorderapp.data.repository
 
 import android.content.Context
 import com.myorderapp.data.remote.supabase.SessionManager
-import com.myorderapp.data.remote.supabase.SupabaseApi
+import com.myorderapp.data.remote.supabase.SupabaseClientProvider
 import com.myorderapp.domain.model.DietaryPreference
 import com.myorderapp.domain.model.PairInfo
 import com.myorderapp.domain.model.Profile
 import com.myorderapp.domain.repository.ProfileRepository
+import io.github.jan.supabase.postgrest.from
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import com.squareup.moshi.Moshi
-import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 
 class SupabaseProfileRepository(
-    private val api: SupabaseApi,
     private val session: SessionManager,
     context: Context
 ) : ProfileRepository {
 
+    private val client = SupabaseClientProvider.client
     private val prefs = context.getSharedPreferences("profile_prefs", Context.MODE_PRIVATE)
-    private val moshi = Moshi.Builder().addLast(KotlinJsonAdapterFactory()).build()
 
     private val _profile = MutableStateFlow<Profile?>(loadLocalProfile())
     private val _synced = MutableStateFlow(false)
@@ -28,13 +26,14 @@ class SupabaseProfileRepository(
     override fun getProfile(): Flow<Profile?> = _profile.asStateFlow()
 
     override suspend fun saveProfile(profile: Profile) {
-        _profile.value = profile
-        saveLocalProfile(profile)
-        session.saveNickname(profile.nickname)
-        session.saveAvatar(profile.avatarUrl ?: "")
+        val normalized = normalizeProfile(profile)
+        _profile.value = normalized
+        saveLocalProfile(normalized)
+        session.saveNickname(normalized.nickname)
+        session.saveAvatar(normalized.avatarUrl ?: "")
         if (session.isLoggedIn.value) {
             try {
-                api.upsertProfile(profile, session.accessToken)
+                client.from("profiles").upsert(normalized) { select() }
                 _synced.value = true
             } catch (_: Exception) { }
         }
@@ -46,7 +45,7 @@ class SupabaseProfileRepository(
         _profile.value = updated
         saveLocalProfile(updated)
         if (session.isLoggedIn.value) {
-            try { api.upsertProfile(updated, session.accessToken); _synced.value = true } catch (_: Exception) { }
+            try { client.from("profiles").upsert(updated) { select() }; _synced.value = true } catch (_: Exception) { }
         }
     }
 
@@ -56,15 +55,13 @@ class SupabaseProfileRepository(
         _profile.value = updated
         saveLocalProfile(updated)
         if (session.isLoggedIn.value) {
-            try { api.upsertProfile(updated, session.accessToken); _synced.value = true } catch (_: Exception) { }
+            try { client.from("profiles").upsert(updated) { select() }; _synced.value = true } catch (_: Exception) { }
         }
     }
 
     override suspend fun loadProfile() {
-        // 先从本地恢复
         val local = loadLocalProfile()
         if (_profile.value == null) _profile.value = local
-        // 再尝试云端
         loadFromCloud()
     }
 
@@ -90,7 +87,9 @@ class SupabaseProfileRepository(
         var partnerName = ""
         if (session.isLoggedIn.value) {
             try {
-                val partnerProfiles = api.getProfilesByPairId(pairId, session.accessToken)
+                val partnerProfiles = client.from("profiles").select {
+                    filter { eq("pair_id", pairId) }
+                }.decodeList<Profile>()
                 partnerName = partnerProfiles
                     .firstOrNull { it.userId != session.currentUserId }
                     ?.nickname ?: ""
@@ -109,14 +108,13 @@ class SupabaseProfileRepository(
         val defaultId = "00000000-0000-0000-0000-000000000000"
         saveProfile(current.copy(pairId = defaultId))
         session.setPairId(defaultId)
-        // 云端同步解除
         if (session.isLoggedIn.value) {
             try {
-                api.updateProfile(
-                    userId = session.currentUserId,
-                    fields = mapOf("pair_id" to defaultId),
-                    token = session.accessToken
-                )
+                client.from("profiles").update(
+                    mapOf("pair_id" to defaultId)
+                ) {
+                    filter { eq("user_id", session.currentUserId) }
+                }
             } catch (_: Exception) { }
         }
     }
@@ -126,32 +124,33 @@ class SupabaseProfileRepository(
     suspend fun checkSessionValid(): Boolean {
         if (!session.isLoggedIn.value) return true
         try {
-            val profiles = api.getProfile(session.currentUserId, session.accessToken)
+            val profiles = client.from("profiles").select {
+                filter { eq("user_id", session.currentUserId) }
+            }.decodeList<Profile>()
             val cloudSessionId = profiles.firstOrNull()?.sessionId ?: ""
-            // 云端无 sessionId（旧数据）视为有效；有则必须匹配
             return cloudSessionId.isBlank() || cloudSessionId == session.currentSessionId
         } catch (_: Exception) {
-            return true // 网络异常不踢下线
+            return true
         }
     }
 
     suspend fun loadFromCloud() {
         if (!session.isLoggedIn.value) return
         try {
-            val profiles = api.getProfile(session.currentUserId, session.accessToken)
+            val profiles = client.from("profiles").select {
+                filter { eq("user_id", session.currentUserId) }
+            }.decodeList<Profile>()
             if (profiles.isNotEmpty()) {
                 val p = profiles.first()
                 _profile.value = p
                 saveLocalProfile(p)
-                // 同步到 SessionManager（用于即时加载）
                 session.saveNickname(p.nickname)
                 session.saveAvatar(p.avatarUrl ?: "")
                 _synced.value = true
             } else {
-                // 云端无 Profile — 用本地数据复写
-                val local = loadLocalProfile()
+                val local = normalizeProfile(loadLocalProfile())
                 if (local.nickname.isNotBlank() || !local.avatarUrl.isNullOrBlank()) {
-                    api.createProfile(local, session.accessToken)
+                    client.from("profiles").insert(local) { select() }
                     _profile.value = local
                     _synced.value = true
                 }
@@ -166,15 +165,27 @@ class SupabaseProfileRepository(
             .putString("nickname", profile.nickname)
             .putString("avatar_url", profile.avatarUrl ?: "")
             .putString("user_id", profile.userId.ifBlank { session.currentUserId })
+            .putString("pair_id", profile.pairId.ifBlank { session.currentPairId })
             .apply()
     }
 
     private fun loadLocalProfile(): Profile {
         return Profile(
             userId = prefs.getString("user_id", "") ?: "",
+            pairId = prefs.getString("pair_id", "") ?: "",
             nickname = prefs.getString("nickname", "") ?: "",
             avatarUrl = prefs.getString("avatar_url", "")?.ifBlank { null },
             tastePrefs = DietaryPreference()
+        )
+    }
+
+    private fun normalizeProfile(profile: Profile): Profile {
+        val defaultPairId = "00000000-0000-0000-0000-000000000000"
+        return profile.copy(
+            userId = profile.userId.ifBlank { session.currentUserId },
+            pairId = profile.pairId.ifBlank {
+                session.currentPairId.ifBlank { defaultPairId }
+            }
         )
     }
 }

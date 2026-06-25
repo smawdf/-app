@@ -1,18 +1,22 @@
 package com.myorderapp.domain.model
 
 import com.squareup.moshi.Json
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
 
+@Serializable
 data class Profile(
     val id: String = "",
-    @Json(name = "user_id") val userId: String = "",
-    @Json(name = "pair_id") val pairId: String = "",
+    @SerialName("user_id") @Json(name = "user_id") val userId: String = "",
+    @SerialName("pair_id") @Json(name = "pair_id") val pairId: String = "",
     val nickname: String = "",
-    @Json(name = "avatar_url") val avatarUrl: String? = null,
-    @Json(name = "taste_prefs") val tastePrefs: DietaryPreference = DietaryPreference(),
+    @SerialName("avatar_url") @Json(name = "avatar_url") val avatarUrl: String? = null,
+    @SerialName("taste_prefs") @Json(name = "taste_prefs") val tastePrefs: DietaryPreference = DietaryPreference(),
     val allergies: List<String> = emptyList(),
-    @Json(name = "created_at") val createdAt: String = "",
-    @Json(name = "updated_at") val updatedAt: String = "",
-    @Json(ignore = true) val sessionId: String = ""
+    @SerialName("created_at") @Json(name = "created_at") val createdAt: String = "",
+    @SerialName("updated_at") @Json(name = "updated_at") val updatedAt: String = "",
+    @Transient @Json(ignore = true) val sessionId: String = ""
 )
 
 data class PairInfo(

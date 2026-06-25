@@ -1,0 +1,29 @@
+package com.myorderapp.data.remote.supabase
+
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertThrows
+import org.junit.Test
+
+class SupabaseQueryTest {
+    @Test
+    fun `eq returns PostgREST equality filter`() {
+        assertEquals("eq.user-123", SupabaseQuery.eq("user-123"))
+    }
+
+    @Test
+    fun `eq trims values before formatting`() {
+        assertEquals("eq.pair-123", SupabaseQuery.eq("  pair-123  "))
+    }
+
+    @Test
+    fun `eq keeps existing equality filter unchanged`() {
+        assertEquals("eq.user-123", SupabaseQuery.eq("eq.user-123"))
+    }
+
+    @Test
+    fun `eq rejects blank values`() {
+        assertThrows(IllegalArgumentException::class.java) {
+            SupabaseQuery.eq("   ")
+        }
+    }
+}

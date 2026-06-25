@@ -1,13 +1,16 @@
 package com.myorderapp.di
 
-import com.myorderapp.ApiConfig
+import com.myorderapp.data.local.AppDatabase
 import com.myorderapp.data.local.RecipeAssetLoader
 import com.myorderapp.data.remote.recipe.JisuRecipeRemoteDataSource
 import com.myorderapp.data.remote.recipe.JuheRecipeRemoteDataSource
 import com.myorderapp.data.remote.recipe.TianRecipeRemoteDataSource
+import com.myorderapp.data.remote.supabase.RealtimeService
 import com.myorderapp.data.remote.supabase.SessionManager
+import com.myorderapp.data.remote.supabase.SupabaseStorageUploader
 import com.myorderapp.data.repository.HybridDishRepository
-import com.myorderapp.data.repository.InMemoryDishRepository
+import com.myorderapp.data.repository.RoomDishRepository
+import com.myorderapp.data.repository.RoomPagingDishRepository
 import com.myorderapp.data.repository.InMemoryMealRepository
 import com.myorderapp.data.repository.InMemoryProfileRepository
 import com.myorderapp.data.repository.InMemoryWishlistRepository
@@ -37,27 +40,33 @@ import org.koin.dsl.module
 
 val appModule = module {
     // Data sources
-    single { com.myorderapp.data.remote.supabase.SupabaseStorageUploader(get(), ApiConfig.SUPABASE_URL) }
-    single { JuheRecipeRemoteDataSource(get(), ApiConfig.JUHE_API_KEY) }
-    single { TianRecipeRemoteDataSource(get(), ApiConfig.TIAN_API_KEY) }
-    single { JisuRecipeRemoteDataSource(get(), ApiConfig.JISU_API_KEY) }
+    single { SupabaseStorageUploader(get()) }
+    single { RealtimeService() }
+    single { JuheRecipeRemoteDataSource(get(), com.myorderapp.ApiConfig.JUHE_API_KEY) }
+    single { TianRecipeRemoteDataSource(get(), com.myorderapp.ApiConfig.TIAN_API_KEY) }
+    single { JisuRecipeRemoteDataSource(get(), com.myorderapp.ApiConfig.JISU_API_KEY) }
     // Use cases
     single { DualRecipeSearchUseCase(get(), get(), get(), get<DishRepository>()) }
+
+    // Database
+    single { AppDatabase.getInstance(androidContext()) }
+    single { get<AppDatabase>().dishDao() }
 
     // Repositories — online when logged in, local as fallback
     // Dish
     single { RecipeAssetLoader(androidContext()) }
-    single { InMemoryDishRepository(androidContext(), get<RecipeAssetLoader>().loadRecipes()) }
-    single { SupabaseDishRepository(get(), get(), androidContext().filesDir) }
+    single { RoomDishRepository(get()) }
+    single { RoomPagingDishRepository(get()) }
+    single { SupabaseDishRepository(get(), androidContext().filesDir) }
     single { HybridDishRepository(get(), get(), get()) }
     single<DishRepository> { get<HybridDishRepository>() }
     // Profile
     single { InMemoryProfileRepository() }
-    single { SupabaseProfileRepository(get(), get(), androidContext()) }
+    single { SupabaseProfileRepository(get(), androidContext()) }
     single<ProfileRepository> { get<SupabaseProfileRepository>() }
     // Meal
     single { InMemoryMealRepository() }
-    single { SupabaseMealRepository(get(), get(), get()) }
+    single { SupabaseMealRepository(get(), get()) }
     single<MealRepository> { get<SupabaseMealRepository>() }
     single<WishlistRepository> { InMemoryWishlistRepository() }
 
@@ -72,6 +81,6 @@ val appModule = module {
     viewModel { WishlistViewModel(get()) }
     viewModel { HistoryViewModel(get(), get()) }
     viewModel { ProfileViewModel(get(), get()) }
-    viewModel { AuthViewModel(get(), get(), get(), get(), get(), get()) }
-    viewModel { OnboardingViewModel(get(), get(), get(), get(), get(), get(), get()) }
+    viewModel { AuthViewModel(get(), get(), get(), get()) }
+    viewModel { OnboardingViewModel(get(), get(), get(), get(), get()) }
 }

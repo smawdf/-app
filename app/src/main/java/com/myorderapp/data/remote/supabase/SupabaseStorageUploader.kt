@@ -5,13 +5,9 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
 import android.util.Log
-import com.myorderapp.ApiConfig
+import io.github.jan.supabase.storage.storage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.ByteArrayOutputStream
 import java.util.UUID
 
@@ -23,9 +19,9 @@ data class UploadResult(
 }
 
 class SupabaseStorageUploader(
-    private val client: OkHttpClient,
-    private val supabaseUrl: String
+    private val session: SessionManager
 ) {
+    private val client = SupabaseClientProvider.client
     private val bucket = "dish-images"
     private val tag = "StorageUploader"
 
@@ -35,7 +31,6 @@ class SupabaseStorageUploader(
         dishId: String
     ): UploadResult = withContext(Dispatchers.IO) {
         try {
-            // 1. 读取原始图片
             val inputStream = context.contentResolver.openInputStream(uri)
                 ?: return@withContext UploadResult(error = "无法读取图片文件")
             val originalBytes = inputStream.readBytes()
@@ -47,15 +42,12 @@ class SupabaseStorageUploader(
 
             Log.d(tag, "读取图片: ${originalBytes.size} bytes")
 
-            // 2. 压缩
-            val compressed = compressImage(originalBytes)
-                ?: originalBytes
-
+            val compressed = compressImage(originalBytes) ?: originalBytes
             Log.d(tag, "压缩后: ${compressed.size} bytes")
 
-            // 3. 上传（公开 bucket 无需 auth）
             val fileName = "${UUID.randomUUID().toString().take(8)}.jpg"
-            val path = "$dishId/$fileName"
+            val pairId = session.currentPairId
+            val path = if (pairId.isBlank()) "$dishId/$fileName" else "$pairId/$dishId/$fileName"
 
             Log.d(tag, "开始上传: path=$path, size=${compressed.size}")
 
@@ -90,36 +82,15 @@ class SupabaseStorageUploader(
         }
     }
 
-    private fun upload(path: String, bytes: ByteArray): UploadResult {
+    private suspend fun upload(path: String, bytes: ByteArray): UploadResult {
         return try {
-            val url = "$supabaseUrl/storage/v1/object/$bucket/$path"
-            val request = Request.Builder()
-                .url(url)
-                .post(bytes.toRequestBody("image/jpeg".toMediaType()))
-                .header("Content-Type", "image/jpeg")
-                .header("apikey", ApiConfig.SUPABASE_ANON_KEY)
-                .build()
-
-            val response = client.newCall(request).execute()
-            val responseBody = response.body?.string() ?: ""
-
-            if (response.isSuccessful) {
-                val publicUrl = "$supabaseUrl/storage/v1/object/public/$bucket/$path"
-                Log.d(tag, "上传成功: $publicUrl")
-                UploadResult(publicUrl = publicUrl)
-            } else {
-                Log.e(tag, "上传失败: HTTP ${response.code} - $responseBody")
-                val errorMsg = when (response.code) {
-                    403 -> "上传被拒绝(403): 请检查 Supabase RLS 策略"
-                    413 -> "图片太大(413): 请选择较小的图片"
-                    401 -> "认证失败(401)"
-                    else -> "上传失败(HTTP ${response.code})"
-                }
-                UploadResult(error = errorMsg)
-            }
+            client.storage.from(bucket).upload(path, bytes)
+            val publicUrl = client.storage.from(bucket).publicUrl(path)
+            Log.d(tag, "上传成功: $publicUrl")
+            UploadResult(publicUrl = publicUrl)
         } catch (e: Exception) {
-            Log.e(tag, "上传网络错误: ${e.message}")
-            UploadResult(error = "网络错误: ${e.message}")
+            Log.e(tag, "上传失败: ${e.message}")
+            UploadResult(error = "上传失败: ${e.message}")
         }
     }
 }

@@ -273,7 +273,7 @@ private fun RecentDishCard(dish: RecentDish, onClick: () -> Unit, modifier: Modi
                 contentAlignment = Alignment.Center
             ) {
                 if (dish.imageUrl != null) {
-                    coil.compose.AsyncImage(
+                    coil3.compose.AsyncImage(
                         model = dish.imageUrl,
                         contentDescription = dish.name,
                         contentScale = ContentScale.Crop,

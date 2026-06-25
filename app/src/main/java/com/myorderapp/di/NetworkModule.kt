@@ -1,15 +1,12 @@
 package com.myorderapp.di
 
-import android.content.Context
-import com.myorderapp.ApiConfig
 import com.myorderapp.data.remote.recipe.JisuRecipeApi
 import com.myorderapp.data.remote.recipe.JuheRecipeApi
 import com.myorderapp.data.remote.recipe.TianRecipeApi
-import com.myorderapp.data.remote.supabase.SupabaseApi
-import com.myorderapp.data.remote.supabase.SupabaseAuthApi
 import com.myorderapp.data.remote.supabase.SessionManager
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
+import okhttp3.ConnectionPool
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import org.koin.core.qualifier.named
@@ -32,18 +29,20 @@ val networkModule = module {
 
     single {
         val logging = HttpLoggingInterceptor().apply {
-            level = HttpLoggingInterceptor.Level.BODY
+            level = HttpLoggingInterceptor.Level.BASIC
         }
         OkHttpClient.Builder()
+            .connectionPool(ConnectionPool(5, 5, TimeUnit.MINUTES))
             .addInterceptor(logging)
             .connectTimeout(15, TimeUnit.SECONDS)
             .readTimeout(15, TimeUnit.SECONDS)
             .writeTimeout(15, TimeUnit.SECONDS)
+            .retryOnConnectionFailure(true)
             .build()
     }
 
     // Session Manager (with persistent storage)
-    single { SessionManager(get<Context>()) }
+    single { SessionManager(get()) }
 
     // Juhe Retrofit
     single(named("juhe")) {
@@ -75,23 +74,5 @@ val networkModule = module {
     }
     single { get<Retrofit>(named("jisuapi")).create(JisuRecipeApi::class.java) }
 
-    // Supabase Retrofit
-    single(named("supabase")) {
-        Retrofit.Builder()
-            .baseUrl(ApiConfig.SUPABASE_URL + "/rest/v1/")
-            .client(get())
-            .addConverterFactory(MoshiConverterFactory.create(get()))
-            .build()
-    }
-    single { get<Retrofit>(named("supabase")).create(SupabaseApi::class.java) }
-
-    // Supabase Auth Retrofit
-    single(named("supabase_auth")) {
-        Retrofit.Builder()
-            .baseUrl(ApiConfig.SUPABASE_URL + "/")
-            .client(get())
-            .addConverterFactory(MoshiConverterFactory.create(get()))
-            .build()
-    }
-    single { get<Retrofit>(named("supabase_auth")).create(SupabaseAuthApi::class.java) }
+    // Supabase — now uses official SDK via SupabaseClientProvider (no Retrofit needed)
 }

@@ -1,20 +1,21 @@
 package com.myorderapp.data.repository
 
 import com.myorderapp.data.remote.supabase.SessionManager
-import com.myorderapp.data.remote.supabase.SupabaseApi
+import com.myorderapp.data.remote.supabase.SupabaseClientProvider
 import com.myorderapp.domain.model.Meal
 import com.myorderapp.domain.model.MealItem
 import com.myorderapp.domain.repository.MealRepository
+import io.github.jan.supabase.postgrest.from
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 class SupabaseMealRepository(
-    private val api: SupabaseApi,
     private val session: SessionManager,
     private val localFallback: InMemoryMealRepository
 ) : MealRepository {
 
+    private val client = SupabaseClientProvider.client
     private val _todayMeal = MutableStateFlow<Meal?>(null)
 
     override fun getTodayMeal(): Flow<Meal?> = _todayMeal.asStateFlow()
@@ -28,12 +29,11 @@ class SupabaseMealRepository(
                     status = "ordering",
                     createdBy = session.currentUserId
                 )
-                val result = api.createMeal(meal, session.accessToken)
-                val created = result.firstOrNull()
-                if (created != null) {
-                    _todayMeal.value = created
-                    return created.id
-                }
+                val created = client.from("meals").insert(meal) {
+                    select()
+                }.decodeSingle<Meal>()
+                _todayMeal.value = created
+                return created.id
             }
             localFallback.createMeal(mealType, createdBy)
         } catch (_: Exception) {
@@ -44,7 +44,7 @@ class SupabaseMealRepository(
     override suspend fun addDishToMeal(mealId: String, item: MealItem) {
         try {
             if (session.isLoggedIn.value) {
-                api.createMealItem(item, session.accessToken)
+                client.from("meal_items").insert(item) { select() }
             } else {
                 localFallback.addDishToMeal(mealId, item)
             }
@@ -56,7 +56,9 @@ class SupabaseMealRepository(
     override suspend fun removeDishFromMeal(mealId: String, itemId: String) {
         try {
             if (session.isLoggedIn.value) {
-                api.deleteMealItem(itemId, session.accessToken)
+                client.from("meal_items").delete {
+                    filter { eq("id", itemId) }
+                }
             }
         } catch (_: Exception) { }
         localFallback.removeDishFromMeal(mealId, itemId)
@@ -65,7 +67,9 @@ class SupabaseMealRepository(
     override suspend fun getMealItems(mealId: String): List<MealItem> {
         return try {
             if (session.isLoggedIn.value) {
-                api.getMealItems(mealId, session.accessToken)
+                client.from("meal_items").select {
+                    filter { eq("meal_id", mealId) }
+                }.decodeList<MealItem>()
             } else {
                 localFallback.getMealItems(mealId)
             }
@@ -82,7 +86,10 @@ class SupabaseMealRepository(
         try {
             if (session.isLoggedIn.value) {
                 val meal = _todayMeal.value?.copy(status = "completed") ?: return null
-                api.createMeal(meal, session.accessToken)
+                client.from("meals").update(meal) {
+                    select()
+                    filter { eq("id", mealId) }
+                }
             }
         } catch (_: Exception) { }
         return localFallback.confirmMeal(mealId)
@@ -97,12 +104,22 @@ class SupabaseMealRepository(
     }
 
     suspend fun syncFromCloud() {
-        if (!session.isLoggedIn.value) return
+        if (!session.isLoggedIn.value) {
+            clearCloudCache()
+            return
+        }
+        _todayMeal.value = null
         try {
-            val meals = api.getMeals(session.currentPairId, session.accessToken)
+            val meals = client.from("meals").select {
+                filter { eq("pair_id", session.currentPairId) }
+            }.decodeList<Meal>()
             if (meals.isNotEmpty()) {
                 _todayMeal.value = meals.firstOrNull { it.status == "ordering" }
             }
         } catch (_: Exception) { }
+    }
+
+    fun clearCloudCache() {
+        _todayMeal.value = null
     }
 }

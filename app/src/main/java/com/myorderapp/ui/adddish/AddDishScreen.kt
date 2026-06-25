@@ -23,7 +23,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
-import coil.compose.AsyncImage
+import coil3.compose.AsyncImage
 import org.koin.androidx.compose.koinViewModel
 import com.myorderapp.domain.model.CookStep
 import java.io.File
@@ -193,7 +193,7 @@ fun AddDishScreen(
                         OutlinedTextField(
                             value = uiState.category, onValueChange = {},
                             readOnly = true,
-                            modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable).fillMaxWidth(),
+                            modifier = Modifier.menuAnchor().fillMaxWidth(),
                             shape = RoundedCornerShape(10.dp),
                             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = categoryExpanded.value) },
                             singleLine = true
