@@ -2,6 +2,20 @@
 
 > 版本：v1.0 | 日期：2026-06-25 | 当前版本：v1.4.7
 
+## Current Status As Of 2026-06-28
+
+Several items from this plan are already partially implemented in the working tree:
+
+- Supabase app data uses the official Kotlin SDK through `SupabaseClientProvider`.
+- Room is active for dish, wishlist, meal, and profile entities.
+- Dish library paging is wired through `RoomPagingDishRepository` and Paging Compose.
+- Coil 3 is active through the application-level `SingletonImageLoader`.
+- Add/edit dish queues local image uploads through WorkManager; `ImageUploadWorker` uploads, retries, and writes the public image URL back to the dish repository.
+- Release hardening added the `meal_items.mealId` Room index migration, tightened local image upload queue detection, validated worker input before upload, and migrated low-risk Compose/Koin warning sites.
+- Remaining release warnings are tracked explicitly: Android Gradle's `android.disallowKotlinSourceSets=false` message is an experimental option warning, and native library strip warnings are packaging-level dependency output rather than app-source behavior.
+
+Treat the rest of this document as historical upgrade context, not an exact description of the current source tree.
+
 ## 概述
 
 OrderDisk 当前技术栈存在多个版本滞后和架构冗余问题，最突出的是 Supabase 双通道（Retrofit + 官方 SDK）导致的性能问题。本文档规划分阶段升级路线。

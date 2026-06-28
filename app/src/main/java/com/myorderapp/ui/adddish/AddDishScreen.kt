@@ -193,7 +193,7 @@ fun AddDishScreen(
                         OutlinedTextField(
                             value = uiState.category, onValueChange = {},
                             readOnly = true,
-                            modifier = Modifier.menuAnchor().fillMaxWidth(),
+                            modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable).fillMaxWidth(),
                             shape = RoundedCornerShape(10.dp),
                             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = categoryExpanded.value) },
                             singleLine = true

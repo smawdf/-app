@@ -13,7 +13,7 @@ import com.myorderapp.data.repository.RoomDishRepository
 import com.myorderapp.data.repository.RoomPagingDishRepository
 import com.myorderapp.data.repository.InMemoryMealRepository
 import com.myorderapp.data.repository.InMemoryProfileRepository
-import com.myorderapp.data.repository.InMemoryWishlistRepository
+import com.myorderapp.data.repository.RoomWishlistRepository
 import com.myorderapp.data.repository.SupabaseDishRepository
 import com.myorderapp.data.repository.SupabaseMealRepository
 import com.myorderapp.data.repository.SupabaseProfileRepository
@@ -35,7 +35,8 @@ import com.myorderapp.ui.random.RandomViewModel
 import com.myorderapp.ui.search.SearchViewModel
 import com.myorderapp.ui.wishlist.WishlistViewModel
 import org.koin.android.ext.koin.androidContext
-import org.koin.androidx.viewmodel.dsl.viewModel
+import org.koin.core.module.dsl.viewModel
+import org.koin.core.module.dsl.viewModelOf
 import org.koin.dsl.module
 
 val appModule = module {
@@ -51,6 +52,7 @@ val appModule = module {
     // Database
     single { AppDatabase.getInstance(androidContext()) }
     single { get<AppDatabase>().dishDao() }
+    single { get<AppDatabase>().wishlistDao() }
 
     // Repositories — online when logged in, local as fallback
     // Dish
@@ -68,19 +70,19 @@ val appModule = module {
     single { InMemoryMealRepository() }
     single { SupabaseMealRepository(get(), get()) }
     single<MealRepository> { get<SupabaseMealRepository>() }
-    single<WishlistRepository> { InMemoryWishlistRepository() }
+    single<WishlistRepository> { RoomWishlistRepository(get()) }
 
     // ViewModels
-    viewModel { HomeViewModel(get(), get()) }
-    viewModel { SearchViewModel(get(), get()) }
-    viewModel { DishDetailViewModel(get(), get()) }
-    viewModel { DishLibraryViewModel(get<HybridDishRepository>()) }
-    viewModel { AddDishViewModel(get(), get(), get(), androidContext()) }
-    viewModel { MealViewModel(get(), get(), get(), get()) }
+    viewModelOf(::HomeViewModel)
+    viewModelOf(::SearchViewModel)
+    viewModelOf(::DishDetailViewModel)
+    viewModel { DishLibraryViewModel(get<HybridDishRepository>(), get()) }
+    viewModel { AddDishViewModel(get(), get(), androidContext()) }
+    viewModelOf(::MealViewModel)
     viewModel { RandomViewModel(get(), get(), androidContext()) }
-    viewModel { WishlistViewModel(get()) }
-    viewModel { HistoryViewModel(get(), get()) }
-    viewModel { ProfileViewModel(get(), get()) }
-    viewModel { AuthViewModel(get(), get(), get(), get()) }
-    viewModel { OnboardingViewModel(get(), get(), get(), get(), get()) }
+    viewModelOf(::WishlistViewModel)
+    viewModelOf(::HistoryViewModel)
+    viewModelOf(::ProfileViewModel)
+    viewModelOf(::AuthViewModel)
+    viewModelOf(::OnboardingViewModel)
 }

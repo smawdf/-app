@@ -308,4 +308,38 @@ class EntityMapperTest {
         val restored = profile.toEntity().toDomain()
         assertNull(restored.avatarUrl)
     }
+
+    @Test
+    fun `wishlist round-trip preserves all fields`() {
+        val item = WishlistItem(
+            id = "wish-1",
+            pairId = "pair-1",
+            dishId = "dish-1",
+            dishName = "Mapo tofu",
+            dishCategory = "Sichuan",
+            dishImageUrl = "https://example.com/mapo.jpg",
+            externalSource = "juhe",
+            addedBy = "user-1",
+            addedByName = "Ada",
+            status = "pending",
+            notes = "Try this weekend",
+            createdAt = "2026-06-26T12:00:00Z"
+        )
+
+        val entity = item.toEntity()
+        val restored = entity.toDomain()
+
+        assertEquals(item.id, restored.id)
+        assertEquals(item.pairId, restored.pairId)
+        assertEquals(item.dishId, restored.dishId)
+        assertEquals(item.dishName, restored.dishName)
+        assertEquals(item.dishCategory, restored.dishCategory)
+        assertEquals(item.dishImageUrl, restored.dishImageUrl)
+        assertEquals(item.externalSource, restored.externalSource)
+        assertEquals(item.addedBy, restored.addedBy)
+        assertEquals(item.addedByName, restored.addedByName)
+        assertEquals(item.status, restored.status)
+        assertEquals(item.notes, restored.notes)
+        assertEquals(item.createdAt, restored.createdAt)
+    }
 }

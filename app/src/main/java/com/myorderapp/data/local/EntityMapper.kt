@@ -80,4 +80,35 @@ object EntityMapper {
         allergies = json.decodeFromString(allergiesJson),
         createdAt = createdAt, updatedAt = updatedAt
     )
+
+    // Wishlist ↔ WishlistEntity
+    fun WishlistItem.toEntity() = WishlistEntity(
+        id = id,
+        pairId = pairId,
+        dishId = dishId,
+        dishName = dishName,
+        dishCategory = dishCategory,
+        dishImageUrl = dishImageUrl,
+        externalSource = externalSource,
+        addedBy = addedBy,
+        addedByName = addedByName,
+        status = status,
+        notes = notes,
+        createdAt = createdAt
+    )
+
+    fun WishlistEntity.toDomain() = WishlistItem(
+        id = id,
+        pairId = pairId,
+        dishId = dishId,
+        dishName = dishName,
+        dishCategory = dishCategory,
+        dishImageUrl = dishImageUrl,
+        externalSource = externalSource,
+        addedBy = addedBy,
+        addedByName = addedByName,
+        status = status,
+        notes = notes,
+        createdAt = createdAt
+    )
 }

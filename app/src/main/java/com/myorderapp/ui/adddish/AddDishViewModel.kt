@@ -4,7 +4,7 @@ import android.content.Context
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.myorderapp.data.remote.supabase.SupabaseStorageUploader
+import com.myorderapp.core.worker.ImageUploadWorker
 import com.myorderapp.domain.model.CookStep
 import com.myorderapp.domain.model.Dish
 import com.myorderapp.domain.repository.DishRepository
@@ -38,7 +38,6 @@ data class AddDishUiState(
 class AddDishViewModel(
     private val dishRepository: DishRepository,
     private val profileRepository: ProfileRepository,
-    private val storageUploader: SupabaseStorageUploader,
     private val appContext: Context
 ) : ViewModel() {
 
@@ -138,53 +137,45 @@ class AddDishViewModel(
                 if (state.whoLikesPartner) add(state.partnerName)
             }
 
-            // 先保存菜品（获取 dishId）
-            val dishId = if (state.editDishId != null) {
-                dishRepository.updateDish(Dish(
-                    id = state.editDishId,
-                    name = state.name, category = state.category,
-                    difficulty = state.difficulty,
-                    cookTimeMin = state.cookTimeMin.toIntOrNull() ?: 0,
-                    imageUrl = state.imageUrl,
-                    ingredients = state.ingredients, cookSteps = state.cookSteps,
-                    notes = state.notes, whoLikes = whoLikes,
-                    source = "custom", createdBy = "${state.myName}创建"
-                ))
-                state.editDishId
-            } else {
-                dishRepository.addDish(Dish(
-                    name = state.name, category = state.category,
-                    difficulty = state.difficulty,
-                    cookTimeMin = state.cookTimeMin.toIntOrNull() ?: 0,
-                    imageUrl = state.imageUrl,
-                    ingredients = state.ingredients, cookSteps = state.cookSteps,
-                    notes = state.notes, whoLikes = whoLikes,
-                    source = "custom", createdBy = "${state.myName}创建"
-                ))
-            }
-
-            // 先返回，图片上传放到后台
-            _uiState.value = _uiState.value.copy(savedSuccess = true, isSaving = false)
-
-            // 如果图片是本地 URI，后台异步上传
-            val imgUrl = state.imageUrl
-            if (imgUrl.isNotBlank() && (imgUrl.startsWith("content://") || imgUrl.startsWith("file://"))) {
-                launch {
-                    val result = storageUploader.compressAndUpload(
-                        appContext, Uri.parse(imgUrl), dishId
-                    )
-                    if (result.publicUrl != null) {
-                        dishRepository.updateDish(Dish(
-                            id = dishId, name = state.name, category = state.category,
-                            difficulty = state.difficulty,
-                            cookTimeMin = state.cookTimeMin.toIntOrNull() ?: 0,
-                            imageUrl = result.publicUrl,
-                            ingredients = state.ingredients, cookSteps = state.cookSteps,
-                            notes = state.notes, whoLikes = whoLikes,
-                            source = "custom", createdBy = "${state.myName}创建"
-                        ))
-                    }
+            try {
+                // 先保存菜品（获取 dishId）
+                val dishId = if (state.editDishId != null) {
+                    dishRepository.updateDish(Dish(
+                        id = state.editDishId,
+                        name = state.name, category = state.category,
+                        difficulty = state.difficulty,
+                        cookTimeMin = state.cookTimeMin.toIntOrNull() ?: 0,
+                        imageUrl = state.imageUrl,
+                        ingredients = state.ingredients, cookSteps = state.cookSteps,
+                        notes = state.notes, whoLikes = whoLikes,
+                        source = "custom", createdBy = "${state.myName}创建"
+                    ))
+                    state.editDishId
+                } else {
+                    dishRepository.addDish(Dish(
+                        name = state.name, category = state.category,
+                        difficulty = state.difficulty,
+                        cookTimeMin = state.cookTimeMin.toIntOrNull() ?: 0,
+                        imageUrl = state.imageUrl,
+                        ingredients = state.ingredients, cookSteps = state.cookSteps,
+                        notes = state.notes, whoLikes = whoLikes,
+                        source = "custom", createdBy = "${state.myName}创建"
+                    ))
                 }
+
+                // 主保存成功后即可返回；图片上传保持后台非阻塞。
+                _uiState.value = _uiState.value.copy(savedSuccess = true, isSaving = false)
+
+                val imgUrl = state.imageUrl
+                if (AddDishImageUploadPolicy.shouldQueueUpload(imgUrl)) {
+                    ImageUploadWorker.enqueue(appContext, Uri.parse(imgUrl), dishId)
+                }
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    isSaving = false,
+                    savedSuccess = false,
+                    uploadMessage = AddDishSaveMessages.primarySaveFailed(e)
+                )
             }
         }
     }

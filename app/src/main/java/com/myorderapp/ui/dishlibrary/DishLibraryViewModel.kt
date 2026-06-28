@@ -2,53 +2,56 @@ package com.myorderapp.ui.dishlibrary
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.paging.PagingData
+import androidx.paging.cachedIn
 import com.myorderapp.data.repository.HybridDishRepository
+import com.myorderapp.data.repository.RoomPagingDishRepository
 import com.myorderapp.domain.model.Dish
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.launch
 
 data class DishLibraryUiState(
-    val dishes: List<Dish> = emptyList(),
     val sourceFilter: String = "全部",
     val searchQuery: String = "",
     val isLoading: Boolean = true
 )
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class DishLibraryViewModel(
-    private val dishRepo: HybridDishRepository
+    private val dishRepo: HybridDishRepository,
+    private val pagingRepo: RoomPagingDishRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(DishLibraryUiState())
     val uiState: StateFlow<DishLibraryUiState> = _uiState.asStateFlow()
 
+    val pagedDishes: Flow<PagingData<Dish>> = _uiState
+        .flatMapLatest { state ->
+            pagingRepo.getDishesPaged(
+                query = state.searchQuery,
+                source = sourceFilterToSource(state.sourceFilter)
+            )
+        }
+        .cachedIn(viewModelScope)
+
     init {
         viewModelScope.launch {
-            // 触发云端加载
             dishRepo.syncFromCloud()
-        }
-        viewModelScope.launch {
-            dishRepo.getAllDishes().collect { dishes ->
-                applyFilters(dishes)
-            }
+            _uiState.value = _uiState.value.copy(isLoading = false)
         }
     }
 
     fun onSourceFilterChanged(source: String) {
         _uiState.value = _uiState.value.copy(sourceFilter = source)
-        refresh()
     }
 
     fun onSearchQueryChanged(query: String) {
         _uiState.value = _uiState.value.copy(searchQuery = query)
-        refresh()
-    }
-
-    private fun refresh() {
-        viewModelScope.launch {
-            dishRepo.getAllDishes().collect { applyFilters(it) }
-        }
     }
 
     fun deleteDish(dishId: String) {
@@ -57,18 +60,9 @@ class DishLibraryViewModel(
         }
     }
 
-    private fun applyFilters(allDishes: List<Dish>) {
-        val state = _uiState.value
-        var filtered = allDishes
-
-        when (state.sourceFilter) {
-            "我的菜单" -> filtered = filtered.filter { it.source == "custom" }
-            "收藏" -> filtered = filtered.filter { it.source == "external" }
-        }
-        if (state.searchQuery.isNotBlank()) {
-            filtered = filtered.filter { it.name.contains(state.searchQuery, ignoreCase = true) }
-        }
-
-        _uiState.value = state.copy(dishes = filtered, isLoading = false)
+    private fun sourceFilterToSource(source: String): String? = when (source) {
+        "我的菜单" -> "custom"
+        "收藏" -> "external"
+        else -> null
     }
 }

@@ -5,9 +5,14 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -20,6 +25,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
+import androidx.paging.LoadState
+import androidx.paging.compose.collectAsLazyPagingItems
+import com.myorderapp.domain.model.Dish
 import com.myorderapp.ui.theme.CategoryDisplay
 import com.myorderapp.ui.theme.whoLikesDisplay
 import org.koin.androidx.compose.koinViewModel
@@ -45,21 +53,7 @@ fun DishLibraryScreen(
     onAddDishClick: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val filters = remember(uiState.dishes) {
-        listOf("全部", "我的菜单", "收藏") + uiState.dishes.map { it.category }.distinct().sorted()
-    }
-
-    val dishes = uiState.dishes.map { dish ->
-        val (emoji, bg) = CategoryDisplay.emojiAndBg(dish.category)
-        val (whoStr, whoColor) = whoLikesDisplay(dish.whoLikes)
-        LibraryDish(
-            id = dish.id, name = dish.name,
-            source = if (dish.source == "custom") "我的菜单" else "收藏",
-            category = dish.category, cookTimeMin = dish.cookTimeMin,
-            whoLikes = whoStr, whoLikesColor = whoColor,
-            emoji = emoji, imageUrl = dish.imageUrl, bgColor = bg
-        )
-    }
+    val pagedDishes = viewModel.pagedDishes.collectAsLazyPagingItems()
 
     Column(
         modifier = Modifier
@@ -81,7 +75,11 @@ fun DishLibraryScreen(
                     containerColor = MaterialTheme.colorScheme.primary,
                     contentColor = MaterialTheme.colorScheme.onPrimary
                 )
-            ) { Text("+ 添加", style = MaterialTheme.typography.labelLarge) }
+            ) {
+                Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("添加", style = MaterialTheme.typography.labelLarge)
+            }
         }
         Spacer(modifier = Modifier.height(12.dp))
 
@@ -90,6 +88,13 @@ fun DishLibraryScreen(
             onValueChange = { viewModel.onSearchQueryChanged(it) },
             modifier = Modifier.fillMaxWidth(),
             placeholder = { Text("搜索菜品库...", style = MaterialTheme.typography.bodySmall) },
+            leadingIcon = {
+                Icon(
+                    Icons.Default.Search,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            },
             shape = RoundedCornerShape(14.dp),
             singleLine = true,
             colors = OutlinedTextFieldDefaults.colors(
@@ -136,7 +141,7 @@ fun DishLibraryScreen(
         Spacer(modifier = Modifier.height(8.dp))
 
         Text(
-            "共 ${dishes.size} 道菜",
+            "共 ${pagedDishes.itemCount} 道菜",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -147,19 +152,141 @@ fun DishLibraryScreen(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            items(dishes, key = { it.id }) { dish ->
-                DishGridCard(
-                    dish = dish,
-                    onClick = {
-                        onDishClick(dish.id, if (dish.source == "我的菜单") "custom" else "external")
-                    },
-                    modifier = Modifier.animateItem(),
-                    onDeleteClick = if (dish.source == "我的菜单") {{ viewModel.deleteDish(dish.id) }} else null
-                )
+            val refreshState = pagedDishes.loadState.refresh
+            val appendState = pagedDishes.loadState.append
+
+            if (refreshState is LoadState.Loading) {
+                item(span = { GridItemSpan(maxLineSpan) }) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 28.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator()
+                    }
+                }
+            }
+
+            if (refreshState is LoadState.Error) {
+                item(span = { GridItemSpan(maxLineSpan) }) {
+                    LibraryMessage(
+                        title = "菜品加载失败",
+                        body = refreshState.error.message ?: "请稍后重试",
+                        actionText = "重试",
+                        onAction = { pagedDishes.retry() }
+                    )
+                }
+            }
+
+            if (refreshState is LoadState.NotLoading && pagedDishes.itemCount == 0) {
+                item(span = { GridItemSpan(maxLineSpan) }) {
+                    LibraryMessage(
+                        title = "还没有菜品",
+                        body = if (uiState.searchQuery.isBlank()) "添加一道常吃的菜吧" else "换个关键词试试",
+                        actionText = if (uiState.searchQuery.isBlank()) "添加" else null,
+                        onAction = if (uiState.searchQuery.isBlank()) onAddDishClick else null
+                    )
+                }
+            }
+
+            items(
+                count = pagedDishes.itemCount,
+                key = { index -> pagedDishes[index]?.id ?: "dish_$index" }
+            ) { index ->
+                val dish = pagedDishes[index]?.toLibraryDish()
+                if (dish != null) {
+                    DishGridCard(
+                        dish = dish,
+                        onClick = {
+                            onDishClick(dish.id, if (dish.source == "我的菜单") "custom" else "external")
+                        },
+                        modifier = Modifier.animateItem(),
+                        onDeleteClick = if (dish.source == "我的菜单") {{ viewModel.deleteDish(dish.id) }} else null
+                    )
+                }
+            }
+
+            if (appendState is LoadState.Loading) {
+                item(span = { GridItemSpan(maxLineSpan) }) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 16.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+                    }
+                }
+            }
+            if (appendState is LoadState.Error) {
+                item(span = { GridItemSpan(maxLineSpan) }) {
+                    TextButton(
+                        onClick = { pagedDishes.retry() },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("继续加载失败，点此重试")
+                    }
+                }
             }
             item { Spacer(modifier = Modifier.height(80.dp)) }
         }
     }
+}
+
+@Composable
+private fun LibraryMessage(
+    title: String,
+    body: String,
+    actionText: String? = null,
+    onAction: (() -> Unit)? = null
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 36.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Text(
+            title,
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+        Text(
+            body,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        if (actionText != null && onAction != null) {
+            FilledTonalButton(onClick = onAction, shape = RoundedCornerShape(12.dp)) {
+                Text(actionText)
+            }
+        }
+    }
+}
+
+private fun Dish.toLibraryDish(): LibraryDish {
+    val (emoji, bg) = CategoryDisplay.emojiAndBg(category)
+    val (whoStr, whoColor) = whoLikesDisplay(whoLikes)
+    return LibraryDish(
+        id = id,
+        name = name,
+        source = when (source) {
+            "custom" -> "我的菜单"
+            "builtin" -> "内置"
+            else -> "收藏"
+        },
+        category = category,
+        cookTimeMin = cookTimeMin,
+        whoLikes = whoStr,
+        whoLikesColor = whoColor,
+        emoji = emoji,
+        imageUrl = imageUrl,
+        bgColor = bg
+    )
 }
 
 @OptIn(ExperimentalFoundationApi::class)

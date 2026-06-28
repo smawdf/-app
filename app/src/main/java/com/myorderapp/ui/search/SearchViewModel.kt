@@ -5,13 +5,16 @@ import androidx.lifecycle.viewModelScope
 import com.myorderapp.domain.model.Dish
 import com.myorderapp.domain.repository.DishRepository
 import com.myorderapp.domain.usecase.DualRecipeSearchUseCase
-import kotlinx.coroutines.Job
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
@@ -25,30 +28,42 @@ data class SearchUiState(
     val errorMessage: String? = null
 )
 
+@OptIn(FlowPreview::class)
 class SearchViewModel(
     private val dishRepository: DishRepository,
-    private val dualSearch: DualRecipeSearchUseCase
+    private val dualSearch: DualRecipeSearchUseCase,
+    private val searchDebounceMs: Long = 300L,
+    searchScope: CoroutineScope? = null
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SearchUiState())
     val uiState: StateFlow<SearchUiState> = _uiState.asStateFlow()
 
-    private var searchJob: Job? = null
+    private val queryChanges = MutableStateFlow("")
+    private val scope = searchScope ?: viewModelScope
+    private var allResults = mutableListOf<Dish>()
 
-    fun onQueryChanged(query: String) {
-        _uiState.value = _uiState.value.copy(query = query, errorMessage = null, sources = emptyList())
-        searchJob?.cancel()
-        if (query.isBlank()) {
-            _uiState.value = _uiState.value.copy(results = emptyList(), isSearching = false)
-            return
-        }
-        searchJob = viewModelScope.launch {
-            delay(300)
-            performUnifiedSearch()
+    init {
+        scope.launch {
+            queryChanges
+                .debounce(searchDebounceMs)
+                .distinctUntilChanged()
+                .collectLatest { query ->
+                    if (query.isNotBlank()) {
+                        performUnifiedSearch(query)
+                    }
+                }
         }
     }
 
-    private var allResults = mutableListOf<Dish>()
+    fun onQueryChanged(query: String) {
+        _uiState.value = _uiState.value.copy(query = query, errorMessage = null, sources = emptyList())
+        if (query.isBlank()) {
+            allResults.clear()
+            _uiState.value = _uiState.value.copy(results = emptyList(), isSearching = false)
+        }
+        queryChanges.value = query
+    }
 
     fun onSourceSelected(source: String) {
         _uiState.value = _uiState.value.copy(
@@ -68,8 +83,7 @@ class SearchViewModel(
         _uiState.value = _uiState.value.copy(errorMessage = null)
     }
 
-    private suspend fun performUnifiedSearch() {
-        val query = _uiState.value.query
+    private suspend fun performUnifiedSearch(query: String) {
         if (query.isBlank()) return
 
         _uiState.value = _uiState.value.copy(isSearching = true)
@@ -88,6 +102,9 @@ class SearchViewModel(
         val mergedResults = mergeResults(localResults, onlineResult.dishes)
         allResults.clear()
         allResults.addAll(mergedResults)
+
+        if (_uiState.value.query != query) return
+
         val filtered = applySourceFilter(mergedResults, _uiState.value.selectedSource)
 
         val sourceLabels = mergedResults.map { resolveSourceLabel(it) }.distinct()
