@@ -6,6 +6,14 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.MenuBook
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Lightbulb
+import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -71,7 +79,12 @@ fun DishDetailScreen(
                 onClick = onBack
             ) {
                 Box(contentAlignment = Alignment.Center) {
-                    Text("←", color = Color.White, fontSize = 14.sp)
+                    Icon(
+                        Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "返回",
+                        tint = Color.White,
+                        modifier = Modifier.size(18.dp)
+                    )
                 }
             }
             Column(
@@ -87,7 +100,12 @@ fun DishDetailScreen(
                         onClick = { dish?.let { onEditClick(it.id) } }
                     ) {
                         Box(contentAlignment = Alignment.Center) {
-                            Text("✏️", fontSize = 14.sp, color = Color.White)
+                            Icon(
+                                Icons.Default.Edit,
+                                contentDescription = "编辑",
+                                tint = Color.White,
+                                modifier = Modifier.size(18.dp)
+                            )
                         }
                     }
                 }
@@ -111,7 +129,18 @@ fun DishDetailScreen(
                 }
                 Spacer(modifier = Modifier.height(24.dp))
 
-                Text("🥬 食材清单", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Default.Restaurant,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Text("食材清单", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                }
                 Spacer(modifier = Modifier.height(8.dp))
                 Card(
                     shape = RoundedCornerShape(12.dp),
@@ -132,7 +161,18 @@ fun DishDetailScreen(
                 }
                 Spacer(modifier = Modifier.height(24.dp))
 
-                Text("👨‍🍳 制作步骤", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.AutoMirrored.Filled.MenuBook,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Text("制作步骤", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                }
                 Spacer(modifier = Modifier.height(8.dp))
                 dish.cookSteps.forEach { step ->
                     CookStepCard(step)
@@ -145,8 +185,23 @@ fun DishDetailScreen(
                         shape = RoundedCornerShape(12.dp),
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
                     ) {
-                        Text("💡 备注：${dish.notes}",
-                            modifier = Modifier.padding(12.dp), fontSize = 11.sp, color = MaterialTheme.colorScheme.primary)
+                        Row(
+                            modifier = Modifier.padding(12.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                Icons.Default.Lightbulb,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Text(
+                                "备注：${dish.notes}",
+                                fontSize = 11.sp,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
                     }
                 }
 
@@ -159,10 +214,21 @@ fun DishDetailScreen(
                         shape = RoundedCornerShape(20.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                     ) {
-                        Text(
-                            if (uiState.wishlistAdded) "✅ 已收藏" else "💫 加入心愿单",
-                            fontSize = 13.sp
-                        ) }
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                if (uiState.wishlistAdded) Icons.Default.Check else Icons.Default.Favorite,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Text(
+                                if (uiState.wishlistAdded) "已收藏" else "加入心愿单",
+                                fontSize = 13.sp
+                            )
+                        }
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(32.dp))

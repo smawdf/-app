@@ -11,6 +11,12 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -131,14 +137,30 @@ fun AddDishScreen(
                         Column {
                             TextButton(onClick = { showPhotoSheet = false; launchCamera() },
                                 modifier = Modifier.fillMaxWidth()) {
-                                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                    Text("📷"); Text("拍照")
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        Icons.Default.PhotoCamera,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                    Text("拍照")
                                 }
                             }
                             TextButton(onClick = { showPhotoSheet = false; galleryLauncher.launch("image/*") },
                                 modifier = Modifier.fillMaxWidth()) {
-                                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                    Text("🖼️"); Text("从相册选择")
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        Icons.Default.Image,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                    Text("从相册选择")
                                 }
                             }
                         }
@@ -166,7 +188,12 @@ fun AddDishScreen(
                     )
                 } else {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("📷", fontSize = 32.sp)
+                        Icon(
+                            Icons.Default.PhotoCamera,
+                            contentDescription = null,
+                            modifier = Modifier.size(34.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                         Text("点击上传展示图", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Text("拍照 / 从相册选择", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f))
                     }
@@ -259,7 +286,14 @@ fun AddDishScreen(
                     onClick = { viewModel.addIngredient() },
                     shape = RoundedCornerShape(10.dp),
                     colors = IconButtonDefaults.filledIconButtonColors(containerColor = MaterialTheme.colorScheme.primary)
-                ) { Text("+", color = Color.White, fontSize = 16.sp) }
+                ) {
+                    Icon(
+                        Icons.Default.Add,
+                        contentDescription = "添加食材",
+                        tint = Color.White,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
             }
             Spacer(modifier = Modifier.height(8.dp))
 
@@ -269,7 +303,13 @@ fun AddDishScreen(
                         Row(modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                             Text(ingredient, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("✕", fontSize = 11.sp, modifier = Modifier.clickable { viewModel.removeIngredient(index) })
+                            Icon(
+                                Icons.Default.Close,
+                                contentDescription = "移除食材",
+                                modifier = Modifier
+                                    .size(14.dp)
+                                    .clickable { viewModel.removeIngredient(index) }
+                            )
                         }
                     }
                 }
@@ -305,7 +345,16 @@ fun AddDishScreen(
                                 color = MaterialTheme.colorScheme.errorContainer,
                                 modifier = Modifier.size(28.dp),
                                 onClick = { viewModel.removeStep(index) }
-                            ) { Box(contentAlignment = Alignment.Center) { Text("🗑", fontSize = 12.sp) } }
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        Icons.Default.Delete,
+                                        contentDescription = "删除步骤",
+                                        tint = MaterialTheme.colorScheme.onErrorContainer,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -317,7 +366,19 @@ fun AddDishScreen(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
                 colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.primary)
-            ) { Text("+ 添加步骤", fontWeight = FontWeight.Medium, fontSize = 12.sp) }
+            ) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Default.Add,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Text("添加步骤", fontWeight = FontWeight.Medium, fontSize = 12.sp)
+                }
+            }
 
             // Notes
             Spacer(modifier = Modifier.height(16.dp))

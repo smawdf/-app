@@ -8,10 +8,12 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.myorderapp.R
 import org.koin.androidx.compose.koinViewModel
 
 @Composable
@@ -38,7 +40,12 @@ fun AuthScreen(
                 .padding(32.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text("🍽️", fontSize = 64.sp)
+            Icon(
+                painter = painterResource(R.drawable.ic_orderdisk_bowl),
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(64.dp)
+            )
 
             Spacer(modifier = Modifier.height(8.dp))
 

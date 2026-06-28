@@ -14,8 +14,10 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.myorderapp.R
 import kotlinx.coroutines.launch
 
 @Composable
@@ -48,7 +50,12 @@ fun AboutScreen(onBack: () -> Unit = {}) {
             modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text("🍽️", style = MaterialTheme.typography.displayLarge)
+            Icon(
+                painter = painterResource(R.drawable.ic_orderdisk_bowl),
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(64.dp)
+            )
             Spacer(modifier = Modifier.height(12.dp))
             Text("今天吃什么？", style = MaterialTheme.typography.displayLarge, color = MaterialTheme.colorScheme.onBackground)
             Text(
