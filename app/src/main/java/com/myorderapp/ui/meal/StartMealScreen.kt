@@ -9,6 +9,13 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ViewList
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -132,8 +139,17 @@ fun StartMealScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             TextButton(onClick = { viewModel.goBackToStep0() }) {
-                Text("← 返回", style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.primary)
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Text("返回", style = MaterialTheme.typography.labelLarge)
+                }
             }
             Spacer(modifier = Modifier.weight(1f))
         }
@@ -141,7 +157,14 @@ fun StartMealScreen(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("🍽️ 点菜中", style = MaterialTheme.typography.titleLarge,
+            Icon(
+                Icons.Default.Restaurant,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(22.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text("点菜中", style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
             Spacer(modifier = Modifier.width(8.dp))
             Text(
@@ -194,9 +217,20 @@ fun StartMealScreen(
                         Text(uiState.myName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                         if (uiState.mySubmitted) {
                             Surface(shape = RoundedCornerShape(6.dp), color = MaterialTheme.colorScheme.primaryContainer) {
-                                Text("已提交 ✓", style = MaterialTheme.typography.labelSmall,
+                                Row(
                                     modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer)
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        Icons.Default.Check,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                        modifier = Modifier.size(12.dp)
+                                    )
+                                    Text("已提交", style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer)
+                                }
                             }
                         }
                     }
@@ -234,12 +268,34 @@ fun StartMealScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("👧 ${uiState.partnerName}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                Icons.Default.Person,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Text(uiState.partnerName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        }
                         if (uiState.partnerSubmitted) {
                             Surface(shape = RoundedCornerShape(6.dp), color = MaterialTheme.colorScheme.primaryContainer) {
-                                Text("已提交 ✓", style = MaterialTheme.typography.labelSmall,
+                                Row(
                                     modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer)
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        Icons.Default.Check,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                        modifier = Modifier.size(12.dp)
+                                    )
+                                    Text("已提交", style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer)
+                                }
                             }
                         }
                     }
@@ -267,11 +323,23 @@ fun StartMealScreen(
         Spacer(modifier = Modifier.height(8.dp))
 
         // ── 菜品库 ──
-        Text(
-            "📋 菜品库 · 点击添加",
+        Row(
             modifier = Modifier.padding(horizontal = 20.dp),
-            style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold
-        )
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                Icons.AutoMirrored.Filled.ViewList,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(18.dp)
+            )
+            Text(
+                "菜品库 · 点击添加",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold
+            )
+        }
         Spacer(modifier = Modifier.height(4.dp))
 
         LazyColumn(
@@ -340,7 +408,7 @@ fun StartMealScreen(
                     )
                 ) {
                     Text(
-                        if (uiState.mySubmitted) "已提交 ✓" else "提交(${uiState.mySelections.size}道)",
+                        if (uiState.mySubmitted) "已提交" else "提交(${uiState.mySelections.size}道)",
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.Bold
                     )
@@ -382,11 +450,14 @@ private fun MyDishChip(item: com.myorderapp.domain.model.MealItem, onRemove: (St
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
-        Text(
-            "✕",
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.clickable { onRemove(item.id) }.padding(4.dp)
+        Icon(
+            Icons.Default.Close,
+            contentDescription = "移除菜品",
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier
+                .clickable { onRemove(item.id) }
+                .padding(4.dp)
+                .size(16.dp)
         )
     }
 }
@@ -473,12 +544,23 @@ private fun DishGridCard(
             )
             if (isSelected) {
                 Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    "✓ 已添加",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.primary,
-                    fontWeight = FontWeight.SemiBold
-                )
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Default.Check,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Text(
+                        "已添加",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
             }
         }
     }

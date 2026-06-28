@@ -11,6 +11,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.Link
+import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -19,6 +24,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -28,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
 import coil3.compose.AsyncImage
+import com.myorderapp.R
 import org.koin.androidx.compose.koinViewModel
 import java.io.File
 
@@ -74,14 +81,26 @@ fun OnboardingScreen(
             modifier = Modifier.fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(
-                when (uiState.step) {
-                    1 -> "🍽️"
-                    2 -> "📷"
-                    else -> "👫"
-                },
-                style = MaterialTheme.typography.displayLarge
-            )
+            when (uiState.step) {
+                1 -> Icon(
+                    painter = painterResource(R.drawable.ic_orderdisk_bowl),
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(56.dp)
+                )
+                2 -> Icon(
+                    Icons.Default.PhotoCamera,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(56.dp)
+                )
+                else -> Icon(
+                    Icons.Default.Favorite,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(56.dp)
+                )
+            }
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 when (uiState.step) {
@@ -311,9 +330,14 @@ private fun Step2Profile(viewModel: OnboardingViewModel, uiState: OnboardingUiSt
                     ) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text("📷", style = MaterialTheme.typography.bodyLarge)
+                            Icon(
+                                Icons.Default.PhotoCamera,
+                                contentDescription = null,
+                                modifier = Modifier.size(20.dp)
+                            )
                             Text("拍照", style = MaterialTheme.typography.bodyLarge)
                         }
                     }
@@ -326,9 +350,14 @@ private fun Step2Profile(viewModel: OnboardingViewModel, uiState: OnboardingUiSt
                     ) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text("🖼️", style = MaterialTheme.typography.bodyLarge)
+                            Icon(
+                                Icons.Default.Image,
+                                contentDescription = null,
+                                modifier = Modifier.size(20.dp)
+                            )
                             Text("从相册选择", style = MaterialTheme.typography.bodyLarge)
                         }
                     }
@@ -342,9 +371,14 @@ private fun Step2Profile(viewModel: OnboardingViewModel, uiState: OnboardingUiSt
                     ) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text("🔗", style = MaterialTheme.typography.bodyLarge)
+                            Icon(
+                                Icons.Default.Link,
+                                contentDescription = null,
+                                modifier = Modifier.size(20.dp)
+                            )
                             Text("输入URL", style = MaterialTheme.typography.bodyLarge)
                         }
                     }
@@ -417,7 +451,12 @@ private fun Step2Profile(viewModel: OnboardingViewModel, uiState: OnboardingUiSt
                 )
             } else {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("📷", style = MaterialTheme.typography.displayLarge)
+                    Icon(
+                        Icons.Default.PhotoCamera,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(34.dp)
+                    )
                     Text(
                         "点击设置",
                         style = MaterialTheme.typography.labelSmall,
@@ -631,17 +670,23 @@ private fun StepDot(step: Int, current: Int, label: String) {
                 ),
             contentAlignment = Alignment.Center
         ) {
-            Text(
-                when {
-                    step < current -> "✓"
-                    else -> "$step"
-                },
-                style = MaterialTheme.typography.labelSmall,
-                color = when {
-                    step <= current -> MaterialTheme.colorScheme.onPrimary
-                    else -> MaterialTheme.colorScheme.onSurfaceVariant
-                }
-            )
+            if (step < current) {
+                Icon(
+                    Icons.Default.Check,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onPrimary,
+                    modifier = Modifier.size(14.dp)
+                )
+            } else {
+                Text(
+                    "$step",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = when {
+                        step <= current -> MaterialTheme.colorScheme.onPrimary
+                        else -> MaterialTheme.colorScheme.onSurfaceVariant
+                    }
+                )
+            }
         }
         Spacer(modifier = Modifier.height(2.dp))
         Text(

@@ -6,12 +6,20 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.BarChart
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -52,7 +60,12 @@ fun MealResultScreen(
                 modifier = Modifier.fillMaxWidth().padding(24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text("🎉", fontSize = 48.sp)
+                Icon(
+                    Icons.Default.CheckCircle,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(48.dp)
+                )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     "点餐完成！",
@@ -77,7 +90,7 @@ fun MealResultScreen(
         Spacer(modifier = Modifier.height(20.dp))
 
         // ── My Selection ──
-        SectionHeader(emoji = "🧑", title = "我的选择", count = myDishes.size,
+        SectionHeader(icon = Icons.Default.Person, title = "我的选择", count = myDishes.size,
             color = MaterialTheme.colorScheme.primary)
         Spacer(modifier = Modifier.height(8.dp))
 
@@ -110,7 +123,7 @@ fun MealResultScreen(
         Spacer(modifier = Modifier.height(4.dp))
 
         // ── Partner Selection ──
-        SectionHeader(emoji = "👧", title = "${partnerName}的选择", count = partnerDishes.size,
+        SectionHeader(icon = Icons.Default.Favorite, title = "${partnerName}的选择", count = partnerDishes.size,
             color = MaterialTheme.colorScheme.primary)
 
         if (partnerDishes.isEmpty()) {
@@ -133,7 +146,18 @@ fun MealResultScreen(
             elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
-                Text("📊 点餐摘要", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Default.BarChart,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Text("点餐摘要", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                }
                 Spacer(modifier = Modifier.height(8.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -172,7 +196,17 @@ fun MealResultScreen(
                 modifier = Modifier.weight(1f),
                 shape = RoundedCornerShape(24.dp)
             ) {
-                Text("← 返回", fontSize = 14.sp)
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Text("返回", fontSize = 14.sp)
+                }
             }
             Button(
                 onClick = { viewModel.confirmMeal(); onNewMeal() },
@@ -180,7 +214,17 @@ fun MealResultScreen(
                 shape = RoundedCornerShape(24.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
             ) {
-                Text("✅ 确认完成，写入记录", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Default.Check,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Text("确认完成，写入记录", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                }
             }
         }
         Spacer(modifier = Modifier.height(32.dp))
@@ -188,12 +232,17 @@ fun MealResultScreen(
 }
 
 @Composable
-private fun SectionHeader(emoji: String, title: String, count: Int, color: Color) {
+private fun SectionHeader(icon: ImageVector, title: String, count: Int, color: Color) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(emoji, fontSize = 18.sp)
+        Icon(
+            icon,
+            contentDescription = null,
+            tint = color,
+            modifier = Modifier.size(18.dp)
+        )
         Spacer(modifier = Modifier.width(8.dp))
         Text(title, fontWeight = FontWeight.Bold, fontSize = 15.sp)
         Spacer(modifier = Modifier.width(8.dp))

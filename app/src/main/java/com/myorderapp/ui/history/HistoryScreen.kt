@@ -6,6 +6,11 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.FormatListBulleted
+import androidx.compose.material.icons.filled.BarChart
+import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -72,21 +77,56 @@ fun HistoryScreen(
     ) {
         item {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Text("📊 历史记录", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Default.BarChart,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Text("历史记录", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                }
                 Row(horizontalArrangement = Arrangement.spacedBy(0.dp)) {
                     Surface(shape = RoundedCornerShape(14.dp, 0.dp, 0.dp, 14.dp),
                         color = if (uiState.viewMode == "calendar") MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceVariant,
                         onClick = { if (uiState.viewMode != "calendar") viewModel.toggleViewMode() }) {
-                        Text("📅 日历", modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp), fontSize = 10.sp,
-                            color = if (uiState.viewMode == "calendar") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontWeight = if (uiState.viewMode == "calendar") FontWeight.SemiBold else FontWeight.Normal)
+                        Row(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                Icons.Default.CalendarMonth,
+                                contentDescription = null,
+                                tint = if (uiState.viewMode == "calendar") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(13.dp)
+                            )
+                            Text("日历", fontSize = 10.sp,
+                                color = if (uiState.viewMode == "calendar") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                fontWeight = if (uiState.viewMode == "calendar") FontWeight.SemiBold else FontWeight.Normal)
+                        }
                     }
                     Surface(shape = RoundedCornerShape(0.dp, 14.dp, 14.dp, 0.dp),
                         color = if (uiState.viewMode == "list") MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceVariant,
                         onClick = { if (uiState.viewMode != "list") viewModel.toggleViewMode() }) {
-                        Text("📋 列表", modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp), fontSize = 10.sp,
-                            color = if (uiState.viewMode == "list") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontWeight = if (uiState.viewMode == "list") FontWeight.SemiBold else FontWeight.Normal)
+                        Row(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.FormatListBulleted,
+                                contentDescription = null,
+                                tint = if (uiState.viewMode == "list") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(13.dp)
+                            )
+                            Text("列表", fontSize = 10.sp,
+                                color = if (uiState.viewMode == "list") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                fontWeight = if (uiState.viewMode == "list") FontWeight.SemiBold else FontWeight.Normal)
+                        }
                     }
                 }
             }
@@ -131,7 +171,18 @@ fun HistoryScreen(
 
         item {
             Spacer(modifier = Modifier.height(16.dp))
-            Text("🏆 最爱菜品 Top 5", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    Icons.Default.EmojiEvents,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(18.dp)
+                )
+                Text("最爱菜品 Top 5", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+            }
             Spacer(modifier = Modifier.height(8.dp))
         }
 

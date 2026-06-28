@@ -17,6 +17,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.PhotoCamera
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -239,8 +240,15 @@ fun AddDishScreen(
                     InputLabel("难度")
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         (1..5).forEach { level ->
-                            Text(if (level <= uiState.difficulty) "⭐" else "☆", fontSize = 16.sp,
-                                modifier = Modifier.clickable { viewModel.onDifficultyChanged(level) })
+                            Icon(
+                                Icons.Default.Star,
+                                contentDescription = "难度 $level",
+                                tint = if (level <= uiState.difficulty) MaterialTheme.colorScheme.primary
+                                       else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.32f),
+                                modifier = Modifier
+                                    .size(18.dp)
+                                    .clickable { viewModel.onDifficultyChanged(level) }
+                            )
                         }
                     }
                 }

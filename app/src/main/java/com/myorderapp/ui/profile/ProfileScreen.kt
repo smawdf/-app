@@ -12,6 +12,20 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.filled.Logout
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Link
+import androidx.compose.material.icons.filled.People
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.PhotoCamera
+import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -35,6 +49,7 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.core.content.FileProvider
 import coil3.compose.AsyncImage
 import org.koin.androidx.compose.koinViewModel
@@ -187,9 +202,14 @@ fun ProfileScreen(
                     ) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text("📷", fontSize = 20.sp)
+                            Icon(
+                                Icons.Default.PhotoCamera,
+                                contentDescription = null,
+                                modifier = Modifier.size(20.dp)
+                            )
                             Text("拍照", fontSize = 16.sp)
                         }
                     }
@@ -199,9 +219,14 @@ fun ProfileScreen(
                     ) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text("🖼️", fontSize = 20.sp)
+                            Icon(
+                                Icons.Default.Image,
+                                contentDescription = null,
+                                modifier = Modifier.size(20.dp)
+                            )
                             Text("从相册选择", fontSize = 16.sp)
                         }
                     }
@@ -215,9 +240,14 @@ fun ProfileScreen(
                     ) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text("🔗", fontSize = 20.sp)
+                            Icon(
+                                Icons.Default.Link,
+                                contentDescription = null,
+                                modifier = Modifier.size(20.dp)
+                            )
                             Text("输入URL", fontSize = 16.sp)
                         }
                     }
@@ -289,12 +319,28 @@ fun ProfileScreen(
                             } else {
                                 Box(modifier = Modifier.fillMaxSize().background(Color(0xFFD4A574)),
                                     contentAlignment = Alignment.Center) {
-                                    Text(profile?.nickname?.firstOrNull()?.toString() ?: "👤",
-                                        fontSize = 24.sp, color = Color.White)
+                                    val initial = profile?.nickname?.firstOrNull()?.toString()
+                                    if (initial != null) {
+                                        Text(initial, fontSize = 24.sp, color = Color.White)
+                                    } else {
+                                        Icon(
+                                            Icons.Default.Person,
+                                            contentDescription = null,
+                                            tint = Color.White,
+                                            modifier = Modifier.size(32.dp)
+                                        )
+                                    }
                                 }
                             }
                         }
-                        Text("💕", fontSize = 32.sp, modifier = Modifier.padding(horizontal = 4.dp))
+                        Icon(
+                            Icons.Default.Favorite,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier
+                                .padding(horizontal = 6.dp)
+                                .size(28.dp)
+                        )
                         // 对方头像
                         Box(
                             modifier = Modifier.size(60.dp).clip(HeartShape),
@@ -302,10 +348,17 @@ fun ProfileScreen(
                         ) {
                             Box(modifier = Modifier.fillMaxSize().background(Color(0xFFC4A882)),
                                 contentAlignment = Alignment.Center) {
-                                Text(
-                                    uiState.pairInfo.partnerName.firstOrNull()?.toString() ?: "👤",
-                                    fontSize = 24.sp, color = Color.White
-                                )
+                                val partnerInitial = uiState.pairInfo.partnerName.firstOrNull()?.toString()
+                                if (partnerInitial != null) {
+                                    Text(partnerInitial, fontSize = 24.sp, color = Color.White)
+                                } else {
+                                    Icon(
+                                        Icons.Default.Person,
+                                        contentDescription = null,
+                                        tint = Color.White,
+                                        modifier = Modifier.size(32.dp)
+                                    )
+                                }
                             }
                         }
                     }
@@ -316,8 +369,19 @@ fun ProfileScreen(
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary
                     )
-                    Text("💕 已配对", style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.primary)
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            Icons.Default.Favorite,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Text("已配对", style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.primary)
+                    }
                 } else {
                     // 未配对：单人头像
                     Box(
@@ -341,11 +405,19 @@ fun ProfileScreen(
                                 contentScale = ContentScale.Crop
                             )
                         } else {
-                            Text(
-                                if (profile?.nickname.isNullOrBlank()) "👤"
-                                else profile!!.nickname.first().toString(),
-                                fontSize = 32.sp, color = Color.White
-                            )
+                            if (profile?.nickname.isNullOrBlank()) {
+                                Icon(
+                                    Icons.Default.Person,
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(32.dp)
+                                )
+                            } else {
+                                Text(
+                                    profile!!.nickname.first().toString(),
+                                    fontSize = 32.sp, color = Color.White
+                                )
+                            }
                         }
                     }
                     Spacer(modifier = Modifier.height(12.dp))
@@ -370,11 +442,22 @@ fun ProfileScreen(
                         shape = RoundedCornerShape(12.dp),
                         color = MaterialTheme.colorScheme.secondaryContainer
                     ) {
-                        Text("🔗 尚未配对",
-                            style = MaterialTheme.typography.labelMedium,
+                        Row(
                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
-                            color = MaterialTheme.colorScheme.secondary
-                        )
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                Icons.Default.Link,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.secondary,
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Text("尚未配对",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.secondary
+                            )
+                        }
                     }
                 }
 
@@ -444,10 +527,11 @@ fun ProfileScreen(
                                         color = MaterialTheme.colorScheme.onPrimaryContainer
                                     )
                                     Spacer(modifier = Modifier.width(4.dp))
-                                    Text(
-                                        "✕",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.6f)
+                                    Icon(
+                                        Icons.Default.Close,
+                                        contentDescription = "移除口味标签",
+                                        tint = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.6f),
+                                        modifier = Modifier.size(14.dp)
                                     )
                                 }
                             }
@@ -484,7 +568,11 @@ fun ProfileScreen(
                             contentColor = MaterialTheme.colorScheme.onPrimary
                         )
                     ) {
-                        Text("+", style = MaterialTheme.typography.titleLarge)
+                        Icon(
+                            Icons.Default.Add,
+                            contentDescription = "添加口味标签",
+                            modifier = Modifier.size(18.dp)
+                        )
                     }
                 }
 
@@ -522,7 +610,14 @@ fun ProfileScreen(
                     color = MaterialTheme.colorScheme.secondaryContainer,
                     modifier = Modifier.size(44.dp)
                 ) {
-                    Box(contentAlignment = Alignment.Center) { Text("👥", fontSize = 20.sp) }
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            Icons.Default.People,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.secondary,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
                 }
                 Spacer(modifier = Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
@@ -654,14 +749,14 @@ fun ProfileScreen(
             elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
         ) {
             Column {
-                SettingsRow("📊", "历史记录", "查看过往点餐", onClick = onHistoryClick)
+                SettingsRow(Icons.Default.History, "历史记录", "查看过往点餐", onClick = onHistoryClick)
                 HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-                SettingsRow("📋", "菜品管理", "管理你的菜品库", onClick = onDishManageClick)
+                SettingsRow(Icons.Default.Restaurant, "菜品管理", "管理你的菜品库", onClick = onDishManageClick)
                 HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-                SettingsRow("ℹ️", "关于", "今天吃什么？v$appVersion", onClick = onAboutClick)
+                SettingsRow(Icons.Default.Info, "关于", "今天吃什么？v$appVersion", onClick = onAboutClick)
                 if (uiState.isLoggedIn) {
                     HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-                    SettingsRow("🚪", "退出登录", "切换账号或离线使用",
+                    SettingsRow(Icons.AutoMirrored.Filled.Logout, "退出登录", "切换账号或离线使用",
                         onClick = { showLogoutDialog = true })
                 }
             }
@@ -708,7 +803,7 @@ fun ProfileScreen(
 }
 
 @Composable
-private fun SettingsRow(emoji: String, title: String, subtitle: String = "", onClick: () -> Unit = {}) {
+private fun SettingsRow(icon: ImageVector, title: String, subtitle: String = "", onClick: () -> Unit = {}) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -716,17 +811,27 @@ private fun SettingsRow(emoji: String, title: String, subtitle: String = "", onC
             .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(emoji, fontSize = 18.sp)
+        Icon(
+            icon,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(20.dp)
+        )
         Spacer(modifier = Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(title, style = MaterialTheme.typography.bodyLarge)
             if (subtitle.isNotBlank()) {
                 Text(subtitle,
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
-        Text("›", fontSize = 18.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Icon(
+            Icons.AutoMirrored.Filled.KeyboardArrowRight,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(18.dp)
+        )
     }
 }
 
