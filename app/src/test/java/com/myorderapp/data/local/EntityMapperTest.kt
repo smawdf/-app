@@ -318,7 +318,7 @@ class EntityMapperTest {
             dishName = "Mapo tofu",
             dishCategory = "Sichuan",
             dishImageUrl = "https://example.com/mapo.jpg",
-            externalSource = "juhe",
+            externalSource = "sample",
             addedBy = "user-1",
             addedByName = "Ada",
             status = "pending",
@@ -341,5 +341,94 @@ class EntityMapperTest {
         assertEquals(item.status, restored.status)
         assertEquals(item.notes, restored.notes)
         assertEquals(item.createdAt, restored.createdAt)
+    }
+
+    @Test
+    fun `cart item round-trip preserves all fields`() {
+        val item = CartItem(
+            id = "cart-1",
+            shopId = "shop-1",
+            shopName = "Orange Bowl",
+            shopCoverUrl = "https://example.com/shop.jpg",
+            minOrderPrice = 15.0,
+            deliveryFee = 2.5,
+            menuItemId = "menu-1",
+            menuItemName = "Orange Chicken",
+            menuItemImageUrl = "https://example.com/menu.jpg",
+            unitPrice = 18.0,
+            quantity = 2,
+            note = "less spicy",
+            addedAt = "2026-06-30T10:00:00Z"
+        )
+
+        val restored = item.toEntity().toDomain()
+
+        assertEquals(item.id, restored.id)
+        assertEquals(item.shopId, restored.shopId)
+        assertEquals(item.shopName, restored.shopName)
+        assertEquals(item.menuItemId, restored.menuItemId)
+        assertEquals(item.menuItemName, restored.menuItemName)
+        assertEquals(item.quantity, restored.quantity)
+        assertEquals(item.unitPrice, restored.unitPrice, 0.001)
+    }
+
+    @Test
+    fun `address round-trip preserves all fields`() {
+        val address = Address(
+            id = "addr-1",
+            userId = "user-1",
+            contactName = "Ada",
+            contactPhone = "13800138000",
+            addressLine1 = "Orange Street 12",
+            addressLine2 = "Room 502",
+            tag = "Home",
+            isDefault = true
+        )
+
+        val restored = address.toEntity().toDomain()
+
+        assertEquals(address.id, restored.id)
+        assertEquals(address.contactName, restored.contactName)
+        assertEquals(address.contactPhone, restored.contactPhone)
+        assertEquals(address.addressLine1, restored.addressLine1)
+        assertEquals(address.isDefault, restored.isDefault)
+    }
+
+    @Test
+    fun `order round-trip preserves snapshots and items`() {
+        val order = OrderRecord(
+            id = "order-1",
+            userId = "user-1",
+            shopId = "shop-1",
+            shopName = "Orange Bowl",
+            shopCoverUrl = "https://example.com/shop.jpg",
+            status = "submitted",
+            addressSnapshot = "Ada 13800138000 Orange Street 12",
+            buyerNote = "Call on arrival",
+            subtotal = 25.0,
+            deliveryFee = 2.5,
+            totalPrice = 27.5,
+            createdAt = "2026-06-30T11:00:00Z",
+            items = listOf(
+                OrderItem(
+                    id = "oi-1",
+                    orderId = "order-1",
+                    menuItemId = "menu-1",
+                    menuItemName = "Orange Chicken",
+                    menuItemImageUrl = "https://example.com/menu.jpg",
+                    unitPrice = 12.5,
+                    quantity = 2,
+                    subtotal = 25.0
+                )
+            )
+        )
+
+        val restored = order.toEntity().toDomain(order.items.map { it.toEntity().toDomain() })
+
+        assertEquals(order.id, restored.id)
+        assertEquals(order.shopName, restored.shopName)
+        assertEquals(order.addressSnapshot, restored.addressSnapshot)
+        assertEquals(1, restored.items.size)
+        assertEquals("Orange Chicken", restored.items.first().menuItemName)
     }
 }

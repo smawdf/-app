@@ -1,852 +1,319 @@
 package com.myorderapp.ui.profile
 
-import android.net.Uri
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.automirrored.filled.Logout
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.Image
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Link
-import androidx.compose.material.icons.filled.People
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.PhotoCamera
-import androidx.compose.material.icons.filled.Restaurant
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.outlined.LocalDining
+import androidx.compose.material.icons.outlined.NotificationsNone
+import androidx.compose.material.icons.outlined.PersonAdd
+import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.Storefront
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Outline
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalClipboardManager
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardCapitalization
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.unit.Density
-import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.core.content.FileProvider
 import coil3.compose.AsyncImage
+import com.myorderapp.ui.components.OrderCard
+import com.myorderapp.ui.theme.Background
+import com.myorderapp.ui.theme.OnBackground
+import com.myorderapp.ui.theme.OnSurfaceVariant
+import com.myorderapp.ui.theme.OrderDiskSpacing
+import com.myorderapp.ui.theme.Primary
+import com.myorderapp.ui.theme.PrimaryContainer
+import com.myorderapp.ui.theme.Surface
 import org.koin.androidx.compose.koinViewModel
-import java.io.File
 
 @Composable
 fun ProfileScreen(
     viewModel: ProfileViewModel = koinViewModel(),
-    onHistoryClick: () -> Unit = {},
     onLoginClick: () -> Unit = {},
-    onDishManageClick: () -> Unit = {},
-    onAboutClick: () -> Unit = {},
-    onLogoutClick: () -> Unit = {}
+    onDishManageClick: () -> Unit = {}
 ) {
-    val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
     val profile = uiState.profile
-    var showEditNameDialog by remember { mutableStateOf(false) }
-    var editName by remember { mutableStateOf(profile?.nickname ?: "") }
-    var showAvatarSheet by remember { mutableStateOf(false) }
-    var showAvatarUrlDialog by remember { mutableStateOf(false) }
-    var editAvatarUrl by remember { mutableStateOf(profile?.avatarUrl ?: "") }
-    var cameraUri by remember { mutableStateOf<Uri?>(null) }
-    var showLogoutDialog by remember { mutableStateOf(false) }
-    val appVersion = remember {
-        try {
-            context.packageManager.getPackageInfo(context.packageName, 0).versionName
-        } catch (_: Exception) {
-            "1.0"
-        }
-    }
+    val displayName = profile?.nickname?.takeIf { it.isNotBlank() } ?: "未设置昵称"
+    var showProfileEditor by remember { mutableStateOf(false) }
 
-    val galleryLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
-    ) { uri: Uri? ->
-        uri?.let { viewModel.saveAvatarUri(context, it) }
-    }
-
-    val cameraLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.TakePicture()
-    ) { success ->
-        if (success && cameraUri != null) {
-            viewModel.saveAvatarUri(context, cameraUri!!)
-        }
-    }
-
-    fun launchCamera() {
-        val photoFile = File(
-            context.externalCacheDir ?: context.cacheDir,
-            "avatar_${System.currentTimeMillis()}.jpg"
-        )
-        photoFile.parentFile?.mkdirs()
-        cameraUri = FileProvider.getUriForFile(
-            context,
-            "${context.packageName}.fileprovider",
-            photoFile
-        )
-        cameraLauncher.launch(cameraUri!!)
-    }
-
-    if (showEditNameDialog) {
-        AlertDialog(
-            onDismissRequest = { showEditNameDialog = false },
-            title = { Text("修改昵称", fontWeight = FontWeight.Bold) },
-            text = {
-                OutlinedTextField(
-                    value = editName,
-                    onValueChange = { if (it.length <= 12) editName = it },
-                    placeholder = { Text("输入新昵称") },
-                    singleLine = true,
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                        unfocusedBorderColor = Color.Transparent,
-                        focusedBorderColor = MaterialTheme.colorScheme.primary
-                    )
-                )
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        viewModel.updateNickname(editName)
-                        showEditNameDialog = false
-                    },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary
-                    ),
-                    shape = RoundedCornerShape(12.dp)
-                ) { Text("保存") }
-            },
-            dismissButton = {
-                TextButton(onClick = { showEditNameDialog = false }) { Text("取消") }
-            }
-        )
-    }
-
-    if (showAvatarUrlDialog) {
-        AlertDialog(
-            onDismissRequest = { showAvatarUrlDialog = false },
-            title = { Text("设置头像URL", fontWeight = FontWeight.Bold) },
-            text = {
-                Column {
-                    Text("输入图片链接地址",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Spacer(modifier = Modifier.height(8.dp))
-                    OutlinedTextField(
-                        value = editAvatarUrl,
-                        onValueChange = { editAvatarUrl = it },
-                        placeholder = { Text("https://...") },
-                        singleLine = true,
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                            unfocusedBorderColor = Color.Transparent,
-                            focusedBorderColor = MaterialTheme.colorScheme.primary
-                        )
-                    )
+    if (showProfileEditor) {
+        ProfileEditDialog(
+            name = displayName,
+            avatarUrl = profile?.avatarUrl.orEmpty(),
+            onDismiss = { showProfileEditor = false },
+            onSave = { name, avatar ->
+                viewModel.updateNickname(name)
+                if (avatar.isNotBlank()) {
+                    viewModel.updateAvatar(avatar)
                 }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        viewModel.updateAvatar(editAvatarUrl)
-                        showAvatarUrlDialog = false
-                    },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary
-                    ),
-                    shape = RoundedCornerShape(12.dp)
-                ) { Text("保存") }
-            },
-            dismissButton = {
-                TextButton(onClick = { showAvatarUrlDialog = false }) { Text("取消") }
+                showProfileEditor = false
             }
         )
     }
 
-    if (showAvatarSheet) {
-        AlertDialog(
-            onDismissRequest = { showAvatarSheet = false },
-            title = { Text("设置头像", fontWeight = FontWeight.Bold) },
-            text = {
-                Column {
-                    TextButton(
-                        onClick = { showAvatarSheet = false; launchCamera() },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                Icons.Default.PhotoCamera,
-                                contentDescription = null,
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Text("拍照", fontSize = 16.sp)
-                        }
-                    }
-                    TextButton(
-                        onClick = { showAvatarSheet = false; galleryLauncher.launch("image/*") },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                Icons.Default.Image,
-                                contentDescription = null,
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Text("从相册选择", fontSize = 16.sp)
-                        }
-                    }
-                    TextButton(
-                        onClick = {
-                            showAvatarSheet = false
-                            editAvatarUrl = profile?.avatarUrl ?: ""
-                            showAvatarUrlDialog = true
-                        },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                Icons.Default.Link,
-                                contentDescription = null,
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Text("输入URL", fontSize = 16.sp)
-                        }
-                    }
-                }
-            },
-            confirmButton = {},
-            dismissButton = {
-                TextButton(onClick = { showAvatarSheet = false }) { Text("取消") }
-            }
-        )
-    }
-
-    // Logout confirmation dialog
-    if (showLogoutDialog) {
-        AlertDialog(
-            onDismissRequest = { showLogoutDialog = false },
-            title = { Text("退出登录", fontWeight = FontWeight.Bold) },
-            text = { Text("退出后需重新登录才能同步数据，确认退出？") },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        showLogoutDialog = false
-                        onLogoutClick()
-                    },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.error
-                    ),
-                    shape = RoundedCornerShape(12.dp)
-                ) { Text("退出") }
-            },
-            dismissButton = {
-                TextButton(onClick = { showLogoutDialog = false }) {
-                    Text("取消")
-                }
-            }
-        )
-    }
-
-    Column(
+    LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .verticalScroll(rememberScrollState())
+            .background(Background),
+        contentPadding = PaddingValues(start = 16.dp, top = 12.dp, end = 16.dp, bottom = 96.dp),
+        verticalArrangement = Arrangement.spacedBy(OrderDiskSpacing.lg)
     ) {
-        // Hero Header
-        Surface(modifier = Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.surface) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .statusBarsPadding()
-                    .padding(20.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                // Paired: 双人头像 + 爱心
-                if (uiState.pairInfo.isPaired) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center
-                    ) {
-                        // 我的头像
-                        Box(
-                            modifier = Modifier.size(60.dp).clip(HeartShape),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            val myAv = profile?.avatarUrl
-                            if (!myAv.isNullOrBlank()) {
-                                AsyncImage(model = myAv, contentDescription = "我",
-                                    modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
-                            } else {
-                                Box(modifier = Modifier.fillMaxSize().background(Color(0xFFD4A574)),
-                                    contentAlignment = Alignment.Center) {
-                                    val initial = profile?.nickname?.firstOrNull()?.toString()
-                                    if (initial != null) {
-                                        Text(initial, fontSize = 24.sp, color = Color.White)
-                                    } else {
-                                        Icon(
-                                            Icons.Default.Person,
-                                            contentDescription = null,
-                                            tint = Color.White,
-                                            modifier = Modifier.size(32.dp)
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                        Icon(
-                            Icons.Default.Favorite,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier
-                                .padding(horizontal = 6.dp)
-                                .size(28.dp)
-                        )
-                        // 对方头像
-                        Box(
-                            modifier = Modifier.size(60.dp).clip(HeartShape),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Box(modifier = Modifier.fillMaxSize().background(Color(0xFFC4A882)),
-                                contentAlignment = Alignment.Center) {
-                                val partnerInitial = uiState.pairInfo.partnerName.firstOrNull()?.toString()
-                                if (partnerInitial != null) {
-                                    Text(partnerInitial, fontSize = 24.sp, color = Color.White)
-                                } else {
-                                    Icon(
-                                        Icons.Default.Person,
-                                        contentDescription = null,
-                                        tint = Color.White,
-                                        modifier = Modifier.size(32.dp)
-                                    )
-                                }
-                            }
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        uiState.pairInfo.partnerName.ifBlank { "已配对" },
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            Icons.Default.Favorite,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(14.dp)
-                        )
-                        Text("已配对", style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.primary)
-                    }
-                } else {
-                    // 未配对：单人头像
-                    Box(
-                        modifier = Modifier
-                            .size(80.dp)
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(
-                                Brush.linearGradient(
-                                    listOf(Color(0xFFD4A574), Color(0xFFE8D5C0))
-                                )
-                            )
-                            .clickable { showAvatarSheet = true },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        val av = profile?.avatarUrl
-                        if (!av.isNullOrBlank()) {
-                            AsyncImage(
-                                model = av,
-                                contentDescription = "头像",
-                                modifier = Modifier.fillMaxSize(),
-                                contentScale = ContentScale.Crop
-                            )
-                        } else {
-                            if (profile?.nickname.isNullOrBlank()) {
-                                Icon(
-                                    Icons.Default.Person,
-                                    contentDescription = null,
-                                    tint = Color.White,
-                                    modifier = Modifier.size(32.dp)
-                                )
-                            } else {
-                                Text(
-                                    profile!!.nickname.first().toString(),
-                                    fontSize = 32.sp, color = Color.White
-                                )
-                            }
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    // Name
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.clickable {
-                            editName = profile?.nickname ?: ""
-                            showEditNameDialog = true
-                        }
-                    ) {
-                        Text(
-                            profile?.nickname?.ifBlank { "点击设置昵称" } ?: "点击设置昵称",
-                            style = MaterialTheme.typography.headlineMedium
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(6.dp))
-
-                    // Pair status
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = MaterialTheme.colorScheme.secondaryContainer
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                Icons.Default.Link,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.secondary,
-                                modifier = Modifier.size(14.dp)
-                            )
-                            Text("尚未配对",
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.secondary
-                            )
-                        }
-                    }
-                }
-
-                // Save status message
-                if (uiState.saveMessage != null) {
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Surface(
-                        shape = RoundedCornerShape(8.dp),
-                        color = if (uiState.saveMessage!!.contains("✓") ||
-                                   uiState.saveMessage!!.contains("💕"))
-                            MaterialTheme.colorScheme.primaryContainer
-                        else MaterialTheme.colorScheme.secondaryContainer,
-                        onClick = { viewModel.dismissMessage() }
-                    ) {
-                        Text(
-                            uiState.saveMessage!!,
-                            style = MaterialTheme.typography.labelSmall,
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp),
-                            color = if (uiState.saveMessage!!.contains("✓") ||
-                                       uiState.saveMessage!!.contains("💕"))
-                                MaterialTheme.colorScheme.primary
-                            else MaterialTheme.colorScheme.secondary
-                        )
-                    }
-                }
-            }
+        item {
+            ProfileHeader(
+                name = displayName,
+                avatarUrl = profile?.avatarUrl,
+                onSettingsClick = { showProfileEditor = true }
+            )
         }
 
-        Spacer(modifier = Modifier.height(20.dp))
-
-        // Taste Preferences
-        Text("口味偏好",
-            style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.padding(horizontal = 20.dp))
-        Text("添加自定义口味标签",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(horizontal = 20.dp, vertical = 2.dp))
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Card(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp),
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-        ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                // Custom tags
-                if (uiState.customTags.isNotEmpty()) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        uiState.customTags.forEach { tag ->
-                            Surface(
-                                shape = RoundedCornerShape(20.dp),
-                                color = MaterialTheme.colorScheme.primaryContainer,
-                                onClick = { viewModel.removeTag(tag) }
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(start = 14.dp, end = 10.dp, top = 8.dp, bottom = 8.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text(
-                                        tag,
-                                        style = MaterialTheme.typography.labelMedium,
-                                        color = MaterialTheme.colorScheme.onPrimaryContainer
-                                    )
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Icon(
-                                        Icons.Default.Close,
-                                        contentDescription = "移除口味标签",
-                                        tint = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.6f),
-                                        modifier = Modifier.size(14.dp)
-                                    )
-                                }
-                            }
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(12.dp))
-                }
-
-                // Add new tag
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    OutlinedTextField(
-                        value = uiState.newTag,
-                        onValueChange = { if (it.length <= 6) viewModel.onNewTagChanged(it) },
-                        placeholder = { Text("输入口味标签", style = MaterialTheme.typography.bodySmall) },
-                        singleLine = true,
-                        shape = RoundedCornerShape(12.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                            unfocusedBorderColor = Color.Transparent,
-                            focusedBorderColor = MaterialTheme.colorScheme.primary
-                        ),
-                        modifier = Modifier.weight(1f).height(48.dp)
-                    )
-                    FilledTonalButton(
-                        onClick = { viewModel.addTag() },
-                        enabled = uiState.newTag.isNotBlank(),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.filledTonalButtonColors(
-                            containerColor = MaterialTheme.colorScheme.primary,
-                            contentColor = MaterialTheme.colorScheme.onPrimary
-                        )
-                    ) {
-                        Icon(
-                            Icons.Default.Add,
-                            contentDescription = "添加口味标签",
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-                }
-
-                if (uiState.saveMessage != null) {
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        uiState.saveMessage!!,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
+        item {
+            ProfileActionList(
+                onDishManageClick = onDishManageClick,
+                onLoginClick = onLoginClick
+            )
         }
-
-        Spacer(modifier = Modifier.height(20.dp))
-
-        // Pairing
-        Text("配对管理",
-            style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.padding(horizontal = 20.dp))
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Card(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp),
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = MaterialTheme.colorScheme.secondaryContainer,
-                    modifier = Modifier.size(44.dp)
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            Icons.Default.People,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.secondary,
-                            modifier = Modifier.size(22.dp)
-                        )
-                    }
-                }
-                Spacer(modifier = Modifier.width(12.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        if (uiState.pairInfo.isPaired) "已配对" else "生成配对码",
-                        style = MaterialTheme.typography.titleMedium
-                    )
-                    Text(
-                        if (uiState.pairInfo.isPaired) "对方可以通过配对码加入" else "让对方输入此码完成配对",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                if (uiState.pairInfo.isPaired) {
-                    Surface(
-                        shape = RoundedCornerShape(14.dp),
-                        color = MaterialTheme.colorScheme.errorContainer,
-                        onClick = { viewModel.unpair() }
-                    ) {
-                        Text("解除",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.error,
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp))
-                    }
-                } else {
-                    Button(
-                        onClick = { viewModel.generatePairCode() },
-                        shape = RoundedCornerShape(14.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primary
-                        ),
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp)
-                    ) {
-                        Text("生成", fontSize = 12.sp)
-                    }
-                }
-            }
-
-            if (uiState.pairCode.isNotBlank()) {
-                HorizontalDivider(modifier = Modifier.padding(horizontal = 12.dp))
-                @Suppress("DEPRECATION") val clipboard = LocalClipboardManager.current
-                var showCopyTip by remember { mutableStateOf(false) }
-                Column(
-                    modifier = Modifier.fillMaxWidth().padding(12.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Row(
-                        horizontalArrangement = Arrangement.Center,
-                        modifier = Modifier.combinedClickable(
-                            onClick = {},
-                            onLongClick = {
-                                clipboard.setText(AnnotatedString(uiState.pairCode))
-                                showCopyTip = true
-                            }
-                        )
-                    ) {
-                        Text("配对码：",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text(uiState.pairCode,
-                            style = MaterialTheme.typography.headlineMedium,
-                            color = MaterialTheme.colorScheme.primary,
-                            letterSpacing = 3.sp)
-                    }
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        if (showCopyTip) "✅ 已复制" else "将此码分享给对方，长按可复制",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = if (showCopyTip) MaterialTheme.colorScheme.primary
-                                else MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-
-            if (!uiState.pairInfo.isPaired) {
-                HorizontalDivider(modifier = Modifier.padding(horizontal = 12.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    OutlinedTextField(
-                        value = uiState.joinPairCode,
-                        onValueChange = viewModel::onJoinPairCodeChanged,
-                        placeholder = { Text("输入对方配对码", fontSize = 12.sp) },
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(
-                            keyboardType = KeyboardType.Ascii,
-                            capitalization = KeyboardCapitalization.Characters
-                        ),
-                        shape = RoundedCornerShape(10.dp),
-                        modifier = Modifier.weight(1f).height(48.dp),
-                        textStyle = LocalTextStyle.current.copy(
-                            fontSize = 14.sp, letterSpacing = 2.sp
-                        ),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                            unfocusedBorderColor = Color.Transparent,
-                            focusedBorderColor = MaterialTheme.colorScheme.primary
-                        )
-                    )
-                    Button(
-                        onClick = { viewModel.joinPair(uiState.joinPairCode) },
-                        enabled = uiState.joinPairCode.length == 6,
-                        shape = RoundedCornerShape(10.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primary
-                        ),
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
-                    ) {
-                        Text("加入", fontSize = 12.sp)
-                    }
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(20.dp))
-
-        // More
-        Text("更多",
-            style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.padding(horizontal = 20.dp))
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Card(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp),
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-        ) {
-            Column {
-                SettingsRow(Icons.Default.History, "历史记录", "查看过往点餐", onClick = onHistoryClick)
-                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-                SettingsRow(Icons.Default.Restaurant, "菜品管理", "管理你的菜品库", onClick = onDishManageClick)
-                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-                SettingsRow(Icons.Default.Info, "关于", "今天吃什么？v$appVersion", onClick = onAboutClick)
-                if (uiState.isLoggedIn) {
-                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-                    SettingsRow(Icons.AutoMirrored.Filled.Logout, "退出登录", "切换账号或离线使用",
-                        onClick = { showLogoutDialog = true })
-                }
-            }
-        }
-
-        // Login / Sync status
-        Surface(
-            onClick = {
-                if (!uiState.isLoggedIn) onLoginClick()
-            },
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp),
-            shape = RoundedCornerShape(12.dp),
-            color = if (uiState.isLoggedIn)
-                MaterialTheme.colorScheme.primaryContainer
-            else MaterialTheme.colorScheme.surfaceVariant
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(12.dp),
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Box(
-                    modifier = Modifier.size(8.dp).clip(RoundedCornerShape(4.dp))
-                        .background(if (uiState.isLoggedIn)
-                            MaterialTheme.colorScheme.primary
-                        else MaterialTheme.colorScheme.outlineVariant)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    if (uiState.isLoggedIn) "在线模式 · 数据云端同步中"
-                    else "本地模式 · 点击登录云端保存",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = if (uiState.isLoggedIn)
-                        MaterialTheme.colorScheme.primary
-                    else MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
     }
 }
 
 @Composable
-private fun SettingsRow(icon: ImageVector, title: String, subtitle: String = "", onClick: () -> Unit = {}) {
-    Row(
+private fun ProfileHeader(name: String, avatarUrl: String?, onSettingsClick: () -> Unit) {
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onClick() }
-            .padding(horizontal = 16.dp, vertical = 14.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .statusBarsPadding()
+            .height(142.dp)
     ) {
-        Icon(
-            icon,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.size(20.dp)
-        )
-        Spacer(modifier = Modifier.width(12.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(title, style = MaterialTheme.typography.bodyLarge)
-            if (subtitle.isNotBlank()) {
-                Text(subtitle,
-                    style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Row(
+            modifier = Modifier
+                .align(Alignment.CenterStart)
+                .fillMaxWidth()
+                .padding(end = 54.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Surface(
+                modifier = Modifier.size(82.dp),
+                shape = CircleShape,
+                color = Surface,
+                shadowElevation = 2.dp
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    if (!avatarUrl.isNullOrBlank()) {
+                        AsyncImage(
+                            model = avatarUrl,
+                            contentDescription = "头像",
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier
+                                .size(72.dp)
+                                .clip(CircleShape)
+                        )
+                    } else {
+                        Box(
+                            modifier = Modifier
+                                .size(72.dp)
+                                .clip(CircleShape)
+                                .background(Primary),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Outlined.LocalDining, contentDescription = null, tint = Color.White, modifier = Modifier.size(44.dp))
+                        }
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.width(18.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = name,
+                    color = OnBackground,
+                    fontSize = 28.sp,
+                    lineHeight = 34.sp,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                Surface(
+                    shape = RoundedCornerShape(999.dp),
+                    color = PrimaryContainer,
+                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+                ) {
+                    Text(
+                        text = "个人中心",
+                        color = OnBackground,
+                        fontSize = 15.sp,
+                        lineHeight = 19.sp,
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 5.dp)
+                    )
+                }
             }
         }
-        Icon(
-            Icons.AutoMirrored.Filled.KeyboardArrowRight,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.size(18.dp)
-        )
+
+        Surface(
+            modifier = Modifier
+                .align(Alignment.CenterEnd)
+                .clickable(onClick = onSettingsClick),
+            shape = CircleShape,
+            color = Color.Transparent
+        ) {
+            Icon(Icons.Outlined.Settings, contentDescription = "设置头像和名称", tint = Primary, modifier = Modifier.padding(8.dp).size(28.dp))
+        }
     }
 }
 
-object HeartShape : Shape {
-    override fun createOutline(size: Size, layoutDirection: LayoutDirection, density: Density): Outline {
-        val path = Path().apply {
-            val w = size.width
-            val h = size.height
-            moveTo(w / 2, h * 0.85f)
-            cubicTo(w * 0.05f, h * 0.5f, 0f, h * 0.15f, w * 0.25f, h * 0.05f)
-            cubicTo(w * 0.4f, 0f, w * 0.47f, h * 0.2f, w / 2, h * 0.35f)
-            cubicTo(w * 0.53f, h * 0.2f, w * 0.6f, 0f, w * 0.75f, h * 0.05f)
-            cubicTo(w, h * 0.15f, w * 0.95f, h * 0.5f, w / 2, h * 0.85f)
-            close()
+@Composable
+private fun ProfileActionList(
+    onDishManageClick: () -> Unit,
+    onLoginClick: () -> Unit
+) {
+    OrderCard(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(vertical = 12.dp)) {
+            ProfileActionRow(
+                icon = Icons.Outlined.NotificationsNone,
+                title = "订单通知设置",
+                trailingText = "未开启",
+                onClick = {}
+            )
+            ProfileActionRow(
+                icon = Icons.Outlined.PersonAdd,
+                title = "邀请小伙伴",
+                buttonText = "点击分享",
+                onClick = onLoginClick
+            )
+            ProfileActionRow(
+                icon = Icons.Outlined.Storefront,
+                title = "厨房设置",
+                onClick = onDishManageClick
+            )
         }
-        return Outline.Generic(path)
     }
+}
+
+@Composable
+private fun ProfileActionRow(
+    icon: ImageVector,
+    title: String,
+    trailingText: String? = null,
+    buttonText: String? = null,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(72.dp)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 22.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(icon, contentDescription = null, tint = Primary, modifier = Modifier.size(26.dp))
+        Spacer(modifier = Modifier.width(22.dp))
+        Text(
+            text = title,
+            color = OnBackground,
+            fontSize = 19.sp,
+            lineHeight = 24.sp,
+            modifier = Modifier.weight(1f),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+        when {
+            trailingText != null -> Text(text = trailingText, color = Primary, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            buttonText != null -> TextButton(
+                onClick = onClick,
+                shape = RoundedCornerShape(8.dp),
+                colors = ButtonDefaults.textButtonColors(
+                    containerColor = Primary,
+                    contentColor = Color.White
+                )
+            ) {
+                Text(buttonText, fontSize = 16.sp)
+            }
+            else -> Icon(
+                Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = null,
+                tint = OnSurfaceVariant,
+                modifier = Modifier.size(30.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun ProfileEditDialog(
+    name: String,
+    avatarUrl: String,
+    onDismiss: () -> Unit,
+    onSave: (String, String) -> Unit
+) {
+    var nameDraft by remember(name) { mutableStateOf(name) }
+    var avatarDraft by remember(avatarUrl) { mutableStateOf(avatarUrl) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        shape = RoundedCornerShape(18.dp),
+        containerColor = Surface,
+        title = { Text("设置头像和名称", color = OnBackground, fontWeight = FontWeight.Bold) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedTextField(
+                    value = nameDraft,
+                    onValueChange = { nameDraft = it },
+                    label = { Text("名称") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = avatarDraft,
+                    onValueChange = { avatarDraft = it },
+                    label = { Text("头像图片链接") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        },
+        confirmButton = {
+            Button(onClick = { onSave(nameDraft, avatarDraft) }, shape = RoundedCornerShape(10.dp)) {
+                Text("保存")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("取消", color = OnSurfaceVariant)
+            }
+        }
+    )
 }

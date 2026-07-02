@@ -9,7 +9,7 @@ interface TianRecipeApi {
     suspend fun searchRecipes(
         @Query("key") apiKey: String,
         @Query("word") word: String,
-        @Query("num") num: Int = 20,
+        @Query("num") num: Int = 10,
         @Query("page") page: Int = 1
     ): TianRecipeResponse
 }

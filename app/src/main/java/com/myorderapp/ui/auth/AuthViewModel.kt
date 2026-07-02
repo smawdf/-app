@@ -118,7 +118,7 @@ class AuthViewModel(
                     msg.contains("already registered", ignoreCase = true) ||
                     msg.contains("already exists", ignoreCase = true) ->
                         "该邮箱已注册，请直接登录"
-                    else -> msg.ifBlank { "请求失败，请稍后重试" }.take(100)
+                    else -> "请求失败，请稍后重试"
                 }
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,

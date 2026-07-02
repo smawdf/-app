@@ -13,6 +13,9 @@ interface DishDao {
     @Query("SELECT * FROM dishes WHERE pairId LIKE :pairId AND name LIKE '%' || :query || '%' ORDER BY createdAt DESC")
     fun searchDishes(pairId: String, query: String): Flow<List<DishEntity>>
 
+    @Query("SELECT * FROM dishes WHERE name LIKE '%' || :query || '%' ORDER BY createdAt DESC")
+    fun searchDishesByDishName(query: String): Flow<List<DishEntity>>
+
     @Query("SELECT * FROM dishes WHERE id = :id")
     suspend fun getDishById(id: String): DishEntity?
 

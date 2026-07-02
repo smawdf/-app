@@ -51,7 +51,7 @@ class RecipeAssetLoader(private val context: Context) {
             name = name,
             source = "builtin",
             externalId = id.toString(),
-            externalSource = "juhe",
+            externalSource = "sample",
             category = category,
             imageUrl = null,
             cookSteps = parseCookSteps(zuofa, tishi),
@@ -76,7 +76,7 @@ class RecipeAssetLoader(private val context: Context) {
 
         val lines = cleaned.split("\n").filter { it.trim().isNotBlank() }
 
-        // 如果换行后只有1行，按步骤标记分割（Juhe API 格式）
+        // 如果换行后只有1行，按历史菜谱步骤格式分割
         val stepTexts = if (lines.size <= 1) {
             cleaned.split(Regex("(?=\\d+[.、．)）]\\s*)"))
                 .filter { it.isNotBlank() }

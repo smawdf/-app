@@ -25,15 +25,12 @@ android {
         applicationId = "com.myorderapp"
         minSdk = 24
         targetSdk = 36
-        versionCode = 30
-        versionName = "1.4.7"
+        versionCode = 31
+        versionName = "1.4.8"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        buildConfigField("String", "JUHE_API_KEY", "\"${localProps.getProperty("JUHE_API_KEY", "")}\"")
-        buildConfigField("String", "SPOONACULAR_API_KEY", "\"${localProps.getProperty("SPOONACULAR_API_KEY", "")}\"")
         buildConfigField("String", "TIAN_API_KEY", "\"${localProps.getProperty("TIAN_API_KEY", "")}\"")
-        buildConfigField("String", "JISU_API_KEY", "\"${localProps.getProperty("JISU_API_KEY", "")}\"")
         buildConfigField("String", "SUPABASE_URL", "\"${localProps.getProperty("SUPABASE_URL", "")}\"")
         buildConfigField("String", "SUPABASE_ANON_KEY", "\"${localProps.getProperty("SUPABASE_ANON_KEY", "")}\"")
     }
@@ -50,8 +47,8 @@ android {
     buildTypes {
         release {
             signingConfig = signingConfigs.getByName("release")
-            isMinifyEnabled = true
-            isShrinkResources = true
+            isMinifyEnabled = false
+            isShrinkResources = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -98,17 +95,16 @@ dependencies {
     implementation(libs.retrofit)
     implementation(libs.retrofit.converter.moshi)
     implementation(libs.okhttp)
-    implementation(libs.okhttp.logging)
     implementation(libs.moshi.kotlin)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.kotlin.reflect)
+    implementation(libs.ktor.client.okhttp)
 
     // Supabase
     implementation(libs.supabase.postgrest.kt)
     implementation(libs.supabase.realtime.kt)
     implementation(libs.supabase.storage.kt)
     implementation(libs.supabase.auth.kt)
-    implementation(libs.supabase.compose.auth)
 
     // Image Loading
     implementation(libs.coil.compose)
@@ -134,7 +130,7 @@ dependencies {
     implementation(libs.lottie.compose)
 
     // Accompanist
-    // Accompanist removed — use Compose Foundation built-in permissions API
+    // Accompanist removed; use Compose Foundation built-in permissions API
 
     // Koin DI
     implementation(platform(libs.koin.bom))

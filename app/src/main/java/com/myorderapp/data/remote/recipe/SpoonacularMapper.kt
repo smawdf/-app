@@ -1,112 +1,18 @@
 package com.myorderapp.data.remote.recipe
 
-import com.myorderapp.domain.model.CookStep
-import com.myorderapp.domain.model.Dish
+import com.myorderapp.ui.search.ExternalDishImageResult
 
 object SpoonacularMapper {
 
-    fun fromSearchResult(recipe: SpoonacularRecipe): Dish = with(recipe) {
-        Dish(
-            id = "sp_$id",
-            pairId = "",
-            name = FoodTranslator.toChinese(title.trim()),
-            source = "external",
-            externalId = id.toString(),
-            externalSource = "spoonacular",
-            category = FoodTranslator.toChinese(mapCategory(cuisines, dishTypes)),
-            imageUrl = mapImageUrl(image),
-            cookSteps = parseSteps(analyzedInstructions),
-            ingredients = extendedIngredients.map {
-                FoodTranslator.toChinese(it.original.ifBlank { it.name })
-            },
-            difficulty = estimateDifficulty(readyInMinutes, analyzedInstructions),
-            cookTimeMin = readyInMinutes,
-            whoLikes = emptyList(),
-            rating = (spoonacularScore / 20f).coerceIn(0f, 5f),
-            notes = FoodTranslator.toChinese(cleanSummary(summary)),
-            createdBy = "Spoonacular",
-            createdAt = "",
-            updatedAt = ""
+    fun toExternalResult(recipe: SpoonacularRecipe, query: String): ExternalDishImageResult {
+        return ExternalDishImageResult(
+            id = "spoon_${recipe.id}",
+            name = query.ifBlank { "菜品图片" },
+            imageUrl = recipe.image?.replace("-312x231.", "-636x393."),
+            source = "外部图片",
+            subtitle = "图片参考",
+            category = "网络图片",
+            description = "网络菜品图片参考"
         )
-    }
-
-    fun fromDetail(detail: SpoonacularRecipeDetail): Dish = with(detail) {
-        Dish(
-            id = "sp_$id",
-            pairId = "",
-            name = FoodTranslator.toChinese(title.trim()),
-            source = "external",
-            externalId = id.toString(),
-            externalSource = "spoonacular",
-            category = FoodTranslator.toChinese(mapCategory(cuisines, dishTypes)),
-            imageUrl = mapImageUrl(image),
-            cookSteps = parseSteps(analyzedInstructions),
-            ingredients = extendedIngredients.map {
-                FoodTranslator.toChinese(it.original.ifBlank { it.name })
-            },
-            difficulty = estimateDifficulty(readyInMinutes, analyzedInstructions),
-            cookTimeMin = readyInMinutes,
-            whoLikes = emptyList(),
-            rating = 0f,
-            notes = FoodTranslator.toChinese(cleanSummary(summary)),
-            createdBy = "Spoonacular",
-            createdAt = "",
-            updatedAt = ""
-        )
-    }
-
-    // 将默认 312x231 图片替换为更大尺寸 636x393
-    private fun mapImageUrl(image: String?): String? {
-        if (image.isNullOrBlank()) return null
-        return image.replace("-312x231.", "-636x393.")
-    }
-
-    private fun parseSteps(instructions: List<AnalyzedInstruction>): List<CookStep> {
-        return instructions.flatMap { instruction ->
-            instruction.steps.map { step ->
-                CookStep(
-                    step = step.number,
-                    description = FoodTranslator.toChinese(step.step.cleanHtml()),
-                    tip = null,
-                    imageUrl = step.equipment.firstOrNull()?.image
-                )
-            }
-        }
-    }
-
-    // 直接使用 Spoonacular 返回的 cuisine/dishType 作为分类
-    private fun mapCategory(cuisines: List<String>, dishTypes: List<String>): String {
-        val cuisine = cuisines.firstOrNull()
-        if (!cuisine.isNullOrBlank()) return cuisine.replaceFirstChar { it.uppercase() }
-        val dishType = dishTypes.firstOrNull()
-        if (!dishType.isNullOrBlank()) return dishType.replaceFirstChar { it.uppercase() }
-        return "其他"
-    }
-
-    private fun estimateDifficulty(minutes: Int, instructions: List<AnalyzedInstruction>): Int {
-        val stepCount = instructions.sumOf { it.steps.size }
-        return when {
-            stepCount <= 3 && minutes <= 20 -> 1
-            stepCount <= 5 && minutes <= 30 -> 2
-            stepCount <= 8 && minutes <= 45 -> 3
-            stepCount <= 12 && minutes <= 60 -> 4
-            else -> 5
-        }
-    }
-
-    private fun cleanSummary(summary: String?): String {
-        if (summary.isNullOrBlank()) return ""
-        return summary
-            .replace(Regex("<[^>]*>"), "")
-            .replace(Regex("\\s+"), " ")
-            .trim()
-            .take(200)
-    }
-
-    private fun String.cleanHtml(): String {
-        return this.replace(Regex("<[^>]*>"), "")
-            .replace("&nbsp;", " ")
-            .replace("&amp;", "&")
-            .trim()
     }
 }

@@ -7,17 +7,6 @@
 -keep class com.myorderapp.domain.model.** { *; }
 -keep class com.myorderapp.data.remote.** { *; }
 
-# ── Retrofit ──
--keepattributes Signature, InnerClasses, EnclosingMethod
--keepattributes RuntimeVisibleAnnotations, RuntimeVisibleParameterAnnotations
--keepclassmembers,allowshrinking,allowobfuscation interface * {
-    @retrofit2.http.* <methods>;
-}
--dontwarn javax.annotation.**
--dontwarn kotlin.Unit
--dontwarn retrofit2.KotlinExtensions
--dontwarn retrofit2.KotlinExtensions$*
-
 # ── OkHttp ──
 -dontwarn okhttp3.**
 -dontwarn okio.**
@@ -36,7 +25,22 @@
 
 # ── Supabase / Ktor ──
 -keep class io.github.jan.supabase.** { *; }
+-keep class io.ktor.** { *; }
+-keep class kotlinx.serialization.** { *; }
+-keep class kotlinx.datetime.** { *; }
+-keep class com.myorderapp.data.remote.supabase.** { *; }
+-keepclassmembers class com.myorderapp.domain.model.** {
+    public static ** Companion;
+}
+-keepclasseswithmembers class com.myorderapp.domain.model.** {
+    public static kotlinx.serialization.KSerializer serializer(...);
+}
+-keep class com.myorderapp.domain.model.**$$serializer { *; }
+-keep class com.myorderapp.domain.model.**$Companion { *; }
 -dontwarn io.ktor.**
+-dontwarn io.netty.**
+-dontwarn kotlinx.serialization.**
+-dontwarn kotlinx.datetime.**
 -dontwarn org.slf4j.**
 
 # ── Room ──
@@ -49,11 +53,6 @@
 # ── Lottie ──
 -dontwarn com.airbnb.lottie.**
 -keep class com.airbnb.lottie.** {*;}
-
-# ── Retrofit extra ──
--keepattributes Exceptions
--dontwarn retrofit2.**
--keep class retrofit2.** { *; }
 
 # ── OkHttp extra ──
 -dontwarn okhttp3.internal.platform.**

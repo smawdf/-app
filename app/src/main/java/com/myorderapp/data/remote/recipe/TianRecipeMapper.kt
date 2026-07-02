@@ -16,12 +16,12 @@ object TianRecipeMapper {
             category = cleanTypeName(typeName),
             imageUrl = null,
             cookSteps = parseZuofaToSteps(zuofa, tishi),
-            ingredients = parseCommaSeparated(yuanliao),
+            ingredients = parseIngredients(yuanliao, tiaoliao),
             difficulty = estimateDifficulty(zuofa),
             cookTimeMin = estimateCookTime(zuofa),
             whoLikes = emptyList(),
             rating = 0f,
-            notes = texing.ifBlank { "" },
+            notes = texing.ifBlank { tishi },
             createdBy = "天行数据",
             createdAt = "",
             updatedAt = ""
@@ -42,39 +42,47 @@ object TianRecipeMapper {
             .replace("x", "")
             .trim()
 
-        val lines = cleaned.split("\n").filter { it.trim().isNotBlank() }
+        val lines = cleaned.lineSequence()
+            .map { it.trim() }
+            .filter { it.isNotBlank() }
+            .toList()
 
         val stepTexts = if (lines.size <= 1) {
             cleaned.split(Regex("(?=\\d+[.、．)）]\\s*)"))
+                .map { it.trim() }
                 .filter { it.isNotBlank() }
         } else {
             lines
         }
 
-        val steps = mutableListOf<CookStep>()
-        for (text in stepTexts) {
-            val trimmed = text.trim()
-            if (trimmed.isBlank()) continue
-
-            val match = Regex("^(\\d+)[.、．)）]\\s*(.+)").find(trimmed)
-            if (match != null) {
-                val stepNum = match.groupValues[1].toIntOrNull() ?: (steps.size + 1)
-                var desc = match.groupValues[2].trim()
-                desc = desc.trimEnd('；', ';')
-                steps.add(CookStep(step = stepNum, description = desc))
+        val steps = stepTexts.mapIndexedNotNull { index, text ->
+            val match = Regex("^(\\d+)[.、．)）]\\s*(.+)").find(text)
+            val description = match?.groupValues?.get(2)?.trim() ?: text
+            if (description.isBlank()) {
+                null
+            } else {
+                CookStep(
+                    step = match?.groupValues?.get(1)?.toIntOrNull() ?: (index + 1),
+                    description = description.trimEnd('；', ';')
+                )
             }
-        }
+        }.toMutableList()
 
         if (tishi.isNotBlank() && steps.isNotEmpty()) {
-            val last = steps.last()
-            steps[steps.size - 1] = last.copy(tip = tishi)
+            steps[steps.lastIndex] = steps.last().copy(tip = tishi)
         }
 
         return steps
     }
 
-    private fun parseCommaSeparated(raw: String): List<String> {
-        return raw.split("、", "，", ",")
+    private fun parseIngredients(yuanliao: String, tiaoliao: String): List<String> {
+        return listOf(yuanliao, tiaoliao)
+            .flatMap { parseSeparatedValues(it) }
+            .distinct()
+    }
+
+    private fun parseSeparatedValues(raw: String): List<String> {
+        return raw.split("、", "，", ",", ";", "；")
             .map { it.trim() }
             .filter { it.isNotBlank() }
     }
@@ -89,7 +97,7 @@ object TianRecipeMapper {
     }
 
     private fun estimateDifficulty(zuofa: String): Int {
-        val stepCount = zuofa.split(Regex("\\d+[.、．)]")).size - 1
+        val stepCount = countSteps(zuofa)
         return when {
             stepCount <= 3 -> 1
             stepCount <= 5 -> 2
@@ -100,11 +108,16 @@ object TianRecipeMapper {
     }
 
     private fun estimateCookTime(zuofa: String): Int {
-        val minutes = Regex("(\\d+)\\s*分钟").find(zuofa)?.groupValues?.get(1)?.toIntOrNull()
-        if (minutes != null) return minutes
-        val hours = Regex("(\\d+)\\s*小时").find(zuofa)?.groupValues?.get(1)?.toIntOrNull()
-        if (hours != null) return hours * 60
-        val stepCount = zuofa.split(Regex("\\d+[.、．)]")).size - 1
-        return stepCount * 5 + 10
+        Regex("(\\d+)\\s*分钟").find(zuofa)?.groupValues?.get(1)?.toIntOrNull()?.let {
+            return it
+        }
+        Regex("(\\d+)\\s*小时").find(zuofa)?.groupValues?.get(1)?.toIntOrNull()?.let {
+            return it * 60
+        }
+        return countSteps(zuofa) * 5 + 10
+    }
+
+    private fun countSteps(zuofa: String): Int {
+        return Regex("\\d+[.、．)）]").findAll(zuofa).count().coerceAtLeast(1)
     }
 }

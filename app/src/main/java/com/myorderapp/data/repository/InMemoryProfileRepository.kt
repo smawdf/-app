@@ -4,6 +4,7 @@ import com.myorderapp.domain.model.DietaryPreference
 import com.myorderapp.domain.model.PairInfo
 import com.myorderapp.domain.model.Profile
 import com.myorderapp.domain.repository.ProfileRepository
+import java.time.Instant
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 
@@ -49,13 +50,13 @@ class InMemoryProfileRepository : ProfileRepository {
     override suspend fun joinPair(code: String): Boolean {
         if (code.length != 6) return false
         val current = _profile.value ?: return false
-        _profile.value = current.copy(pairId = code)
+        _profile.value = current.copy(pairId = code, pairedAt = current.pairedAt.ifBlank { Instant.now().toString() })
         return true
     }
 
     override suspend fun unpair() {
         val current = _profile.value ?: return
-        _profile.value = current.copy(pairId = "")
+        _profile.value = current.copy(pairId = "", pairedAt = "")
     }
 
     override suspend fun getPairInfo(): PairInfo {

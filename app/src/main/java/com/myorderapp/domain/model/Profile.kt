@@ -16,6 +16,7 @@ data class Profile(
     val allergies: List<String> = emptyList(),
     @SerialName("created_at") @Json(name = "created_at") val createdAt: String = "",
     @SerialName("updated_at") @Json(name = "updated_at") val updatedAt: String = "",
+    @Transient @Json(ignore = true) val pairedAt: String = "",
     @Transient @Json(ignore = true) val sessionId: String = ""
 )
 
