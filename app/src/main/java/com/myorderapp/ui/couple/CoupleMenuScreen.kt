@@ -61,13 +61,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.myorderapp.domain.model.PairInfo
 import com.myorderapp.domain.model.Profile
 import com.myorderapp.domain.repository.ProfileRepository
+import java.text.SimpleDateFormat
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.temporal.ChronoUnit
-import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
 import kotlinx.coroutines.delay
@@ -121,6 +122,7 @@ fun CoupleMenuScreen(
     onProfileClick: () -> Unit = {}
 ) {
     val profile by profileRepository.getProfile().collectAsState(initial = null)
+    var pairInfo by remember { mutableStateOf(PairInfo()) }
     val context = LocalContext.current
     val prefs = remember(context) {
         context.getSharedPreferences(COUPLE_HOME_PREFS, Context.MODE_PRIVATE)
@@ -130,11 +132,16 @@ fun CoupleMenuScreen(
     }
     var toastState by remember { mutableStateOf<RoleToastState?>(null) }
     var toastId by remember { mutableIntStateOf(0) }
+
     fun selectRole(role: CoupleRole) {
         selectedRole = role
         prefs.edit().putString(KEY_SELECTED_ROLE, role.storageKey).apply()
         toastId += 1
         toastState = RoleToastState(id = toastId, role = role)
+    }
+
+    LaunchedEffect(profile?.pairId) {
+        pairInfo = profileRepository.getPairInfo()
     }
 
     LaunchedEffect(toastState?.id) {
@@ -158,7 +165,9 @@ fun CoupleMenuScreen(
             HomeHeader()
             WorkbenchSummary(
                 days = daysEatingTogether(profile),
-                selectedRole = selectedRole
+                selectedRole = selectedRole,
+                pairInfo = pairInfo,
+                onPartnerClick = onProfileClick
             )
             PrimaryActionGroup(
                 selectedRole = selectedRole,
@@ -283,7 +292,9 @@ private fun HomeHeader() {
 @Composable
 private fun WorkbenchSummary(
     days: Long,
-    selectedRole: CoupleRole?
+    selectedRole: CoupleRole?,
+    pairInfo: PairInfo,
+    onPartnerClick: () -> Unit
 ) {
     Surface(
         modifier = Modifier
@@ -304,7 +315,9 @@ private fun WorkbenchSummary(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             RelationshipSlots(
-                selectedRole = selectedRole
+                selectedRole = selectedRole,
+                pairInfo = pairInfo,
+                onPartnerClick = onPartnerClick
             )
             Spacer(modifier = Modifier.height(20.dp))
             Text(
@@ -335,7 +348,9 @@ private fun WorkbenchSummary(
 
 @Composable
 private fun RelationshipSlots(
-    selectedRole: CoupleRole?
+    selectedRole: CoupleRole?,
+    pairInfo: PairInfo,
+    onPartnerClick: () -> Unit
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -344,9 +359,10 @@ private fun RelationshipSlots(
     ) {
         CurrentUserSlot(selectedRole = selectedRole)
         HeartConnector()
-        EmptyPartnerSlot(
-            label = "另一半",
+        PartnerSlot(
+            pairInfo = pairInfo,
             accent = Color(0xFFC87482),
+            onClick = onPartnerClick
         )
     }
 }
@@ -422,10 +438,12 @@ private fun CurrentUserSlot(
 }
 
 @Composable
-private fun EmptyPartnerSlot(
-    label: String,
-    accent: Color
+private fun PartnerSlot(
+    pairInfo: PairInfo,
+    accent: Color,
+    onClick: () -> Unit
 ) {
+    val label = if (pairInfo.isPaired) pairInfo.partnerName.ifBlank { "我的小伙伴" } else "邀请对方"
     Column(
         modifier = Modifier.width(104.dp),
         horizontalAlignment = Alignment.CenterHorizontally
@@ -434,6 +452,7 @@ private fun EmptyPartnerSlot(
             modifier = Modifier
                 .size(76.dp)
                 .clip(CircleShape)
+                .clickable(onClick = onClick)
                 .background(Color(0xFFFFF8EA))
                 .drawBehind {
                     drawCircle(
@@ -441,25 +460,44 @@ private fun EmptyPartnerSlot(
                         radius = size.minDimension / 2f - 4.dp.toPx(),
                         style = androidx.compose.ui.graphics.drawscope.Stroke(
                             width = 3.dp.toPx(),
-                            pathEffect = PathEffect.dashPathEffect(floatArrayOf(12f, 10f))
+                            pathEffect = if (pairInfo.isPaired) null else PathEffect.dashPathEffect(floatArrayOf(12f, 10f))
                         )
                     )
                 },
             contentAlignment = Alignment.Center
         ) {
-            Icon(
-                imageVector = Icons.Filled.Add,
-                contentDescription = "邀请$label",
-                tint = accent,
-                modifier = Modifier.size(34.dp)
-            )
+            if (pairInfo.isPaired) {
+                Surface(
+                    shape = CircleShape,
+                    color = accent,
+                    modifier = Modifier.size(58.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Filled.Favorite,
+                            contentDescription = "伴侣头像",
+                            tint = Color.White,
+                            modifier = Modifier.size(30.dp)
+                        )
+                    }
+                }
+            } else {
+                Icon(
+                    imageVector = Icons.Filled.Add,
+                    contentDescription = "邀请对方",
+                    tint = accent,
+                    modifier = Modifier.size(34.dp)
+                )
+            }
         }
         Spacer(modifier = Modifier.height(8.dp))
         Text(
             text = label,
             color = ToolMuted,
             style = MaterialTheme.typography.labelMedium,
-            fontWeight = FontWeight.Bold
+            fontWeight = FontWeight.Bold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
         )
     }
 }
