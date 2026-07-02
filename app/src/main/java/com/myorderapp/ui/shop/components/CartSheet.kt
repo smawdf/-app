@@ -90,7 +90,7 @@ fun CartSheet(
                 }
                 Spacer(modifier = Modifier.height(6.dp))
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text("配送费")
+                    Text("服务费")
                     Text(yuanText(cartState.deliveryFee), fontWeight = FontWeight.Bold)
                 }
                 Spacer(modifier = Modifier.height(6.dp))
