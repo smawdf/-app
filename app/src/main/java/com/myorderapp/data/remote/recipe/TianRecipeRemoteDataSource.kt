@@ -2,15 +2,23 @@ package com.myorderapp.data.remote.recipe
 
 import com.myorderapp.domain.model.Dish
 
-class TianRecipeRemoteDataSource(
-    private val api: TianRecipeApi,
-    private val apiKey: String
-) {
-
+interface TianRecipeRemoteDataSource {
     suspend fun searchRecipes(
         query: String,
-        num: Int = 20,
+        num: Int = 10,
         page: Int = 1
+    ): TianResult
+}
+
+class RetrofitTianRecipeRemoteDataSource(
+    private val api: TianRecipeApi,
+    private val apiKey: String
+) : TianRecipeRemoteDataSource {
+
+    override suspend fun searchRecipes(
+        query: String,
+        num: Int,
+        page: Int
     ): TianResult {
         if (apiKey.isBlank()) {
             return TianResult.NoKey
@@ -24,13 +32,14 @@ class TianRecipeRemoteDataSource(
                 page = page
             )
             if (response.isSuccess) {
-                val dishes = response.result!!.list.map {
-                    TianRecipeMapper.toBuiltinDish(it)
-                }
+                val result = response.result ?: return TianResult.ApiError(
+                    errorCode = response.code,
+                    message = response.errorMessage
+                )
                 TianResult.Success(
-                    dishes = dishes,
-                    total = response.result.allnum,
-                    page = response.result.curpage
+                    dishes = result.list.map(TianRecipeMapper::toBuiltinDish),
+                    total = result.allnum,
+                    page = result.curpage
                 )
             } else {
                 TianResult.ApiError(
@@ -39,8 +48,7 @@ class TianRecipeRemoteDataSource(
                 )
             }
         } catch (e: Exception) {
-            val detail = "${e.javaClass.simpleName}: ${e.message}"
-            TianResult.NetworkError(detail)
+            TianResult.NetworkError("${e.javaClass.simpleName}: ${e.message}")
         }
     }
 }

@@ -7,10 +7,15 @@ import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.Link
+import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -28,6 +33,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
 import coil3.compose.AsyncImage
+import com.myorderapp.ui.auth.AuthBottomLink
+import com.myorderapp.ui.auth.AuthDecoratedBackground
+import com.myorderapp.ui.auth.AuthGlassCard
+import com.myorderapp.ui.auth.AuthInputField
+import com.myorderapp.ui.auth.AuthPrimaryButton
+import com.myorderapp.ui.auth.AuthStepPill
 import org.koin.androidx.compose.koinViewModel
 import java.io.File
 
@@ -41,6 +52,15 @@ fun OnboardingScreen(
 
     if (uiState.registrationComplete) {
         LaunchedEffect(Unit) { onRegisterComplete() }
+        return
+    }
+
+    if (uiState.step == 1) {
+        RegisterAccountScreen(
+            uiState = uiState,
+            viewModel = viewModel,
+            onLoginClick = onLoginClick
+        )
         return
     }
 
@@ -63,8 +83,6 @@ fun OnboardingScreen(
             StepDot(1, uiState.step, "账号")
             StepLine(uiState.step > 1)
             StepDot(2, uiState.step, "资料")
-            StepLine(uiState.step > 2)
-            StepDot(3, uiState.step, "配对")
         }
 
         Spacer(modifier = Modifier.height(8.dp))
@@ -74,31 +92,21 @@ fun OnboardingScreen(
             modifier = Modifier.fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(
-                when (uiState.step) {
-                    1 -> "🍽️"
-                    2 -> "📷"
-                    else -> "👫"
-                },
-                style = MaterialTheme.typography.displayLarge
+            Icon(
+                Icons.Default.PhotoCamera,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(56.dp)
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                when (uiState.step) {
-                    1 -> "创建账号"
-                    2 -> "完善你的资料"
-                    else -> "开启双人点餐"
-                },
+                "完善你的资料",
                 style = MaterialTheme.typography.displayLarge,
                 color = MaterialTheme.colorScheme.onBackground
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                when (uiState.step) {
-                    1 -> "探索菜谱，开启美食日常"
-                    2 -> "设置头像和昵称，打造你的美食名片"
-                    else -> "配对后点餐数据实时同步，也可稍后设置"
-                },
+                "设置头像和昵称，打造你的美食名片",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -129,9 +137,8 @@ fun OnboardingScreen(
                 label = "step"
             ) { step ->
                 when (step) {
-                    1 -> Step1Account(viewModel, uiState)
                     2 -> Step2Profile(viewModel, uiState)
-                    3 -> Step3Pairing(viewModel, uiState, onRegisterComplete)
+                    else -> Step2Profile(viewModel, uiState)
                 }
             }
         }
@@ -165,90 +172,115 @@ fun OnboardingScreen(
     }
 }
 
-// ── Step 1: 账号 ──
 @Composable
-private fun Step1Account(viewModel: OnboardingViewModel, uiState: OnboardingUiState) {
-    val textFieldColors = OutlinedTextFieldDefaults.colors(
-        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-        unfocusedBorderColor = Color.Transparent,
-        focusedBorderColor = MaterialTheme.colorScheme.primary
-    )
-
-    Column(
-        modifier = Modifier.padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        OutlinedTextField(
-            value = uiState.email,
-            onValueChange = viewModel::onEmailChanged,
-            placeholder = { Text("邮箱地址") },
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(
-                keyboardType = KeyboardType.Email,
-                imeAction = ImeAction.Next
-            ),
-            shape = RoundedCornerShape(12.dp),
-            colors = textFieldColors,
-            modifier = Modifier.fillMaxWidth()
-        )
-        Spacer(modifier = Modifier.height(12.dp))
-
-        OutlinedTextField(
-            value = uiState.password,
-            onValueChange = viewModel::onPasswordChanged,
-            placeholder = { Text("密码（至少6位）") },
-            singleLine = true,
-            visualTransformation = PasswordVisualTransformation(),
-            keyboardOptions = KeyboardOptions(
-                keyboardType = KeyboardType.Password,
-                imeAction = ImeAction.Next
-            ),
-            shape = RoundedCornerShape(12.dp),
-            colors = textFieldColors,
-            modifier = Modifier.fillMaxWidth()
-        )
-        Spacer(modifier = Modifier.height(12.dp))
-
-        OutlinedTextField(
-            value = uiState.confirmPassword,
-            onValueChange = viewModel::onConfirmPasswordChanged,
-            placeholder = { Text("确认密码") },
-            singleLine = true,
-            visualTransformation = PasswordVisualTransformation(),
-            keyboardOptions = KeyboardOptions(
-                keyboardType = KeyboardType.Password,
-                imeAction = ImeAction.Done
-            ),
-            shape = RoundedCornerShape(12.dp),
-            colors = textFieldColors,
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        if (uiState.errorMessage != null) {
-            Spacer(modifier = Modifier.height(12.dp))
-            Text(
-                uiState.errorMessage!!,
-                color = MaterialTheme.colorScheme.error,
-                style = MaterialTheme.typography.bodySmall,
-                textAlign = TextAlign.Center
-            )
-        }
-
-        Spacer(modifier = Modifier.height(20.dp))
-
-        Button(
-            onClick = { viewModel.goToStep2() },
-            enabled = !uiState.isLoading,
-            modifier = Modifier.fillMaxWidth().height(50.dp),
-            shape = RoundedCornerShape(14.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.primary
-            )
+private fun RegisterAccountScreen(
+    uiState: OnboardingUiState,
+    viewModel: OnboardingViewModel,
+    onLoginClick: () -> Unit
+) {
+    AuthDecoratedBackground {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .statusBarsPadding()
+                .navigationBarsPadding()
+                .imePadding()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 28.dp, vertical = 34.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            AuthStepPill(currentStep = 1)
+
+            Spacer(modifier = Modifier.height(54.dp))
+
             Text(
-                if (uiState.isLoading) "请稍候..." else "下一步",
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.Bold
+                text = "创建账号",
+                style = MaterialTheme.typography.displayLarge,
+                color = Color(0xFF173B44),
+                fontWeight = FontWeight.ExtraBold
+            )
+            Text(
+                text = "先设置登录信息",
+                style = MaterialTheme.typography.bodyMedium,
+                color = Color(0xFF6F858B),
+                modifier = Modifier.padding(top = 6.dp)
+            )
+
+            Spacer(modifier = Modifier.height(28.dp))
+
+            AuthGlassCard(modifier = Modifier.fillMaxWidth()) {
+                Column {
+                    AuthInputField(
+                        value = uiState.email,
+                        onValueChange = viewModel::onEmailChanged,
+                        label = "邮箱",
+                        placeholder = "输入邮箱地址",
+                        modifier = Modifier.fillMaxWidth(),
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Email,
+                            imeAction = ImeAction.Next
+                        )
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    AuthInputField(
+                        value = uiState.password,
+                        onValueChange = viewModel::onPasswordChanged,
+                        label = "密码",
+                        placeholder = "输入密码",
+                        modifier = Modifier.fillMaxWidth(),
+                        isPassword = true,
+                        supportingText = "至少 6 位",
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Password,
+                            imeAction = ImeAction.Next
+                        )
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    AuthInputField(
+                        value = uiState.confirmPassword,
+                        onValueChange = viewModel::onConfirmPasswordChanged,
+                        label = "确认密码",
+                        placeholder = "再次输入密码",
+                        modifier = Modifier.fillMaxWidth(),
+                        isPassword = true,
+                        supportingText = "两次密码一致后可继续",
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Password,
+                            imeAction = ImeAction.Done
+                        )
+                    )
+
+                    if (uiState.errorMessage != null) {
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Text(
+                            uiState.errorMessage,
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodySmall,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(18.dp))
+
+            AuthPrimaryButton(
+                text = if (uiState.isLoading) "请稍候..." else "下一步",
+                onClick = viewModel::goToStep2,
+                enabled = !uiState.isLoading,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            AuthBottomLink(
+                prefix = "已有账号？",
+                actionText = "去登录",
+                onClick = onLoginClick,
+                modifier = Modifier.padding(top = 10.dp)
             )
         }
     }
@@ -311,9 +343,14 @@ private fun Step2Profile(viewModel: OnboardingViewModel, uiState: OnboardingUiSt
                     ) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text("📷", style = MaterialTheme.typography.bodyLarge)
+                            Icon(
+                                Icons.Default.PhotoCamera,
+                                contentDescription = null,
+                                modifier = Modifier.size(20.dp)
+                            )
                             Text("拍照", style = MaterialTheme.typography.bodyLarge)
                         }
                     }
@@ -326,9 +363,14 @@ private fun Step2Profile(viewModel: OnboardingViewModel, uiState: OnboardingUiSt
                     ) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text("🖼️", style = MaterialTheme.typography.bodyLarge)
+                            Icon(
+                                Icons.Default.Image,
+                                contentDescription = null,
+                                modifier = Modifier.size(20.dp)
+                            )
                             Text("从相册选择", style = MaterialTheme.typography.bodyLarge)
                         }
                     }
@@ -342,10 +384,15 @@ private fun Step2Profile(viewModel: OnboardingViewModel, uiState: OnboardingUiSt
                     ) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text("🔗", style = MaterialTheme.typography.bodyLarge)
-                            Text("输入URL", style = MaterialTheme.typography.bodyLarge)
+                            Icon(
+                                Icons.Default.Link,
+                                contentDescription = null,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Text("输入图片链接", style = MaterialTheme.typography.bodyLarge)
                         }
                     }
                 }
@@ -360,12 +407,12 @@ private fun Step2Profile(viewModel: OnboardingViewModel, uiState: OnboardingUiSt
     if (showUrlDialog) {
         AlertDialog(
             onDismissRequest = { showUrlDialog = false },
-            title = { Text("输入头像URL", fontWeight = FontWeight.Bold) },
+            title = { Text("输入头像链接", fontWeight = FontWeight.Bold) },
             text = {
                 OutlinedTextField(
                     value = urlInput,
                     onValueChange = { urlInput = it },
-                    placeholder = { Text("https://...") },
+                    placeholder = { Text("输入图片链接") },
                     singleLine = true,
                     shape = RoundedCornerShape(12.dp),
                     colors = OutlinedTextFieldDefaults.colors(
@@ -417,7 +464,12 @@ private fun Step2Profile(viewModel: OnboardingViewModel, uiState: OnboardingUiSt
                 )
             } else {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("📷", style = MaterialTheme.typography.displayLarge)
+                    Icon(
+                        Icons.Default.PhotoCamera,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(34.dp)
+                    )
                     Text(
                         "点击设置",
                         style = MaterialTheme.typography.labelSmall,
@@ -470,7 +522,7 @@ private fun Step2Profile(viewModel: OnboardingViewModel, uiState: OnboardingUiSt
             }
 
             Button(
-                onClick = { viewModel.goToStep3() },
+                onClick = { viewModel.completeRegistration() },
                 enabled = !uiState.isLoading,
                 modifier = Modifier.weight(1f).height(50.dp),
                 shape = RoundedCornerShape(14.dp),
@@ -484,132 +536,6 @@ private fun Step2Profile(viewModel: OnboardingViewModel, uiState: OnboardingUiSt
                     fontWeight = FontWeight.Bold
                 )
             }
-        }
-    }
-}
-
-// ── Step 3: 配对 ──
-@Composable
-private fun Step3Pairing(
-    viewModel: OnboardingViewModel,
-    uiState: OnboardingUiState,
-    onComplete: () -> Unit
-) {
-    Column(
-        modifier = Modifier.padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        // Generate pairing code
-        if (uiState.pairCode.isBlank()) {
-            Button(
-                onClick = { viewModel.generatePairCode() },
-                modifier = Modifier.fillMaxWidth().height(50.dp),
-                shape = RoundedCornerShape(14.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary
-                )
-            ) {
-                Text("生成我的配对码", style = MaterialTheme.typography.labelLarge)
-            }
-        } else {
-            // Show generated code
-            Surface(
-                shape = RoundedCornerShape(14.dp),
-                color = MaterialTheme.colorScheme.primaryContainer,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Text(
-                        "你的配对码",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        uiState.pairCode,
-                        style = MaterialTheme.typography.displayLarge,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        "将此码分享给对方",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
-                    )
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-        Text(
-            "或",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(vertical = 4.dp)
-        )
-
-        Spacer(modifier = Modifier.height(4.dp))
-
-        // Input partner's code
-        OutlinedTextField(
-            value = uiState.joinPairCode,
-            onValueChange = viewModel::onJoinPairCodeChanged,
-            placeholder = { Text("输入对方配对码") },
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(
-                keyboardType = KeyboardType.Ascii,
-                imeAction = ImeAction.Done
-            ),
-            shape = RoundedCornerShape(12.dp),
-            colors = OutlinedTextFieldDefaults.colors(
-                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                unfocusedBorderColor = Color.Transparent,
-                focusedBorderColor = MaterialTheme.colorScheme.primary
-            ),
-            modifier = Modifier.fillMaxWidth(),
-            textStyle = MaterialTheme.typography.titleLarge.copy(
-                textAlign = TextAlign.Center,
-                letterSpacing = 6.sp
-            )
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Button(
-            onClick = { viewModel.joinPair() },
-            enabled = uiState.joinPairCode.length == 6,
-            modifier = Modifier.fillMaxWidth().height(48.dp),
-            shape = RoundedCornerShape(14.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.primary
-            )
-        ) {
-            Text("验证配对", style = MaterialTheme.typography.labelLarge)
-        }
-
-        if (uiState.errorMessage != null) {
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                uiState.errorMessage!!,
-                color = MaterialTheme.colorScheme.error,
-                style = MaterialTheme.typography.bodySmall
-            )
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Skip
-        TextButton(onClick = { viewModel.skipPairing() }) {
-            Text(
-                "稍后再说，进入首页 →",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
         }
     }
 }
@@ -631,17 +557,23 @@ private fun StepDot(step: Int, current: Int, label: String) {
                 ),
             contentAlignment = Alignment.Center
         ) {
-            Text(
-                when {
-                    step < current -> "✓"
-                    else -> "$step"
-                },
-                style = MaterialTheme.typography.labelSmall,
-                color = when {
-                    step <= current -> MaterialTheme.colorScheme.onPrimary
-                    else -> MaterialTheme.colorScheme.onSurfaceVariant
-                }
-            )
+            if (step < current) {
+                Icon(
+                    Icons.Default.Check,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onPrimary,
+                    modifier = Modifier.size(14.dp)
+                )
+            } else {
+                Text(
+                    "$step",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = when {
+                        step <= current -> MaterialTheme.colorScheme.onPrimary
+                        else -> MaterialTheme.colorScheme.onSurfaceVariant
+                    }
+                )
+            }
         }
         Spacer(modifier = Modifier.height(2.dp))
         Text(

@@ -13,14 +13,23 @@ import kotlinx.coroutines.flow.map
 class RoomPagingDishRepository(
     private val dishDao: DishDao
 ) {
-    fun getDishesPaged(): Flow<PagingData<Dish>> {
+    fun getDishesPaged(
+        query: String = "",
+        source: String? = null
+    ): Flow<PagingData<Dish>> {
         return Pager(
             config = PagingConfig(
                 pageSize = 20,
                 enablePlaceholders = false,
                 prefetchDistance = 5
             ),
-            pagingSourceFactory = { dishDao.pagingSource("%") }
+            pagingSourceFactory = {
+                dishDao.pagingSource(
+                    pairId = "%",
+                    query = query.trim(),
+                    source = source
+                )
+            }
         ).flow.map { pagingData ->
             pagingData.map { it.toDomain() }
         }

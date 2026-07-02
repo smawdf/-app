@@ -7,16 +7,19 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface DishDao {
-    @Query("SELECT * FROM dishes WHERE pairId = :pairId ORDER BY createdAt DESC")
+    @Query("SELECT * FROM dishes WHERE pairId LIKE :pairId ORDER BY createdAt DESC")
     fun getDishesByPair(pairId: String): Flow<List<DishEntity>>
 
-    @Query("SELECT * FROM dishes WHERE pairId = :pairId AND name LIKE '%' || :query || '%' ORDER BY createdAt DESC")
+    @Query("SELECT * FROM dishes WHERE pairId LIKE :pairId AND name LIKE '%' || :query || '%' ORDER BY createdAt DESC")
     fun searchDishes(pairId: String, query: String): Flow<List<DishEntity>>
+
+    @Query("SELECT * FROM dishes WHERE name LIKE '%' || :query || '%' ORDER BY createdAt DESC")
+    fun searchDishesByDishName(query: String): Flow<List<DishEntity>>
 
     @Query("SELECT * FROM dishes WHERE id = :id")
     suspend fun getDishById(id: String): DishEntity?
 
-    @Query("SELECT * FROM dishes WHERE pairId = :pairId ORDER BY createdAt DESC LIMIT :limit")
+    @Query("SELECT * FROM dishes WHERE pairId LIKE :pairId ORDER BY createdAt DESC LIMIT :limit")
     fun getRecentDishes(pairId: String, limit: Int): Flow<List<DishEntity>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
@@ -36,4 +39,19 @@ interface DishDao {
 
     @Query("SELECT * FROM dishes WHERE pairId LIKE :pairId ORDER BY createdAt DESC")
     fun pagingSource(pairId: String): PagingSource<Int, DishEntity>
+
+    @Query(
+        """
+        SELECT * FROM dishes
+        WHERE pairId LIKE :pairId
+        AND (:query = '' OR name LIKE '%' || :query || '%' OR category LIKE '%' || :query || '%')
+        AND (:source IS NULL OR source = :source)
+        ORDER BY createdAt DESC
+        """
+    )
+    fun pagingSource(
+        pairId: String,
+        query: String,
+        source: String?
+    ): PagingSource<Int, DishEntity>
 }

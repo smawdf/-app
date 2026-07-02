@@ -8,6 +8,7 @@ import com.myorderapp.domain.model.PairInfo
 import com.myorderapp.domain.model.Profile
 import com.myorderapp.domain.repository.ProfileRepository
 import io.github.jan.supabase.postgrest.from
+import java.time.Instant
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -73,7 +74,7 @@ class SupabaseProfileRepository(
     override suspend fun joinPair(code: String): Boolean {
         if (code.length != 6) return false
         val current = _profile.value ?: loadLocalProfile()
-        saveProfile(current.copy(pairId = code.uppercase()))
+        saveProfile(current.copy(pairId = code.uppercase(), pairedAt = current.pairedAt.ifBlank { Instant.now().toString() }))
         session.setPairId(code.uppercase())
         return true
     }
@@ -106,7 +107,7 @@ class SupabaseProfileRepository(
     override suspend fun unpair() {
         val current = _profile.value ?: return
         val defaultId = "00000000-0000-0000-0000-000000000000"
-        saveProfile(current.copy(pairId = defaultId))
+        saveProfile(current.copy(pairId = defaultId, pairedAt = ""))
         session.setPairId(defaultId)
         if (session.isLoggedIn.value) {
             try {
@@ -166,6 +167,8 @@ class SupabaseProfileRepository(
             .putString("avatar_url", profile.avatarUrl ?: "")
             .putString("user_id", profile.userId.ifBlank { session.currentUserId })
             .putString("pair_id", profile.pairId.ifBlank { session.currentPairId })
+            .putString("paired_at", profile.pairedAt)
+            .putString("created_at", profile.createdAt)
             .apply()
     }
 
@@ -175,7 +178,9 @@ class SupabaseProfileRepository(
             pairId = prefs.getString("pair_id", "") ?: "",
             nickname = prefs.getString("nickname", "") ?: "",
             avatarUrl = prefs.getString("avatar_url", "")?.ifBlank { null },
-            tastePrefs = DietaryPreference()
+            tastePrefs = DietaryPreference(),
+            createdAt = prefs.getString("created_at", "") ?: "",
+            pairedAt = prefs.getString("paired_at", "") ?: ""
         )
     }
 
@@ -185,7 +190,8 @@ class SupabaseProfileRepository(
             userId = profile.userId.ifBlank { session.currentUserId },
             pairId = profile.pairId.ifBlank {
                 session.currentPairId.ifBlank { defaultPairId }
-            }
+            },
+            createdAt = profile.createdAt.ifBlank { Instant.now().toString() }
         )
     }
 }

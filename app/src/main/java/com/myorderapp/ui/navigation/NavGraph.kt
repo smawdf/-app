@@ -1,7 +1,10 @@
 package com.myorderapp.ui.navigation
 
-import androidx.compose.animation.*
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -10,62 +13,60 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
-import com.myorderapp.data.remote.supabase.SessionManager
-import com.myorderapp.ui.about.AboutScreen
-import com.myorderapp.ui.adddish.AddDishScreen
 import com.myorderapp.ui.auth.AuthScreen
-import com.myorderapp.ui.dishdetail.DishDetailScreen
-import com.myorderapp.ui.dishlibrary.DishLibraryScreen
-import com.myorderapp.ui.history.HistoryScreen
-import com.myorderapp.ui.home.HomeScreen
-import com.myorderapp.ui.meal.MealResultScreen
-import com.myorderapp.ui.meal.StartMealScreen
+import com.myorderapp.ui.cart.CartScreen
+import com.myorderapp.ui.checkout.CheckoutScreen
+import com.myorderapp.ui.couple.AnniversaryScreen
+import com.myorderapp.ui.couple.CoupleMenuScreen
+import com.myorderapp.ui.discover.DiscoverScreen
+import com.myorderapp.ui.menu.MenuManagementScreen
 import com.myorderapp.ui.onboarding.OnboardingScreen
+import com.myorderapp.ui.order.OrderingScreen
+import com.myorderapp.ui.orders.OrderDetailScreen
+import com.myorderapp.ui.orders.OrdersScreen
 import com.myorderapp.ui.profile.ProfileScreen
-import com.myorderapp.ui.random.RandomScreen
-import com.myorderapp.ui.search.SearchScreen
-import com.myorderapp.ui.wishlist.WishlistScreen
 
 object Routes {
     const val HOME = "home"
-    const val DISH_LIBRARY = "dish_library"
-    const val MEAL = "meal"
-    const val WISHLIST = "wishlist"
+    const val ORDERING = "ordering"
+    const val MENU_MANAGEMENT = "menu_management"
+    const val SHOP_SETTINGS = "shop_settings"
+    const val CART = "cart"
+    const val CHECKOUT = "checkout"
+    const val DISCOVER = "discover"
+    const val ORDERS = "orders"
+    const val ORDER_DETAIL = "orders/{orderId}"
     const val PROFILE = "profile"
-    const val SEARCH = "search"
-    const val DISH_DETAIL = "dish_detail/{dishId}/{source}"
-    const val ADD_DISH = "add_dish/{editDishId}"
-    fun addDish(editDishId: String? = null) = "add_dish/${editDishId ?: "new"}"
-    const val START_MEAL = "start_meal/{mealType}"
-    const val MEAL_RESULT = "meal_result/{mealId}"
-    const val RANDOM = "random"
-    const val HISTORY = "history"
     const val AUTH = "auth"
     const val ONBOARDING = "onboarding"
-    const val PROFILE_SETUP = "profile_setup"
-    const val ABOUT = "about"
+    const val ANNIVERSARY = "anniversary"
 
-    fun dishDetail(dishId: String, source: String) = "dish_detail/$dishId/$source"
-    fun startMeal(mealType: String) = "start_meal/$mealType"
-    fun mealResult(mealId: String) = "meal_result/$mealId"
+    fun orderDetail(orderId: String) = "orders/$orderId"
 }
 
-// Shared animation specs
-private const val ANIM_DURATION = 300
-private val enterSlide = slideInHorizontally(tween(ANIM_DURATION)) { it }
-private val exitSlide = slideOutHorizontally(tween(ANIM_DURATION)) { -it }
-private val popEnterSlide = slideInHorizontally(tween(ANIM_DURATION)) { -it }
-private val popExitSlide = slideOutHorizontally(tween(ANIM_DURATION)) { it }
-private val enterFade = fadeIn(tween(ANIM_DURATION))
-private val exitFade = fadeOut(tween(ANIM_DURATION))
-private val enterSlideFade = enterSlide + enterFade
-private val exitSlideFade = exitSlide + exitFade
-private val popEnterSlideFade = popEnterSlide + enterFade
-private val popExitSlideFade = popExitSlide + exitFade
+private const val ANIM_DURATION = 260
 
-// Scale-down for push transitions (subtle depth effect)
-private val enterScale = scaleIn(tween(ANIM_DURATION), initialScale = 0.92f)
-private val exitScale = scaleOut(tween(ANIM_DURATION), targetScale = 0.92f)
+private fun enterSlideFade(): EnterTransition =
+    fadeIn(tween(ANIM_DURATION))
+
+private fun exitSlideFade(): ExitTransition =
+    fadeOut(tween(ANIM_DURATION))
+
+private fun popEnterSlideFade(): EnterTransition =
+    fadeIn(tween(ANIM_DURATION))
+
+private fun popExitSlideFade(): ExitTransition =
+    fadeOut(tween(ANIM_DURATION))
+
+private fun NavHostController.navigateAsTab(route: String) {
+    navigate(route) {
+        popUpTo(graph.findStartDestination().id) {
+            saveState = true
+        }
+        launchSingleTop = true
+        restoreState = true
+    }
+}
 
 @Composable
 fun NavGraph(
@@ -77,174 +78,112 @@ fun NavGraph(
         navController = navController,
         startDestination = startDestination,
         modifier = modifier,
-        enterTransition = { enterSlideFade },
-        exitTransition = { exitSlideFade + exitScale },
-        popEnterTransition = { popEnterSlideFade },
-        popExitTransition = { popExitSlideFade + exitScale }
+        enterTransition = { enterSlideFade() },
+        exitTransition = { exitSlideFade() },
+        popEnterTransition = { popEnterSlideFade() },
+        popExitTransition = { popExitSlideFade() }
     ) {
-        // ── Bottom nav tabs: crossfade instead of slide ──
         composable(
             Routes.HOME,
-            enterTransition = { enterFade },
-            exitTransition = { exitFade },
-            popEnterTransition = { enterFade },
-            popExitTransition = { exitFade }
+            enterTransition = { fadeIn(tween(ANIM_DURATION)) },
+            exitTransition = { fadeOut(tween(ANIM_DURATION)) },
+            popEnterTransition = { fadeIn(tween(ANIM_DURATION)) },
+            popExitTransition = { fadeOut(tween(ANIM_DURATION)) }
         ) {
-            HomeScreen(
-                onSearchClick = { navController.navigate(Routes.SEARCH) },
-                onRandomClick = { navController.navigate(Routes.RANDOM) },
-                onAddDishClick = { navController.navigate(Routes.addDish()) },
-                onDishClick = { dishId, source ->
-                    navController.navigate(Routes.dishDetail(dishId, source))
-                },
-                onStartMeal = { navController.navigate(Routes.startMeal("lunch")) },
-                onHistoryClick = { navController.navigate(Routes.HISTORY) }
+            CoupleMenuScreen(
+                onCustomizeMenuClick = { navController.navigate(Routes.SHOP_SETTINGS) },
+                onGoOrderingClick = { navController.navigateAsTab(Routes.ORDERING) },
+                onAnniversaryClick = { navController.navigate(Routes.ANNIVERSARY) },
+                onOrdersClick = { navController.navigateAsTab(Routes.ORDERS) },
+                onProfileClick = { navController.navigateAsTab(Routes.PROFILE) }
             )
         }
-        composable(
-            Routes.DISH_LIBRARY,
-            enterTransition = { enterFade },
-            exitTransition = { exitFade },
-            popEnterTransition = { enterFade },
-            popExitTransition = { exitFade }
-        ) {
-            DishLibraryScreen(
-                onDishClick = { dishId, source ->
-                    navController.navigate(Routes.dishDetail(dishId, source))
-                },
-                onAddDishClick = { navController.navigate(Routes.addDish()) }
+
+        composable(Routes.ANNIVERSARY) {
+            AnniversaryScreen(onBack = { navController.popBackStack() })
+        }
+
+        composable(Routes.ORDERING) {
+            OrderingScreen(
+                onShopNameClick = { navController.navigate(Routes.SHOP_SETTINGS) },
+                onManageMenuClick = { navController.navigate(Routes.SHOP_SETTINGS) },
+                onCheckoutClick = { navController.navigate(Routes.CHECKOUT) }
             )
         }
+
         composable(
-            Routes.MEAL,
-            enterTransition = { enterFade },
-            exitTransition = { exitFade },
-            popEnterTransition = { enterFade },
-            popExitTransition = { exitFade }
+            Routes.DISCOVER,
+            enterTransition = { fadeIn(tween(ANIM_DURATION)) },
+            exitTransition = { fadeOut(tween(ANIM_DURATION)) },
+            popEnterTransition = { fadeIn(tween(ANIM_DURATION)) },
+            popExitTransition = { fadeOut(tween(ANIM_DURATION)) }
         ) {
-            StartMealScreen(
-                onResultClick = { mealId ->
-                    navController.navigate(Routes.mealResult(mealId))
-                }
+            DiscoverScreen()
+        }
+
+        composable(Routes.MENU_MANAGEMENT) {
+            MenuManagementScreen(onBack = { navController.popBackStack() })
+        }
+
+        composable(Routes.SHOP_SETTINGS) {
+            MenuManagementScreen(onBack = { navController.popBackStack() })
+        }
+
+        composable(Routes.CART) {
+            CartScreen(
+                onBack = { navController.popBackStack() },
+                onCheckoutClick = { navController.navigate(Routes.CHECKOUT) }
             )
         }
-        composable(
-            Routes.WISHLIST,
-            enterTransition = { enterFade },
-            exitTransition = { exitFade },
-            popEnterTransition = { enterFade },
-            popExitTransition = { exitFade }
-        ) {
-            WishlistScreen(
-                onDishClick = { dishId, source ->
-                    navController.navigate(Routes.dishDetail(dishId, source))
-                }
-            )
-        }
-        composable(
-            Routes.PROFILE,
-            enterTransition = { enterFade },
-            exitTransition = { exitFade },
-            popEnterTransition = { enterFade },
-            popExitTransition = { exitFade }
-        ) {
-            val sessionManager = org.koin.compose.getKoin().get<SessionManager>()
-            ProfileScreen(
-                onHistoryClick = { navController.navigate(Routes.HISTORY) },
-                onLoginClick = { navController.navigate(Routes.AUTH) },
-                onDishManageClick = {
-                    navController.navigate(Routes.DISH_LIBRARY) {
-                        popUpTo(navController.graph.findStartDestination().id)
-                        launchSingleTop = true
-                    }
-                },
-                onAboutClick = { navController.navigate(Routes.ABOUT) },
-                onLogoutClick = {
-                    sessionManager.clear()
-                    navController.navigate(Routes.AUTH) {
-                        popUpTo(0) { inclusive = true }
+
+        composable(Routes.CHECKOUT) {
+            CheckoutScreen(
+                onBack = { navController.popBackStack() },
+                onOrderSubmitted = { orderId ->
+                    navController.navigate(Routes.orderDetail(orderId)) {
+                        popUpTo(Routes.HOME)
                     }
                 }
             )
         }
 
-        // ── Push screens: slide from right ──
-        composable(Routes.SEARCH) {
-            SearchScreen(
-                onBack = { navController.popBackStack() },
-                onDishClick = { dishId, source ->
-                    navController.navigate(Routes.dishDetail(dishId, source))
-                }
-            )
-        }
         composable(
-            route = Routes.DISH_DETAIL,
-            arguments = listOf(
-                navArgument("dishId") { type = NavType.StringType },
-                navArgument("source") { type = NavType.StringType }
-            )
+            route = Routes.ORDER_DETAIL,
+            arguments = listOf(navArgument("orderId") { type = NavType.StringType })
         ) { backStackEntry ->
-            val dishId = backStackEntry.arguments?.getString("dishId") ?: ""
-            val source = backStackEntry.arguments?.getString("source") ?: "custom"
-            DishDetailScreen(
-                dishId = dishId,
-                source = source,
-                onBack = { navController.popBackStack() },
-                onEditClick = { id -> navController.navigate(Routes.addDish(id)) }
+            val orderId = backStackEntry.arguments?.getString("orderId").orEmpty()
+            OrderDetailScreen(
+                orderId = orderId,
+                onBack = { navController.popBackStack() }
             )
         }
+
         composable(
-            route = Routes.ADD_DISH,
-            arguments = listOf(navArgument("editDishId") {
-                type = NavType.StringType; defaultValue = "new"
-            })
-        ) { backStackEntry ->
-            val editDishId = backStackEntry.arguments?.getString("editDishId")
-                ?.takeIf { it != "new" }
-            AddDishScreen(
-                onBack = { navController.popBackStack() },
-                onSave = {
-                    navController.popBackStack()
-                    navController.navigate(Routes.DISH_LIBRARY) {
-                        launchSingleTop = true
-                    }
-                },
-                editDishId = editDishId
+            Routes.ORDERS,
+            enterTransition = { fadeIn(tween(ANIM_DURATION)) },
+            exitTransition = { fadeOut(tween(ANIM_DURATION)) },
+            popEnterTransition = { fadeIn(tween(ANIM_DURATION)) },
+            popExitTransition = { fadeOut(tween(ANIM_DURATION)) }
+        ) {
+            OrdersScreen(
+                onOrderClick = { orderId -> navController.navigate(Routes.orderDetail(orderId)) },
+                onGoOrderingClick = { navController.navigateAsTab(Routes.ORDERING) }
             )
         }
+
         composable(
-            route = Routes.START_MEAL,
-            arguments = listOf(navArgument("mealType") { type = NavType.StringType })
-        ) { backStackEntry ->
-            val mealType = backStackEntry.arguments?.getString("mealType") ?: "lunch"
-            StartMealScreen(
-                initialMealType = mealType,
-                onResultClick = { mealId ->
-                    navController.navigate(Routes.mealResult(mealId))
-                }
+            Routes.PROFILE,
+            enterTransition = { fadeIn(tween(ANIM_DURATION)) },
+            exitTransition = { fadeOut(tween(ANIM_DURATION)) },
+            popEnterTransition = { fadeIn(tween(ANIM_DURATION)) },
+            popExitTransition = { fadeOut(tween(ANIM_DURATION)) }
+        ) {
+            ProfileScreen(
+                onLoginClick = { navController.navigate(Routes.AUTH) },
+                onDishManageClick = { navController.navigate(Routes.SHOP_SETTINGS) }
             )
         }
-        composable(
-            route = Routes.MEAL_RESULT,
-            arguments = listOf(navArgument("mealId") { type = NavType.StringType })
-        ) { backStackEntry ->
-            val mealId = backStackEntry.arguments?.getString("mealId") ?: ""
-            MealResultScreen(
-                mealId = mealId,
-                onBack = { navController.popBackStack() },
-                onNewMeal = {
-                    navController.popBackStack(Routes.HOME, false)
-                }
-            )
-        }
-        composable(Routes.RANDOM) {
-            RandomScreen(
-                onBack = { navController.popBackStack() },
-                onDishClick = { dishId, source ->
-                    navController.navigate(Routes.dishDetail(dishId, source))
-                }
-            )
-        }
+
         composable(Routes.ONBOARDING) {
             OnboardingScreen(
                 onRegisterComplete = {
@@ -259,6 +198,7 @@ fun NavGraph(
                 }
             )
         }
+
         composable(Routes.AUTH) {
             AuthScreen(
                 onLoggedIn = {
@@ -273,12 +213,6 @@ fun NavGraph(
                     }
                 }
             )
-        }
-        composable(Routes.HISTORY) {
-            HistoryScreen(onBack = { navController.popBackStack() })
-        }
-        composable(Routes.ABOUT) {
-            AboutScreen(onBack = { navController.popBackStack() })
         }
     }
 }

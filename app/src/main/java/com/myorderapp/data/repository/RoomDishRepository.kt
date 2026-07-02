@@ -22,7 +22,7 @@ class RoomDishRepository(
 
     override fun searchDishes(query: String): Flow<List<Dish>> =
         if (query.isBlank()) getAllDishes()
-        else dishDao.searchDishes("%", query).map { list -> list.map { it.toDomain() } }
+        else dishDao.searchDishesByDishName(query).map { list -> list.map { it.toDomain() } }
 
     override suspend fun getDishById(id: String): Dish? =
         dishDao.getDishById(id)?.toDomain()

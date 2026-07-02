@@ -1,0 +1,54 @@
+<svg width="960" height="540" viewBox="0 0 960 540" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="960" y2="540" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFF6E8"/>
+      <stop offset="0.52" stop-color="#FFE7D7"/>
+      <stop offset="1" stop-color="#FEE0E8"/>
+    </linearGradient>
+    <linearGradient id="toast" x1="305" y1="210" x2="655" y2="310" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#2B2019"/>
+      <stop offset="1" stop-color="#493126"/>
+    </linearGradient>
+    <filter id="shadow" x="265" y="174" width="430" height="178" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feFlood flood-opacity="0" result="BackgroundImageFix"/>
+      <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+      <feOffset dy="18"/>
+      <feGaussianBlur stdDeviation="22"/>
+      <feColorMatrix type="matrix" values="0 0 0 0 0.22 0 0 0 0 0.13 0 0 0 0 0.09 0 0 0 0.24 0"/>
+      <feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow_1_1"/>
+      <feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow_1_1" result="shape"/>
+    </filter>
+    <filter id="soft" x="216" y="93" width="528" height="354" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="35"/>
+    </filter>
+  </defs>
+
+  <rect width="960" height="540" rx="42" fill="url(#bg)"/>
+  <g filter="url(#soft)" opacity="0.58">
+    <circle cx="294" cy="204" r="76" fill="#FFE08A"/>
+    <circle cx="646" cy="304" r="88" fill="#FF9EAC"/>
+    <circle cx="500" cy="160" r="58" fill="#A9E8DA"/>
+  </g>
+
+  <text x="480" y="92" text-anchor="middle" fill="#2B2019" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="32" font-weight="800">身份切换 Toast 提示</text>
+  <text x="480" y="128" text-anchor="middle" fill="#8C6650" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="17" font-weight="500">轻量、温暖、出现 1.5 秒后自动消失，不打断当前页面</text>
+
+  <g filter="url(#shadow)">
+    <rect x="305" y="210" width="350" height="96" rx="32" fill="url(#toast)"/>
+    <rect x="317" y="222" width="72" height="72" rx="24" fill="#FFF1C9"/>
+    <circle cx="353" cy="258" r="18" fill="#119482"/>
+    <path d="M344 258.8L351 265.5L363 250.5" stroke="white" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="412" y="254" fill="#FFFDF2" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="23" font-weight="800">已切换为饲养员</text>
+    <text x="412" y="280" fill="#F8DCC6" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="15" font-weight="500">现在可以上传菜单啦</text>
+  </g>
+
+  <g transform="translate(0,128)" opacity="0.95">
+    <rect x="333" y="236" width="294" height="74" rx="28" fill="#FFFBF5" stroke="#F2DAC7" stroke-width="1.5"/>
+    <circle cx="374" cy="273" r="20" fill="#FFE4EA"/>
+    <path d="M374 283C369 278 362 273.8 362 267.4C362 263.5 365 260.8 368.6 260.8C370.8 260.8 372.7 261.9 374 263.6C375.3 261.9 377.2 260.8 379.4 260.8C383 260.8 386 263.5 386 267.4C386 273.8 379 278 374 283Z" fill="#FF7088"/>
+    <text x="407" y="270" fill="#2B2019" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="19" font-weight="800">已切换为吃货</text>
+    <text x="407" y="293" fill="#8C6650" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="13" font-weight="500">去点菜入口已开启</text>
+  </g>
+
+  <text x="480" y="500" text-anchor="middle" fill="#8C6650" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="14">建议采用上方深色 toast 作为默认反馈；下方浅色可作为更柔和备选</text>
+</svg>

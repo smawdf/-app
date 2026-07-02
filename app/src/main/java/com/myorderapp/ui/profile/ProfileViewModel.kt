@@ -100,7 +100,7 @@ class ProfileViewModel(
                     pairInfo = info,
                     joinPairCode = "",
                     pairCode = "",
-                    saveMessage = "配对成功！💕"
+                    saveMessage = "配对成功！"
                 )
             } else {
                 _uiState.value = _uiState.value.copy(saveMessage = "配对失败，请重试")
@@ -161,7 +161,7 @@ class ProfileViewModel(
         if (current != null) {
             _uiState.value = _uiState.value.copy(
                 profile = current.copy(nickname = trimmed),
-                saveMessage = "昵称已更新 ✓"
+                saveMessage = "昵称已更新"
             )
         }
         viewModelScope.launch {
@@ -176,7 +176,7 @@ class ProfileViewModel(
         if (current != null) {
             _uiState.value = _uiState.value.copy(
                 profile = current.copy(avatarUrl = avatarUrl),
-                saveMessage = "头像已更新 ✓"
+                saveMessage = "头像已更新"
             )
         }
         viewModelScope.launch {
@@ -199,7 +199,7 @@ class ProfileViewModel(
                 }
                 val localPath = destFile.absolutePath
                 profileRepository.updateAvatar(localPath)
-                _uiState.value = _uiState.value.copy(saveMessage = "头像已保存 ✓")
+                _uiState.value = _uiState.value.copy(saveMessage = "头像已保存")
             } catch (_: Exception) {
                 _uiState.value = _uiState.value.copy(saveMessage = "头像保存失败")
             }
@@ -212,7 +212,7 @@ class ProfileViewModel(
 
     private suspend fun saveToCloud() {
         if (_uiState.value.isSynced) {
-            _uiState.value = _uiState.value.copy(saveMessage = "已同步到云端 ✓")
+            _uiState.value = _uiState.value.copy(saveMessage = "已同步到云端")
         } else {
             _uiState.value = _uiState.value.copy(saveMessage = "已保存（登录后可同步到云端）")
         }

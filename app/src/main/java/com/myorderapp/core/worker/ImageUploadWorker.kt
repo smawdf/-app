@@ -5,6 +5,7 @@ import android.net.Uri
 import android.util.Log
 import androidx.work.*
 import com.myorderapp.data.remote.supabase.SupabaseStorageUploader
+import com.myorderapp.domain.repository.DishRepository
 import org.koin.java.KoinJavaComponent.inject
 import java.util.concurrent.TimeUnit
 
@@ -17,27 +18,54 @@ class ImageUploadWorker(
 ) : CoroutineWorker(context, params) {
 
     private val uploader: SupabaseStorageUploader by inject(SupabaseStorageUploader::class.java)
+    private val dishRepository: DishRepository by inject(DishRepository::class.java)
 
     override suspend fun doWork(): Result {
-        val uriString = inputData.getString(KEY_URI) ?: return Result.failure()
-        val dishId = inputData.getString(KEY_DISH_ID) ?: return Result.failure()
+        val uriString = inputData.getString(KEY_URI)?.trim()
+        if (uriString.isNullOrBlank()) {
+            return Result.failure(workDataOf(KEY_ERROR to "missing image uri"))
+        }
+
+        val dishId = inputData.getString(KEY_DISH_ID)?.trim()
+        if (dishId.isNullOrBlank()) {
+            return Result.failure(workDataOf(KEY_ERROR to "missing dish id"))
+        }
 
         Log.d(TAG, "开始上传: uri=$uriString, dishId=$dishId")
 
         val uri = Uri.parse(uriString)
-        val uploadResult = uploader.compressAndUpload(applicationContext, uri, dishId)
+        val uploadResult = try {
+            uploader.compressAndUpload(applicationContext, uri, dishId)
+        } catch (e: Exception) {
+            Log.w(TAG, "图片上传异常: ${e.message}")
+            return retryOrFailure("图片上传异常: ${e.message}")
+        }
 
-        return if (uploadResult.isSuccess) {
-            val outputData = workDataOf(KEY_URL to uploadResult.publicUrl)
-            Log.d(TAG, "上传成功: ${uploadResult.publicUrl}")
-            Result.success(outputData)
+        return if (uploadResult.isSuccess && uploadResult.publicUrl != null) {
+            val publicUrl = uploadResult.publicUrl
+            try {
+                val dish = dishRepository.getDishById(dishId)
+                    ?: return Result.failure(workDataOf(KEY_ERROR to "菜品不存在，无法回写图片"))
+                dishRepository.updateDish(dish.copy(imageUrl = publicUrl))
+
+                val outputData = workDataOf(KEY_URL to publicUrl)
+                Log.d(TAG, "上传成功并已回写: $publicUrl")
+                Result.success(outputData)
+            } catch (e: Exception) {
+                Log.w(TAG, "图片已上传但回写失败: ${e.message}")
+                retryOrFailure("图片已上传但回写失败: ${e.message}")
+            }
         } else {
             Log.w(TAG, "上传失败: ${uploadResult.error}")
-            if (runAttemptCount < MAX_RETRIES) {
-                Result.retry()
-            } else {
-                Result.failure(workDataOf(KEY_ERROR to uploadResult.error))
-            }
+            retryOrFailure(uploadResult.error ?: "上传失败")
+        }
+    }
+
+    private fun retryOrFailure(error: String): Result {
+        return if (runAttemptCount < MAX_RETRIES) {
+            Result.retry()
+        } else {
+            Result.failure(workDataOf(KEY_ERROR to error))
         }
     }
 

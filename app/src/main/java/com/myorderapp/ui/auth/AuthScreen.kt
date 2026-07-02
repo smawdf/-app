@@ -1,17 +1,31 @@
 package com.myorderapp.ui.auth
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import org.koin.androidx.compose.koinViewModel
 
 @Composable
@@ -26,122 +40,92 @@ fun AuthScreen(
         if (uiState.isLoggedIn) onLoggedIn()
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-    ) {
+    AuthDecoratedBackground {
         Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .align(Alignment.Center)
-                .padding(32.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .fillMaxSize()
+                .statusBarsPadding()
+                .navigationBarsPadding()
+                .imePadding()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 28.dp, vertical = 30.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
         ) {
-            Text("🍽️", fontSize = 64.sp)
+            AuthLogo()
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(18.dp))
 
             Text(
-                "今天吃什么？",
+                text = "欢迎回来",
                 style = MaterialTheme.typography.displayLarge,
-                color = MaterialTheme.colorScheme.onBackground
+                color = Color(0xFF173B44),
+                fontWeight = FontWeight.ExtraBold
             )
-
             Text(
-                "登录后可开启双人点餐同步",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                text = "继续今天的菜单",
+                style = MaterialTheme.typography.bodyMedium,
+                color = Color(0xFF6F858B),
+                modifier = Modifier.padding(top = 6.dp)
             )
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(28.dp))
 
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-            ) {
-                Column(modifier = Modifier.padding(24.dp)) {
-                    Text(
-                        "登录",
-                        style = MaterialTheme.typography.headlineMedium,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    OutlinedTextField(
+            AuthGlassCard(modifier = Modifier.fillMaxWidth()) {
+                Column {
+                    AuthInputField(
                         value = uiState.email,
-                        onValueChange = { viewModel.onEmailChanged(it) },
+                        onValueChange = viewModel::onEmailChanged,
+                        label = "邮箱",
+                        placeholder = "输入邮箱地址",
                         modifier = Modifier.fillMaxWidth(),
-                        placeholder = { Text("邮箱") },
-                        shape = RoundedCornerShape(12.dp),
-                        singleLine = true,
-                        colors = OutlinedTextFieldDefaults.colors(
-                            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                            unfocusedBorderColor = Color.Transparent,
-                            focusedBorderColor = MaterialTheme.colorScheme.primary
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Email,
+                            imeAction = ImeAction.Next
                         )
                     )
 
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    OutlinedTextField(
+                    AuthInputField(
                         value = uiState.password,
-                        onValueChange = { viewModel.onPasswordChanged(it) },
+                        onValueChange = viewModel::onPasswordChanged,
+                        label = "密码",
+                        placeholder = "输入密码",
                         modifier = Modifier.fillMaxWidth(),
-                        placeholder = { Text("密码") },
-                        shape = RoundedCornerShape(12.dp),
-                        singleLine = true,
-                        visualTransformation = PasswordVisualTransformation(),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                            unfocusedBorderColor = Color.Transparent,
-                            focusedBorderColor = MaterialTheme.colorScheme.primary
+                        isPassword = true,
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Password,
+                            imeAction = ImeAction.Done
                         )
                     )
-
-                    Spacer(modifier = Modifier.height(16.dp))
 
                     if (uiState.errorMessage != null) {
+                        Spacer(modifier = Modifier.height(10.dp))
                         Text(
-                            uiState.errorMessage!!,
+                            text = uiState.errorMessage!!,
                             color = MaterialTheme.colorScheme.error,
-                            style = MaterialTheme.typography.labelLarge,
-                            modifier = Modifier.padding(bottom = 8.dp)
-                        )
-                    }
-
-                    Button(
-                        onClick = { viewModel.submit() },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(48.dp),
-                        enabled = !uiState.isLoading,
-                        shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primary
-                        )
-                    ) {
-                        Text(
-                            if (uiState.isLoading) "请稍候..." else "登录",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 16.sp,
-                            color = MaterialTheme.colorScheme.onPrimary
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    TextButton(onClick = onRegisterClick) {
-                        Text(
-                            "没有账号？点击注册",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.primary
+                            style = MaterialTheme.typography.bodySmall
                         )
                     }
                 }
             }
+
+            Spacer(modifier = Modifier.height(18.dp))
+
+            AuthPrimaryButton(
+                text = if (uiState.isLoading) "请稍候..." else "登录",
+                onClick = viewModel::submit,
+                enabled = !uiState.isLoading,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            AuthBottomLink(
+                prefix = "没有账号？",
+                actionText = "创建账号",
+                onClick = onRegisterClick,
+                modifier = Modifier.padding(top = 10.dp)
+            )
         }
     }
 }
