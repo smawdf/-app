@@ -29,7 +29,13 @@ class CoupleMenuScreenSourceTest {
             "上传菜单",
             "去点菜",
             "邀请对方",
-            "纪念日小日历"
+            "纪念日小日历",
+            "有新的点菜单等你接单",
+            "订单已提交，等饲养员接单",
+            "饲养员已接单",
+            "这顿饭正在准备中",
+            "去接单",
+            "查看订单"
         ).forEach { expected ->
             assertTrue("缺少情侣身份首页文案：$expected", source.contains(expected))
         }
@@ -44,6 +50,10 @@ class CoupleMenuScreenSourceTest {
         assertTrue(source.contains("RoleToastState"))
         assertTrue(source.contains("profileRepository.getProfile().collectAsState"))
         assertTrue(source.contains("profileRepository.getPairInfo()"))
+        assertTrue(source.contains("orderRepository.observeOrders().collectAsState"))
+        assertTrue(source.contains("LatestOrderNudge"))
+        assertTrue(source.contains("activeOrderStatuses"))
+        assertTrue(source.contains("onClick = onOrdersClick"))
         assertTrue(source.contains("PairInfo"))
         assertTrue(source.contains("PartnerSlot"))
         assertTrue(source.contains("pairInfo.isPaired"))

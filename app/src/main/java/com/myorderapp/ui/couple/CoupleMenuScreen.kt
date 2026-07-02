@@ -61,8 +61,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.myorderapp.domain.model.OrderRecord
 import com.myorderapp.domain.model.PairInfo
 import com.myorderapp.domain.model.Profile
+import com.myorderapp.domain.repository.OrderRepository
 import com.myorderapp.domain.repository.ProfileRepository
 import java.text.SimpleDateFormat
 import java.time.Instant
@@ -114,6 +116,7 @@ private fun String?.toCoupleRole(): CoupleRole? = when (this) {
 @Composable
 fun CoupleMenuScreen(
     profileRepository: ProfileRepository = koinInject(),
+    orderRepository: OrderRepository = koinInject(),
     onCustomizeMenuClick: () -> Unit = {},
     onGoOrderingClick: () -> Unit = {},
     onAnniversaryClick: () -> Unit = {},
@@ -122,6 +125,7 @@ fun CoupleMenuScreen(
     onProfileClick: () -> Unit = {}
 ) {
     val profile by profileRepository.getProfile().collectAsState(initial = null)
+    val orders by orderRepository.observeOrders().collectAsState(initial = emptyList())
     var pairInfo by remember { mutableStateOf(PairInfo()) }
     val context = LocalContext.current
     val prefs = remember(context) {
@@ -178,6 +182,11 @@ fun CoupleMenuScreen(
                 selectedRole = selectedRole,
                 onCustomizeMenuClick = onCustomizeMenuClick,
                 onGoOrderingClick = onGoOrderingClick
+            )
+            LatestOrderNudge(
+                order = orders.firstOrNull { it.status in activeOrderStatuses },
+                selectedRole = selectedRole,
+                onClick = onOrdersClick
             )
             AnniversaryCard(days = daysEatingTogether(profile), onClick = onAnniversaryClick)
         }
@@ -704,6 +713,75 @@ private fun RoleFunctionCard(
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
+                )
+            }
+        }
+    }
+}
+
+private val activeOrderStatuses = setOf("submitted", "confirmed", "delivering")
+
+@Composable
+private fun LatestOrderNudge(
+    order: OrderRecord?,
+    selectedRole: CoupleRole?,
+    onClick: () -> Unit
+) {
+    if (order == null) return
+
+    val isCaretaker = selectedRole == CoupleRole.Caretaker
+    val title = when (order.status) {
+        "submitted" -> if (isCaretaker) "有新的点菜单等你接单" else "订单已提交，等饲养员接单"
+        "confirmed" -> "饲养员已接单"
+        "delivering" -> "这顿饭正在准备中"
+        else -> "订单有新进展"
+    }
+    val subtitle = order.items.take(2).joinToString("、") { it.menuItemName }
+        .ifBlank { order.shopName.ifBlank { "我的店铺" } }
+    val buttonText = if (isCaretaker && order.status == "submitted") "去接单" else "查看订单"
+
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 10.dp)
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(26.dp),
+        color = ToolInk,
+        shadowElevation = 10.dp
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            Surface(shape = CircleShape, color = Color(0xFFFFF1C9), modifier = Modifier.size(48.dp)) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = Icons.Filled.Restaurant,
+                        contentDescription = null,
+                        tint = ToolRose,
+                        modifier = Modifier.size(25.dp)
+                    )
+                }
+            }
+            Column(modifier = Modifier.weight(1f)) {
+                Text(title, color = Color.White, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.height(3.dp))
+                Text(
+                    text = subtitle,
+                    color = Color(0xFFF8DCC6),
+                    style = MaterialTheme.typography.bodySmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+            Surface(shape = RoundedCornerShape(999.dp), color = Color.White.copy(alpha = 0.16f)) {
+                Text(
+                    text = buttonText,
+                    color = Color.White,
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(horizontal = 13.dp, vertical = 8.dp)
                 )
             }
         }
