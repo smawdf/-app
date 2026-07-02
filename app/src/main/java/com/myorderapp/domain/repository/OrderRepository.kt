@@ -9,4 +9,5 @@ interface OrderRepository {
     fun observeOrders(): Flow<List<OrderRecord>>
     suspend fun getOrderById(orderId: String): OrderRecord?
     suspend fun submitOrder(cart: CartState, address: Address, note: String): String
+    suspend fun updateOrderStatus(orderId: String, status: String)
 }
