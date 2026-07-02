@@ -9,7 +9,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 data class OrderDetailUiState(
-    val order: OrderRecord? = null
+    val order: OrderRecord? = null,
+    val message: String? = null
 )
 
 class OrderDetailViewModel(
@@ -23,5 +24,47 @@ class OrderDetailViewModel(
         viewModelScope.launch {
             _uiState.value = OrderDetailUiState(order = orderRepository.getOrderById(orderId))
         }
+    }
+
+    fun advanceStatus() {
+        val order = _uiState.value.order ?: return
+        val nextStatus = order.status.nextOrderStatus() ?: return
+        viewModelScope.launch {
+            orderRepository.updateOrderStatus(order.id, nextStatus)
+            _uiState.value = OrderDetailUiState(
+                order = orderRepository.getOrderById(order.id),
+                message = nextStatus.toStatusChangeMessage()
+            )
+        }
+    }
+
+    fun cancelOrder() {
+        val order = _uiState.value.order ?: return
+        if (order.status in setOf("completed", "cancelled")) return
+        viewModelScope.launch {
+            orderRepository.updateOrderStatus(order.id, "cancelled")
+            _uiState.value = OrderDetailUiState(
+                order = orderRepository.getOrderById(order.id),
+                message = "订单已取消"
+            )
+        }
+    }
+
+    fun dismissMessage() {
+        _uiState.value = _uiState.value.copy(message = null)
+    }
+
+    private fun String.nextOrderStatus(): String? = when (this) {
+        "submitted" -> "confirmed"
+        "confirmed" -> "delivering"
+        "delivering" -> "completed"
+        else -> null
+    }
+
+    private fun String.toStatusChangeMessage(): String = when (this) {
+        "confirmed" -> "饲养员已接单"
+        "delivering" -> "开始准备今天的饭"
+        "completed" -> "这顿饭已完成"
+        else -> "订单状态已更新"
     }
 }

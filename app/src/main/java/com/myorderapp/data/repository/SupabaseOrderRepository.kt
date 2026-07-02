@@ -117,6 +117,22 @@ class SupabaseOrderRepository(
         return orderId
     }
 
+    override suspend fun updateOrderStatus(orderId: String, status: String) {
+        val normalizedStatus = status.takeIf { it in ORDER_STATUSES } ?: return
+        orderDao.updateOrderStatus(orderId, normalizedStatus)
+        if (sessionManager.isLoggedIn.value) {
+            try {
+                client.from("orders").update(
+                    mapOf("status" to normalizedStatus)
+                ) {
+                    filter { eq("id", orderId) }
+                }
+            } catch (_: Exception) {
+                // Local status remains the source of truth when remote sync fails.
+            }
+        }
+    }
+
     private fun OrderRecord.toRemotePayload() = RemoteOrderPayload(
         id = id,
         userId = userId,
@@ -142,4 +158,8 @@ class SupabaseOrderRepository(
         quantity = quantity,
         subtotal = subtotal
     )
+
+    private companion object {
+        val ORDER_STATUSES = setOf("submitted", "confirmed", "delivering", "completed", "cancelled")
+    }
 }
