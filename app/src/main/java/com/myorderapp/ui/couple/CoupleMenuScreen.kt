@@ -1,5 +1,6 @@
 package com.myorderapp.ui.couple
 
+import android.content.Context
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -38,6 +39,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -54,15 +56,22 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.myorderapp.domain.model.Profile
+import com.myorderapp.domain.repository.ProfileRepository
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
+import java.time.temporal.ChronoUnit
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
-import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.delay
+import org.koin.compose.koinInject
 
 private val ToolBackground = Color(0xFFFFF6E8)
 private val ToolSurface = Color(0xFFFFFBF5)
@@ -78,7 +87,13 @@ private val ToolPeach = Color(0xFFFFB6AC)
 
 private enum class CoupleRole {
     Caretaker,
-    Eater
+    Eater;
+
+    val storageKey: String
+        get() = when (this) {
+            Caretaker -> "caretaker"
+            Eater -> "eater"
+        }
 }
 
 private data class RoleToastState(
@@ -86,8 +101,18 @@ private data class RoleToastState(
     val role: CoupleRole
 )
 
+private const val COUPLE_HOME_PREFS = "couple_home_prefs"
+private const val KEY_SELECTED_ROLE = "selected_role"
+
+private fun String?.toCoupleRole(): CoupleRole? = when (this) {
+    CoupleRole.Caretaker.storageKey -> CoupleRole.Caretaker
+    CoupleRole.Eater.storageKey -> CoupleRole.Eater
+    else -> null
+}
+
 @Composable
 fun CoupleMenuScreen(
+    profileRepository: ProfileRepository = koinInject(),
     onCustomizeMenuClick: () -> Unit = {},
     onGoOrderingClick: () -> Unit = {},
     onAnniversaryClick: () -> Unit = {},
@@ -95,11 +120,19 @@ fun CoupleMenuScreen(
     onOrdersClick: () -> Unit = {},
     onProfileClick: () -> Unit = {}
 ) {
-    var selectedRole by rememberSaveable { androidx.compose.runtime.mutableStateOf<CoupleRole?>(null) }
+    val profile by profileRepository.getProfile().collectAsState(initial = null)
+    val context = LocalContext.current
+    val prefs = remember(context) {
+        context.getSharedPreferences(COUPLE_HOME_PREFS, Context.MODE_PRIVATE)
+    }
+    var selectedRole by rememberSaveable {
+        mutableStateOf(prefs.getString(KEY_SELECTED_ROLE, null).toCoupleRole())
+    }
     var toastState by remember { mutableStateOf<RoleToastState?>(null) }
     var toastId by remember { mutableIntStateOf(0) }
     fun selectRole(role: CoupleRole) {
         selectedRole = role
+        prefs.edit().putString(KEY_SELECTED_ROLE, role.storageKey).apply()
         toastId += 1
         toastState = RoleToastState(id = toastId, role = role)
     }
@@ -124,6 +157,7 @@ fun CoupleMenuScreen(
         ) {
             HomeHeader()
             WorkbenchSummary(
+                days = daysEatingTogether(profile),
                 selectedRole = selectedRole
             )
             PrimaryActionGroup(
@@ -136,7 +170,7 @@ fun CoupleMenuScreen(
                 onCustomizeMenuClick = onCustomizeMenuClick,
                 onGoOrderingClick = onGoOrderingClick
             )
-            AnniversaryCard(onClick = onAnniversaryClick)
+            AnniversaryCard(days = daysEatingTogether(profile), onClick = onAnniversaryClick)
         }
 
         AnimatedVisibility(
@@ -248,10 +282,9 @@ private fun HomeHeader() {
 
 @Composable
 private fun WorkbenchSummary(
+    days: Long,
     selectedRole: CoupleRole?
 ) {
-    val days = remember { daysEatingTogether() }
-
     Surface(
         modifier = Modifier
             .fillMaxWidth()
@@ -469,8 +502,7 @@ private fun HeartConnector() {
 }
 
 @Composable
-private fun AnniversaryCard(onClick: () -> Unit) {
-    val days = remember { daysEatingTogether() }
+private fun AnniversaryCard(days: Long, onClick: () -> Unit) {
     Surface(
         modifier = Modifier
             .fillMaxWidth()
@@ -703,18 +735,23 @@ private fun ActionButton(
     }
 }
 
-private fun daysEatingTogether(): Long {
-    val start = Calendar.getInstance().apply {
-        set(2026, Calendar.MAY, 20, 0, 0, 0)
-        set(Calendar.MILLISECOND, 0)
-    }
-    val today = Calendar.getInstance().apply {
-        set(Calendar.HOUR_OF_DAY, 0)
-        set(Calendar.MINUTE, 0)
-        set(Calendar.SECOND, 0)
-        set(Calendar.MILLISECOND, 0)
-    }
-    return TimeUnit.MILLISECONDS.toDays(today.timeInMillis - start.timeInMillis).coerceAtLeast(0)
+private fun daysEatingTogether(profile: Profile?): Long {
+    val start = resolveAnniversaryStartDate(profile)
+    return ChronoUnit.DAYS.between(start, LocalDate.now()).coerceAtLeast(0)
+}
+
+private fun resolveAnniversaryStartDate(profile: Profile?): LocalDate {
+    val source = listOfNotNull(
+        profile?.pairedAt?.takeIf { it.isNotBlank() },
+        profile?.createdAt?.takeIf { it.isNotBlank() }
+    ).firstOrNull()
+    return source?.let(::parseDateSafely) ?: LocalDate.of(2026, 5, 20)
+}
+
+private fun parseDateSafely(value: String): LocalDate? {
+    return runCatching { Instant.parse(value).atZone(ZoneId.systemDefault()).toLocalDate() }
+        .getOrNull()
+        ?: runCatching { LocalDate.parse(value.take(10)) }.getOrNull()
 }
 
 private fun todayText(): String {

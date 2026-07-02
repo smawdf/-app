@@ -1,5 +1,6 @@
 package com.myorderapp.ui.profile
 
+import android.content.Context
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -39,6 +40,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -46,10 +48,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.myorderapp.domain.model.PairInfo
 import coil3.compose.AsyncImage
 import com.myorderapp.ui.components.OrderCard
 import com.myorderapp.ui.theme.Background
@@ -61,6 +65,9 @@ import com.myorderapp.ui.theme.PrimaryContainer
 import com.myorderapp.ui.theme.Surface
 import org.koin.androidx.compose.koinViewModel
 
+private const val PROFILE_PREFS = "profile_screen_prefs"
+private const val KEY_ORDER_NOTIFICATIONS_ENABLED = "order_notifications_enabled"
+
 @Composable
 fun ProfileScreen(
     viewModel: ProfileViewModel = koinViewModel(),
@@ -70,7 +77,15 @@ fun ProfileScreen(
     val uiState by viewModel.uiState.collectAsState()
     val profile = uiState.profile
     val displayName = profile?.nickname?.takeIf { it.isNotBlank() } ?: "未设置昵称"
+    val context = LocalContext.current
+    val prefs = remember(context) {
+        context.getSharedPreferences(PROFILE_PREFS, Context.MODE_PRIVATE)
+    }
+    var notificationsEnabled by rememberSaveable {
+        mutableStateOf(prefs.getBoolean(KEY_ORDER_NOTIFICATIONS_ENABLED, false))
+    }
     var showProfileEditor by remember { mutableStateOf(false) }
+    var showPairDialog by remember { mutableStateOf(false) }
 
     if (showProfileEditor) {
         ProfileEditDialog(
@@ -84,6 +99,21 @@ fun ProfileScreen(
                 }
                 showProfileEditor = false
             }
+        )
+    }
+
+    if (showPairDialog) {
+        PairManagementDialog(
+            pairInfo = uiState.pairInfo,
+            pairCode = uiState.pairCode,
+            joinPairCode = uiState.joinPairCode,
+            message = uiState.saveMessage,
+            onGenerateCode = viewModel::generatePairCode,
+            onJoinCodeChanged = viewModel::onJoinPairCodeChanged,
+            onJoin = { viewModel.joinPair(uiState.joinPairCode) },
+            onUnpair = viewModel::unpair,
+            onDismissMessage = viewModel::dismissMessage,
+            onDismiss = { showPairDialog = false }
         )
     }
 
@@ -104,6 +134,13 @@ fun ProfileScreen(
 
         item {
             ProfileActionList(
+                pairInfo = uiState.pairInfo,
+                notificationsEnabled = notificationsEnabled,
+                onToggleNotifications = {
+                    notificationsEnabled = !notificationsEnabled
+                    prefs.edit().putBoolean(KEY_ORDER_NOTIFICATIONS_ENABLED, notificationsEnabled).apply()
+                },
+                onPairClick = { showPairDialog = true },
                 onDishManageClick = onDishManageClick,
                 onLoginClick = onLoginClick
             )
@@ -197,6 +234,10 @@ private fun ProfileHeader(name: String, avatarUrl: String?, onSettingsClick: () 
 
 @Composable
 private fun ProfileActionList(
+    pairInfo: PairInfo,
+    notificationsEnabled: Boolean,
+    onToggleNotifications: () -> Unit,
+    onPairClick: () -> Unit,
     onDishManageClick: () -> Unit,
     onLoginClick: () -> Unit
 ) {
@@ -205,14 +246,14 @@ private fun ProfileActionList(
             ProfileActionRow(
                 icon = Icons.Outlined.NotificationsNone,
                 title = "订单通知设置",
-                trailingText = "未开启",
-                onClick = {}
+                trailingText = if (notificationsEnabled) "已开启" else "未开启",
+                onClick = onToggleNotifications
             )
             ProfileActionRow(
                 icon = Icons.Outlined.PersonAdd,
-                title = "邀请小伙伴",
-                buttonText = "点击分享",
-                onClick = onLoginClick
+                title = if (pairInfo.isPaired) "伴侣已绑定" else "邀请小伙伴",
+                buttonText = if (pairInfo.isPaired) "管理" else "绑定",
+                onClick = onPairClick
             )
             ProfileActionRow(
                 icon = Icons.Outlined.Storefront,
@@ -221,6 +262,102 @@ private fun ProfileActionList(
             )
         }
     }
+}
+
+@Composable
+private fun PairManagementDialog(
+    pairInfo: PairInfo,
+    pairCode: String,
+    joinPairCode: String,
+    message: String?,
+    onGenerateCode: () -> Unit,
+    onJoinCodeChanged: (String) -> Unit,
+    onJoin: () -> Unit,
+    onUnpair: () -> Unit,
+    onDismissMessage: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = {
+            onDismissMessage()
+            onDismiss()
+        },
+        shape = RoundedCornerShape(18.dp),
+        containerColor = Surface,
+        title = {
+            Text(
+                text = if (pairInfo.isPaired) "管理伴侣绑定" else "邀请小伙伴",
+                color = OnBackground,
+                fontWeight = FontWeight.Bold
+            )
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                if (pairInfo.isPaired) {
+                    Text(
+                        text = "当前已绑定：${pairInfo.partnerName.ifBlank { "我的小伙伴" }}",
+                        color = OnBackground
+                    )
+                    Text(
+                        text = "绑定码：${pairInfo.pairCode.ifBlank { "已保存" }}",
+                        color = OnSurfaceVariant,
+                        fontSize = 14.sp
+                    )
+                } else {
+                    Text("生成邀请码给对方，或者输入对方发来的 6 位绑定码。", color = OnSurfaceVariant)
+                    Surface(shape = RoundedCornerShape(12.dp), color = PrimaryContainer) {
+                        Text(
+                            text = pairCode.ifBlank { "还没有邀请码" },
+                            color = OnBackground,
+                            fontSize = 24.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 18.dp, vertical = 12.dp)
+                        )
+                    }
+                    OutlinedTextField(
+                        value = joinPairCode,
+                        onValueChange = onJoinCodeChanged,
+                        label = { Text("输入 6 位绑定码") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+                message?.let {
+                    Text(text = it, color = Primary, fontSize = 14.sp)
+                }
+            }
+        },
+        confirmButton = {
+            if (pairInfo.isPaired) {
+                TextButton(onClick = onUnpair) {
+                    Text("解除绑定", color = Primary)
+                }
+            } else {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TextButton(onClick = onGenerateCode) {
+                        Text("生成邀请码", color = Primary)
+                    }
+                    Button(
+                        onClick = onJoin,
+                        enabled = joinPairCode.length == 6,
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Text("绑定")
+                    }
+                }
+            }
+        },
+        dismissButton = {
+            TextButton(
+                onClick = {
+                    onDismissMessage()
+                    onDismiss()
+                }
+            ) {
+                Text("关闭", color = OnSurfaceVariant)
+            }
+        }
+    )
 }
 
 @Composable

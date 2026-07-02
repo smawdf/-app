@@ -46,8 +46,18 @@ class ProfileReplicaSourceTest {
         val source = readMainSource("ui/profile/ProfileScreen.kt")
 
         listOf(
-            "点击分享",
+            "已开启",
             "未开启",
+            "KEY_ORDER_NOTIFICATIONS_ENABLED",
+            "getSharedPreferences(PROFILE_PREFS",
+            "putBoolean(KEY_ORDER_NOTIFICATIONS_ENABLED",
+            "PairManagementDialog",
+            "生成邀请码",
+            "输入 6 位绑定码",
+            "解除绑定",
+            "viewModel::generatePairCode",
+            "viewModel.joinPair(uiState.joinPairCode)",
+            "viewModel::unpair",
             "Icons.Outlined.NotificationsNone",
             "Icons.Outlined.PersonAdd",
             "Icons.Outlined.Storefront"
