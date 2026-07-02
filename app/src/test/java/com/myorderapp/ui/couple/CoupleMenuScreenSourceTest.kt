@@ -9,7 +9,7 @@ import org.junit.Test
 class CoupleMenuScreenSourceTest {
 
     @Test
-    fun `couple menu home uses relationship identity sections`() {
+    fun `couple menu home uses readable relationship identity sections`() {
         val source = readMainSource("ui/couple/CoupleMenuScreen.kt")
 
         listOf(
@@ -28,7 +28,7 @@ class CoupleMenuScreenSourceTest {
             "负责去点菜",
             "上传菜单",
             "去点菜",
-            "另一半",
+            "邀请对方",
             "纪念日小日历"
         ).forEach { expected ->
             assertTrue("缺少情侣身份首页文案：$expected", source.contains(expected))
@@ -43,6 +43,12 @@ class CoupleMenuScreenSourceTest {
         assertTrue(source.contains("IdentitySwitchToast"))
         assertTrue(source.contains("RoleToastState"))
         assertTrue(source.contains("profileRepository.getProfile().collectAsState"))
+        assertTrue(source.contains("profileRepository.getPairInfo()"))
+        assertTrue(source.contains("PairInfo"))
+        assertTrue(source.contains("PartnerSlot"))
+        assertTrue(source.contains("pairInfo.isPaired"))
+        assertTrue(source.contains("pairInfo.partnerName.ifBlank"))
+        assertTrue(source.contains("伴侣头像"))
         assertTrue(source.contains("daysEatingTogether(profile)"))
         assertTrue(source.contains("profile?.pairedAt"))
         assertTrue(source.contains("LaunchedEffect(toastState?.id)"))
@@ -50,7 +56,7 @@ class CoupleMenuScreenSourceTest {
         assertTrue(source.contains(".align(Alignment.Center)"))
         assertTrue(source.contains("ToolInk.copy(alpha = 0.68f)"))
         assertTrue(source.contains("Color.Transparent"))
-        assertFalse("弹框出现时不应模糊背景", source.contains(".blur("))
+        assertFalse("弹框出现时不应该模糊背景", source.contains(".blur("))
         assertFalse("身份切换提示不应再使用系统 Toast", source.contains("Toast.makeText"))
         assertTrue(source.contains("CurrentUserSlot(selectedRole = selectedRole)"))
         assertTrue(source.contains("RoleFunctionCard"))
