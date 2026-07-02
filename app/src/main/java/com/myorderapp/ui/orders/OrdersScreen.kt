@@ -412,7 +412,7 @@ private fun YearMonth.toChineseMonthText(): String {
 private fun String.toOrderStatusText(): String = when (this) {
     "submitted" -> "已提交"
     "confirmed" -> "已接单"
-    "delivering" -> "配送中"
+    "delivering" -> "准备中"
     "completed" -> "已完成"
     "cancelled" -> "已取消"
     else -> this

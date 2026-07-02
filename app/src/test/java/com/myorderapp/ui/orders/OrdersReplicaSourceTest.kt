@@ -36,6 +36,17 @@ class OrdersReplicaSourceTest {
     }
 
     @Test
+    fun `orders wording matches couple dining instead of delivery platform`() {
+        val ordersSource = readMainSource("ui/orders/OrdersScreen.kt")
+        val cartSheetSource = readMainSource("ui/shop/components/CartSheet.kt")
+
+        assertTrue("订单准备状态应显示为准备中", ordersSource.contains("\"delivering\" -> \"准备中\""))
+        assertFalse("订单页不应显示外卖配送状态", ordersSource.contains("配送中"))
+        assertTrue("购物车费用应显示为服务费", cartSheetSource.contains("服务费"))
+        assertFalse("购物车不应显示外卖配送费", cartSheetSource.contains("配送费"))
+    }
+
+    @Test
     fun `orders calendar filter is collapsed until the user taps date entry`() {
         val source = readMainSource("ui/orders/OrdersScreen.kt")
 
