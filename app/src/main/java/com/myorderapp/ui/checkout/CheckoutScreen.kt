@@ -112,6 +112,22 @@ fun CheckoutScreen(
                     }
                 }
             }
+            uiState.errorMessage?.let { message ->
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(8.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)
+                    ) {
+                        Text(
+                            text = message,
+                            color = MaterialTheme.colorScheme.onErrorContainer,
+                            modifier = Modifier.padding(14.dp),
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
             item {
                 Text("订单明细", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             }
@@ -166,11 +182,11 @@ fun CheckoutScreen(
                 }
                 Button(
                     onClick = viewModel::submitOrder,
-                    enabled = !cart.isEmpty,
+                    enabled = !cart.isEmpty && !uiState.isSubmitting,
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(8.dp)
                 ) {
-                    Text("提交订单")
+                    Text(if (uiState.isSubmitting) "提交中..." else "提交订单")
                 }
             }
         }
