@@ -80,7 +80,7 @@ class SupabaseOrderRepository(
             shopId = cart.shopId.orEmpty(),
             shopName = cart.shopName,
             shopCoverUrl = cart.shopCoverUrl,
-            status = "已提交",
+            status = "submitted",
             addressSnapshot = addressSnapshot,
             buyerNote = note,
             subtotal = cart.subtotal,

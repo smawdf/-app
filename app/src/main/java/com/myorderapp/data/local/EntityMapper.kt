@@ -285,8 +285,8 @@ object EntityMapper {
     private fun buildTimeline(status: String, createdAt: String): List<OrderTimelineEntry> {
         val ordered = listOf(
             "submitted" to "已提交",
-            "confirmed" to "商家接单",
-            "delivering" to "配送中",
+            "confirmed" to "饲养员已确认",
+            "delivering" to "准备中",
             "completed" to "已完成"
         )
         val statusOrder = ordered.map { it.first }

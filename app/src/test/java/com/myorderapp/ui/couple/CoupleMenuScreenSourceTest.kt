@@ -35,10 +35,16 @@ class CoupleMenuScreenSourceTest {
         }
 
         assertTrue(source.contains("rememberSaveable"))
+        assertTrue(source.contains("getSharedPreferences(COUPLE_HOME_PREFS"))
+        assertTrue(source.contains("putString(KEY_SELECTED_ROLE, role.storageKey)"))
+        assertTrue(source.contains("prefs.getString(KEY_SELECTED_ROLE, null).toCoupleRole()"))
         assertTrue(source.contains("selectRole(CoupleRole.Caretaker)"))
         assertTrue(source.contains("selectRole(CoupleRole.Eater)"))
         assertTrue(source.contains("IdentitySwitchToast"))
         assertTrue(source.contains("RoleToastState"))
+        assertTrue(source.contains("profileRepository.getProfile().collectAsState"))
+        assertTrue(source.contains("daysEatingTogether(profile)"))
+        assertTrue(source.contains("profile?.pairedAt"))
         assertTrue(source.contains("LaunchedEffect(toastState?.id)"))
         assertTrue(source.contains("delay(1500)"))
         assertTrue(source.contains(".align(Alignment.Center)"))
