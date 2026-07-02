@@ -281,6 +281,7 @@ fun MenuManagementScreen(
                 categories = uiState.categories,
                 onFilterSelected = viewModel::selectFilter,
                 onToggleBatch = viewModel::toggleBatchMode,
+                onSelectAllVisible = viewModel::selectAllVisibleDishes,
                 onBatchAvailable = { viewModel.batchSetAvailability(true) },
                 onBatchUnavailable = { viewModel.batchSetAvailability(false) },
                 onBatchDelete = { showBatchDeleteDialog = true },
@@ -426,6 +427,7 @@ private fun BulkToolbar(
     categories: List<String>,
     onFilterSelected: (MenuFilter) -> Unit,
     onToggleBatch: () -> Unit,
+    onSelectAllVisible: () -> Unit,
     onBatchAvailable: () -> Unit,
     onBatchUnavailable: () -> Unit,
     onBatchDelete: () -> Unit,
@@ -485,6 +487,7 @@ private fun BulkToolbar(
                 DropdownMenuItem(text = { Text("批量上架") }, onClick = { batchMenuExpanded = false; onBatchAvailable() }, enabled = selectedCount > 0)
                 DropdownMenuItem(text = { Text("批量下架") }, onClick = { batchMenuExpanded = false; onBatchUnavailable() }, enabled = selectedCount > 0)
                 DropdownMenuItem(text = { Text("批量删除") }, onClick = { batchMenuExpanded = false; onBatchDelete() }, enabled = selectedCount > 0)
+                DropdownMenuItem(text = { Text("选择当前列表全部") }, onClick = { batchMenuExpanded = false; onSelectAllVisible() })
                 DropdownMenuItem(text = { Text("批量移动分类") }, onClick = { categoryMenuExpanded = true }, enabled = selectedCount > 0)
             }
             DropdownMenu(expanded = categoryMenuExpanded, onDismissRequest = { categoryMenuExpanded = false }) {
