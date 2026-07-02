@@ -153,6 +153,16 @@ class MenuManagementViewModel(
         }
     }
 
+    fun selectAllVisibleDishes() {
+        updateState {
+            copy(
+                isBatchMode = true,
+                selectedDishIds = visibleDishes.map { it.id }.toSet(),
+                message = if (visibleDishes.isEmpty()) "当前没有可选择的菜品" else "已选择当前列表全部菜品"
+            )
+        }
+    }
+
     fun setSortMode(mode: MenuSortMode) {
         updateState { copy(sortMode = mode).withVisibleDishes() }
     }
@@ -393,8 +403,7 @@ class MenuManagementViewModel(
     }
 
     private fun List<String>.normalizedMenuCategories(): List<String> {
-        return this
-            .map { it.trim() }
+        return map { it.trim() }
             .filter { it.isNotBlank() }
             .distinct()
     }
