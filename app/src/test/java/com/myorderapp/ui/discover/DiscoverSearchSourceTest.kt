@@ -2,6 +2,7 @@ package com.myorderapp.ui.discover
 
 import java.nio.file.Files
 import java.nio.file.Paths
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -37,8 +38,8 @@ class DiscoverSearchSourceTest {
 
         assertTrue("DiscoverViewModel 未注册到 Koin", appModule.contains("viewModel { DiscoverViewModel("))
         assertTrue("Koin 缺少天行菜谱注入", appModule.contains("tianRecipeRemoteDataSource = get()"))
-        assertTrue("发现页不应再依赖 Jisu 旧接口", !viewModel.contains("JisuRecipeRemoteDataSource"))
-        assertTrue("发现页不应再依赖 Juhe 旧接口", !viewModel.contains("JuheRecipeRemoteDataSource"))
+        assertFalse("发现页不应再依赖 Jisu 旧接口", viewModel.contains("JisuRecipeRemoteDataSource"))
+        assertFalse("发现页不应再依赖 Juhe 旧接口", viewModel.contains("JuheRecipeRemoteDataSource"))
     }
 
     @Test
@@ -51,7 +52,7 @@ class DiscoverSearchSourceTest {
             "好友点菜",
             "点菜清单"
         ).forEach { removedText ->
-            assertTrue("发现页空状态不应再展示：$removedText", !screen.contains(removedText))
+            assertFalse("发现页空状态不应再展示：$removedText", screen.contains(removedText))
         }
 
         assertTrue(
@@ -61,7 +62,7 @@ class DiscoverSearchSourceTest {
     }
 
     @Test
-    fun `discover search results can be added to the managed menu`() {
+    fun `discover search results can be added to the managed menu with duplicate feedback`() {
         val screen = readMainSource("ui/discover/DiscoverScreen.kt")
         val viewModel = readMainSource("ui/discover/DiscoverViewModel.kt")
         val appModule = readMainSource("di/AppModule.kt")
@@ -69,8 +70,12 @@ class DiscoverSearchSourceTest {
         assertTrue("搜索结果卡片应暴露加入小店回调", screen.contains("onAddToMenu"))
         assertTrue("搜索结果卡片应显示加入我的小店按钮", screen.contains("加入我的小店"))
         assertTrue("搜索结果卡片应显示已在我的小店状态", screen.contains("已在我的小店"))
+        assertTrue("加入弹窗应允许调整售价", screen.contains("售价"))
+        assertTrue("加入弹窗应允许选择或填写分类", screen.contains("自定义分类"))
         assertTrue("ViewModel 应提供 addToMenu 行为", viewModel.contains("fun addToMenu"))
         assertTrue("ViewModel 应跟踪已加入小店的结果", viewModel.contains("addedMenuItemIds"))
+        assertTrue("ViewModel 应按名称去重", viewModel.contains("addedMenuItemNames.contains(normalizedName)"))
+        assertTrue("重复加入应给出已在我的小店提示", viewModel.contains("message = \"已在我的小店：${'$'}{item.name}\""))
         assertTrue("ViewModel 应写入 RoomMenuRepository", viewModel.contains("RoomMenuRepository"))
         assertTrue("Koin 应给 DiscoverViewModel 注入 RoomMenuRepository", appModule.contains("roomMenuRepository = get()"))
     }

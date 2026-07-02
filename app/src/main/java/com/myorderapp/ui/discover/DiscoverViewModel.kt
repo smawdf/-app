@@ -106,8 +106,15 @@ class DiscoverViewModel(
     }
 
     fun addToMenu(item: DiscoverDishSearchItem) {
-        if (_uiState.value.addedMenuItemIds.contains(item.id)) return
-        if (_uiState.value.addedMenuItemNames.contains(item.name.trim().lowercase())) return
+        val normalizedName = item.name.trim().lowercase()
+        if (
+            _uiState.value.addedMenuItemIds.contains(item.id) ||
+            _uiState.value.addedMenuItemNames.contains(normalizedName) ||
+            item.isAdded
+        ) {
+            _uiState.update { it.copy(message = "已在我的小店：${item.name}", errorMessage = null) }
+            return
+        }
 
         _uiState.update { state ->
             state.copy(
@@ -162,6 +169,9 @@ class DiscoverViewModel(
                         description = item.subtitle
                     )
                 )
+            } else {
+                _uiState.update { it.copy(message = "已在我的小店：${item.name}", pendingAddItem = null, errorMessage = null) }
+                return@launch
             }
 
             _uiState.update { state ->
