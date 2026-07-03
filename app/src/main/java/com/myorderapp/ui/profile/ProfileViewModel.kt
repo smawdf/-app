@@ -205,7 +205,10 @@ class ProfileViewModel(
                 }
                 val localPath = destFile.absolutePath
                 profileRepository.updateAvatar(localPath)
-                _uiState.value = _uiState.value.copy(saveMessage = "头像已保存")
+                _uiState.value = _uiState.value.copy(
+                    profile = _uiState.value.profile?.copy(avatarUrl = localPath),
+                    saveMessage = "头像已保存"
+                )
             } catch (_: Exception) {
                 _uiState.value = _uiState.value.copy(saveMessage = "头像保存失败")
             }
