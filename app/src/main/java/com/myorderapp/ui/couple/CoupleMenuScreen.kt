@@ -453,6 +453,16 @@ private fun PartnerSlot(
     onClick: () -> Unit
 ) {
     val label = if (pairInfo.isPaired) pairInfo.partnerName.ifBlank { "我的小伙伴" } else "邀请对方"
+    val statusText = when {
+        !pairInfo.isPaired -> "等待绑定"
+        pairInfo.isOnline -> "在线"
+        else -> "已绑定"
+    }
+    val statusColor = when {
+        !pairInfo.isPaired -> ToolMuted
+        pairInfo.isOnline -> ToolAccent
+        else -> accent
+    }
     Column(
         modifier = Modifier.width(104.dp),
         horizontalAlignment = Alignment.CenterHorizontally
@@ -508,6 +518,20 @@ private fun PartnerSlot(
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
+        Spacer(modifier = Modifier.height(5.dp))
+        Surface(
+            shape = RoundedCornerShape(999.dp),
+            color = Color.White.copy(alpha = 0.7f),
+            border = BorderStroke(1.dp, statusColor.copy(alpha = 0.28f))
+        ) {
+            Text(
+                text = statusText,
+                color = statusColor,
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+            )
+        }
     }
 }
 
