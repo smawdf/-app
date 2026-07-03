@@ -22,7 +22,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -46,13 +45,14 @@ import com.myorderapp.ui.theme.OrderDiskTheme
 import com.myorderapp.data.remote.supabase.SessionManager
 import org.koin.compose.getKoin
 
-private val LiquidGlassTop = Color(0xF7FFFFFC)
-private val LiquidGlassBottom = Color(0xDDF7EFE2)
-private val LiquidGlassBorder = Color(0xB8FFFFFF)
-private val LiquidGlassHairline = Color(0x55B58B71)
+private val LiquidGlassTop = Color(0xCFFFFFF8)
+private val LiquidGlassMiddle = Color(0x9FFFF6E8)
+private val LiquidGlassBottom = Color(0x88F3DCC6)
+private val LiquidGlassBorder = Color(0xE8FFFFFF)
+private val LiquidGlassHairline = Color(0x66B58B71)
 private val LiquidNavSelected = Color(0xFF116F67)
 private val LiquidNavMuted = Color(0xFF8B7164)
-private val LiquidNavGlow = Color(0xFFFBE7C6)
+private val LiquidNavGlow = Color(0xD8FFF2D2)
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -80,50 +80,50 @@ fun MainScreen() {
     val bottomNavRoutes = BottomNavItem.items.map { it.route }
     val showBottomBar = currentDestination?.route in bottomNavRoutes
 
-    Scaffold(
-        bottomBar = {
-            if (showBottomBar) {
-                WarmBottomBar(
-                    currentRoute = currentDestination?.route,
-                    onTabClick = { route ->
-                        if (currentDestination?.route != route) {
-                            navController.navigateAsTab(route)
-                        }
-                    }
-                )
-            }
-        }
-    ) { innerPadding ->
+    Box(modifier = Modifier.fillMaxSize()) {
         NavGraph(
             navController = navController,
-            modifier = Modifier.padding(innerPadding),
+            modifier = Modifier.fillMaxSize(),
             startDestination = startDestination
         )
+
+        if (showBottomBar) {
+            WarmBottomBar(
+                currentRoute = currentDestination?.route,
+                modifier = Modifier.align(Alignment.BottomCenter),
+                onTabClick = { route ->
+                    if (currentDestination?.route != route) {
+                        navController.navigateAsTab(route)
+                    }
+                }
+            )
+        }
     }
 }
 
 @Composable
 private fun WarmBottomBar(
     currentRoute: String?,
+    modifier: Modifier = Modifier,
     onTabClick: (String) -> Unit
 ) {
     Box(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .navigationBarsPadding()
-            .padding(horizontal = 14.dp, vertical = 8.dp)
-            .height(76.dp),
+            .padding(horizontal = 22.dp, vertical = 10.dp)
+            .height(74.dp),
         contentAlignment = Alignment.Center
     ) {
         Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .height(68.dp)
-                .shadow(18.dp, RoundedCornerShape(34.dp), clip = false)
-                .clip(RoundedCornerShape(34.dp))
+                .fillMaxWidth(0.94f)
+                .height(64.dp)
+                .shadow(24.dp, RoundedCornerShape(32.dp), clip = false, ambientColor = Color(0x5539251D), spotColor = Color(0x4439251D))
+                .clip(RoundedCornerShape(32.dp))
                 .background(
                     Brush.verticalGradient(
-                        listOf(LiquidGlassTop, LiquidGlassBottom)
+                        listOf(LiquidGlassTop, LiquidGlassMiddle, LiquidGlassBottom)
                     )
                 )
                 .border(1.dp, LiquidGlassBorder, RoundedCornerShape(34.dp))
@@ -133,15 +133,24 @@ private fun WarmBottomBar(
                 modifier = Modifier
                     .align(Alignment.TopCenter)
                     .padding(top = 6.dp)
-                    .width(118.dp)
+                    .width(132.dp)
                     .height(2.dp)
                     .clip(CircleShape)
-                    .background(Color.White.copy(alpha = 0.74f))
+                    .background(Color.White.copy(alpha = 0.82f))
+            )
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 5.dp)
+                    .width(96.dp)
+                    .height(1.dp)
+                    .clip(CircleShape)
+                    .background(Color(0xFFFFD7A6).copy(alpha = 0.30f))
             )
             Row(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(horizontal = 8.dp, vertical = 7.dp),
+                    .padding(horizontal = 8.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
@@ -174,7 +183,7 @@ private fun LiquidBottomNavItem(
         Brush.verticalGradient(
             listOf(
                 Color.White.copy(alpha = 0.88f),
-                LiquidNavGlow.copy(alpha = 0.74f)
+                LiquidNavGlow.copy(alpha = 0.66f)
             )
         )
     } else {
