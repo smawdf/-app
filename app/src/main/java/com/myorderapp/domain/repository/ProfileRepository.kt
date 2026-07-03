@@ -13,6 +13,7 @@ interface ProfileRepository {
     suspend fun joinPair(code: String): Boolean
     suspend fun unpair()
     suspend fun getPairInfo(): PairInfo
+    suspend fun touchPresence()
     fun isSynced(): Flow<Boolean>
     suspend fun loadProfile()
 }

@@ -67,9 +67,14 @@ class InMemoryProfileRepository : ProfileRepository {
         return PairInfo(
             partnerName = if (p?.pairId.isNullOrBlank()) "" else "已配对",
             isPaired = !p?.pairId.isNullOrBlank(),
-            isOnline = false,
+            isOnline = !p?.pairId.isNullOrBlank(),
             pairCode = p?.pairId ?: ""
         )
+    }
+
+    override suspend fun touchPresence() {
+        val current = _profile.value ?: return
+        _profile.value = current.copy(updatedAt = Instant.now().toString())
     }
 
     override fun isSynced(): Flow<Boolean> = _synced

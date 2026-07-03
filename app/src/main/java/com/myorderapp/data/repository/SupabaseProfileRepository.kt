@@ -8,6 +8,7 @@ import com.myorderapp.domain.model.PairInfo
 import com.myorderapp.domain.model.Profile
 import com.myorderapp.domain.repository.ProfileRepository
 import io.github.jan.supabase.postgrest.from
+import java.time.Duration
 import java.time.Instant
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -27,7 +28,7 @@ class SupabaseProfileRepository(
     override fun getProfile(): Flow<Profile?> = _profile.asStateFlow()
 
     override suspend fun saveProfile(profile: Profile) {
-        val normalized = normalizeProfile(profile)
+        val normalized = normalizeProfile(profile).copy(updatedAt = Instant.now().toString())
         _profile.value = normalized
         saveLocalProfile(normalized)
         session.saveNickname(normalized.nickname)
@@ -42,7 +43,7 @@ class SupabaseProfileRepository(
 
     override suspend fun updateNickname(nickname: String) {
         val current = _profile.value ?: loadLocalProfile()
-        val updated = current.copy(nickname = nickname.trim())
+        val updated = current.copy(nickname = nickname.trim(), updatedAt = Instant.now().toString())
         _profile.value = updated
         saveLocalProfile(updated)
         if (session.isLoggedIn.value) {
@@ -52,7 +53,7 @@ class SupabaseProfileRepository(
 
     override suspend fun updateAvatar(avatarUrl: String) {
         val current = _profile.value ?: loadLocalProfile()
-        val updated = current.copy(avatarUrl = avatarUrl)
+        val updated = current.copy(avatarUrl = avatarUrl, updatedAt = Instant.now().toString())
         _profile.value = updated
         saveLocalProfile(updated)
         if (session.isLoggedIn.value) {
@@ -90,22 +91,40 @@ class SupabaseProfileRepository(
             return PairInfo(isPaired = false, isOnline = session.isLoggedIn.value)
         }
         var partnerName = ""
+        var partnerUpdatedAt = ""
         if (session.isLoggedIn.value) {
             try {
                 val partnerProfiles = client.from("profiles").select {
                     filter { eq("pair_id", pairId) }
                 }.decodeList<Profile>()
-                partnerName = partnerProfiles
-                    .firstOrNull { it.userId != session.currentUserId }
-                    ?.nickname ?: ""
+                val partner = partnerProfiles.firstOrNull { it.userId != session.currentUserId }
+                partnerName = partner?.nickname ?: ""
+                partnerUpdatedAt = partner?.updatedAt ?: ""
             } catch (_: Exception) { }
         }
         return PairInfo(
             partnerName = partnerName.ifBlank { "已配对" },
             isPaired = true,
-            isOnline = session.isLoggedIn.value,
+            isOnline = partnerUpdatedAt.isRecentlySeen(),
             pairCode = pairId
         )
+    }
+
+    override suspend fun touchPresence() {
+        val current = _profile.value ?: loadLocalProfile()
+        val updated = normalizeProfile(current).copy(updatedAt = Instant.now().toString())
+        _profile.value = updated
+        saveLocalProfile(updated)
+        if (session.isLoggedIn.value) {
+            try {
+                client.from("profiles").update(
+                    mapOf("updated_at" to updated.updatedAt)
+                ) {
+                    filter { eq("user_id", session.currentUserId) }
+                }
+                _synced.value = true
+            } catch (_: Exception) { }
+        }
     }
 
     override suspend fun unpair() {
@@ -173,6 +192,7 @@ class SupabaseProfileRepository(
             .putString("pair_id", profile.pairId.ifBlank { session.currentPairId })
             .putString("paired_at", profile.pairedAt)
             .putString("created_at", profile.createdAt)
+            .putString("updated_at", profile.updatedAt)
             .apply()
     }
 
@@ -184,6 +204,7 @@ class SupabaseProfileRepository(
             avatarUrl = prefs.getString("avatar_url", "")?.ifBlank { null },
             tastePrefs = DietaryPreference(),
             createdAt = prefs.getString("created_at", "") ?: "",
+            updatedAt = prefs.getString("updated_at", "") ?: "",
             pairedAt = prefs.getString("paired_at", "") ?: ""
         )
     }
@@ -197,5 +218,10 @@ class SupabaseProfileRepository(
             },
             createdAt = profile.createdAt.ifBlank { Instant.now().toString() }
         )
+    }
+
+    private fun String.isRecentlySeen(): Boolean {
+        val seenAt = runCatching { Instant.parse(this) }.getOrNull() ?: return false
+        return Duration.between(seenAt, Instant.now()).abs() <= Duration.ofMinutes(5)
     }
 }
