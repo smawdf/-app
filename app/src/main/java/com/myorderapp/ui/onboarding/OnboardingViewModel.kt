@@ -5,7 +5,6 @@ import androidx.lifecycle.viewModelScope
 import com.myorderapp.data.remote.supabase.SessionManager
 import com.myorderapp.data.remote.supabase.SupabaseClientProvider
 import com.myorderapp.data.repository.HybridDishRepository
-import com.myorderapp.data.repository.SupabaseMealRepository
 import com.myorderapp.data.repository.SupabaseProfileRepository
 import com.myorderapp.domain.model.Profile
 import com.myorderapp.domain.repository.ProfileRepository
@@ -36,7 +35,6 @@ class OnboardingViewModel(
     private val session: SessionManager,
     private val dishRepo: HybridDishRepository,
     private val profileRepo: SupabaseProfileRepository,
-    private val mealRepo: SupabaseMealRepository,
     private val profileRepository: ProfileRepository
 ) : ViewModel() {
 
@@ -151,7 +149,6 @@ class OnboardingViewModel(
                     session.saveAvatar(state.avatarUrl)
                     dishRepo.syncFromCloud()
                     profileRepo.loadFromCloud()
-                    mealRepo.syncFromCloud()
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
                         errorMessage = null,

@@ -5,7 +5,6 @@ import androidx.lifecycle.viewModelScope
 import com.myorderapp.data.remote.supabase.SessionManager
 import com.myorderapp.data.remote.supabase.SupabaseClientProvider
 import com.myorderapp.data.repository.HybridDishRepository
-import com.myorderapp.data.repository.SupabaseMealRepository
 import com.myorderapp.data.repository.SupabaseProfileRepository
 import com.myorderapp.domain.model.Profile
 import io.github.jan.supabase.gotrue.auth
@@ -29,8 +28,7 @@ data class AuthUiState(
 class AuthViewModel(
     private val session: SessionManager,
     private val dishRepo: HybridDishRepository,
-    private val profileRepo: SupabaseProfileRepository,
-    private val mealRepo: SupabaseMealRepository
+    private val profileRepo: SupabaseProfileRepository
 ) : ViewModel() {
 
     private val client = SupabaseClientProvider.client
@@ -94,7 +92,6 @@ class AuthViewModel(
                     }
                     dishRepo.syncFromCloud()
                     profileRepo.loadFromCloud()
-                    mealRepo.syncFromCloud()
                     _uiState.value = _uiState.value.copy(isLoggedIn = true, isLoading = false)
                 } else {
                     _uiState.value = _uiState.value.copy(
