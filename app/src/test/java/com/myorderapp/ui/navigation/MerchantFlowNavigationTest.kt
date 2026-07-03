@@ -29,6 +29,8 @@ class MerchantFlowNavigationTest {
     fun `main screen keeps the bottom bar on home and switches tabs in place`() {
         val source = readMainSource("MainActivity.kt")
 
+        assertTrue(source.contains("if (sessionManager.isLoggedIn.value) Routes.HOME else Routes.AUTH"))
+        assertFalse(source.contains("if (sessionManager.isLoggedIn.value) Routes.HOME else Routes.ONBOARDING"))
         assertTrue(source.contains("showBottomBar = currentDestination?.route in bottomNavRoutes"))
         assertTrue(source.contains("WarmBottomBar"))
         assertTrue(source.contains("LiquidBottomNavItem"))

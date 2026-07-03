@@ -74,7 +74,7 @@ fun MainScreen() {
     val currentDestination = navBackStackEntry?.destination
 
     val startDestination = remember {
-        if (sessionManager.isLoggedIn.value) Routes.HOME else Routes.ONBOARDING
+        if (sessionManager.isLoggedIn.value) Routes.HOME else Routes.AUTH
     }
 
     val bottomNavRoutes = BottomNavItem.items.map { it.route }
