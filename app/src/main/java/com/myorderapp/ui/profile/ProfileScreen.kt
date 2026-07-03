@@ -61,6 +61,7 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import com.myorderapp.domain.model.PairInfo
 import coil3.compose.AsyncImage
+import com.myorderapp.ui.auth.AuthViewModel
 import com.myorderapp.ui.components.OrderCard
 import com.myorderapp.ui.theme.Background
 import com.myorderapp.ui.theme.OnBackground
@@ -77,6 +78,7 @@ private const val KEY_ORDER_NOTIFICATIONS_ENABLED = "order_notifications_enabled
 @Composable
 fun ProfileScreen(
     viewModel: ProfileViewModel = koinViewModel(),
+    authViewModel: AuthViewModel = koinViewModel(),
     onLoginClick: () -> Unit = {},
     onDishManageClick: () -> Unit = {}
 ) {
@@ -106,11 +108,11 @@ fun ProfileScreen(
             name = displayName,
             avatarUrl = profile?.avatarUrl.orEmpty(),
             onDismiss = { showProfileEditor = false },
-            onSave = { name, avatar ->
+            onAvatarSelected = { uri ->
+                viewModel.saveAvatarUri(context, uri)
+            },
+            onSave = { name ->
                 viewModel.updateNickname(name)
-                if (avatar.isNotBlank()) {
-                    viewModel.updateAvatar(avatar)
-                }
                 showProfileEditor = false
             }
         )
@@ -165,6 +167,15 @@ fun ProfileScreen(
                 onPairClick = { showPairDialog = true },
                 onDishManageClick = onDishManageClick,
                 onLoginClick = onLoginClick
+            )
+        }
+
+        item {
+            LogoutButton(
+                onClick = {
+                    authViewModel.logout()
+                    onLoginClick()
+                }
             )
         }
     }
@@ -283,6 +294,37 @@ private fun ProfileActionList(
                 onClick = onDishManageClick
             )
         }
+    }
+}
+
+@Composable
+private fun LogoutButton(onClick: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 8.dp, bottom = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Button(
+            onClick = onClick,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(56.dp),
+            shape = RoundedCornerShape(18.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = Color(0xFFE54848),
+                contentColor = Color.White
+            )
+        ) {
+            Text("退出登录", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+        }
+        Text(
+            text = "退出后会回到登录页，本地菜单和订单记录仍会保留。",
+            color = OnSurfaceVariant,
+            fontSize = 13.sp,
+            lineHeight = 18.sp,
+            modifier = Modifier.padding(horizontal = 4.dp)
+        )
     }
 }
 
@@ -441,10 +483,19 @@ private fun ProfileEditDialog(
     name: String,
     avatarUrl: String,
     onDismiss: () -> Unit,
-    onSave: (String, String) -> Unit
+    onAvatarSelected: (android.net.Uri) -> Unit,
+    onSave: (String) -> Unit
 ) {
     var nameDraft by remember(name) { mutableStateOf(name) }
-    var avatarDraft by remember(avatarUrl) { mutableStateOf(avatarUrl) }
+    var previewAvatar by remember(avatarUrl) { mutableStateOf(avatarUrl) }
+    val avatarPicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        uri?.let {
+            previewAvatar = it.toString()
+            onAvatarSelected(it)
+        }
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -460,17 +511,63 @@ private fun ProfileEditDialog(
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
-                OutlinedTextField(
-                    value = avatarDraft,
-                    onValueChange = { avatarDraft = it },
-                    label = { Text("头像图片链接") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    Surface(
+                        modifier = Modifier.size(58.dp),
+                        shape = CircleShape,
+                        color = PrimaryContainer
+                    ) {
+                        if (previewAvatar.isNotBlank()) {
+                            AsyncImage(
+                                model = previewAvatar,
+                                contentDescription = "头像预览",
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.clip(CircleShape)
+                            )
+                        } else {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    Icons.Outlined.LocalDining,
+                                    contentDescription = null,
+                                    tint = Primary,
+                                    modifier = Modifier.size(30.dp)
+                                )
+                            }
+                        }
+                    }
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "头像从本地相册选择",
+                            color = OnBackground,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Text(
+                            text = "不再手动填写图片链接",
+                            color = OnSurfaceVariant,
+                            fontSize = 13.sp
+                        )
+                    }
+                }
+                Button(
+                    onClick = { avatarPicker.launch("image/*") },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = PrimaryContainer,
+                        contentColor = OnBackground
+                    )
+                ) {
+                    Text("从相册选择头像")
+                }
             }
         },
         confirmButton = {
-            Button(onClick = { onSave(nameDraft, avatarDraft) }, shape = RoundedCornerShape(10.dp)) {
+            Button(onClick = { onSave(nameDraft) }, shape = RoundedCornerShape(10.dp)) {
                 Text("保存")
             }
         },
