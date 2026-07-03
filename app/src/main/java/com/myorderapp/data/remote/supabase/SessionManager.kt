@@ -67,6 +67,24 @@ class SessionManager(context: Context) {
         return prefs.getString("saved_email", "") ?: ""
     }
 
+    fun saveRememberedCredentials(email: String, password: String, remember: Boolean) {
+        prefs.edit()
+            .putString("saved_email", email)
+            .putBoolean("remember_credentials", remember)
+            .apply {
+                if (remember) putString("saved_password", password) else remove("saved_password")
+            }
+            .apply()
+    }
+
+    fun isRememberCredentialsEnabled(): Boolean {
+        return prefs.getBoolean("remember_credentials", false)
+    }
+
+    fun getSavedPassword(): String {
+        return if (isRememberCredentialsEnabled()) prefs.getString("saved_password", "") ?: "" else ""
+    }
+
     fun saveNickname(nickname: String) {
         prefs.edit().putString("saved_nickname", nickname).apply()
     }
@@ -84,6 +102,10 @@ class SessionManager(context: Context) {
     }
 
     fun clear() {
+        val savedEmail = getSavedEmail()
+        val savedPassword = prefs.getString("saved_password", "") ?: ""
+        val rememberCredentials = isRememberCredentialsEnabled()
+
         accessToken = ""
         currentUserId = ""
         currentPairId = ""
@@ -92,6 +114,11 @@ class SessionManager(context: Context) {
         _userId.value = ""
         _pairId.value = ""
         prefs.edit().clear().apply()
+        if (rememberCredentials) {
+            saveRememberedCredentials(savedEmail, savedPassword, true)
+        } else if (savedEmail.isNotBlank()) {
+            saveEmail(savedEmail)
+        }
     }
 
     private fun restoreSession() {
