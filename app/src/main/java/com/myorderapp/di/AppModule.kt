@@ -56,7 +56,7 @@ val appModule = module {
     single { RoomMenuRepository(get()) }
     single<SingleShopRepository> { SingleShopRepository(androidContext(), get()) }
     single { SupabaseDishRepository(get(), androidContext().filesDir) }
-    single { HybridDishRepository(get(), get(), get()) }
+    single { HybridDishRepository(get(), get(), get(), get()) }
     single<DishRepository> { get<HybridDishRepository>() }
     // Profile
     single { InMemoryProfileRepository() }

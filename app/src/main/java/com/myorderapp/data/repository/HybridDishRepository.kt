@@ -1,19 +1,23 @@
 package com.myorderapp.data.repository
 
+import com.myorderapp.data.local.RecipeAssetLoader
 import com.myorderapp.data.remote.supabase.SessionManager
 import com.myorderapp.domain.model.Dish
 import com.myorderapp.domain.repository.DishRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 
 class HybridDishRepository(
     private val localRepo: RoomDishRepository,
     private val cloudRepo: SupabaseDishRepository,
-    private val session: SessionManager
+    private val session: SessionManager,
+    private val recipeAssetLoader: RecipeAssetLoader
 ) : DishRepository {
 
     private val active: DishRepository get() = if (session.isLoggedIn.value) cloudRepo else localRepo
+    private val builtInRecipes: List<Dish> by lazy { recipeAssetLoader.loadRecipes() }
 
     override fun getAllDishes(): Flow<List<Dish>> {
         return combine(
@@ -32,8 +36,15 @@ class HybridDishRepository(
     override fun getDishesByCategory(category: String): Flow<List<Dish>> =
         active.getDishesByCategory(category)
 
-    override fun searchDishes(query: String): Flow<List<Dish>> =
-        active.searchDishes(query)
+    override fun searchDishes(query: String): Flow<List<Dish>> {
+        return active.searchDishes(query).map { activeResults ->
+            DishMergePolicy.merge(
+                local = activeResults,
+                cloud = searchBuiltInRecipes(query),
+                includeCloud = true
+            )
+        }
+    }
 
     override suspend fun getDishById(id: String): Dish? =
         cloudRepo.getDishById(id) ?: localRepo.getDishById(id)
@@ -86,5 +97,22 @@ class HybridDishRepository(
 
         cloudRepo.loadFromCloud()
         cloudRepo.getAllDishes().first().forEach { localRepo.cacheSearchResult(it) }
+    }
+
+    private fun searchBuiltInRecipes(query: String): List<Dish> {
+        val normalized = query.trim()
+        if (normalized.isBlank()) return emptyList()
+
+        return builtInRecipes
+            .asSequence()
+            .filter { dish ->
+                dish.name.contains(normalized, ignoreCase = true) ||
+                    dish.category.contains(normalized, ignoreCase = true) ||
+                    dish.ingredients.any { it.contains(normalized, ignoreCase = true) } ||
+                    dish.notes.contains(normalized, ignoreCase = true) ||
+                    dish.cookSteps.any { it.description.contains(normalized, ignoreCase = true) }
+            }
+            .take(20)
+            .toList()
     }
 }
