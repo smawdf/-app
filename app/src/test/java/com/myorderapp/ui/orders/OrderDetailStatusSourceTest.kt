@@ -2,6 +2,7 @@ package com.myorderapp.ui.orders
 
 import java.nio.file.Files
 import java.nio.file.Paths
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -16,6 +17,10 @@ class OrderDetailStatusSourceTest {
         val supabaseRepository = readMainSource("data/repository/SupabaseOrderRepository.kt")
 
         listOf(
+            "订单详情",
+            "返回",
+            "暂无备注",
+            "订单进度",
             "饲养员接单",
             "开始准备",
             "完成这顿饭",
@@ -33,9 +38,19 @@ class OrderDetailStatusSourceTest {
             "orderRepository.updateOrderStatus",
             "\"submitted\" -> \"confirmed\"",
             "\"confirmed\" -> \"delivering\"",
-            "\"delivering\" -> \"completed\""
+            "\"delivering\" -> \"completed\"",
+            "饲养员已接单",
+            "开始准备今天的饭",
+            "这顿饭已完成",
+            "订单状态已更新",
+            "订单已取消"
         ).forEach { expected ->
             assertTrue("订单详情 ViewModel 缺少状态流转：$expected", viewModel.contains(expected))
+        }
+
+        listOf("楗", "鍚", "璁", "閰", "鈥").forEach { mojibake ->
+            assertFalse("订单详情页不应包含乱码片段：$mojibake", screen.contains(mojibake))
+            assertFalse("订单详情 ViewModel 不应包含乱码片段：$mojibake", viewModel.contains(mojibake))
         }
 
         assertTrue(repository.contains("suspend fun updateOrderStatus(orderId: String, status: String)"))
