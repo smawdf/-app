@@ -299,7 +299,7 @@ private fun PairManagementDialog(
                         color = OnBackground
                     )
                     Text(
-                        text = "绑定码：${pairInfo.pairCode.ifBlank { "已保存" }}",
+                        text = "绑定码：${pairCode.ifBlank { pairInfo.pairCode.ifBlank { "已保存" } }}",
                         color = OnSurfaceVariant,
                         fontSize = 14.sp
                     )
@@ -329,8 +329,13 @@ private fun PairManagementDialog(
         },
         confirmButton = {
             if (pairInfo.isPaired) {
-                TextButton(onClick = onUnpair) {
-                    Text("解除绑定", color = Primary)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TextButton(onClick = onGenerateCode) {
+                        Text("重新生成邀请码", color = Primary)
+                    }
+                    TextButton(onClick = onUnpair) {
+                        Text("解除绑定", color = Primary)
+                    }
                 }
             } else {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

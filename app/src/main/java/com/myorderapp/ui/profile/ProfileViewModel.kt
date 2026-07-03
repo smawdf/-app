@@ -77,7 +77,13 @@ class ProfileViewModel(
     fun generatePairCode() {
         viewModelScope.launch {
             val code = profileRepository.generatePairCode()
-            _uiState.value = _uiState.value.copy(pairCode = code, joinPairCode = "")
+            val info = profileRepository.getPairInfo()
+            _uiState.value = _uiState.value.copy(
+                pairInfo = info,
+                pairCode = code,
+                joinPairCode = "",
+                saveMessage = "邀请码已生成，可以发给对方"
+            )
         }
     }
 
