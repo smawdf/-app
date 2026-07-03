@@ -19,6 +19,7 @@ import kotlinx.coroutines.launch
 data class AuthUiState(
     val email: String = "",
     val password: String = "",
+    val rememberCredentials: Boolean = false,
     val isLoggedIn: Boolean = false,
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
@@ -37,7 +38,13 @@ class AuthViewModel(
 
     init {
         val savedEmail = session.getSavedEmail()
-        _uiState.value = _uiState.value.copy(email = savedEmail)
+        val rememberCredentials = session.isRememberCredentialsEnabled()
+        val savedPassword = session.getSavedPassword()
+        _uiState.value = _uiState.value.copy(
+            email = savedEmail,
+            password = savedPassword,
+            rememberCredentials = rememberCredentials
+        )
         if (session.isLoggedIn.value) {
             _uiState.value = _uiState.value.copy(isLoggedIn = true)
         }
@@ -45,6 +52,14 @@ class AuthViewModel(
 
     fun onEmailChanged(email: String) { _uiState.value = _uiState.value.copy(email = email, errorMessage = null) }
     fun onPasswordChanged(pw: String) { _uiState.value = _uiState.value.copy(password = pw, errorMessage = null) }
+    fun onRememberCredentialsChanged(remember: Boolean) {
+        val state = _uiState.value
+        _uiState.value = state.copy(rememberCredentials = remember)
+        if (!remember) {
+            session.saveRememberedCredentials(state.email, "", false)
+        }
+    }
+
     fun switchMode() {
         _uiState.value = _uiState.value.copy(
             mode = if (_uiState.value.mode == "login") "register" else "login",
@@ -85,7 +100,11 @@ class AuthViewModel(
                     val profile = loadOrCreateProfile(userId)
                     val pairId = profile?.pairId ?: ""
                     session.setSession(token, userId, pairId)
-                    session.saveEmail(state.email)
+                    session.saveRememberedCredentials(
+                        email = state.email,
+                        password = state.password,
+                        remember = state.rememberCredentials
+                    )
                     if (profile != null) {
                         session.saveNickname(profile.nickname)
                         session.saveAvatar(profile.avatarUrl ?: "")

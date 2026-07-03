@@ -2,6 +2,7 @@ package com.myorderapp.ui.auth
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -11,8 +12,11 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -99,6 +103,33 @@ fun AuthScreen(
                             imeAction = ImeAction.Done
                         )
                     )
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                viewModel.onRememberCredentialsChanged(!uiState.rememberCredentials)
+                            },
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Checkbox(
+                            checked = uiState.rememberCredentials,
+                            onCheckedChange = viewModel::onRememberCredentialsChanged,
+                            colors = CheckboxDefaults.colors(
+                                checkedColor = Color(0xFF2E7F99),
+                                uncheckedColor = Color(0xFF8AA6AB),
+                                checkmarkColor = Color(0xFFFFFBF5)
+                            )
+                        )
+                        Text(
+                            text = "记住账号密码",
+                            color = Color(0xFF173B44),
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
 
                     if (uiState.errorMessage != null) {
                         Spacer(modifier = Modifier.height(10.dp))
