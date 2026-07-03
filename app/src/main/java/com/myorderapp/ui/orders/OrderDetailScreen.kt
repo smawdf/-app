@@ -1,5 +1,6 @@
 package com.myorderapp.ui.orders
 
+import android.content.Context
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -27,10 +28,15 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.myorderapp.ui.util.yuanText
 import org.koin.androidx.compose.koinViewModel
+
+private const val COUPLE_HOME_PREFS = "couple_home_prefs"
+private const val KEY_SELECTED_ROLE = "selected_role"
+private const val ROLE_CARETAKER = "caretaker"
 
 @Composable
 fun OrderDetailScreen(
@@ -39,6 +45,7 @@ fun OrderDetailScreen(
     viewModel: OrderDetailViewModel = koinViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
 
     LaunchedEffect(orderId) {
         viewModel.load(orderId)
@@ -46,6 +53,9 @@ fun OrderDetailScreen(
 
     val order = uiState.order
     val nextActionText = order?.status?.nextActionText()
+    val selectedRole = context.getSharedPreferences(COUPLE_HOME_PREFS, Context.MODE_PRIVATE)
+        .getString(KEY_SELECTED_ROLE, null)
+    val canAdvanceOrder = selectedRole == ROLE_CARETAKER
 
     Column(
         modifier = Modifier
@@ -90,6 +100,26 @@ fun OrderDetailScreen(
                     Text(order.status.toOrderStatusText(), color = MaterialTheme.colorScheme.primary)
                 }
             }
+            if (nextActionText != null && !canAdvanceOrder) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
+                ) {
+                    Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(
+                            "只有饲养员可以更新订单进度",
+                            color = MaterialTheme.colorScheme.onSecondaryContainer,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            "请先在首页切换为饲养员，再处理这份点菜单",
+                            color = MaterialTheme.colorScheme.onSecondaryContainer,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                }
+            }
             if (nextActionText != null || order.status !in setOf("completed", "cancelled")) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -97,7 +127,8 @@ fun OrderDetailScreen(
                 ) {
                     nextActionText?.let { actionText ->
                         Button(
-                            onClick = viewModel::advanceStatus,
+                            onClick = { viewModel.advanceStatus(canAdvance = canAdvanceOrder) },
+                            enabled = canAdvanceOrder,
                             modifier = Modifier.weight(1f),
                             shape = RoundedCornerShape(14.dp)
                         ) {
