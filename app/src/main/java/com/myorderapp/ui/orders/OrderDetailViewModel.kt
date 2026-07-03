@@ -26,7 +26,11 @@ class OrderDetailViewModel(
         }
     }
 
-    fun advanceStatus() {
+    fun advanceStatus(canAdvance: Boolean = true) {
+        if (!canAdvance) {
+            _uiState.value = _uiState.value.copy(message = "只有饲养员可以更新订单进度")
+            return
+        }
         val order = _uiState.value.order ?: return
         val nextStatus = order.status.nextOrderStatus() ?: return
         viewModelScope.launch {

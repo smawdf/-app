@@ -26,14 +26,28 @@ class OrderDetailStatusSourceTest {
             "完成这顿饭",
             "取消订单",
             "知道了",
-            "viewModel::advanceStatus",
+            "viewModel.advanceStatus(canAdvance = canAdvanceOrder)",
             "viewModel::cancelOrder"
         ).forEach { expected ->
             assertTrue("订单详情缺少状态操作：$expected", screen.contains(expected))
         }
 
         listOf(
-            "fun advanceStatus()",
+            "COUPLE_HOME_PREFS",
+            "KEY_SELECTED_ROLE",
+            "ROLE_CARETAKER",
+            "canAdvanceOrder",
+            "enabled = canAdvanceOrder",
+            "只有饲养员可以更新订单进度",
+            "请先在首页切换为饲养员，再处理这份点菜单"
+        ).forEach { expected ->
+            assertTrue("订单详情缺少饲养员权限控制：$expected", screen.contains(expected))
+        }
+
+        listOf(
+            "fun advanceStatus(canAdvance: Boolean = true)",
+            "if (!canAdvance)",
+            "只有饲养员可以更新订单进度",
             "fun cancelOrder()",
             "orderRepository.updateOrderStatus",
             "\"submitted\" -> \"confirmed\"",
