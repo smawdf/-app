@@ -19,6 +19,10 @@ class SupabaseProfileRepository(
     context: Context
 ) : ProfileRepository {
 
+    private companion object {
+        const val KEY_PENDING_PAIR_CODE = "pending_pair_code"
+    }
+
     private val client = SupabaseClientProvider.client
     private val prefs = context.getSharedPreferences("profile_prefs", Context.MODE_PRIVATE)
 
@@ -72,17 +76,17 @@ class SupabaseProfileRepository(
     override suspend fun generatePairCode(): String {
         val chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
         val code = (1..6).map { chars.random() }.joinToString("")
-        val current = _profile.value ?: loadLocalProfile()
-        saveProfile(current.copy(pairId = code, pairedAt = current.pairedAt.ifBlank { Instant.now().toString() }))
-        session.setPairId(code)
+        prefs.edit().putString(KEY_PENDING_PAIR_CODE, code).apply()
         return code
     }
 
     override suspend fun joinPair(code: String): Boolean {
         if (code.length != 6) return false
         val current = _profile.value ?: loadLocalProfile()
-        saveProfile(current.copy(pairId = code.uppercase(), pairedAt = current.pairedAt.ifBlank { Instant.now().toString() }))
-        session.setPairId(code.uppercase())
+        val normalizedCode = code.uppercase()
+        saveProfile(current.copy(pairId = normalizedCode, pairedAt = current.pairedAt.ifBlank { Instant.now().toString() }))
+        session.setPairId(normalizedCode)
+        prefs.edit().remove(KEY_PENDING_PAIR_CODE).apply()
         return true
     }
 
@@ -134,6 +138,7 @@ class SupabaseProfileRepository(
         val defaultId = "00000000-0000-0000-0000-000000000000"
         saveProfile(current.copy(pairId = defaultId, pairedAt = ""))
         session.setPairId(defaultId)
+        prefs.edit().remove(KEY_PENDING_PAIR_CODE).apply()
         if (session.isLoggedIn.value) {
             try {
                 client.from("profiles").update(
