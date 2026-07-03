@@ -52,6 +52,8 @@ class ProfileReplicaSourceTest {
             "头像从本地相册选择",
             "不再手动填写图片链接",
             "LogoutButton",
+            "LogoutConfirmDialog",
+            "确认退出登录？",
             "退出登录",
             "Color(0xFFE54848)",
             "authViewModel.logout(onLoggedOut = onLoginClick)"
@@ -63,8 +65,11 @@ class ProfileReplicaSourceTest {
         assertTrue("头像 URI 应复制到 App 私有目录后保存", viewModel.contains("saveAvatarUri(context: Context, uri: Uri)"))
         assertTrue("头像保存后应即时刷新 UI", viewModel.contains("profile = _uiState.value.profile?.copy(avatarUrl = localPath)"))
         val authViewModel = readMainSource("ui/auth/AuthViewModel.kt")
+        val supabaseRepository = readMainSource("data/repository/SupabaseProfileRepository.kt")
         assertTrue("退出登录后应清理全局 SessionManager", authViewModel.contains("session.clear()"))
         assertTrue("退出登录完成后应通知页面执行清栈导航", authViewModel.contains("onLoggedOut()"))
+        assertTrue("更新昵称后应同步首页使用的本地昵称缓存", supabaseRepository.contains("session.saveNickname(updated.nickname)"))
+        assertTrue("更新头像后应同步首页使用的本地头像缓存", supabaseRepository.contains("session.saveAvatar(updated.avatarUrl ?: \"\")"))
     }
 
     @Test

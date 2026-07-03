@@ -710,14 +710,7 @@ private fun CategoryRail(
 
 @Composable
 private fun CategoryRailTitle(title: String) {
-    Text(
-        text = title,
-        color = TextPrimary,
-        fontSize = 14.sp,
-        lineHeight = 18.sp,
-        fontWeight = FontWeight.Bold,
-        modifier = Modifier.padding(start = 16.dp, top = 14.dp, bottom = 6.dp)
-    )
+    // Static title is intentionally hidden; the compact toggle is the visible "分类" control.
 }
 
 @Composable
@@ -731,7 +724,7 @@ private fun CollapsedCategoryItem(title: String, selected: Boolean, onClick: () 
         contentAlignment = Alignment.Center
     ) {
         Text(
-            text = title.take(1),
+            text = title.trim().take(2).ifBlank { "未分" },
             color = if (selected) PrimaryBlue else TextPrimary,
             fontSize = 14.sp,
             fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal
