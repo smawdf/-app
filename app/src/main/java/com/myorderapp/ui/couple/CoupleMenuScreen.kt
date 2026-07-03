@@ -66,6 +66,7 @@ import com.myorderapp.domain.model.PairInfo
 import com.myorderapp.domain.model.Profile
 import com.myorderapp.domain.repository.OrderRepository
 import com.myorderapp.domain.repository.ProfileRepository
+import com.myorderapp.ui.notifications.notifyActiveOrderIfAllowed
 import java.text.SimpleDateFormat
 import java.time.Instant
 import java.time.LocalDate
@@ -106,6 +107,9 @@ private data class RoleToastState(
 
 private const val COUPLE_HOME_PREFS = "couple_home_prefs"
 private const val KEY_SELECTED_ROLE = "selected_role"
+private const val PROFILE_PREFS = "profile_screen_prefs"
+private const val KEY_ORDER_NOTIFICATIONS_ENABLED = "order_notifications_enabled"
+private const val KEY_LAST_NOTIFIED_ORDER_ID = "last_notified_order_id"
 
 private fun String?.toCoupleRole(): CoupleRole? = when (this) {
     CoupleRole.Caretaker.storageKey -> CoupleRole.Caretaker
@@ -131,6 +135,9 @@ fun CoupleMenuScreen(
     val prefs = remember(context) {
         context.getSharedPreferences(COUPLE_HOME_PREFS, Context.MODE_PRIVATE)
     }
+    val profilePrefs = remember(context) {
+        context.getSharedPreferences(PROFILE_PREFS, Context.MODE_PRIVATE)
+    }
     var selectedRole by rememberSaveable {
         mutableStateOf(prefs.getString(KEY_SELECTED_ROLE, null).toCoupleRole())
     }
@@ -146,6 +153,30 @@ fun CoupleMenuScreen(
 
     LaunchedEffect(profile?.pairId) {
         pairInfo = profileRepository.getPairInfo()
+    }
+
+    LaunchedEffect(profile?.userId, profile?.pairId) {
+        while (true) {
+            profileRepository.touchPresence()
+            pairInfo = profileRepository.getPairInfo()
+            delay(60_000)
+        }
+    }
+
+    val activeOrder = orders.firstOrNull { it.status in activeOrderStatuses }
+    LaunchedEffect(activeOrder?.id, activeOrder?.status, selectedRole) {
+        val order = activeOrder ?: return@LaunchedEffect
+        val notificationsEnabled = profilePrefs.getBoolean(KEY_ORDER_NOTIFICATIONS_ENABLED, false)
+        val notifiedKey = "${order.id}:${order.status}"
+        val lastNotifiedKey = profilePrefs.getString(KEY_LAST_NOTIFIED_ORDER_ID, "")
+        if (notificationsEnabled && lastNotifiedKey != notifiedKey) {
+            notifyActiveOrderIfAllowed(
+                context = context,
+                order = order,
+                isCaretaker = selectedRole == CoupleRole.Caretaker
+            )
+            profilePrefs.edit().putString(KEY_LAST_NOTIFIED_ORDER_ID, notifiedKey).apply()
+        }
     }
 
     LaunchedEffect(toastState?.id) {
@@ -184,7 +215,7 @@ fun CoupleMenuScreen(
                 onGoOrderingClick = onGoOrderingClick
             )
             LatestOrderNudge(
-                order = orders.firstOrNull { it.status in activeOrderStatuses },
+                order = activeOrder,
                 selectedRole = selectedRole,
                 onClick = onOrdersClick
             )

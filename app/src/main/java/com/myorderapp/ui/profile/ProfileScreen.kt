@@ -1,6 +1,11 @@
 package com.myorderapp.ui.profile
 
+import android.Manifest
 import android.content.Context
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -53,6 +58,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import com.myorderapp.domain.model.PairInfo
 import coil3.compose.AsyncImage
 import com.myorderapp.ui.components.OrderCard
@@ -83,6 +89,14 @@ fun ProfileScreen(
     }
     var notificationsEnabled by rememberSaveable {
         mutableStateOf(prefs.getBoolean(KEY_ORDER_NOTIFICATIONS_ENABLED, false))
+    }
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) {
+            notificationsEnabled = true
+            prefs.edit().putBoolean(KEY_ORDER_NOTIFICATIONS_ENABLED, true).apply()
+        }
     }
     var showProfileEditor by remember { mutableStateOf(false) }
     var showPairDialog by remember { mutableStateOf(false) }
@@ -137,8 +151,16 @@ fun ProfileScreen(
                 pairInfo = uiState.pairInfo,
                 notificationsEnabled = notificationsEnabled,
                 onToggleNotifications = {
-                    notificationsEnabled = !notificationsEnabled
-                    prefs.edit().putBoolean(KEY_ORDER_NOTIFICATIONS_ENABLED, notificationsEnabled).apply()
+                    val shouldEnable = !notificationsEnabled
+                    if (shouldEnable &&
+                        Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                        ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+                    ) {
+                        notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                    } else {
+                        notificationsEnabled = shouldEnable
+                        prefs.edit().putBoolean(KEY_ORDER_NOTIFICATIONS_ENABLED, shouldEnable).apply()
+                    }
                 },
                 onPairClick = { showPairDialog = true },
                 onDishManageClick = onDishManageClick,
