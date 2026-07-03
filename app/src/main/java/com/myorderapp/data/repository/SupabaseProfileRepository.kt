@@ -46,6 +46,7 @@ class SupabaseProfileRepository(
         val updated = current.copy(nickname = nickname.trim(), updatedAt = Instant.now().toString())
         _profile.value = updated
         saveLocalProfile(updated)
+        session.saveNickname(updated.nickname)
         if (session.isLoggedIn.value) {
             try { client.from("profiles").upsert(updated) { select() }; _synced.value = true } catch (_: Exception) { }
         }
@@ -56,6 +57,7 @@ class SupabaseProfileRepository(
         val updated = current.copy(avatarUrl = avatarUrl, updatedAt = Instant.now().toString())
         _profile.value = updated
         saveLocalProfile(updated)
+        session.saveAvatar(updated.avatarUrl ?: "")
         if (session.isLoggedIn.value) {
             try { client.from("profiles").upsert(updated) { select() }; _synced.value = true } catch (_: Exception) { }
         }

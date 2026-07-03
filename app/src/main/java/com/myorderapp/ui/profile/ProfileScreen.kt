@@ -102,6 +102,7 @@ fun ProfileScreen(
     }
     var showProfileEditor by remember { mutableStateOf(false) }
     var showPairDialog by remember { mutableStateOf(false) }
+    var showLogoutConfirm by remember { mutableStateOf(false) }
 
     if (showProfileEditor) {
         ProfileEditDialog(
@@ -130,6 +131,16 @@ fun ProfileScreen(
             onUnpair = viewModel::unpair,
             onDismissMessage = viewModel::dismissMessage,
             onDismiss = { showPairDialog = false }
+        )
+    }
+
+    if (showLogoutConfirm) {
+        LogoutConfirmDialog(
+            onDismiss = { showLogoutConfirm = false },
+            onConfirm = {
+                showLogoutConfirm = false
+                authViewModel.logout(onLoggedOut = onLoginClick)
+            }
         )
     }
 
@@ -173,11 +184,51 @@ fun ProfileScreen(
         item {
             LogoutButton(
                 onClick = {
-                    authViewModel.logout(onLoggedOut = onLoginClick)
+                    showLogoutConfirm = true
                 }
             )
         }
     }
+}
+
+@Composable
+private fun LogoutConfirmDialog(
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        shape = RoundedCornerShape(18.dp),
+        containerColor = Surface,
+        title = {
+            Text("确认退出登录？", color = OnBackground, fontWeight = FontWeight.Bold)
+        },
+        text = {
+            Text(
+                text = "退出后会回到登录页，本地菜单和订单记录仍会保留。",
+                color = OnSurfaceVariant,
+                fontSize = 14.sp,
+                lineHeight = 20.sp
+            )
+        },
+        confirmButton = {
+            Button(
+                onClick = onConfirm,
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFFE54848),
+                    contentColor = Color.White
+                )
+            ) {
+                Text("退出登录", fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("取消", color = OnSurfaceVariant)
+            }
+        }
+    )
 }
 
 @Composable

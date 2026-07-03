@@ -65,7 +65,9 @@ class MenuReplicaSourceTest {
             assertTrue("分类标签应长按后才能修改删除：$expected", (source + viewModel).contains(expected))
         }
 
-        assertTrue("分类区默认标题应展示分类", source.contains("CategoryRailTitle(\"分类\")") || source.contains("CategoryRailTitle(\"鍒嗙被\")"))
+        assertTrue("分类区应只保留可点击展开的分类入口", source.contains("onToggleCollapsed()"))
+        assertTrue("收起态分类标签默认展示两个字", source.contains("title.trim().take(2).ifBlank"))
+        assertTrue("静态分类标题应隐藏，避免和可点击分类入口重复", source.contains("Static title is intentionally hidden"))
         assertTrue("分类新增入口应只显示一个加号图标", source.contains("Icon(Icons.Outlined.Add"))
         assertTrue("分类新增入口应显示新建分类文字", source.contains("Text(\"新建分类\"") || source.contains("Text(\"鏂板缓鍒嗙被\""))
         assertFalse("分类新增入口不应同时显示文本加号", source.contains("\"+ 新建分类\"") || source.contains("\"+ 鏂板缓鍒嗙被\""))

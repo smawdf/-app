@@ -56,6 +56,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -67,6 +68,7 @@ import com.myorderapp.domain.model.Profile
 import com.myorderapp.domain.repository.OrderRepository
 import com.myorderapp.domain.repository.ProfileRepository
 import com.myorderapp.ui.notifications.notifyActiveOrderIfAllowed
+import coil3.compose.AsyncImage
 import java.text.SimpleDateFormat
 import java.time.Instant
 import java.time.LocalDate
@@ -201,6 +203,7 @@ fun CoupleMenuScreen(
             WorkbenchSummary(
                 days = daysEatingTogether(profile),
                 selectedRole = selectedRole,
+                profile = profile,
                 pairInfo = pairInfo,
                 onPartnerClick = onProfileClick
             )
@@ -333,6 +336,7 @@ private fun HomeHeader() {
 private fun WorkbenchSummary(
     days: Long,
     selectedRole: CoupleRole?,
+    profile: Profile?,
     pairInfo: PairInfo,
     onPartnerClick: () -> Unit
 ) {
@@ -356,6 +360,7 @@ private fun WorkbenchSummary(
         ) {
             RelationshipSlots(
                 selectedRole = selectedRole,
+                profile = profile,
                 pairInfo = pairInfo,
                 onPartnerClick = onPartnerClick
             )
@@ -389,6 +394,7 @@ private fun WorkbenchSummary(
 @Composable
 private fun RelationshipSlots(
     selectedRole: CoupleRole?,
+    profile: Profile?,
     pairInfo: PairInfo,
     onPartnerClick: () -> Unit
 ) {
@@ -397,7 +403,7 @@ private fun RelationshipSlots(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Center
     ) {
-        CurrentUserSlot(selectedRole = selectedRole)
+        CurrentUserSlot(selectedRole = selectedRole, profile = profile)
         HeartConnector()
         PartnerSlot(
             pairInfo = pairInfo,
@@ -409,7 +415,8 @@ private fun RelationshipSlots(
 
 @Composable
 private fun CurrentUserSlot(
-    selectedRole: CoupleRole?
+    selectedRole: CoupleRole?,
+    profile: Profile?
 ) {
     val accent = if (selectedRole == CoupleRole.Eater) Color(0xFFC87482) else Color(0xFFC98A57)
     val roleText = when (selectedRole) {
@@ -441,22 +448,31 @@ private fun CurrentUserSlot(
                 color = accent,
                 modifier = Modifier.size(62.dp)
             ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.Person,
+                if (!profile?.avatarUrl.isNullOrBlank()) {
+                    AsyncImage(
+                        model = profile?.avatarUrl,
                         contentDescription = "当前用户头像",
-                        tint = Color.White,
-                        modifier = Modifier.size(27.dp)
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
                     )
-                    Text(
-                        text = "我",
-                        color = Color.White,
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold
-                    )
+                } else {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Person,
+                            contentDescription = "当前用户头像",
+                            tint = Color.White,
+                            modifier = Modifier.size(27.dp)
+                        )
+                        Text(
+                            text = profile?.nickname?.takeIf { it.isNotBlank() }?.take(1) ?: "我",
+                            color = Color.White,
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
             }
         }
