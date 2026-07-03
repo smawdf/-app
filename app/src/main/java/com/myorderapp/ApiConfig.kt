@@ -2,6 +2,8 @@ package com.myorderapp
 
 object ApiConfig {
     val TIAN_API_KEY = BuildConfig.TIAN_API_KEY
+    val JUHE_API_KEY = BuildConfig.JUHE_API_KEY
+    val JISU_API_KEY = BuildConfig.JISU_API_KEY
 
     val SPOONACULAR_API_KEY = try {
         val field = BuildConfig::class.java.getDeclaredField("SPOONACULAR_API_KEY")

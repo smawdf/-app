@@ -27,19 +27,32 @@ class DiscoverSearchSourceTest {
         listOf(
             "TianRecipeRemoteDataSource",
             "TianResult",
+            "JuheRecipeRemoteDataSource",
+            "JuheResult",
+            "JisuRecipeRemoteDataSource",
+            "JisuResult",
             "DishRepository",
             "MenuRepository",
             "ExternalDishImageSource",
             "DiscoverDishSearchItem",
-            "onQueryChanged"
+            "onQueryChanged",
+            "toRecipeSourceResult",
+            "聚合菜谱",
+            "极速菜谱"
         ).forEach { expected ->
             assertTrue("发现搜索缺少数据链路：$expected", viewModel.contains(expected))
         }
 
+        val networkModule = readMainSource("di/NetworkModule.kt")
+        val apiConfig = readMainSource("ApiConfig.kt")
         assertTrue("DiscoverViewModel 未注册到 Koin", appModule.contains("viewModel { DiscoverViewModel("))
         assertTrue("Koin 缺少天行菜谱注入", appModule.contains("tianRecipeRemoteDataSource = get()"))
-        assertFalse("发现页不应再依赖 Jisu 旧接口", viewModel.contains("JisuRecipeRemoteDataSource"))
-        assertFalse("发现页不应再依赖 Juhe 旧接口", viewModel.contains("JuheRecipeRemoteDataSource"))
+        assertTrue("Koin 缺少聚合菜谱注入", appModule.contains("juheRecipeRemoteDataSource = get()"))
+        assertTrue("Koin 缺少极速菜谱注入", appModule.contains("jisuRecipeRemoteDataSource = get()"))
+        assertTrue("网络模块缺少聚合 Retrofit", networkModule.contains("JUHE_BASE_URL"))
+        assertTrue("网络模块缺少极速 Retrofit", networkModule.contains("JISU_BASE_URL"))
+        assertTrue("配置缺少聚合 API Key", apiConfig.contains("JUHE_API_KEY"))
+        assertTrue("配置缺少极速 API Key", apiConfig.contains("JISU_API_KEY"))
     }
 
     @Test
