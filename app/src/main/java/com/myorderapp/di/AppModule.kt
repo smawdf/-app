@@ -2,26 +2,22 @@ package com.myorderapp.di
 
 import com.myorderapp.data.local.AppDatabase
 import com.myorderapp.data.local.RecipeAssetLoader
-import com.myorderapp.data.remote.supabase.RealtimeService
 import com.myorderapp.data.remote.supabase.SessionManager
 import com.myorderapp.data.remote.supabase.SupabaseStorageUploader
 import com.myorderapp.data.repository.HybridDishRepository
 import com.myorderapp.data.repository.RoomDishRepository
-import com.myorderapp.data.repository.InMemoryMealRepository
 import com.myorderapp.data.repository.InMemoryProfileRepository
 import com.myorderapp.data.repository.RoomAddressRepository
 import com.myorderapp.data.repository.RoomCartRepository
 import com.myorderapp.data.repository.RoomMenuRepository
 import com.myorderapp.data.repository.SingleShopRepository
 import com.myorderapp.data.repository.SupabaseDishRepository
-import com.myorderapp.data.repository.SupabaseMealRepository
 import com.myorderapp.data.repository.SupabaseOrderRepository
 import com.myorderapp.data.repository.SupabaseProfileRepository
 import com.myorderapp.domain.repository.AddressRepository
 import com.myorderapp.domain.repository.CartRepository
 import com.myorderapp.domain.repository.DishRepository
 import com.myorderapp.domain.repository.MenuRepository
-import com.myorderapp.domain.repository.MealRepository
 import com.myorderapp.domain.repository.OrderRepository
 import com.myorderapp.domain.repository.ProfileRepository
 import com.myorderapp.domain.repository.ShopRepository
@@ -44,12 +40,10 @@ import org.koin.dsl.module
 val appModule = module {
     // Data sources
     single { SupabaseStorageUploader(get()) }
-    single { RealtimeService() }
 
     // Database
     single { AppDatabase.getInstance(androidContext()) }
     single { get<AppDatabase>().dishDao() }
-    single { get<AppDatabase>().wishlistDao() }
     single { get<AppDatabase>().menuDishDao() }
     single { get<AppDatabase>().cartDao() }
     single { get<AppDatabase>().addressDao() }
@@ -68,10 +62,6 @@ val appModule = module {
     single { InMemoryProfileRepository() }
     single { SupabaseProfileRepository(get(), androidContext()) }
     single<ProfileRepository> { get<SupabaseProfileRepository>() }
-    // Meal
-    single { InMemoryMealRepository() }
-    single { SupabaseMealRepository(get(), get()) }
-    single<MealRepository> { get<SupabaseMealRepository>() }
     single<ShopRepository> { get<SingleShopRepository>() }
     single<MenuRepository> { get<SingleShopRepository>() }
     single<CartRepository> { RoomCartRepository(get()) }
