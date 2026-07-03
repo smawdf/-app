@@ -86,7 +86,7 @@ MainActivity
 - `RoomCartRepository`：本地购物车持久化。
 - `RoomAddressRepository`：本地地址持久化。
 - `SupabaseOrderRepository`：订单保存与 Supabase 同步。
-- `HybridDishRepository`：旧版菜品库的本地 + 云端混合仓储。
+- `HybridDishRepository`：发现页搜菜的数据聚合仓储，服务“搜索菜品并加入我的店铺”，不再作为旧随机选菜主流程。
 - `DiscoverViewModel`：聚合本地菜品、菜单菜品、Tian 菜谱搜索和 Spoonacular/TheMealDB 图源。
 
 ## 不能再误用的旧假设
@@ -100,7 +100,7 @@ MainActivity
 
 ## 已知技术债
 
-- 部分源码可见文案存在乱码，需要后续统一修复为 UTF-8 中文。
+- 当前主流程可见中文已完成一轮清理；后续新增文案继续保持 UTF-8 中文。
 - `SHOP_SETTINGS` 当前实际打开 `MenuManagementScreen`，命名和落地页面不完全一致。
-- 旧版菜品库、心愿单、随机推荐、餐次等兼容模块仍在，后续需要决定保留、收口或重新整合。
+- 旧版餐次实时、心愿单仓储和旧餐次仓储已从运行时移除；Room 中的旧表和实体暂保留用于数据库兼容。
 - 历史文档中存在多商家/美团式描述，已经标为历史参考，不应作为新设计依据。

@@ -1,87 +1,27 @@
-# Supabase Realtime Setup
+# Realtime Setup 状态说明
 
-## Overview
+> 当前状态：历史文档，旧餐次实时同步已经从运行时移除。
 
-The OrderDisk app uses **Supabase Realtime** to provide live updates when meal items change for a paired user group. This replaces polling-based sync with instant push notifications over WebSocket.
+旧版项目曾计划通过 `RealtimeService` 订阅 `meal_items` 表，为配对用户实时同步餐次菜品变化。当前产品主线已经调整为：
 
-## How It Works
-
-1. **RealtimeService** (`com.myorderapp.data.remote.supabase.RealtimeService`) subscribes to Postgres changes on the `meal_items` table filtered by the current pair's ID.
-2. When either user in a pair adds or removes a meal item, Supabase pushes the change to all connected clients in real time.
-3. The service exposes a `SharedFlow<MealItemChange>` that ViewModels can collect to react to inserts and deletes instantly.
-
-## Architecture
-
-```
-Supabase Realtime (WebSocket)
-        │
-        ▼
-  RealtimeService
-        │
-        ▼  SharedFlow<MealItemChange>
-  ViewModel (collect changes)
-        │
-        ▼
-  UI recomposition
+```text
+情侣首页 -> 我的店铺点菜 -> 购物车 -> 结算 -> 订单 / 订单详情
 ```
 
-## Key Classes
+因此，旧的 `RealtimeService`、`MealRepository`、`SupabaseMealRepository`、`InMemoryMealRepository` 和心愿单仓储已经从运行时依赖中删除。当前订单协作依赖：
 
-| Class | Path | Purpose |
-|-------|------|---------|
-| `RealtimeService` | `data/remote/supabase/RealtimeService.kt` | Manages WebSocket subscription to `meal_items` table |
-| `SupabaseClientProvider` | `data/remote/supabase/SupabaseClientProvider.kt` | Provides the shared Supabase client with Realtime installed |
+- 首页未完成订单提醒。
+- 订单列表与订单详情。
+- 饲养员角色推进订单状态。
+- 已完成订单沉淀到美食日记。
 
-## Usage
+## 后续如果重新做实时能力
 
-### Dependency Injection
+不要恢复旧 `meal_items` 餐次实时方案。应围绕当前主线重新设计：
 
-`RealtimeService` is registered as a Koin singleton in `AppModule.kt`:
+- 订单状态实时更新：监听 `orders` 表。
+- 订单项实时更新：监听 `order_items` 表。
+- 伴侣在线状态：独立 presence 或 profile/session 状态，不复用旧餐次同步。
+- 通知：优先 App 内提醒，再扩展系统通知或推送。
 
-```kotlin
-single { RealtimeService() }
-```
-
-### Subscribing in a ViewModel
-
-```kotlin
-class MyViewModel(private val realtimeService: RealtimeService) : ViewModel() {
-
-    fun startListening(pairId: String) {
-        viewModelScope.launch {
-            realtimeService.subscribeToPairMeals(pairId)
-        }
-        viewModelScope.launch {
-            realtimeService.mealItemChanges.collect { change ->
-                when (change) {
-                    is MealItemChange.Inserted -> { /* refresh meal list */ }
-                    is MealItemChange.Deleted  -> { /* refresh meal list */ }
-                }
-            }
-        }
-    }
-
-    override fun onCleared() {
-        realtimeService.unsubscribe()
-    }
-}
-```
-
-## Filter Syntax
-
-The Realtime subscription uses a Postgres filter with a subquery:
-
-```
-meal_id=in.(select id from meals where pair_id=eq.<pairId>)
-```
-
-This ensures only meal items belonging to the current pair's meals are received.
-
-## Dependencies
-
-- `io.github.jan-tennert.supabase:realtime-kt:2.1.0` (defined in `gradle/libs.versions.toml`)
-- `Realtime` plugin installed in `SupabaseClientProvider`
-
-## Replacing Polling
-
-The app previously used 3-second polling to sync meal data between paired users. With Realtime, updates arrive instantly over WebSocket, reducing server load and improving user experience.
+恢复实时能力前，需要先更新 PRD、数据库事件模型、Koin 注入和 ViewModel 数据流。
