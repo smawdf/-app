@@ -68,7 +68,11 @@ class SupabaseProfileRepository(
 
     override suspend fun generatePairCode(): String {
         val chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
-        return (1..6).map { chars.random() }.joinToString("")
+        val code = (1..6).map { chars.random() }.joinToString("")
+        val current = _profile.value ?: loadLocalProfile()
+        saveProfile(current.copy(pairId = code, pairedAt = current.pairedAt.ifBlank { Instant.now().toString() }))
+        session.setPairId(code)
+        return code
     }
 
     override suspend fun joinPair(code: String): Boolean {

@@ -53,6 +53,7 @@ class ProfileReplicaSourceTest {
             "putBoolean(KEY_ORDER_NOTIFICATIONS_ENABLED",
             "PairManagementDialog",
             "生成邀请码",
+            "重新生成邀请码",
             "输入 6 位绑定码",
             "解除绑定",
             "viewModel::generatePairCode",
@@ -64,6 +65,15 @@ class ProfileReplicaSourceTest {
         ).forEach { expected ->
             assertTrue("缺少我的页入口或状态：$expected", source.contains(expected))
         }
+
+        val viewModel = readMainSource("ui/profile/ProfileViewModel.kt")
+        val supabaseRepository = readMainSource("data/repository/SupabaseProfileRepository.kt")
+        val inMemoryRepository = readMainSource("data/repository/InMemoryProfileRepository.kt")
+        assertTrue("生成邀请码后应刷新伴侣状态", viewModel.contains("profileRepository.getPairInfo()"))
+        assertTrue("生成邀请码后应保留可复制的绑定码", viewModel.contains("pairCode = code"))
+        assertTrue("生成邀请码后应提示用户发给对方", viewModel.contains("邀请码已生成，可以发给对方"))
+        assertTrue("云端仓储生成邀请码时应保存 pairId", supabaseRepository.contains("copy(pairId = code"))
+        assertTrue("本地仓储生成邀请码时应保存 pairId", inMemoryRepository.contains("copy(pairId = code"))
     }
 
     private fun readMainSource(relativePath: String): String {
