@@ -100,11 +100,36 @@ class ProfileReplicaSourceTest {
         val viewModel = readMainSource("ui/profile/ProfileViewModel.kt")
         val supabaseRepository = readMainSource("data/repository/SupabaseProfileRepository.kt")
         val inMemoryRepository = readMainSource("data/repository/InMemoryProfileRepository.kt")
+        val supabaseGeneratePairCode = functionBody(supabaseRepository, "generatePairCode")
+        val inMemoryGeneratePairCode = functionBody(inMemoryRepository, "generatePairCode")
         assertTrue("生成邀请码后应刷新伴侣状态", viewModel.contains("profileRepository.getPairInfo()"))
         assertTrue("生成邀请码后应保留可复制的绑定码", viewModel.contains("pairCode = code"))
         assertTrue("生成邀请码后应提示用户发给对方", viewModel.contains("邀请码已生成，可以发给对方"))
-        assertTrue("云端仓储生成邀请码时应保存 pairId", supabaseRepository.contains("copy(pairId = code"))
-        assertTrue("本地仓储生成邀请码时应保存 pairId", inMemoryRepository.contains("copy(pairId = code"))
+        assertTrue("云端仓储生成邀请码应只保存待分享绑定码", supabaseRepository.contains("KEY_PENDING_PAIR_CODE"))
+        assertTrue("本地仓储生成邀请码应只保存待分享绑定码", inMemoryRepository.contains("pendingPairCode = code"))
+        assertFalse("云端仓储生成邀请码不能直接写入 pairId", supabaseGeneratePairCode.contains("copy(pairId"))
+        assertFalse("本地仓储生成邀请码不能直接写入 pairId", inMemoryGeneratePairCode.contains("copy(pairId"))
+        assertFalse("云端仓储生成邀请码不能更新 Session pairId", supabaseGeneratePairCode.contains("setPairId"))
+        assertTrue("云端仓储点击绑定后才写入真实 pairId", supabaseRepository.contains("copy(pairId = normalizedCode"))
+        assertTrue("本地仓储点击绑定后才写入真实 pairId", inMemoryRepository.contains("copy(pairId = code.uppercase()"))
+    }
+
+    private fun functionBody(source: String, functionName: String): String {
+        val start = source.indexOf("fun $functionName")
+        require(start >= 0) { "Function not found: $functionName" }
+        val bodyStart = source.indexOf('{', start)
+        require(bodyStart >= 0) { "Function body not found: $functionName" }
+        var depth = 0
+        for (index in bodyStart until source.length) {
+            when (source[index]) {
+                '{' -> depth++
+                '}' -> {
+                    depth--
+                    if (depth == 0) return source.substring(bodyStart + 1, index)
+                }
+            }
+        }
+        error("Function body not closed: $functionName")
     }
 
     private fun readMainSource(relativePath: String): String {

@@ -21,6 +21,7 @@ class InMemoryProfileRepository : ProfileRepository {
         )
     )
     private val _synced = MutableStateFlow(false)
+    private var pendingPairCode: String = ""
 
     override fun getProfile(): Flow<Profile?> = _profile
 
@@ -45,21 +46,22 @@ class InMemoryProfileRepository : ProfileRepository {
     override suspend fun generatePairCode(): String {
         val chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
         val code = (1..6).map { chars.random() }.joinToString("")
-        val current = _profile.value ?: Profile()
-        _profile.value = current.copy(pairId = code, pairedAt = current.pairedAt.ifBlank { Instant.now().toString() })
+        pendingPairCode = code
         return code
     }
 
     override suspend fun joinPair(code: String): Boolean {
         if (code.length != 6) return false
         val current = _profile.value ?: return false
-        _profile.value = current.copy(pairId = code, pairedAt = current.pairedAt.ifBlank { Instant.now().toString() })
+        _profile.value = current.copy(pairId = code.uppercase(), pairedAt = current.pairedAt.ifBlank { Instant.now().toString() })
+        pendingPairCode = ""
         return true
     }
 
     override suspend fun unpair() {
         val current = _profile.value ?: return
         _profile.value = current.copy(pairId = "", pairedAt = "")
+        pendingPairCode = ""
     }
 
     override suspend fun getPairInfo(): PairInfo {
