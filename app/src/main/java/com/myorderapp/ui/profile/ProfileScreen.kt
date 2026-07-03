@@ -173,8 +173,7 @@ fun ProfileScreen(
         item {
             LogoutButton(
                 onClick = {
-                    authViewModel.logout()
-                    onLoginClick()
+                    authViewModel.logout(onLoggedOut = onLoginClick)
                 }
             )
         }

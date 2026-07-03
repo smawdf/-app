@@ -179,7 +179,12 @@ fun NavGraph(
             popExitTransition = { fadeOut(tween(ANIM_DURATION)) }
         ) {
             ProfileScreen(
-                onLoginClick = { navController.navigate(Routes.AUTH) },
+                onLoginClick = {
+                    navController.navigate(Routes.AUTH) {
+                        popUpTo(0) { inclusive = true }
+                        launchSingleTop = true
+                    }
+                },
                 onDishManageClick = { navController.navigate(Routes.SHOP_SETTINGS) }
             )
         }

@@ -151,11 +151,12 @@ class AuthViewModel(
         }
     }
 
-    fun logout() {
+    fun logout(onLoggedOut: () -> Unit = {}) {
         viewModelScope.launch {
             try { client.auth.signOut() } catch (_: Exception) { }
             session.clear()
             _uiState.value = AuthUiState()
+            onLoggedOut()
         }
     }
 }
