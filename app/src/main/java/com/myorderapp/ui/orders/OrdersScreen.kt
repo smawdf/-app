@@ -22,6 +22,7 @@ import androidx.compose.material.icons.automirrored.filled.EventNote
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.ReceiptLong
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
@@ -68,9 +69,20 @@ fun OrdersScreen(
     var displayedMonth by remember { mutableStateOf(YearMonth.now()) }
     var selectedDate by remember { mutableStateOf(LocalDate.now()) }
 
-    val visibleOrders = remember(uiState.orders, selectedDate) {
-        uiState.orders.filter { order -> order.createdAt.toLocalDateOrNull() == selectedDate }
+    val kitchenOrders = remember(uiState.orders, selectedDate) {
+        uiState.orders.filter { order ->
+            order.status != "completed" && order.createdAt.toLocalDateOrNull() == selectedDate
+        }
     }
+    val diaryOrders = remember(uiState.orders, selectedDate) {
+        uiState.orders.filter { order ->
+            order.status == "completed" && order.createdAt.toLocalDateOrNull() == selectedDate
+        }
+    }
+    val visibleOrders = if (diarySelected) diaryOrders else kitchenOrders
+
+    val kitchenOrderCount = kitchenOrders.size
+    val diaryOrderCount = diaryOrders.size
 
     LazyColumn(
         modifier = Modifier
@@ -83,7 +95,8 @@ fun OrdersScreen(
 
         item {
             OrdersSummaryTabs(
-                orderCount = visibleOrders.size,
+                orderCount = kitchenOrderCount,
+                diaryCount = diaryOrderCount,
                 diarySelected = diarySelected,
                 selectedDate = selectedDate,
                 onKitchenClick = { diarySelected = false },
@@ -113,7 +126,7 @@ fun OrdersScreen(
             }
         }
 
-        if (diarySelected) {
+        if (diarySelected && visibleOrders.isEmpty()) {
             item {
                 EmptyOrdersState(
                     text = "暂无日记哦~",
@@ -129,7 +142,11 @@ fun OrdersScreen(
             }
         } else {
             items(visibleOrders, key = { it.id }) { order ->
-                OrderRecordCard(order = order, onClick = { onOrderClick(order.id) })
+                if (diarySelected) {
+                    FoodDiaryRecordCard(order = order, onClick = { onOrderClick(order.id) })
+                } else {
+                    OrderRecordCard(order = order, onClick = { onOrderClick(order.id) })
+                }
             }
         }
     }
@@ -152,6 +169,7 @@ private fun OrdersHeader(title: String) {
 @Composable
 private fun OrdersSummaryTabs(
     orderCount: Int,
+    diaryCount: Int,
     diarySelected: Boolean,
     selectedDate: LocalDate,
     onKitchenClick: () -> Unit,
@@ -165,7 +183,7 @@ private fun OrdersSummaryTabs(
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = if (diarySelected) "一共记录了0个日记" else "一共记录了${orderCount}个订单",
+                    text = if (diarySelected) "一共记录了${diaryCount}个日记" else "一共记录了${orderCount}个订单",
                     color = Ink,
                     fontSize = 18.sp,
                     lineHeight = 23.sp,
@@ -380,6 +398,34 @@ private fun OrderRecordCard(order: OrderRecord, onClick: () -> Unit) {
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(order.shopName, color = Ink, fontSize = 17.sp, fontWeight = FontWeight.Bold)
                 Text(order.status.toOrderStatusText(), color = PrimaryBlue, fontSize = 14.sp)
+                Text(order.createdAt, color = Muted, fontSize = 12.sp)
+            }
+            Text(yuanText(order.totalPrice), color = Ink, fontWeight = FontWeight.Bold)
+        }
+    }
+}
+
+@Composable
+private fun FoodDiaryRecordCard(order: OrderRecord, onClick: () -> Unit) {
+    val dishSummary = order.items
+        .take(3)
+        .joinToString("、") { "${it.menuItemName} ×${it.quantity}" }
+        .ifBlank { order.buyerNote.ifBlank { "这顿饭已经完成啦" } }
+
+    OrderCard(modifier = Modifier.fillMaxWidth(), onClick = onClick) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            Surface(shape = CircleShape, color = Color(0xFFFFEEF2), modifier = Modifier.size(52.dp)) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(Icons.Filled.Favorite, contentDescription = null, tint = Color(0xFFE46C83))
+                }
+            }
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text("这顿饭已记录", color = Ink, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                Text(dishSummary, color = Muted, fontSize = 13.sp)
                 Text(order.createdAt, color = Muted, fontSize = 12.sp)
             }
             Text(yuanText(order.totalPrice), color = Ink, fontWeight = FontWeight.Bold)
