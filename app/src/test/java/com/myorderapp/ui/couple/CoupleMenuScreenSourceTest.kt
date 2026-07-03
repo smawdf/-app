@@ -29,6 +29,9 @@ class CoupleMenuScreenSourceTest {
             "上传菜单",
             "去点菜",
             "邀请对方",
+            "等待绑定",
+            "在线",
+            "已绑定",
             "纪念日小日历",
             "有新的点菜单等你接单",
             "订单已提交，等饲养员接单",
@@ -57,6 +60,7 @@ class CoupleMenuScreenSourceTest {
         assertTrue(source.contains("PairInfo"))
         assertTrue(source.contains("PartnerSlot"))
         assertTrue(source.contains("pairInfo.isPaired"))
+        assertTrue(source.contains("pairInfo.isOnline"))
         assertTrue(source.contains("pairInfo.partnerName.ifBlank"))
         assertTrue(source.contains("伴侣头像"))
         assertTrue(source.contains("daysEatingTogether(profile)"))
