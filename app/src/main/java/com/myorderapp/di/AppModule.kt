@@ -77,7 +77,9 @@ val appModule = module {
             menuRepository = get(),
             roomMenuRepository = get(),
             externalDishImageSource = get(),
-            tianRecipeRemoteDataSource = get()
+            tianRecipeRemoteDataSource = get(),
+            juheRecipeRemoteDataSource = get(),
+            jisuRecipeRemoteDataSource = get()
         )
     }
     viewModelOf(::ProfileViewModel)

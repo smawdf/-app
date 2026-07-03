@@ -2,6 +2,10 @@ package com.myorderapp.ui.discover
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.myorderapp.data.remote.recipe.JisuRecipeRemoteDataSource
+import com.myorderapp.data.remote.recipe.JisuResult
+import com.myorderapp.data.remote.recipe.JuheRecipeRemoteDataSource
+import com.myorderapp.data.remote.recipe.JuheResult
 import com.myorderapp.data.remote.recipe.TianRecipeRemoteDataSource
 import com.myorderapp.data.remote.recipe.TianResult
 import com.myorderapp.data.repository.MenuDishDraft
@@ -58,6 +62,8 @@ class DiscoverViewModel(
     private val roomMenuRepository: RoomMenuRepository,
     private val externalDishImageSource: ExternalDishImageSource,
     private val tianRecipeRemoteDataSource: TianRecipeRemoteDataSource,
+    private val juheRecipeRemoteDataSource: JuheRecipeRemoteDataSource,
+    private val jisuRecipeRemoteDataSource: JisuRecipeRemoteDataSource,
     private val searchDebounceMs: Long = 300L,
     searchScope: CoroutineScope? = null
 ) : ViewModel() {
@@ -258,6 +264,30 @@ class DiscoverViewModel(
                     emptyList()
                 }
             }
+            val juheDishes = when (val result = juheRecipeRemoteDataSource.searchRecipes(query, num = 8)) {
+                is JuheResult.Success -> result.dishes
+                is JuheResult.NoKey -> emptyList()
+                is JuheResult.ApiError -> {
+                    partialNetworkUnavailable = true
+                    emptyList()
+                }
+                is JuheResult.NetworkError -> {
+                    partialNetworkUnavailable = true
+                    emptyList()
+                }
+            }
+            val jisuDishes = when (val result = jisuRecipeRemoteDataSource.searchRecipes(query, num = 8)) {
+                is JisuResult.Success -> result.dishes
+                is JisuResult.NoKey -> emptyList()
+                is JisuResult.ApiError -> {
+                    partialNetworkUnavailable = true
+                    emptyList()
+                }
+                is JisuResult.NetworkError -> {
+                    partialNetworkUnavailable = true
+                    emptyList()
+                }
+            }
 
             if (_uiState.value.query.trim() != query) return
 
@@ -267,7 +297,9 @@ class DiscoverViewModel(
             val results = buildList {
                 addAll(localDishes.map(::toLocalResult))
                 addAll(menuItems.map(::toMenuResult))
-                addAll(tianDishes.mapIndexed(::toTianResult))
+                addAll(tianDishes.mapIndexed { index, dish -> toRecipeSourceResult(index, dish, "tian", "天行菜谱") })
+                addAll(juheDishes.mapIndexed { index, dish -> toRecipeSourceResult(index, dish, "juhe", "聚合菜谱") })
+                addAll(jisuDishes.mapIndexed { index, dish -> toRecipeSourceResult(index, dish, "jisu", "极速菜谱") })
                 addAll((externalImages.primary.ifEmpty { externalImages.fallback }).map(::toExternalResult))
             }
                 .distinctBy { "${it.sourceLabel}:${it.name}" }
@@ -328,18 +360,23 @@ class DiscoverViewModel(
         )
     }
 
-    private fun toTianResult(index: Int, dish: Dish): DiscoverDishSearchItem {
+    private fun toRecipeSourceResult(
+        index: Int,
+        dish: Dish,
+        sourceLabel: String,
+        fallbackSubtitle: String
+    ): DiscoverDishSearchItem {
         val subtitle = listOfNotNull(
             dish.category.takeIf { it.isNotBlank() },
             dish.ingredients.take(3).joinToString("、").takeIf { it.isNotBlank() }
         ).joinToString(" · ")
 
         return DiscoverDishSearchItem(
-            id = "tian:${dish.externalId ?: dish.id.ifBlank { "${dish.name}:$index" }}",
+            id = "$sourceLabel:${dish.externalId ?: dish.id.ifBlank { "${dish.name}:$index" }}",
             name = dish.name,
-            subtitle = subtitle.ifBlank { "来自菜谱搜索" },
+            subtitle = subtitle.ifBlank { fallbackSubtitle },
             imageUrl = dish.imageUrl,
-            sourceLabel = "tian"
+            sourceLabel = sourceLabel
         )
     }
 

@@ -1,6 +1,12 @@
 package com.myorderapp.di
 
 import com.myorderapp.ApiConfig
+import com.myorderapp.data.remote.recipe.JisuRecipeApi
+import com.myorderapp.data.remote.recipe.JisuRecipeRemoteDataSource
+import com.myorderapp.data.remote.recipe.JuheRecipeApi
+import com.myorderapp.data.remote.recipe.JuheRecipeRemoteDataSource
+import com.myorderapp.data.remote.recipe.RetrofitJisuRecipeRemoteDataSource
+import com.myorderapp.data.remote.recipe.RetrofitJuheRecipeRemoteDataSource
 import com.myorderapp.data.remote.recipe.SpoonacularApi
 import com.myorderapp.data.remote.recipe.SpoonacularExternalDishImageSource
 import com.myorderapp.data.remote.recipe.TheMealDbApi
@@ -23,6 +29,8 @@ import retrofit2.converter.moshi.MoshiConverterFactory
 import java.util.concurrent.TimeUnit
 
 private const val TIAN_BASE_URL = "https://apis.tianapi.com/"
+private const val JUHE_BASE_URL = "https://apis.juhe.cn/"
+private const val JISU_BASE_URL = "https://api.jisuapi.com/"
 private const val SPOONACULAR_BASE_URL = "https://api.spoonacular.com/"
 private const val THE_MEAL_DB_BASE_URL = "https://www.themealdb.com/api/json/v1/1/"
 
@@ -53,6 +61,20 @@ val networkModule = module {
             .addConverterFactory(MoshiConverterFactory.create(get()))
             .build()
     }
+    single(named("juhe")) {
+        Retrofit.Builder()
+            .baseUrl(JUHE_BASE_URL)
+            .client(get())
+            .addConverterFactory(MoshiConverterFactory.create(get()))
+            .build()
+    }
+    single(named("jisuapi")) {
+        Retrofit.Builder()
+            .baseUrl(JISU_BASE_URL)
+            .client(get())
+            .addConverterFactory(MoshiConverterFactory.create(get()))
+            .build()
+    }
     single(named("spoonacular")) {
         Retrofit.Builder()
             .baseUrl(SPOONACULAR_BASE_URL)
@@ -68,12 +90,26 @@ val networkModule = module {
             .build()
     }
     single { get<Retrofit>(named("tianapi")).create(TianRecipeApi::class.java) }
+    single { get<Retrofit>(named("juhe")).create(JuheRecipeApi::class.java) }
+    single { get<Retrofit>(named("jisuapi")).create(JisuRecipeApi::class.java) }
     single { get<Retrofit>(named("spoonacular")).create(SpoonacularApi::class.java) }
     single { get<Retrofit>(named("themealdb")).create(TheMealDbApi::class.java) }
     single<TianRecipeRemoteDataSource> {
         RetrofitTianRecipeRemoteDataSource(
             api = get(),
             apiKey = ApiConfig.TIAN_API_KEY
+        )
+    }
+    single<JuheRecipeRemoteDataSource> {
+        RetrofitJuheRecipeRemoteDataSource(
+            api = get(),
+            apiKey = ApiConfig.JUHE_API_KEY
+        )
+    }
+    single<JisuRecipeRemoteDataSource> {
+        RetrofitJisuRecipeRemoteDataSource(
+            api = get(),
+            apiKey = ApiConfig.JISU_API_KEY
         )
     }
     single { SpoonacularExternalDishImageSource(get(), ApiConfig.SPOONACULAR_API_KEY) }
