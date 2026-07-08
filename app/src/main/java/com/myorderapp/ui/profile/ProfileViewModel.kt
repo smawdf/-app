@@ -6,7 +6,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.myorderapp.data.remote.supabase.SessionManager
 import com.myorderapp.domain.model.PairInfo
+import com.myorderapp.domain.model.PairInvitePreview
 import com.myorderapp.domain.model.Profile
+import com.myorderapp.domain.model.ROLE_CARETAKER
+import com.myorderapp.domain.model.ROLE_EATER
 import com.myorderapp.domain.repository.ProfileRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -23,6 +26,7 @@ data class ProfileUiState(
     val isSynced: Boolean = false,
     val pairCode: String = "",
     val joinPairCode: String = "",
+    val invitePreview: PairInvitePreview? = null,
     val isLoading: Boolean = true,
     val saveMessage: String? = null
 )
@@ -71,14 +75,27 @@ class ProfileViewModel(
         }
     }
 
-    fun generatePairCode() {
+    fun saveSelectedRole(role: String?) {
+        if (role != ROLE_CARETAKER && role != ROLE_EATER) return
         viewModelScope.launch {
-            val code = profileRepository.generatePairCode()
+            profileRepository.saveSelectedRole(role)
+        }
+    }
+
+    fun generatePairCode(inviterRole: String?) {
+        if (inviterRole != ROLE_CARETAKER && inviterRole != ROLE_EATER) {
+            _uiState.value = _uiState.value.copy(saveMessage = "请先在首页选择饲养员或吃货")
+            return
+        }
+        viewModelScope.launch {
+            profileRepository.saveSelectedRole(inviterRole)
+            val code = profileRepository.generatePairCode(inviterRole)
             val info = profileRepository.getPairInfo()
             _uiState.value = _uiState.value.copy(
                 pairInfo = info,
                 pairCode = code,
                 joinPairCode = "",
+                invitePreview = null,
                 saveMessage = "邀请码已生成，可以发给对方"
             )
         }
@@ -86,23 +103,53 @@ class ProfileViewModel(
 
     fun onJoinPairCodeChanged(code: String) {
         if (code.length <= 6) {
-            _uiState.value = _uiState.value.copy(joinPairCode = code.uppercase())
+            _uiState.value = _uiState.value.copy(
+                joinPairCode = code.uppercase(),
+                invitePreview = null,
+                saveMessage = null
+            )
         }
     }
 
-    fun joinPair(code: String) {
+    fun previewPairInvite(code: String) {
+        if (code.length != 6) {
+            _uiState.value = _uiState.value.copy(saveMessage = "配对码应为6位", invitePreview = null)
+            return
+        }
+        viewModelScope.launch {
+            val preview = profileRepository.previewPairInvite(code)
+            _uiState.value = if (preview != null) {
+                _uiState.value.copy(invitePreview = preview, saveMessage = null)
+            } else {
+                _uiState.value.copy(
+                    invitePreview = null,
+                    saveMessage = "未找到有效邀请，请确认对方已选择身份并生成邀请码"
+                )
+            }
+        }
+    }
+
+    fun joinPair(code: String, inviteeRole: String? = null, onSuccess: (String) -> Unit = {}) {
         if (code.length != 6) {
             _uiState.value = _uiState.value.copy(saveMessage = "配对码应为6位")
+            return
+        }
+        val roleToSave = inviteeRole ?: _uiState.value.invitePreview?.inviteeRole
+        if (roleToSave != ROLE_CARETAKER && roleToSave != ROLE_EATER) {
+            _uiState.value = _uiState.value.copy(saveMessage = "请先确认邀请信息")
             return
         }
         viewModelScope.launch {
             val success = profileRepository.joinPair(code)
             if (success) {
+                profileRepository.saveSelectedRole(roleToSave)
+                onSuccess(roleToSave)
                 val info = profileRepository.getPairInfo()
                 _uiState.value = _uiState.value.copy(
                     pairInfo = info,
                     joinPairCode = "",
                     pairCode = "",
+                    invitePreview = null,
                     saveMessage = "配对成功！"
                 )
             } else {
@@ -118,6 +165,7 @@ class ProfileViewModel(
             _uiState.value = _uiState.value.copy(
                 pairInfo = info,
                 pairCode = "",
+                invitePreview = null,
                 saveMessage = "已解除配对"
             )
         }

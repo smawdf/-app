@@ -37,11 +37,13 @@ class MerchantFlowNavigationTest {
 
         assertTrue(source.contains("FloatingLiquidBottomBar"))
         assertTrue(source.contains("BottomNavItem.items"))
-        assertTrue(source.contains("currentRoute in tabRoutes"))
+        assertTrue(source.contains("val shellRoute = currentRoute ?: startDestination.takeIf { it in tabRoutes }"))
+        assertTrue(source.contains("val showMainShell = shellRoute in tabRoutes"))
+        assertTrue(source.contains("shellRoute.mainTabTopBarTitle()"))
         assertTrue(source.contains("navController.navigateAsTab(route)"))
         assertTrue(source.contains("RoundedCornerShape(36.dp)"))
         assertTrue(source.contains("Column("))
-        assertTrue(source.contains("Color(0xFFFFD1DC).copy(alpha = 0.82f)"))
+        assertTrue(source.contains("Color(0xFFFFD1DC).copy(alpha = 0.58f)"))
         assertTrue(source.contains("item.unselectedIcon"))
 
         assertFalse(source.contains("blur("))

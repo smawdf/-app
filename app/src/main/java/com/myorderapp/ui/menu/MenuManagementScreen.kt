@@ -121,6 +121,7 @@ fun MenuManagementScreen(
     var showCategoryManagerDialog by remember { mutableStateOf(false) }
     var showAnnouncementDialog by remember { mutableStateOf(false) }
     var categoryDeleteTarget by remember { mutableStateOf<String?>(null) }
+    var dishDeleteTarget by remember { mutableStateOf<MenuDishEntity?>(null) }
 
     LaunchedEffect(uiState.message) {
         if (uiState.message == "已新增菜品") {
@@ -264,6 +265,7 @@ fun MenuManagementScreen(
                         onToggleSelection = viewModel::toggleDishSelection,
                         onToggleAvailability = viewModel::toggleDishAvailability,
                         onEdit = viewModel::editDish,
+                        onDelete = { dishDeleteTarget = it },
                         onShowAddSheet = viewModel::newDish,
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -280,6 +282,19 @@ fun MenuManagementScreen(
         if (uiState.message == "已新增菜品") {
             AddDishSuccessToast(modifier = Modifier.align(Alignment.Center))
         }
+    }
+
+    dishDeleteTarget?.let { dish ->
+        DeleteDishDialog(
+            title = "删除菜品？",
+            body = "删除后会从我的店铺移除「${dish.name}」，购物车里对应菜品也会失效。这个操作不能撤回。",
+            confirmText = "删除菜品",
+            onDismiss = { dishDeleteTarget = null },
+            onConfirm = {
+                viewModel.deleteDish(dish.id)
+                dishDeleteTarget = null
+            }
+        )
     }
 }
 
@@ -672,6 +687,7 @@ private fun MenuContent(
     onToggleSelection: (String) -> Unit,
     onToggleAvailability: (MenuDishEntity) -> Unit,
     onEdit: (MenuDishEntity) -> Unit,
+    onDelete: (MenuDishEntity) -> Unit,
     onShowAddSheet: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -699,7 +715,8 @@ private fun MenuContent(
                         isCompact = isCompact,
                         onToggleSelection = { onToggleSelection(dish.id) },
                         onToggleAvailability = { onToggleAvailability(dish) },
-                        onEdit = { onEdit(dish) }
+                        onEdit = { onEdit(dish) },
+                        onDelete = { onDelete(dish) }
                     )
                 }
             }
@@ -762,7 +779,8 @@ private fun DishManageCard(
     isCompact: Boolean,
     onToggleSelection: () -> Unit,
     onToggleAvailability: () -> Unit,
-    onEdit: () -> Unit
+    onEdit: () -> Unit,
+    onDelete: () -> Unit
 ) {
     val activeColor = if (dish.isAvailable) PrimaryBlue else TextSecondary
     Surface(
@@ -819,7 +837,12 @@ private fun DishManageCard(
                     }
                 }
             }
-            DishActionArea(checked = dish.isAvailable, onToggleAvailability = onToggleAvailability, onEdit = onEdit)
+            DishActionArea(
+                checked = dish.isAvailable,
+                onToggleAvailability = onToggleAvailability,
+                onEdit = onEdit,
+                onDelete = onDelete
+            )
         }
     }
 }
@@ -884,21 +907,33 @@ private fun AvailabilitySwitch(checked: Boolean, onClick: () -> Unit) {
 private fun DishActionArea(
     checked: Boolean,
     onToggleAvailability: () -> Unit,
-    onEdit: () -> Unit
+    onEdit: () -> Unit,
+    onDelete: () -> Unit
 ) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(14.dp)
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         AvailabilitySwitch(checked = checked, onClick = onToggleAvailability)
         Surface(
             onClick = onEdit,
             shape = CircleShape,
             color = Color(0xFFF8F3ED),
-            modifier = Modifier.size(42.dp)
+            modifier = Modifier.size(36.dp)
         ) {
             Box(contentAlignment = Alignment.Center) {
-                Icon(Icons.Outlined.MoreHoriz, contentDescription = "更多操作", tint = PrimaryBlue, modifier = Modifier.size(22.dp))
+                Icon(Icons.Outlined.MoreHoriz, contentDescription = "编辑菜品", tint = PrimaryBlue, modifier = Modifier.size(20.dp))
+            }
+        }
+        Surface(
+            onClick = onDelete,
+            shape = CircleShape,
+            color = DangerRed.copy(alpha = 0.10f),
+            border = BorderStroke(1.dp, DangerRed.copy(alpha = 0.22f)),
+            modifier = Modifier.size(36.dp)
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(Icons.Outlined.Delete, contentDescription = "删除菜品", tint = DangerRed, modifier = Modifier.size(19.dp))
             }
         }
     }

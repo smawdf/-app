@@ -35,7 +35,10 @@ class OrdersReplicaSourceTest {
             assertTrue("订单页缺少 page_4 原型结构或文案：$expected", source.contains(expected))
         }
 
-        assertTrue("订单页顶部栏应固定在滚动内容外", source.indexOf("OrdersTopBar()") < source.indexOf("LazyColumn("))
+        val mainSource = readMainSource("MainActivity.kt")
+        assertTrue("订单页顶部栏应由全局壳固定在内容外", mainSource.contains("CozyMainTopBar("))
+        assertTrue(mainSource.contains("Routes.ORDERS -> \"订单 - 甜蜜点菜记录\""))
+        assertTrue(mainSource.contains("padding(top = if (showMainShell) mainTopBarHeight else 0.dp)"))
         assertFalse("page_4 原型不包含日历筛选", source.contains("showCalendarFilter"))
         assertFalse("page_4 原型不包含美食日记模式", source.contains("FoodDiaryRecordCard"))
         assertFalse("page_4 原型不包含厨房/日记切换", source.contains("MiniModeChip"))

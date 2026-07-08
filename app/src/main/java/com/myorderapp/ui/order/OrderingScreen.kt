@@ -38,15 +38,19 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Campaign
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Restaurant
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.ShoppingBag
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -92,6 +96,7 @@ import com.myorderapp.ui.components.CozyPrimaryButton
 import com.myorderapp.ui.components.CozyRose
 import com.myorderapp.ui.components.CozySurface
 import com.myorderapp.ui.components.CozyTerracotta
+import com.myorderapp.ui.components.cozyTextFieldColors
 import com.myorderapp.ui.components.cozyPulseOnChange
 import com.myorderapp.ui.shop.components.CartSheet
 import kotlin.math.roundToInt
@@ -182,6 +187,11 @@ fun OrderingScreen(
                 announcement = uiState.shopAnnouncement.ifBlank { "今天也给你准备了好吃的 ✨" },
                 onClick = onShopNameClick
             )
+            OrderingSearchBar(
+                value = uiState.searchQuery,
+                onValueChange = viewModel::onSearchQueryChange,
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp)
+            )
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -234,6 +244,35 @@ fun OrderingScreen(
             )
         }
     }
+}
+
+@Composable
+private fun OrderingSearchBar(
+    value: String,
+    onValueChange: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        singleLine = true,
+        shape = RoundedCornerShape(18.dp),
+        colors = cozyTextFieldColors(),
+        leadingIcon = {
+            Icon(Icons.Filled.Search, contentDescription = null, tint = CozyRose, modifier = Modifier.size(20.dp))
+        },
+        trailingIcon = {
+            if (value.isNotBlank()) {
+                IconButton(onClick = { onValueChange("") }) {
+                    Icon(Icons.Filled.Close, contentDescription = "清空搜索", tint = CozyMuted, modifier = Modifier.size(18.dp))
+                }
+            }
+        },
+        placeholder = {
+            Text("搜索我的店铺菜品", color = CozyMuted, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        },
+        modifier = modifier.fillMaxWidth()
+    )
 }
 
 @Composable

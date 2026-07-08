@@ -6,7 +6,10 @@ import com.myorderapp.data.remote.supabase.SupabaseClientProvider
 import com.myorderapp.domain.model.CandyCoinRecord
 import com.myorderapp.domain.model.DietaryPreference
 import com.myorderapp.domain.model.PairInfo
+import com.myorderapp.domain.model.PairInvitePreview
 import com.myorderapp.domain.model.Profile
+import com.myorderapp.domain.model.ROLE_CARETAKER
+import com.myorderapp.domain.model.ROLE_EATER
 import com.myorderapp.domain.repository.ProfileRepository
 import com.myorderapp.domain.repository.CandyCoinLedgerRepository
 import io.github.jan.supabase.postgrest.from
@@ -25,6 +28,7 @@ class SupabaseProfileRepository(
 
     private companion object {
         const val KEY_PENDING_PAIR_CODE = "pending_pair_code"
+        const val DEFAULT_PAIR_ID = "00000000-0000-0000-0000-000000000000"
     }
 
     private val client = SupabaseClientProvider.client
@@ -125,14 +129,49 @@ class SupabaseProfileRepository(
         loadFromCloud()
     }
 
-    override suspend fun generatePairCode(): String {
+    override suspend fun saveSelectedRole(role: String?) {
+        val normalizedRole = role?.takeIf { it == ROLE_CARETAKER || it == ROLE_EATER }.orEmpty()
+        prefs.edit().putString("selected_role", normalizedRole).apply()
+        if (!session.isLoggedIn.value) return
+        try {
+            client.from("profiles").update(
+                mapOf("selected_role" to normalizedRole, "updated_at" to Instant.now().toString())
+            ) {
+                filter { eq("user_id", session.currentUserId) }
+            }
+            _synced.value = true
+        } catch (_: Exception) { }
+    }
+
+    override suspend fun generatePairCode(inviterRole: String): String {
+        val normalizedRole = inviterRole.takeIf { it == ROLE_CARETAKER || it == ROLE_EATER } ?: ROLE_CARETAKER
         val chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
         val code = (1..6).map { chars.random() }.joinToString("")
         val current = _profile.value ?: loadLocalProfile()
         saveProfile(current.copy(pairId = code, pairedAt = current.pairedAt.ifBlank { Instant.now().toString() }))
         session.setPairId(code)
         prefs.edit().putString(KEY_PENDING_PAIR_CODE, code).apply()
+        saveSelectedRole(normalizedRole)
         return code
+    }
+
+    override suspend fun previewPairInvite(code: String): PairInvitePreview? {
+        if (code.length != 6 || !session.isLoggedIn.value) return null
+        val normalizedCode = code.uppercase()
+        return try {
+            val rows = client.from("profiles").select {
+                filter { eq("pair_id", normalizedCode) }
+            }.decodeList<PairInviteProfileRow>()
+            val inviter = rows.firstOrNull { it.userId != session.currentUserId } ?: rows.firstOrNull()
+            val inviterRole = inviter?.selectedRole?.takeIf { it == ROLE_CARETAKER || it == ROLE_EATER } ?: return null
+            PairInvitePreview(
+                code = normalizedCode,
+                inviterName = inviter.nickname.ifBlank { "对方" },
+                inviterRole = inviterRole
+            )
+        } catch (_: Exception) {
+            null
+        }
     }
 
     override suspend fun joinPair(code: String): Boolean {
@@ -154,16 +193,25 @@ class SupabaseProfileRepository(
         var partnerName = ""
         var partnerUpdatedAt = ""
         var partnerCandyCoins: Int? = null
+        var hasPartner = false
         if (session.isLoggedIn.value) {
             try {
                 val partnerProfiles = client.from("profiles").select {
                     filter { eq("pair_id", pairId) }
                 }.decodeList<Profile>()
                 val partner = partnerProfiles.firstOrNull { it.userId != session.currentUserId }
+                hasPartner = partner != null
                 partnerName = partner?.nickname ?: ""
                 partnerUpdatedAt = partner?.updatedAt ?: ""
                 partnerCandyCoins = partner?.candyCoins
             } catch (_: Exception) { }
+        }
+        if (!hasPartner) {
+            return PairInfo(
+                isPaired = false,
+                isOnline = session.isLoggedIn.value,
+                pairCode = pairId
+            )
         }
         return PairInfo(
             partnerName = partnerName.ifBlank { "已配对" },
@@ -193,14 +241,14 @@ class SupabaseProfileRepository(
 
     override suspend fun unpair() {
         val current = _profile.value ?: return
-        val defaultId = "00000000-0000-0000-0000-000000000000"
-        saveProfile(current.copy(pairId = defaultId, pairedAt = ""))
-        session.setPairId(defaultId)
+        saveProfile(current.copy(pairId = DEFAULT_PAIR_ID, pairedAt = ""))
+        session.setPairId(DEFAULT_PAIR_ID)
         prefs.edit().remove(KEY_PENDING_PAIR_CODE).apply()
+        saveSelectedRole(null)
         if (session.isLoggedIn.value) {
             try {
                 client.from("profiles").update(
-                    mapOf("pair_id" to defaultId)
+                    mapOf("pair_id" to DEFAULT_PAIR_ID)
                 ) {
                     filter { eq("user_id", session.currentUserId) }
                 }
@@ -277,11 +325,10 @@ class SupabaseProfileRepository(
     }
 
     private fun normalizeProfile(profile: Profile): Profile {
-        val defaultPairId = "00000000-0000-0000-0000-000000000000"
         return profile.copy(
             userId = profile.userId.ifBlank { session.currentUserId },
             pairId = profile.pairId.ifBlank {
-                session.currentPairId.ifBlank { defaultPairId }
+                session.currentPairId.ifBlank { DEFAULT_PAIR_ID }
             },
             createdAt = profile.createdAt.ifBlank { Instant.now().toString() }
         )
@@ -322,3 +369,10 @@ class SupabaseProfileRepository(
         return Duration.between(seenAt, Instant.now()).abs() <= Duration.ofMinutes(5)
     }
 }
+
+@kotlinx.serialization.Serializable
+private data class PairInviteProfileRow(
+    @kotlinx.serialization.SerialName("user_id") val userId: String = "",
+    val nickname: String = "",
+    @kotlinx.serialization.SerialName("selected_role") val selectedRole: String = ""
+)

@@ -16,6 +16,7 @@ import com.myorderapp.ui.search.SearchableMenuItem
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -27,6 +28,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 private const val DISCOVER_SINGLE_SHOP_ID = "single_shop"
+private const val DISCOVER_RECOMMENDATION_FIRST_FRAME_DELAY_MS = 280L
 
 data class DiscoverUiState(
     val query: String = "",
@@ -98,6 +100,7 @@ class DiscoverViewModel(
                 }
         }
         scope.launch {
+            delay(DISCOVER_RECOMMENDATION_FIRST_FRAME_DELAY_MS)
             loadRecommendations()
         }
     }
@@ -248,8 +251,11 @@ class DiscoverViewModel(
             category = title,
             price = if (id == "fat_loss") 16.0 else 18.0
         )
-        val imageUrl = dish.imageUrl?.takeIf { it.isNotBlank() && !it.isLegacyRecipeImageUrl() }
-            ?: findImageForDishName(dish.name, excludedImageUrl = dish.imageUrl)
+        val imageUrl = findImageForDishName(
+            name = dish.name,
+            preferredQuery = dish.name,
+            excludedImageUrl = dish.imageUrl
+        ) ?: dish.imageUrl?.takeIf { it.isNotBlank() && !it.isLegacyRecipeImageUrl() }
         return DiscoverRecommendationItem(
             id = id,
             title = title,

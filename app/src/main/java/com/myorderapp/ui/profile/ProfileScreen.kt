@@ -88,6 +88,8 @@ import com.myorderapp.ui.components.CozyPage
 import com.myorderapp.ui.components.CozyRose
 import com.myorderapp.ui.components.CozySurface
 import com.myorderapp.ui.components.cozyTextFieldColors
+import com.myorderapp.domain.model.ROLE_CARETAKER
+import com.myorderapp.domain.model.ROLE_EATER
 import com.myorderapp.ui.theme.Error
 import com.myorderapp.ui.theme.OnSurface
 import com.myorderapp.ui.theme.OnSurfaceVariant
@@ -150,10 +152,22 @@ fun ProfileScreen(
                 showPairDialog = false
                 viewModel.dismissMessage()
             },
-            onGeneratePairCode = viewModel::generatePairCode,
+            onGeneratePairCode = {
+                viewModel.generatePairCode(selectedRoleKey)
+            },
             onJoinPairCodeChanged = viewModel::onJoinPairCodeChanged,
-            onJoinPair = { viewModel.joinPair(uiState.joinPairCode) },
-            onUnpair = viewModel::unpair
+            onPreviewPairInvite = {
+                viewModel.previewPairInvite(uiState.joinPairCode)
+            },
+            onConfirmPairInvite = {
+                viewModel.joinPair(uiState.joinPairCode, uiState.invitePreview?.inviteeRole) { role ->
+                    rolePrefs.edit().putString(KEY_SELECTED_ROLE, role).apply()
+                }
+            },
+            onUnpair = {
+                rolePrefs.edit().remove(KEY_SELECTED_ROLE).apply()
+                viewModel.unpair()
+            }
         )
     }
 
@@ -723,10 +737,12 @@ private fun PairManagementDialog(
     onDismiss: () -> Unit,
     onGeneratePairCode: () -> Unit,
     onJoinPairCodeChanged: (String) -> Unit,
-    onJoinPair: () -> Unit,
+    onPreviewPairInvite: () -> Unit,
+    onConfirmPairInvite: () -> Unit,
     onUnpair: () -> Unit
 ) {
     val context = LocalContext.current
+    val invitePreview = uiState.invitePreview
     AlertDialog(
         onDismissRequest = onDismiss,
         shape = RoundedCornerShape(28.dp),
@@ -744,38 +760,54 @@ private fun PairManagementDialog(
             Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 Text(
                     text = if (uiState.pairInfo.isPaired) {
-                        "你们已经绑定，可以一起同步点菜和订单。"
+                        "你们已经绑定，可以一起同步点菜和订单。绑定后身份会锁定，如需更改请先解除绑定。"
                     } else {
-                        "生成邀请码发给对方，或者输入对方的邀请码完成绑定。"
+                        "请先在首页选择身份。饲养员邀请对方去点餐；吃货邀请对方去做饭，确认后才会绑定。"
                     },
                     color = CozyMuted,
                     textAlign = TextAlign.Center
                 )
                 if (!uiState.pairInfo.isPaired) {
                     Surface(
-                        shape = RoundedCornerShape(18.dp),
-                        color = Color.White.copy(alpha = 0.62f),
-                        border = BorderStroke(1.dp, OutlineVariant),
+                        shape = RoundedCornerShape(22.dp),
+                        color = PrimaryContainer.copy(alpha = 0.72f),
+                        border = BorderStroke(1.dp, Primary.copy(alpha = 0.22f)),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Column(
-                            modifier = Modifier.padding(16.dp),
+                            modifier = Modifier.padding(horizontal = 18.dp, vertical = 18.dp),
                             horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             Text(
-                                text = uiState.pairCode.ifBlank { "点击下方生成邀请码" },
-                                color = Primary,
-                                fontSize = 24.sp,
+                                text = if (uiState.pairCode.isBlank()) "我的邀请码" else "把这个邀请码发给对方",
+                                color = CozyCocoa,
+                                style = MaterialTheme.typography.labelLarge,
                                 fontWeight = FontWeight.Black,
                                 textAlign = TextAlign.Center
                             )
+                            Text(
+                                text = uiState.pairCode.ifBlank { "点击生成" },
+                                color = Primary,
+                                fontSize = if (uiState.pairCode.isBlank()) 26.sp else 38.sp,
+                                lineHeight = if (uiState.pairCode.isBlank()) 32.sp else 44.sp,
+                                fontWeight = FontWeight.Black,
+                                textAlign = TextAlign.Center
+                            )
+                            if (uiState.pairCode.isNotBlank()) {
+                                Text(
+                                    text = "等待对方输入后才会完成绑定",
+                                    color = CozyMuted,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    textAlign = TextAlign.Center
+                                )
+                            }
                             Button(
                                 onClick = onGeneratePairCode,
                                 shape = RoundedCornerShape(999.dp),
                                 colors = ButtonDefaults.buttonColors(containerColor = Primary)
                             ) {
-                                Text("生成邀请码", fontWeight = FontWeight.Black)
+                                Text(if (uiState.pairCode.isBlank()) "生成邀请码" else "重新生成", fontWeight = FontWeight.Black)
                             }
                         }
                     }
@@ -794,6 +826,33 @@ private fun PairManagementDialog(
                         colors = cozyTextFieldColors(),
                         modifier = Modifier.fillMaxWidth()
                     )
+                    if (invitePreview != null) {
+                        Surface(
+                            shape = RoundedCornerShape(18.dp),
+                            color = Color.White.copy(alpha = 0.72f),
+                            border = BorderStroke(1.dp, OutlineVariant),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(14.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Text(
+                                    text = invitePreview.promptText,
+                                    color = CozyCocoa,
+                                    fontWeight = FontWeight.Black,
+                                    textAlign = TextAlign.Center
+                                )
+                                Text(
+                                    text = "确认后你的身份会自动设置为${invitePreview.inviteeRole.roleDisplayText()}，绑定后需解绑才能更改。",
+                                    color = CozyMuted,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    textAlign = TextAlign.Center
+                                )
+                            }
+                        }
+                    }
                 }
                 uiState.saveMessage?.let {
                     Text(it, color = Primary, style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
@@ -807,12 +866,12 @@ private fun PairManagementDialog(
                 }
             } else {
                 Button(
-                    onClick = onJoinPair,
+                    onClick = if (invitePreview == null) onPreviewPairInvite else onConfirmPairInvite,
                     enabled = uiState.joinPairCode.length == 6,
                     shape = RoundedCornerShape(999.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = Primary)
                 ) {
-                    Text("完成绑定", fontWeight = FontWeight.Black)
+                    Text(invitePreview?.confirmText ?: "查看邀请", fontWeight = FontWeight.Black)
                 }
             }
         },
@@ -820,6 +879,12 @@ private fun PairManagementDialog(
             TextButton(onClick = onDismiss) { Text("关闭", color = CozyMuted) }
         }
     )
+}
+
+private fun String.roleDisplayText(): String = when (this) {
+    ROLE_CARETAKER -> "饲养员"
+    ROLE_EATER -> "吃货"
+    else -> "待选择"
 }
 
 private fun copyPairCode(context: Context, code: String) {

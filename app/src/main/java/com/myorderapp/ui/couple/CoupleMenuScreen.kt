@@ -154,10 +154,15 @@ fun CoupleMenuScreen(
     var toastId by remember { mutableIntStateOf(0) }
 
     fun selectRole(role: CoupleRole) {
+        if (pairInfo.isPaired) return
         selectedRole = role
         prefs.edit().putString(KEY_SELECTED_ROLE, role.storageKey).apply()
         toastId += 1
         toastState = RoleToastState(toastId, role)
+    }
+
+    LaunchedEffect(selectedRole?.storageKey) {
+        selectedRole?.storageKey?.let { profileRepository.saveSelectedRole(it) }
     }
 
     LaunchedEffect(profile?.pairId) {
@@ -230,6 +235,7 @@ fun CoupleMenuScreen(
                 CozyMotionVisibility(delayMillis = 80) {
                     RoleSwitcher(
                         selectedRole = selectedRole,
+                        rolesLocked = pairInfo.isPaired && selectedRole != null,
                         onCaretakerClick = { selectRole(CoupleRole.Caretaker) },
                         onEaterClick = { selectRole(CoupleRole.Eater) }
                     )
@@ -633,6 +639,7 @@ private fun QuickActionCard(
 @Composable
 private fun RoleSwitcher(
     selectedRole: CoupleRole?,
+    rolesLocked: Boolean,
     onCaretakerClick: () -> Unit,
     onEaterClick: () -> Unit
 ) {
@@ -647,6 +654,7 @@ private fun RoleSwitcher(
             subtitle = "上传菜单，照顾小饭桌",
             icon = Icons.Filled.SoupKitchen,
             selected = selectedRole == CoupleRole.Caretaker,
+            locked = rolesLocked,
             accent = CozyRose,
             modifier = Modifier.weight(1f),
             onClick = onCaretakerClick
@@ -656,6 +664,7 @@ private fun RoleSwitcher(
             subtitle = "浏览菜单，准备开饭",
             icon = Icons.Filled.Restaurant,
             selected = selectedRole == CoupleRole.Eater,
+            locked = rolesLocked,
             accent = CozyTerracotta,
             modifier = Modifier.weight(1f),
             onClick = onEaterClick
@@ -669,6 +678,7 @@ private fun RoleCard(
     subtitle: String,
     icon: ImageVector,
     selected: Boolean,
+    locked: Boolean,
     accent: Color,
     modifier: Modifier,
     onClick: () -> Unit
@@ -678,7 +688,7 @@ private fun RoleCard(
         containerColor = if (selected) accent.copy(alpha = 0.15f) else Color.White.copy(alpha = 0.82f),
         borderColor = if (selected) accent.copy(alpha = 0.45f) else Color.White.copy(alpha = 0.7f),
         radius = 22,
-        onClick = onClick,
+        onClick = { if (!locked) onClick() },
         contentPadding = PaddingValues(14.dp)
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
@@ -718,7 +728,12 @@ private fun RoleCard(
                         overflow = TextOverflow.Ellipsis
                     )
                     Text(
-                        text = if (selected) "当前：${role.label}" else "切换为${role.label}",
+                        text = when {
+                            locked && selected -> "已绑定，身份锁定"
+                            locked -> "解绑后可更改"
+                            selected -> "当前：${role.label}"
+                            else -> "切换为${role.label}"
+                        },
                         color = if (selected) accent else CozyMuted,
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,

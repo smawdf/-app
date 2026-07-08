@@ -14,16 +14,18 @@ class ProfileReplicaSourceTest {
 
         listOf(
             "CozyPage",
-            "CozyCard",
-            "ProfileTopBar()",
-            "ProfileSurface.copy(alpha = 0.94f)",
             "CozyPage(decorative = false)",
-            "SecondaryContainer.copy(alpha = 0.58f)",
+            "ImmersiveProfileHeader",
+            "ProfileHeader",
+            "SimulatedCurrencyBalanceCard",
+            "ProfileActionRow",
+            "LogoutButton",
+            "SecondaryContainer.copy(alpha = 0.16f)",
             "BorderStroke(1.dp, OutlineVariant)",
             ".offset(x = (-36).dp, y = (-38).dp)",
             ".weight(1f)",
             ".clipToBounds()",
-            "contentPadding = PaddingValues(start = 20.dp, top = 18.dp, end = 20.dp, bottom = 172.dp)",
+            "contentPadding = PaddingValues(bottom = navigationBottomPadding + 132.dp)",
             "糯米小狗",
             "账号设置",
             "帮助与客服",
@@ -36,6 +38,9 @@ class ProfileReplicaSourceTest {
         ).forEach { expected ->
             assertTrue("Profile page missing function copy: $expected", source.contains(expected))
         }
+        val mainSource = readMainSource("MainActivity.kt")
+        assertTrue("个人中心顶部栏应由全局壳固定在内容外", mainSource.contains("Routes.PROFILE -> \"个人中心\""))
+        assertTrue(mainSource.contains("padding(top = if (showMainShell) mainTopBarHeight else 0.dp)"))
         assertFalse("Profile page should avoid intentional shadow styling", source.contains(".shadow("))
 
         listOf(
@@ -105,9 +110,12 @@ class ProfileReplicaSourceTest {
             "邀请对方",
             "PairManagementDialog",
             "Icons.Filled.PersonAdd",
-            "viewModel::generatePairCode",
+            "viewModel.generatePairCode(selectedRoleKey)",
+            "viewModel.previewPairInvite(uiState.joinPairCode)",
+            "rolePrefs.edit().putString(KEY_SELECTED_ROLE, role).apply()",
+            "rolePrefs.edit().remove(KEY_SELECTED_ROLE).apply()",
             "viewModel::onJoinPairCodeChanged",
-            "viewModel.joinPair"
+            "viewModel.joinPair(uiState.joinPairCode, uiState.invitePreview?.inviteeRole)"
         ).forEach { expected ->
             assertTrue("Profile page missing Stitch action affordance: $expected", source.contains(expected))
         }
@@ -127,11 +135,21 @@ class ProfileReplicaSourceTest {
         val supabaseGeneratePairCode = functionBody(supabaseRepository, "generatePairCode")
         val inMemoryGeneratePairCode = functionBody(inMemoryRepository, "generatePairCode")
         assertTrue(viewModel.contains("profileRepository.getPairInfo()"))
+        assertTrue(viewModel.contains("fun previewPairInvite(code: String)"))
+        assertTrue(viewModel.contains("fun joinPair(code: String, inviteeRole: String? = null, onSuccess: (String) -> Unit = {})"))
+        assertTrue(viewModel.contains("onSuccess(roleToSave)"))
         assertTrue(viewModel.contains("pairCode = code"))
+        assertTrue(viewModel.contains("invitePreview = null"))
+        assertTrue(viewModel.contains("请先在首页选择饲养员或吃货"))
+        assertTrue(viewModel.contains("未找到有效邀请，请确认对方已选择身份并生成邀请码"))
         assertTrue(supabaseRepository.contains("KEY_PENDING_PAIR_CODE"))
+        assertTrue(supabaseRepository.contains("override suspend fun saveSelectedRole(role: String?)"))
+        assertTrue(supabaseRepository.contains("selected_role"))
+        assertTrue(supabaseRepository.contains("override suspend fun previewPairInvite(code: String): PairInvitePreview?"))
         assertTrue(inMemoryRepository.contains("pendingPairCode = code"))
         assertTrue(supabaseGeneratePairCode.contains("copy(pairId = code"))
         assertTrue(inMemoryGeneratePairCode.contains("copy(pairId = code"))
+        assertTrue(supabaseGeneratePairCode.contains("saveSelectedRole(normalizedRole)"))
         assertTrue(supabaseGeneratePairCode.contains("setPairId(code"))
         assertTrue(supabaseRepository.contains("copy(pairId = normalizedCode"))
         assertTrue(inMemoryRepository.contains("copy(pairId = code.uppercase()"))

@@ -33,8 +33,11 @@ class DiscoverImageFallbackSourceTest {
         val source = readMainSource("ui/discover/DiscoverViewModel.kt")
 
         assertTrue(source.contains("fun recoverImageFor"))
+        assertTrue(source.contains("fun recoverRecommendationImageFor"))
         assertTrue(source.contains("replaceResultImage(item, imageUrl)"))
+        assertTrue(source.contains("replaceRecommendationImage(item, imageUrl)"))
         assertTrue(source.contains("imageUrl == item.imageUrl"))
+        assertTrue(source.contains("preferredQuery = dish.name"))
     }
 
     private fun readMainSource(relativePath: String): String {

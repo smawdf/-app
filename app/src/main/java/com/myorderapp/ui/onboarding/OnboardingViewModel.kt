@@ -7,6 +7,7 @@ import com.myorderapp.data.remote.supabase.SupabaseClientProvider
 import com.myorderapp.data.repository.HybridDishRepository
 import com.myorderapp.data.repository.SupabaseProfileRepository
 import com.myorderapp.domain.model.Profile
+import com.myorderapp.domain.model.ROLE_CARETAKER
 import com.myorderapp.domain.repository.ProfileRepository
 import io.github.jan.supabase.gotrue.auth
 import io.github.jan.supabase.gotrue.providers.builtin.Email
@@ -104,7 +105,7 @@ class OnboardingViewModel(
 
     fun generatePairCode() {
         viewModelScope.launch {
-            val code = profileRepository.generatePairCode()
+            val code = profileRepository.generatePairCode(ROLE_CARETAKER)
             _uiState.value = _uiState.value.copy(pairCode = code)
         }
     }

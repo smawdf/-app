@@ -47,6 +47,8 @@ class XiachufangDiscoverPrioritySourceTest {
         assertFalse(viewModel.contains("KNOWN_DISH_IMAGE_URLS"))
         assertTrue(viewModel.contains("val resolvedImageUrl = item.imageUrl?.takeIf"))
         assertTrue(viewModel.contains("imageUrl = resolvedImageUrl"))
+        assertTrue(viewModel.contains("findImageForDishName("))
+        assertTrue(viewModel.contains("preferredQuery = dish.name"))
         assertTrue(viewModel.contains("allowEmpty -> emptyList()"))
         assertFalse(viewModel.contains("createManualSearchResult"))
         assertFalse(viewModel.contains("sourceLabel = \"manual\""))

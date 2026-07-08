@@ -28,3 +28,25 @@ data class PairInfo(
     val pairCode: String = "",
     val partnerCandyCoins: Int? = null
 )
+
+data class PairInvitePreview(
+    val code: String,
+    val inviterName: String,
+    val inviterRole: String
+) {
+    val inviteeRole: String
+        get() = if (inviterRole == ROLE_CARETAKER) ROLE_EATER else ROLE_CARETAKER
+
+    val promptText: String
+        get() = if (inviterRole == ROLE_CARETAKER) {
+            "$inviterName 邀请你加入他的小餐桌"
+        } else {
+            "$inviterName 邀请你去下厨"
+        }
+
+    val confirmText: String
+        get() = if (inviterRole == ROLE_CARETAKER) "去点餐" else "去做饭"
+}
+
+const val ROLE_CARETAKER = "caretaker"
+const val ROLE_EATER = "eater"
