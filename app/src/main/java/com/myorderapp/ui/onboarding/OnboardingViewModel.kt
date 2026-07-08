@@ -160,7 +160,7 @@ class OnboardingViewModel(
                 } else {
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
-                        errorMessage = "账号已存在，请直接登录"
+                        errorMessage = "账号已创建，请先打开邮箱确认后登录"
                     )
                 }
             } catch (e: Exception) {

@@ -128,7 +128,7 @@ class AuthViewModel(
                     msg.contains("Invalid login credentials", ignoreCase = true) ||
                     msg.contains("User not found", ignoreCase = true) ||
                     msg.contains("invalid_grant", ignoreCase = true) ->
-                        "该邮箱尚未注册，请先创建账号"
+                        "账号或密码不正确；如果刚注册，请先确认邮箱后再登录"
                     msg.contains("Email not confirmed", ignoreCase = true) ||
                     msg.contains("email_not_confirmed", ignoreCase = true) ->
                         "邮箱未验证，请检查邮件确认链接"
