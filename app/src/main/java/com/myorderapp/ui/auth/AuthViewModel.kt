@@ -84,14 +84,15 @@ class AuthViewModel(
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
             try {
+                val authEmail = AccountIdentifier.normalizeForAuth(state.email)
                 if (state.mode == "register") {
                     client.auth.signUpWith(Email) {
-                        email = state.email
+                        email = authEmail
                         password = state.password
                     }
                 } else {
                     client.auth.signInWith(Email) {
-                        email = state.email
+                        email = authEmail
                         password = state.password
                     }
                 }
@@ -104,7 +105,7 @@ class AuthViewModel(
                     val pairId = profile?.pairId ?: ""
                     session.setSession(token, userId, pairId)
                     session.saveRememberedCredentials(
-                        email = state.email,
+                        email = state.email.trim(),
                         password = state.password,
                         remember = state.rememberCredentials
                     )
@@ -150,6 +151,10 @@ class AuthViewModel(
         val normalizedEmail = email.trim()
         if (normalizedEmail.isBlank()) {
             _uiState.value = _uiState.value.copy(errorMessage = "请输入注册邮箱")
+            return
+        }
+        if (!AccountIdentifier.isRealEmail(normalizedEmail)) {
+            _uiState.value = _uiState.value.copy(errorMessage = "手机号或账号暂不支持邮箱找回，请使用注册密码登录")
             return
         }
 

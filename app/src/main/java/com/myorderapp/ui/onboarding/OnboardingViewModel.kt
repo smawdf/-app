@@ -9,6 +9,7 @@ import com.myorderapp.data.repository.SupabaseProfileRepository
 import com.myorderapp.domain.model.Profile
 import com.myorderapp.domain.model.ROLE_CARETAKER
 import com.myorderapp.domain.repository.ProfileRepository
+import com.myorderapp.ui.auth.AccountIdentifier
 import io.github.jan.supabase.gotrue.auth
 import io.github.jan.supabase.gotrue.providers.builtin.Email
 import io.github.jan.supabase.postgrest.from
@@ -138,8 +139,9 @@ class OnboardingViewModel(
         viewModelScope.launch {
             _uiState.value = state.copy(isLoading = true, errorMessage = null)
             try {
+                val authEmail = AccountIdentifier.normalizeForAuth(state.email)
                 val signUpResult = client.auth.signUpWith(Email) {
-                    email = state.email
+                    email = authEmail
                     password = state.password
                 }
 
@@ -148,7 +150,7 @@ class OnboardingViewModel(
                 val userId = user?.id ?: signUpResult?.id.orEmpty()
                 if (token != null && userId.isNotBlank()) {
                     session.setSession(token, userId, "")
-                    session.saveEmail(state.email)
+                    session.saveEmail(state.email.trim())
                     _uiState.value = _uiState.value.copy(
                         step = 2,
                         accountCreated = true,
