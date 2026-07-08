@@ -9,20 +9,15 @@ import org.junit.Test
 class MainFlowSourceGuardTest {
 
     @Test
-    fun `main couple ordering flow remains wired end to end`() {
+    fun `main couple ordering flow remains native compose end to end`() {
+        val main = readMainSource("MainActivity.kt")
         val nav = readMainSource("ui/navigation/NavGraph.kt")
-        val home = readMainSource("ui/couple/CoupleMenuScreen.kt")
-        val ordering = readMainSource("ui/order/OrderingScreen.kt")
-        val discover = readMainSource("ui/discover/DiscoverScreen.kt")
         val checkout = readMainSource("ui/checkout/CheckoutViewModel.kt")
         val orders = readMainSource("ui/orders/OrdersScreen.kt")
         val detail = readMainSource("ui/orders/OrderDetailScreen.kt")
-        val profile = readMainSource("ui/profile/ProfileScreen.kt")
         val appModule = readMainSource("di/AppModule.kt")
 
         listOf(
-            "ONBOARDING",
-            "AUTH",
             "CoupleMenuScreen",
             "OrderingScreen",
             "DiscoverScreen",
@@ -30,42 +25,51 @@ class MainFlowSourceGuardTest {
             "OrdersScreen",
             "OrderDetailScreen",
             "ProfileScreen",
-            "MenuManagementScreen"
+            "MenuManagementScreen",
+            "AuthScreen",
+            "OnboardingScreen",
+            "ResetPasswordScreen",
+            "AnniversaryScreen"
         ).forEach { expected ->
-            assertTrue("导航缺少主流程页面：$expected", nav.contains(expected))
+            assertTrue("Native route missing screen: $expected", nav.contains(expected))
         }
 
         listOf(
-            "selectRole(CoupleRole.Caretaker)",
-            "selectRole(CoupleRole.Eater)",
-            "putString(KEY_SELECTED_ROLE, role.storageKey)",
-            "LatestOrderNudge",
-            "touchPresence()",
-            "notifyActiveOrderIfAllowed"
+            "FloatingLiquidBottomBar",
+            "HeartNavIndicator",
+            "BottomNavItem.items",
+            "navigateAsTab(route)",
+            "Routes.resetPassword(initialDeepLink)",
+            "sessionManager.isLoggedIn.value"
         ).forEach { expected ->
-            assertTrue("首页主流程缺失：$expected", home.contains(expected))
+            assertTrue("Native shell missing: $expected", main.contains(expected))
         }
 
-        assertTrue("点菜页应保留购物车入口", ordering.contains("CartSheet") && ordering.contains("Checkout"))
-        assertTrue("发现页应保留加入我的店铺", discover.contains("加入我的小店") && discover.contains("confirmAddToMenu"))
-        assertTrue("结算应防重复提交", checkout.contains("isSubmitting"))
-        assertTrue("美食日记应接入已完成订单", orders.contains("status == \"completed\""))
-        assertTrue("订单详情应限制饲养员推进状态", detail.contains("canAdvanceOrder"))
-        assertTrue("我的页应管理伴侣绑定", profile.contains("PairManagementDialog"))
-        assertTrue("运行时应注入订单仓储", appModule.contains("single<OrderRepository>"))
+        assertFalse("Runtime routes must not render Stitch WebView", nav.contains("StitchScreen"))
+        assertFalse("Main shell must not host WebView", main.contains("WebView"))
+        assertFalse("Main shell must not load Android assets as pages", main.contains("file:///android_asset"))
+
+        assertTrue("Checkout should keep duplicate-submit protection", checkout.contains("isSubmitting"))
+        assertTrue("Food diary should keep completed-order support", orders.contains("status == \"completed\""))
+        assertTrue("Order detail should keep caretaker-only advance guard", detail.contains("canAdvanceOrder"))
+        assertTrue("Runtime should keep injecting order repository", appModule.contains("single<OrderRepository>"))
 
         listOf("RealtimeService", "SupabaseMealRepository", "RoomWishlistRepository").forEach { legacy ->
-            assertFalse("主运行时不应恢复旧模块：$legacy", appModule.contains(legacy))
+            assertFalse("Main runtime should not restore legacy module: $legacy", appModule.contains(legacy))
         }
     }
 
     private fun readMainSource(relativePath: String): String {
-        val candidates = listOf(
-            Paths.get("app/src/main/java/com/myorderapp").resolve(relativePath),
-            Paths.get("src/main/java/com/myorderapp").resolve(relativePath)
+        val path = resolvePath(
+            "app/src/main/java/com/myorderapp/$relativePath",
+            "src/main/java/com/myorderapp/$relativePath"
         )
-        val path = candidates.firstOrNull { Files.exists(it) }
-            ?: error("Source file not found: $relativePath")
         return Files.readString(path)
     }
+
+    private fun resolvePath(vararg candidates: String) =
+        candidates
+            .map { Paths.get(it) }
+            .firstOrNull { Files.exists(it) }
+            ?: error("Path not found. Tried: ${candidates.joinToString()}")
 }

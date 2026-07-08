@@ -39,6 +39,25 @@ class InMemoryProfileRepository : ProfileRepository {
         _profile.value = current.copy(avatarUrl = avatarUrl)
     }
 
+    override suspend fun addCandyCoins(amount: Int): Boolean {
+        if (amount <= 0) return true
+        val current = _profile.value ?: Profile()
+        _profile.value = current.copy(candyCoins = (current.candyCoins + amount).coerceAtMost(9999))
+        return true
+    }
+
+    override suspend fun addPartnerCandyCoins(amount: Int): Boolean {
+        return addCandyCoins(amount)
+    }
+
+    override suspend fun spendCandyCoins(amount: Int): Boolean {
+        if (amount <= 0) return true
+        val current = _profile.value ?: Profile()
+        if (current.candyCoins < amount) return false
+        _profile.value = current.copy(candyCoins = current.candyCoins - amount)
+        return true
+    }
+
     override suspend fun loadProfile() {
         // In-memory already has a default profile
     }
@@ -46,6 +65,8 @@ class InMemoryProfileRepository : ProfileRepository {
     override suspend fun generatePairCode(): String {
         val chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
         val code = (1..6).map { chars.random() }.joinToString("")
+        val current = _profile.value ?: Profile()
+        _profile.value = current.copy(pairId = code, pairedAt = current.pairedAt.ifBlank { Instant.now().toString() })
         pendingPairCode = code
         return code
     }

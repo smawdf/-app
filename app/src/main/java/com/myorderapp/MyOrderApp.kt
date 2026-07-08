@@ -9,6 +9,7 @@ import coil3.network.okhttp.OkHttpNetworkFetcherFactory
 import coil3.request.crossfade
 import com.myorderapp.di.appModule
 import com.myorderapp.di.networkModule
+import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import okio.Path.Companion.toOkioPath
 import org.koin.android.ext.koin.androidContext
@@ -24,9 +25,13 @@ class MyOrderApp : Application(), SingletonImageLoader.Factory {
     }
 
     override fun newImageLoader(context: coil3.PlatformContext): ImageLoader {
+        val imageClient = OkHttpClient.Builder()
+            .addInterceptor(DishImageHeaderInterceptor)
+            .build()
+
         return ImageLoader.Builder(this)
             .components {
-                add(OkHttpNetworkFetcherFactory(OkHttpClient()))
+                add(OkHttpNetworkFetcherFactory(imageClient))
             }
             .memoryCache {
                 MemoryCache.Builder()
@@ -41,5 +46,25 @@ class MyOrderApp : Application(), SingletonImageLoader.Factory {
             }
             .crossfade(true)
             .build()
+    }
+
+    private object DishImageHeaderInterceptor : Interceptor {
+        override fun intercept(chain: Interceptor.Chain): okhttp3.Response {
+            val request = chain.request()
+            val builder = request.newBuilder()
+                .header("User-Agent", IMAGE_USER_AGENT)
+
+            val host = request.url.host
+            if (host.endsWith("chuimg.com") || host.endsWith("xiachufang.com")) {
+                builder.header("Referer", "https://www.xiachufang.com/")
+            }
+
+            return chain.proceed(builder.build())
+        }
+    }
+
+    private companion object {
+        const val IMAGE_USER_AGENT =
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126 Safari/537.36"
     }
 }

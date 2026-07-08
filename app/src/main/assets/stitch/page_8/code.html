@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Cozy Table - 创建你们的小饭桌</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;700&amp;family=Be+Vietnam+Pro:wght@600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-primary-fixed": "#380a1a",
+                        "outline": "#847376",
+                        "on-tertiary": "#ffffff",
+                        "error": "#ba1a1a",
+                        "on-surface": "#1d1b18",
+                        "on-secondary-container": "#7a5761",
+                        "on-surface-variant": "#524346",
+                        "tertiary": "#8b4e38",
+                        "inverse-surface": "#32302c",
+                        "primary-fixed-dim": "#ffb1c3",
+                        "on-primary": "#ffffff",
+                        "on-primary-container": "#733949",
+                        "secondary": "#78555e",
+                        "surface": "#fef8f2",
+                        "tertiary-fixed": "#ffdbcf",
+                        "outline-variant": "#d6c1c5",
+                        "on-tertiary-container": "#753c27",
+                        "surface-container-low": "#f8f3ed",
+                        "primary-fixed": "#ffd9e0",
+                        "on-tertiary-fixed-variant": "#6f3723",
+                        "on-secondary": "#ffffff",
+                        "error-container": "#ffdad6",
+                        "primary": "#894c5c",
+                        "on-error": "#ffffff",
+                        "on-error-container": "#93000a",
+                        "inverse-on-surface": "#f6f0ea",
+                        "inverse-primary": "#ffb1c3",
+                        "surface-container-high": "#ede7e1",
+                        "background": "#fef8f2",
+                        "surface-container": "#f3ede7",
+                        "secondary-fixed": "#ffd9e2",
+                        "secondary-fixed-dim": "#e7bbc6",
+                        "surface-container-highest": "#e7e2dc",
+                        "surface-variant": "#e7e2dc",
+                        "tertiary-container": "#f8a98e",
+                        "on-tertiary-fixed": "#380d01",
+                        "primary-container": "#f4a7b9",
+                        "surface-dim": "#dfd9d3",
+                        "surface-container-lowest": "#ffffff",
+                        "on-background": "#1d1b18",
+                        "secondary-container": "#ffd1dc",
+                        "on-primary-fixed-variant": "#6e3545",
+                        "tertiary-fixed-dim": "#ffb59c",
+                        "on-secondary-fixed": "#2d141c",
+                        "surface-tint": "#894c5c",
+                        "on-secondary-fixed-variant": "#5e3e47",
+                        "surface-bright": "#fef8f2"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "xl": "40px",
+                        "sm": "8px",
+                        "md": "16px",
+                        "margin-desktop": "64px",
+                        "gutter": "16px",
+                        "margin-mobile": "20px",
+                        "unit": "4px",
+                        "xs": "4px",
+                        "lg": "24px"
+                    },
+                    "fontFamily": {
+                        "body-md": ["Plus Jakarta Sans"],
+                        "label-bold": ["Plus Jakarta Sans"],
+                        "headline-lg-mobile": ["Be Vietnam Pro"],
+                        "headline-lg": ["Be Vietnam Pro"],
+                        "body-lg": ["Plus Jakarta Sans"],
+                        "headline-md": ["Be Vietnam Pro"]
+                    },
+                    "fontSize": {
+                        "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "label-bold": ["14px", { "lineHeight": "20px", "fontWeight": "700" }],
+                        "headline-lg-mobile": ["28px", { "lineHeight": "36px", "fontWeight": "700" }],
+                        "headline-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "body-lg": ["18px", { "lineHeight": "28px", "fontWeight": "400" }],
+                        "headline-md": ["24px", { "lineHeight": "32px", "fontWeight": "600" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body {
+            background-color: theme('colors.background');
+            color: theme('colors.on-background');
+            /* Soft, tactile background pattern */
+            background-image: radial-gradient(theme('colors.primary-fixed-dim') 1px, transparent 1px);
+            background-size: 24px 24px;
+        }
+        
+        .glass-card {
+            background: rgba(255, 249, 243, 0.6);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 2px solid theme('colors.outline-variant');
+            box-shadow: 0 8px 32px 0 rgba(137, 76, 92, 0.1);
+        }
+
+        .squishy-btn {
+            box-shadow: 0 4px 0 0 theme('colors.on-primary-fixed-variant');
+            transition: all 0.1s ease;
+        }
+        
+        .squishy-btn:active {
+            transform: translateY(4px);
+            box-shadow: 0 0 0 0 theme('colors.on-primary-fixed-variant');
+        }
+
+        .input-tactile {
+            border: 2px solid theme('colors.outline-variant');
+            transition: all 0.2s ease;
+        }
+
+        .input-tactile:focus {
+            border-color: theme('colors.primary');
+            box-shadow: 0 0 0 4px theme('colors.primary-container');
+            outline: none;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="min-h-screen flex flex-col items-center justify-center p-margin-mobile md:p-margin-desktop font-body-md relative overflow-hidden">
+<!-- Decorative Illustration Background Element -->
+<div class="absolute -top-10 -right-10 w-64 h-64 opacity-20 pointer-events-none md:w-96 md:h-96 md:-top-20 md:-right-20">
+<img class="w-full h-full object-contain" data-alt="A soft, hand-drawn style illustration of two cute mascot dogs sharing a small meal, minimalist kawaii aesthetic, primary pink and cream colors, light mode." src="https://lh3.googleusercontent.com/aida-public/AB6AXuB4dCLc0aZ0VJzaaxaBy4_EnekFawmY_ylP1-cFFZIV1TWWcIluKJAvkmYk0XJGyeB5dvCBA1yEhHRE5Pyr2IA-oeJeJMtRzOQHPRAVC--7VpTVaKaAeKXkO5MU5rZEviNcMK0XjQh8SJ3nHI6Lu_Sv4fX-moiXoT3Z0TyDoTNMbcdcPr6NvbUvU5KhdX-i-Ude0R4GeOYif_rnZHD71hqrgn-IES5CAcGiJD2ch3MWYtMbEhzlpeKA"/>
+</div>
+<main class="w-full max-w-[400px] z-10">
+<!-- Header Section -->
+<header class="text-center mb-xl">
+<h1 class="font-headline-lg-mobile text-headline-lg-mobile md:font-headline-lg md:text-headline-lg text-primary mb-sm">
+                创建你们的小饭桌
+            </h1>
+<p class="font-body-md text-body-md text-on-surface-variant">
+                一起记录每一次想吃什么
+            </p>
+</header>
+<!-- Glassmorphism Card -->
+<div class="glass-card rounded-xl p-lg md:p-xl relative overflow-hidden">
+<!-- Optional subtle texture overlay for the card -->
+<div class="absolute inset-0 pointer-events-none bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0IiBoZWlnaHQ9IjQiPjxyZWN0IHdpZHRoPSI0IiBoZWlnaHQ9IjQiIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4wNSIvPjwvc3ZnPg==')] opacity-50"></div>
+<form class="flex flex-col gap-md relative z-10" id="registrationForm">
+<!-- Account Input -->
+<div class="flex flex-col gap-xs">
+<label class="font-label-bold text-label-bold text-secondary" for="account">账号/邮箱/手机号</label>
+<input class="input-tactile bg-surface-container-lowest rounded-lg px-4 py-3 text-on-surface placeholder:text-outline-variant w-full" id="account" placeholder="输入你想用的账号" type="text"/>
+<!-- Error State Message (Hidden by default, shown via JS for demonstration) -->
+<p class="text-error text-sm mt-1 hidden font-label-bold" id="accountError">
+<span class="material-symbols-outlined align-middle text-[16px] mr-1" data-icon="error">error</span>账号已存在，请直接登录
+                    </p>
+</div>
+<!-- Password Input -->
+<div class="flex flex-col gap-xs">
+<label class="font-label-bold text-label-bold text-secondary" for="password">密码</label>
+<div class="relative">
+<input class="input-tactile bg-surface-container-lowest rounded-lg px-4 py-3 text-on-surface placeholder:text-outline-variant w-full pr-12" id="password" placeholder="设置密码" type="password"/>
+<button class="absolute right-3 top-1/2 -translate-y-1/2 text-outline hover:text-primary transition-colors focus:outline-none" onclick="togglePassword('password', 'eyeIcon1')" type="button">
+<span class="material-symbols-outlined" data-icon="visibility_off" id="eyeIcon1">visibility_off</span>
+</button>
+</div>
+</div>
+<!-- Confirm Password Input -->
+<div class="flex flex-col gap-xs mb-md">
+<label class="font-label-bold text-label-bold text-secondary" for="confirmPassword">确认密码</label>
+<div class="relative">
+<input class="input-tactile bg-surface-container-lowest rounded-lg px-4 py-3 text-on-surface placeholder:text-outline-variant w-full pr-12" id="confirmPassword" placeholder="再次输入密码" type="password"/>
+<button class="absolute right-3 top-1/2 -translate-y-1/2 text-outline hover:text-primary transition-colors focus:outline-none" onclick="togglePassword('confirmPassword', 'eyeIcon2')" type="button">
+<span class="material-symbols-outlined" data-icon="visibility_off" id="eyeIcon2">visibility_off</span>
+</button>
+</div>
+</div>
+<!-- Submit Button -->
+<button class="squishy-btn bg-primary text-on-primary font-label-bold text-label-bold py-4 px-6 rounded-full w-full flex items-center justify-center gap-2 hover:bg-on-primary-fixed-variant" onclick="simulateSubmit()" type="button">
+                    下一步
+                    <span class="material-symbols-outlined" data-icon="arrow_forward">arrow_forward</span>
+</button>
+</form>
+</div>
+<!-- Footer Link -->
+<div class="mt-lg text-center">
+<a class="font-label-bold text-label-bold text-secondary hover:text-primary transition-colors underline decoration-outline-variant underline-offset-4" href="#">
+                已有账号？去登录
+            </a>
+</div>
+</main>
+<script>
+        function togglePassword(inputId, iconId) {
+            const input = document.getElementById(inputId);
+            const icon = document.getElementById(iconId);
+            
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.textContent = 'visibility';
+                icon.setAttribute('data-icon', 'visibility');
+            } else {
+                input.type = 'password';
+                icon.textContent = 'visibility_off';
+                icon.setAttribute('data-icon', 'visibility_off');
+            }
+        }
+
+        function simulateSubmit() {
+            const accountInput = document.getElementById('account').value;
+            const errorMsg = document.getElementById('accountError');
+            const inputElement = document.getElementById('account');
+            
+            // Simple simulation: if user types 'exists', show error
+            if (accountInput === 'exists' || accountInput === 'admin') {
+                errorMsg.classList.remove('hidden');
+                inputElement.classList.add('border-error');
+                inputElement.classList.remove('border-outline-variant');
+            } else {
+                errorMsg.classList.add('hidden');
+                inputElement.classList.remove('border-error');
+                inputElement.classList.add('border-outline-variant');
+                // Proceed to next step logic here
+            }
+        }
+    </script>
+</body></html>

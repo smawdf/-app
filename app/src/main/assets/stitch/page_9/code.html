@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>完善个人资料 - Cozy Table</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;700&amp;family=Be+Vietnam+Pro:wght@600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-primary-fixed": "#380a1a",
+                        "outline": "#847376",
+                        "on-tertiary": "#ffffff",
+                        "error": "#ba1a1a",
+                        "on-surface": "#1d1b18",
+                        "on-secondary-container": "#7a5761",
+                        "on-surface-variant": "#524346",
+                        "tertiary": "#8b4e38",
+                        "inverse-surface": "#32302c",
+                        "primary-fixed-dim": "#ffb1c3",
+                        "on-primary": "#ffffff",
+                        "on-primary-container": "#733949",
+                        "secondary": "#78555e",
+                        "surface": "#fef8f2",
+                        "tertiary-fixed": "#ffdbcf",
+                        "outline-variant": "#d6c1c5",
+                        "on-tertiary-container": "#753c27",
+                        "surface-container-low": "#f8f3ed",
+                        "primary-fixed": "#ffd9e0",
+                        "on-tertiary-fixed-variant": "#6f3723",
+                        "on-secondary": "#ffffff",
+                        "error-container": "#ffdad6",
+                        "primary": "#894c5c",
+                        "on-error": "#ffffff",
+                        "on-error-container": "#93000a",
+                        "inverse-on-surface": "#f6f0ea",
+                        "inverse-primary": "#ffb1c3",
+                        "surface-container-high": "#ede7e1",
+                        "background": "#fef8f2",
+                        "surface-container": "#f3ede7",
+                        "secondary-fixed": "#ffd9e2",
+                        "secondary-fixed-dim": "#e7bbc6",
+                        "surface-container-highest": "#e7e2dc",
+                        "surface-variant": "#e7e2dc",
+                        "tertiary-container": "#f8a98e",
+                        "on-tertiary-fixed": "#380d01",
+                        "primary-container": "#f4a7b9",
+                        "surface-dim": "#dfd9d3",
+                        "surface-container-lowest": "#ffffff",
+                        "on-background": "#1d1b18",
+                        "secondary-container": "#ffd1dc",
+                        "on-primary-fixed-variant": "#6e3545",
+                        "tertiary-fixed-dim": "#ffb59c",
+                        "on-secondary-fixed": "#2d141c",
+                        "surface-tint": "#894c5c",
+                        "on-secondary-fixed-variant": "#5e3e47",
+                        "surface-bright": "#fef8f2"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "xl": "40px",
+                        "sm": "8px",
+                        "md": "16px",
+                        "margin-desktop": "64px",
+                        "gutter": "16px",
+                        "margin-mobile": "20px",
+                        "unit": "4px",
+                        "xs": "4px",
+                        "lg": "24px"
+                    },
+                    "fontFamily": {
+                        "body-md": ["Plus Jakarta Sans"],
+                        "label-bold": ["Plus Jakarta Sans"],
+                        "headline-lg-mobile": ["Be Vietnam Pro"],
+                        "headline-lg": ["Be Vietnam Pro"],
+                        "body-lg": ["Plus Jakarta Sans"],
+                        "headline-md": ["Be Vietnam Pro"]
+                    },
+                    "fontSize": {
+                        "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "label-bold": ["14px", { "lineHeight": "20px", "fontWeight": "700" }],
+                        "headline-lg-mobile": ["28px", { "lineHeight": "36px", "fontWeight": "700" }],
+                        "headline-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "body-lg": ["18px", { "lineHeight": "28px", "fontWeight": "400" }],
+                        "headline-md": ["24px", { "lineHeight": "32px", "fontWeight": "600" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body {
+            background-color: theme('colors.background');
+            color: theme('colors.on-background');
+            background-image: radial-gradient(theme('colors.primary-container/20') 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+        .squishy-button {
+            box-shadow: 0 4px 0 theme('colors.on-primary-fixed-variant');
+            transition: all 0.1s ease;
+        }
+        .squishy-button:active {
+            transform: translateY(4px);
+            box-shadow: 0 0 0 theme('colors.on-primary-fixed-variant');
+        }
+        .hand-drawn-border {
+            border: 2px solid theme('colors.outline');
+            border-radius: theme('borderRadius.xl');
+        }
+        .glass-card {
+            background: theme('colors.surface/60');
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid theme('colors.outline-variant');
+            box-shadow: 0 8px 32px 0 theme('colors.primary-fixed-dim/20');
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="min-h-screen flex flex-col items-center justify-center p-margin-mobile md:p-margin-desktop overflow-hidden relative">
+<div class="w-full max-w-md z-10 flex flex-col gap-lg">
+<div class="text-center space-y-sm">
+<h1 class="font-headline-lg-mobile text-headline-lg-mobile text-primary">完善个人资料</h1>
+<p class="font-body-md text-body-md text-on-surface-variant">让对方一眼认出你</p>
+</div>
+<div class="glass-card rounded-[32px] p-xl flex flex-col items-center gap-xl relative">
+<div class="absolute -top-12 -right-4 text-primary opacity-20 transform rotate-12">
+<span class="material-symbols-outlined" style="font-size: 80px; font-variation-settings: 'FILL' 1;">favorite</span>
+</div>
+<div class="relative group cursor-pointer flex flex-col items-center gap-sm">
+<div class="w-32 h-32 rounded-full border-2 border-dashed border-primary flex flex-col items-center justify-center bg-primary-container/10 hover:bg-primary-container/20 transition-colors overflow-hidden relative">
+<span class="material-symbols-outlined text-primary text-4xl group-hover:scale-110 transition-transform">add</span>
+</div>
+<span class="font-label-bold text-label-bold text-primary">从相册选择头像</span>
+</div>
+<div class="w-full space-y-sm">
+<label class="font-label-bold text-label-bold text-on-surface ml-2" for="nickname">昵称</label>
+<input class="w-full h-14 bg-surface-container-low border-2 border-outline-variant focus:border-primary focus:ring-0 rounded-[22px] px-md font-body-md text-body-md text-on-surface placeholder-outline transition-colors" id="nickname" placeholder="输入一个可爱的昵称吧" type="text"/>
+</div>
+<button class="w-full h-14 bg-primary text-on-primary font-headline-md text-headline-md rounded-full squishy-button flex items-center justify-center mt-md">
+                开启甜蜜点菜之旅
+            </button>
+</div>
+<div class="text-center">
+<a class="font-label-bold text-label-bold text-secondary hover:text-primary transition-colors flex items-center justify-center gap-xs" href="#">
+<span class="material-symbols-outlined text-sm">arrow_back</span>
+                返回上一步
+            </a>
+</div>
+</div>
+</body></html>

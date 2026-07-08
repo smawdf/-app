@@ -10,7 +10,7 @@
 CREATE TABLE IF NOT EXISTS profiles (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id     UUID REFERENCES auth.users(id) ON DELETE CASCADE,
-    pair_id     UUID NOT NULL,
+    pair_id     TEXT NOT NULL,
     nickname    TEXT NOT NULL DEFAULT '',
     avatar_url  TEXT,
     taste_prefs JSONB DEFAULT '{}',
@@ -29,7 +29,7 @@ COMMENT ON COLUMN profiles.allergies IS '忌口列表，如 {"花生", "牛奶",
 -- ============================================================
 CREATE TABLE IF NOT EXISTS dishes (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    pair_id         UUID NOT NULL,
+    pair_id         TEXT NOT NULL,
     name            TEXT NOT NULL,
     source          TEXT NOT NULL CHECK (source IN ('custom', 'external', 'builtin')),
     external_id     TEXT,
@@ -59,7 +59,7 @@ COMMENT ON COLUMN dishes.difficulty IS '难度：1=新手, 2=简单, 3=中等, 4
 CREATE TABLE IF NOT EXISTS dish_tags (
     id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     dish_id    UUID NOT NULL REFERENCES dishes(id) ON DELETE CASCADE,
-    pair_id    UUID NOT NULL,
+    pair_id    TEXT NOT NULL,
     name       TEXT NOT NULL,
     color      TEXT DEFAULT '#FF6B6B',
     created_at TIMESTAMPTZ DEFAULT now()
@@ -71,7 +71,7 @@ COMMENT ON TABLE dish_tags IS '菜品标签 — 每个菜品可以有多个标�
 -- ============================================================
 CREATE TABLE IF NOT EXISTS meals (
     id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    pair_id      UUID NOT NULL,
+    pair_id      TEXT NOT NULL,
     meal_type    TEXT NOT NULL CHECK (meal_type IN ('breakfast', 'lunch', 'dinner', 'supper', 'other')),
     date         DATE NOT NULL DEFAULT CURRENT_DATE,
     status       TEXT NOT NULL DEFAULT 'ordering' CHECK (status IN ('ordering', 'confirmed', 'completed', 'cancelled')),
@@ -103,7 +103,7 @@ COMMENT ON TABLE meal_items IS '点餐明细 — 某顿饭里的某道菜，记�
 -- ============================================================
 CREATE TABLE IF NOT EXISTS wishlists (
     id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    pair_id    UUID NOT NULL,
+    pair_id    TEXT NOT NULL,
     dish_id    UUID NOT NULL REFERENCES dishes(id) ON DELETE CASCADE,
     added_by   UUID REFERENCES profiles(id),
     status     TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'tried', 'rejected')),

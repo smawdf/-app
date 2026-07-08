@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+
+<html class="light" lang="zh-CN"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>重置密码 - Cozy Table</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;600;700&amp;family=Plus+Jakarta+Sans:wght@400;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-primary-fixed": "#380a1a",
+                        "outline": "#847376",
+                        "on-tertiary": "#ffffff",
+                        "error": "#ba1a1a",
+                        "on-surface": "#1d1b18",
+                        "on-secondary-container": "#7a5761",
+                        "on-surface-variant": "#524346",
+                        "tertiary": "#8b4e38",
+                        "inverse-surface": "#32302c",
+                        "primary-fixed-dim": "#ffb1c3",
+                        "on-primary": "#ffffff",
+                        "on-primary-container": "#733949",
+                        "secondary": "#78555e",
+                        "surface": "#fef8f2",
+                        "tertiary-fixed": "#ffdbcf",
+                        "outline-variant": "#d6c1c5",
+                        "on-tertiary-container": "#753c27",
+                        "surface-container-low": "#f8f3ed",
+                        "primary-fixed": "#ffd9e0",
+                        "on-tertiary-fixed-variant": "#6f3723",
+                        "on-secondary": "#ffffff",
+                        "error-container": "#ffdad6",
+                        "primary": "#894c5c",
+                        "on-error": "#ffffff",
+                        "on-error-container": "#93000a",
+                        "inverse-on-surface": "#f6f0ea",
+                        "inverse-primary": "#ffb1c3",
+                        "surface-container-high": "#ede7e1",
+                        "background": "#fef8f2",
+                        "surface-container": "#f3ede7",
+                        "secondary-fixed": "#ffd9e2",
+                        "secondary-fixed-dim": "#e7bbc6",
+                        "surface-container-highest": "#e7e2dc",
+                        "surface-variant": "#e7e2dc",
+                        "tertiary-container": "#f8a98e",
+                        "on-tertiary-fixed": "#380d01",
+                        "primary-container": "#f4a7b9",
+                        "surface-dim": "#dfd9d3",
+                        "surface-container-lowest": "#ffffff",
+                        "on-background": "#1d1b18",
+                        "secondary-container": "#ffd1dc",
+                        "on-primary-fixed-variant": "#6e3545",
+                        "tertiary-fixed-dim": "#ffb59c",
+                        "on-secondary-fixed": "#2d141c",
+                        "surface-tint": "#894c5c",
+                        "on-secondary-fixed-variant": "#5e3e47",
+                        "surface-bright": "#fef8f2"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px",
+                        "2xl": "1rem",
+                        "3xl": "1.5rem"
+                    },
+                    "spacing": {
+                        "xl": "40px",
+                        "sm": "8px",
+                        "md": "16px",
+                        "margin-desktop": "64px",
+                        "gutter": "16px",
+                        "margin-mobile": "20px",
+                        "unit": "4px",
+                        "xs": "4px",
+                        "lg": "24px"
+                    },
+                    "fontFamily": {
+                        "body-md": ["Plus Jakarta Sans"],
+                        "label-bold": ["Plus Jakarta Sans"],
+                        "headline-lg-mobile": ["Be Vietnam Pro"],
+                        "headline-lg": ["Be Vietnam Pro"],
+                        "body-lg": ["Plus Jakarta Sans"],
+                        "headline-md": ["Be Vietnam Pro"]
+                    },
+                    "fontSize": {
+                        "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "label-bold": ["14px", { "lineHeight": "20px", "fontWeight": "700" }],
+                        "headline-lg-mobile": ["28px", { "lineHeight": "36px", "fontWeight": "700" }],
+                        "headline-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "body-lg": ["18px", { "lineHeight": "28px", "fontWeight": "400" }],
+                        "headline-md": ["24px", { "lineHeight": "32px", "fontWeight": "600" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body {
+            background-color: #fef8f2;
+            color: #1d1b18;
+        }
+        
+        .squishy-shadow {
+            box-shadow: 0 4px 0 0 #7a5761;
+        }
+        .squishy-shadow:active {
+            box-shadow: 0 0 0 0 #7a5761;
+            transform: translateY(4px);
+        }
+
+        .hand-drawn-border {
+            border: 2px solid #78555e;
+            border-radius: 1.5rem;
+        }
+        
+        .glass-card {
+            background: rgba(255, 249, 243, 0.7);
+            backdrop-filter: blur(10px);
+            border: 2px solid rgba(120, 85, 94, 0.2);
+        }
+        
+        input:focus {
+            outline: none;
+            border-color: #894c5c !important;
+            box-shadow: 0 0 0 1px #894c5c !important;
+        }
+        
+        .icon-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #524346;
+        }
+        .icon-btn:hover {
+            color: #894c5c;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="min-h-screen flex flex-col items-center justify-center p-margin-mobile md:p-margin-desktop relative overflow-hidden">
+<!-- Background Decoration -->
+<div class="absolute inset-0 pointer-events-none z-0 overflow-hidden">
+<div class="absolute top-[-10%] left-[-10%] w-[50vw] h-[50vw] bg-secondary-container/30 rounded-full blur-3xl opacity-50"></div>
+<div class="absolute bottom-[-10%] right-[-10%] w-[60vw] h-[60vw] bg-tertiary-container/20 rounded-full blur-3xl opacity-50"></div>
+</div>
+<!-- Main Content Container -->
+<main class="w-full max-w-[400px] z-10 relative flex flex-col gap-lg">
+<!-- Header -->
+<header class="text-center space-y-sm mb-md">
+<div class="w-24 h-24 mx-auto mb-4 rounded-full overflow-hidden hand-drawn-border bg-surface-container-high flex items-center justify-center p-2">
+<img alt="Mascot Logo" class="w-full h-full object-cover rounded-full" data-alt="A cute, soft kawaii-style illustration of two happy mascot dogs (one white, one light brown) sitting together at a cozy dining table. The style is hand-drawn with thick soft strokes, pastel colors, and a warm cream background, embodying a soft comfort aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCz5MVKOxbkLggmmvFFmEF1IS5Ap8t1cWuLBlxhFWqhpt_NnohcoTHpSr20WPM62RBsE67aIoviyKQbAhbz_jSdZaamiAMikVMEWP3jiJ1IFv4XoKhNgQaNCPd-ydbkf5qAXMKkX8-PyXH2ICS0SsRsRf9pRNnDlFeH_yNb1HA4YBPbWG9lvE7Yy3ftTNqVR5O4sVsHaOAxrI6DYnrWv7gx2iLVQ2XuiAJ7oGeUUuH0PpmzL4yKQxa4"/>
+</div>
+<h1 class="font-headline-lg-mobile md:font-headline-lg text-headline-lg-mobile md:text-headline-lg text-primary">重置密码</h1>
+<p class="font-body-md text-body-md text-on-surface-variant">用邮箱验证码找回账号</p>
+</header>
+<!-- Form Card -->
+<div class="glass-card rounded-3xl p-lg flex flex-col gap-md">
+<!-- Email Input -->
+<div class="space-y-xs">
+<label class="font-label-bold text-label-bold text-secondary ml-sm" for="email">邮箱地址</label>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-sm top-1/2 -translate-y-1/2 text-on-surface-variant" style="font-variation-settings: 'FILL' 0;">mail</span>
+<input class="w-full bg-surface border-2 border-outline-variant rounded-xl py-3 pl-[40px] pr-sm font-body-md text-body-md text-on-surface placeholder-outline transition-colors" id="email" placeholder="输入绑定的邮箱" required="" type="email"/>
+</div>
+</div>
+<!-- Verification Code Input -->
+<div class="space-y-xs">
+<label class="font-label-bold text-label-bold text-secondary ml-sm" for="code">验证码</label>
+<div class="flex gap-sm">
+<div class="relative flex-1">
+<span class="material-symbols-outlined absolute left-sm top-1/2 -translate-y-1/2 text-on-surface-variant" style="font-variation-settings: 'FILL' 0;">password</span>
+<input class="w-full bg-surface border-2 border-outline-variant rounded-xl py-3 pl-[40px] pr-sm font-body-md text-body-md text-on-surface placeholder-outline transition-colors" id="code" maxlength="6" placeholder="6位验证码" required="" type="text"/>
+</div>
+<button class="bg-secondary-container text-on-secondary-container font-label-bold text-label-bold px-md rounded-xl border-2 border-secondary hover:bg-secondary-container/80 transition-colors whitespace-nowrap active:scale-95" id="sendCodeBtn" type="button">获取验证码</button>
+</div>
+</div>
+<!-- New Password Input -->
+<div class="space-y-xs">
+<label class="font-label-bold text-label-bold text-secondary ml-sm" for="newPassword">新密码</label>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-sm top-1/2 -translate-y-1/2 text-on-surface-variant" style="font-variation-settings: 'FILL' 0;">lock</span>
+<input class="w-full bg-surface border-2 border-outline-variant rounded-xl py-3 pl-[40px] pr-[40px] font-body-md text-body-md text-on-surface placeholder-outline transition-colors" id="newPassword" minlength="8" placeholder="设置新密码 (最少8位)" required="" type="password"/>
+<button class="icon-btn absolute right-xs top-1/2 -translate-y-1/2 toggle-password" data-target="newPassword" type="button">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">visibility</span>
+</button>
+</div>
+</div>
+<!-- Confirm Password Input -->
+<div class="space-y-xs">
+<label class="font-label-bold text-label-bold text-secondary ml-sm" for="confirmPassword">确认新密码</label>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-sm top-1/2 -translate-y-1/2 text-on-surface-variant" style="font-variation-settings: 'FILL' 0;">lock_clock</span>
+<input class="w-full bg-surface border-2 border-outline-variant rounded-xl py-3 pl-[40px] pr-[40px] font-body-md text-body-md text-on-surface placeholder-outline transition-colors" id="confirmPassword" placeholder="再次输入新密码" required="" type="password"/>
+<button class="icon-btn absolute right-xs top-1/2 -translate-y-1/2 toggle-password" data-target="confirmPassword" type="button">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">visibility</span>
+</button>
+</div>
+</div>
+<!-- Submit Button -->
+<button class="mt-md w-full bg-primary text-on-primary font-label-bold text-label-bold py-3 rounded-full squishy-shadow transition-all relative overflow-hidden flex items-center justify-center gap-sm" type="button">
+<span>重置密码</span>
+<span class="material-symbols-outlined text-sm" style="font-variation-settings: 'FILL' 1;">arrow_forward</span>
+</button>
+</div>
+<!-- Footer Link -->
+<div class="text-center mt-sm">
+<a class="font-label-bold text-label-bold text-secondary hover:text-primary transition-colors flex items-center justify-center gap-xs inline-flex" href="#">
+<span class="material-symbols-outlined text-sm" style="font-variation-settings: 'FILL' 0;">arrow_back</span>
+                返回登录
+            </a>
+</div>
+</main>
+<script>
+        // Password Visibility Toggle
+        document.querySelectorAll('.toggle-password').forEach(button => {
+            button.addEventListener('click', function() {
+                const targetId = this.getAttribute('data-target');
+                const input = document.getElementById(targetId);
+                const icon = this.querySelector('span');
+
+                if (input.type === 'password') {
+                    input.type = 'text';
+                    icon.textContent = 'visibility_off';
+                } else {
+                    input.type = 'password';
+                    icon.textContent = 'visibility';
+                }
+            });
+        });
+
+        // Mock Send Code Countdown
+        const sendCodeBtn = document.getElementById('sendCodeBtn');
+        let countdown = 0;
+        let timer = null;
+
+        sendCodeBtn.addEventListener('click', function() {
+            if (countdown > 0) return;
+            
+            // Simple validation check for email visually (not real validation)
+            const emailInput = document.getElementById('email');
+            if(!emailInput.value) {
+                emailInput.focus();
+                return;
+            }
+
+            countdown = 59;
+            this.disabled = true;
+            this.classList.add('opacity-70', 'cursor-not-allowed');
+            this.textContent = `重新发送 ${countdown}s`;
+
+            timer = setInterval(() => {
+                countdown--;
+                if (countdown <= 0) {
+                    clearInterval(timer);
+                    this.disabled = false;
+                    this.classList.remove('opacity-70', 'cursor-not-allowed');
+                    this.textContent = '获取验证码';
+                } else {
+                    this.textContent = `重新发送 ${countdown}s`;
+                }
+            }, 1000);
+        });
+    </script>
+</body></html>

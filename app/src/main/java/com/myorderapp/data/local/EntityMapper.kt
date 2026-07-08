@@ -2,6 +2,7 @@ package com.myorderapp.data.local
 
 import com.myorderapp.data.local.entity.AddressEntity
 import com.myorderapp.data.local.entity.CartItemEntity
+import com.myorderapp.data.local.entity.CandyCoinRecordEntity
 import com.myorderapp.data.local.entity.DishEntity
 import com.myorderapp.data.local.entity.MealEntity
 import com.myorderapp.data.local.entity.MealItemEntity
@@ -11,6 +12,7 @@ import com.myorderapp.data.local.entity.ProfileEntity
 import com.myorderapp.data.local.entity.WishlistEntity
 import com.myorderapp.domain.model.Address
 import com.myorderapp.domain.model.CartItem
+import com.myorderapp.domain.model.CandyCoinRecord
 import com.myorderapp.domain.model.Dish
 import com.myorderapp.domain.model.Meal
 import com.myorderapp.domain.model.MealItem
@@ -130,7 +132,8 @@ object EntityMapper {
         tastePrefsJson = json.encodeToString(tastePrefs),
         allergiesJson = json.encodeToString(allergies),
         createdAt = createdAt,
-        updatedAt = updatedAt
+        updatedAt = updatedAt,
+        candyCoins = candyCoins
     )
 
     fun ProfileEntity.toDomain() = Profile(
@@ -141,7 +144,8 @@ object EntityMapper {
         tastePrefs = json.decodeFromString(tastePrefsJson),
         allergies = json.decodeFromString(allergiesJson),
         createdAt = createdAt,
-        updatedAt = updatedAt
+        updatedAt = updatedAt,
+        candyCoins = candyCoins
     )
 
     fun WishlistItem.toEntity() = WishlistEntity(
@@ -231,6 +235,10 @@ object EntityMapper {
     fun OrderRecord.toEntity() = OrderEntity(
         id = id,
         userId = userId,
+        pairId = pairId,
+        buyerName = buyerName,
+        buyerAvatarUrl = buyerAvatarUrl,
+        buyerRole = buyerRole,
         shopId = shopId,
         shopName = shopName,
         shopCoverUrl = shopCoverUrl,
@@ -240,12 +248,17 @@ object EntityMapper {
         subtotal = subtotal,
         deliveryFee = deliveryFee,
         totalPrice = totalPrice,
+        candyCoinsSpent = candyCoinsSpent,
         createdAt = createdAt
     )
 
     fun OrderEntity.toDomain(items: List<OrderItem>) = OrderRecord(
         id = id,
         userId = userId,
+        pairId = pairId,
+        buyerName = buyerName,
+        buyerAvatarUrl = buyerAvatarUrl,
+        buyerRole = buyerRole,
         shopId = shopId,
         shopName = shopName,
         shopCoverUrl = shopCoverUrl,
@@ -255,6 +268,7 @@ object EntityMapper {
         subtotal = subtotal,
         deliveryFee = deliveryFee,
         totalPrice = totalPrice,
+        candyCoinsSpent = candyCoinsSpent,
         createdAt = createdAt,
         items = items,
         timeline = buildTimeline(status, createdAt)
@@ -282,6 +296,28 @@ object EntityMapper {
         subtotal = subtotal
     )
 
+    fun CandyCoinRecord.toEntity() = CandyCoinRecordEntity(
+        id = id,
+        type = type,
+        amount = amount,
+        balanceAfter = balanceAfter,
+        actorRole = actorRole,
+        targetRole = targetRole,
+        note = note,
+        createdAt = createdAt
+    )
+
+    fun CandyCoinRecordEntity.toDomain() = CandyCoinRecord(
+        id = id,
+        type = type,
+        amount = amount,
+        balanceAfter = balanceAfter,
+        actorRole = actorRole,
+        targetRole = targetRole,
+        note = note,
+        createdAt = createdAt
+    )
+
     private fun buildTimeline(status: String, createdAt: String): List<OrderTimelineEntry> {
         val ordered = listOf(
             "submitted" to "已提交",
@@ -294,7 +330,7 @@ object EntityMapper {
         return ordered.mapIndexed { index, pair ->
             OrderTimelineEntry(
                 title = pair.second,
-                timestamp = createdAt,
+                timestamp = if (index == 0 && index <= currentIndex) createdAt else "",
                 isCompleted = index <= currentIndex
             )
         }

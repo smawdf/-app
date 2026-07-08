@@ -1,10 +1,14 @@
 package com.myorderapp.ui.navigation
 
+import android.net.Uri
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -14,7 +18,9 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.myorderapp.ui.auth.AuthScreen
+import com.myorderapp.ui.auth.ResetPasswordScreen
 import com.myorderapp.ui.cart.CartScreen
+import com.myorderapp.ui.candy.CandyCoinsScreen
 import com.myorderapp.ui.checkout.CheckoutScreen
 import com.myorderapp.ui.couple.AnniversaryScreen
 import com.myorderapp.ui.couple.CoupleMenuScreen
@@ -37,28 +43,44 @@ object Routes {
     const val ORDERS = "orders"
     const val ORDER_DETAIL = "orders/{orderId}"
     const val PROFILE = "profile"
+    const val CANDY_COINS = "candy_coins"
     const val AUTH = "auth"
+    const val RESET_PASSWORD = "reset_password?deepLink={deepLink}"
     const val ONBOARDING = "onboarding"
     const val ANNIVERSARY = "anniversary"
 
     fun orderDetail(orderId: String) = "orders/$orderId"
+    fun resetPassword(deepLink: String) = "reset_password?deepLink=${Uri.encode(deepLink)}"
 }
 
-private const val ANIM_DURATION = 260
+private const val ANIM_DURATION = 220
+private const val EXIT_ANIM_DURATION = 140
 
 private fun enterSlideFade(): EnterTransition =
-    fadeIn(tween(ANIM_DURATION))
+    slideInHorizontally(
+        animationSpec = tween(ANIM_DURATION, easing = FastOutSlowInEasing),
+        initialOffsetX = { it / 10 }
+    ) + fadeIn(tween(ANIM_DURATION, easing = FastOutSlowInEasing))
 
 private fun exitSlideFade(): ExitTransition =
-    fadeOut(tween(ANIM_DURATION))
+    slideOutHorizontally(
+        animationSpec = tween(EXIT_ANIM_DURATION, easing = FastOutSlowInEasing),
+        targetOffsetX = { -it / 18 }
+    ) + fadeOut(tween(EXIT_ANIM_DURATION, easing = FastOutSlowInEasing))
 
 private fun popEnterSlideFade(): EnterTransition =
-    fadeIn(tween(ANIM_DURATION))
+    slideInHorizontally(
+        animationSpec = tween(ANIM_DURATION, easing = FastOutSlowInEasing),
+        initialOffsetX = { -it / 10 }
+    ) + fadeIn(tween(ANIM_DURATION, easing = FastOutSlowInEasing))
 
 private fun popExitSlideFade(): ExitTransition =
-    fadeOut(tween(ANIM_DURATION))
+    slideOutHorizontally(
+        animationSpec = tween(EXIT_ANIM_DURATION, easing = FastOutSlowInEasing),
+        targetOffsetX = { it / 18 }
+    ) + fadeOut(tween(EXIT_ANIM_DURATION, easing = FastOutSlowInEasing))
 
-private fun NavHostController.navigateAsTab(route: String) {
+fun NavHostController.navigateAsTab(route: String) {
     navigate(route) {
         popUpTo(graph.findStartDestination().id) {
             saveState = true
@@ -72,7 +94,8 @@ private fun NavHostController.navigateAsTab(route: String) {
 fun NavGraph(
     navController: NavHostController,
     modifier: Modifier = Modifier,
-    startDestination: String = Routes.HOME
+    startDestination: String = Routes.HOME,
+    resetPasswordDeepLink: String = ""
 ) {
     NavHost(
         navController = navController,
@@ -83,13 +106,7 @@ fun NavGraph(
         popEnterTransition = { popEnterSlideFade() },
         popExitTransition = { popExitSlideFade() }
     ) {
-        composable(
-            Routes.HOME,
-            enterTransition = { fadeIn(tween(ANIM_DURATION)) },
-            exitTransition = { fadeOut(tween(ANIM_DURATION)) },
-            popEnterTransition = { fadeIn(tween(ANIM_DURATION)) },
-            popExitTransition = { fadeOut(tween(ANIM_DURATION)) }
-        ) {
+        composable(Routes.HOME) {
             CoupleMenuScreen(
                 onCustomizeMenuClick = { navController.navigate(Routes.SHOP_SETTINGS) },
                 onGoOrderingClick = { navController.navigateAsTab(Routes.ORDERING) },
@@ -111,13 +128,7 @@ fun NavGraph(
             )
         }
 
-        composable(
-            Routes.DISCOVER,
-            enterTransition = { fadeIn(tween(ANIM_DURATION)) },
-            exitTransition = { fadeOut(tween(ANIM_DURATION)) },
-            popEnterTransition = { fadeIn(tween(ANIM_DURATION)) },
-            popExitTransition = { fadeOut(tween(ANIM_DURATION)) }
-        ) {
+        composable(Routes.DISCOVER) {
             DiscoverScreen()
         }
 
@@ -158,26 +169,14 @@ fun NavGraph(
             )
         }
 
-        composable(
-            Routes.ORDERS,
-            enterTransition = { fadeIn(tween(ANIM_DURATION)) },
-            exitTransition = { fadeOut(tween(ANIM_DURATION)) },
-            popEnterTransition = { fadeIn(tween(ANIM_DURATION)) },
-            popExitTransition = { fadeOut(tween(ANIM_DURATION)) }
-        ) {
+        composable(Routes.ORDERS) {
             OrdersScreen(
                 onOrderClick = { orderId -> navController.navigate(Routes.orderDetail(orderId)) },
                 onGoOrderingClick = { navController.navigateAsTab(Routes.ORDERING) }
             )
         }
 
-        composable(
-            Routes.PROFILE,
-            enterTransition = { fadeIn(tween(ANIM_DURATION)) },
-            exitTransition = { fadeOut(tween(ANIM_DURATION)) },
-            popEnterTransition = { fadeIn(tween(ANIM_DURATION)) },
-            popExitTransition = { fadeOut(tween(ANIM_DURATION)) }
-        ) {
+        composable(Routes.PROFILE) {
             ProfileScreen(
                 onLoginClick = {
                     navController.navigate(Routes.AUTH) {
@@ -185,8 +184,14 @@ fun NavGraph(
                         launchSingleTop = true
                     }
                 },
-                onDishManageClick = { navController.navigate(Routes.SHOP_SETTINGS) }
+                onDishManageClick = { navController.navigate(Routes.SHOP_SETTINGS) },
+                onOrdersClick = { navController.navigateAsTab(Routes.ORDERS) },
+                onCandyCoinsClick = { navController.navigate(Routes.CANDY_COINS) }
             )
+        }
+
+        composable(Routes.CANDY_COINS) {
+            CandyCoinsScreen(onBack = { navController.popBackStack() })
         }
 
         composable(Routes.ONBOARDING) {
@@ -207,7 +212,6 @@ fun NavGraph(
         composable(Routes.AUTH) {
             AuthScreen(
                 onLoggedIn = {
-                    navController.popBackStack()
                     navController.navigate(Routes.HOME) {
                         popUpTo(Routes.AUTH) { inclusive = true }
                     }
@@ -215,6 +219,28 @@ fun NavGraph(
                 onRegisterClick = {
                     navController.navigate(Routes.ONBOARDING) {
                         popUpTo(Routes.AUTH) { inclusive = true }
+                    }
+                },
+                onForgotPasswordClick = {
+                    navController.navigate(Routes.resetPassword(""))
+                }
+            )
+        }
+
+        composable(
+            route = Routes.RESET_PASSWORD,
+            arguments = listOf(navArgument("deepLink") {
+                type = NavType.StringType
+                defaultValue = resetPasswordDeepLink
+            })
+        ) { backStackEntry ->
+            val deepLink = backStackEntry.arguments?.getString("deepLink").orEmpty()
+            ResetPasswordScreen(
+                deepLink = deepLink,
+                onBackToLogin = {
+                    navController.navigate(Routes.AUTH) {
+                        popUpTo(0) { inclusive = true }
+                        launchSingleTop = true
                     }
                 }
             )

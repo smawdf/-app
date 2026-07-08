@@ -1,0 +1,260 @@
+<!DOCTYPE html><html lang="zh-CN" style=""><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Our Kitchen - Order</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com" rel="preconnect">
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect">
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;600;700&amp;family=Plus+Jakarta+Sans:wght@400;600;700&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "inverse-primary": "#ffb1c3",
+                      "secondary": "#78555e",
+                      "surface-tint": "#894c5c",
+                      "on-primary-container": "#733949",
+                      "on-tertiary-fixed": "#380d01",
+                      "on-tertiary-container": "#753c27",
+                      "secondary-container": "#ffd1dc",
+                      "on-primary": "#ffffff",
+                      "outline": "#847376",
+                      "on-surface-variant": "#524346",
+                      "on-error": "#ffffff",
+                      "surface-container-lowest": "#ffffff",
+                      "surface-container-highest": "#e7e2dc",
+                      "on-tertiary": "#ffffff",
+                      "inverse-surface": "#32302c",
+                      "error-container": "#ffdad6",
+                      "background": "#fef8f2",
+                      "outline-variant": "#d6c1c5",
+                      "on-secondary-fixed": "#2d141c",
+                      "tertiary": "#8b4e38",
+                      "surface-dim": "#dfd9d3",
+                      "tertiary-container": "#f8a98e",
+                      "surface-container-low": "#f8f3ed",
+                      "primary-fixed-dim": "#ffb1c3",
+                      "on-primary-fixed-variant": "#6e3545",
+                      "error": "#ba1a1a",
+                      "primary-fixed": "#ffd9e0",
+                      "secondary-fixed": "#ffd9e2",
+                      "primary": "#894c5c",
+                      "on-surface": "#1d1b18",
+                      "tertiary-fixed": "#ffdbcf",
+                      "surface-container": "#f3ede7",
+                      "surface": "#fef8f2",
+                      "on-secondary": "#ffffff",
+                      "tertiary-fixed-dim": "#ffb59c",
+                      "surface-variant": "#e7e2dc",
+                      "on-tertiary-fixed-variant": "#6f3723",
+                      "on-primary-fixed": "#380a1a",
+                      "on-background": "#1d1b18",
+                      "secondary-fixed-dim": "#e7bbc6",
+                      "inverse-on-surface": "#f6f0ea",
+                      "on-secondary-fixed-variant": "#5e3e47",
+                      "surface-container-high": "#ede7e1",
+                      "surface-bright": "#fef8f2",
+                      "on-error-container": "#93000a",
+                      "primary-container": "#f4a7b9",
+                      "on-secondary-container": "#7a5761"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "lg": "24px",
+                      "md": "16px",
+                      "margin-desktop": "64px",
+                      "margin-mobile": "20px",
+                      "xl": "40px",
+                      "xs": "4px",
+                      "unit": "4px",
+                      "gutter": "16px",
+                      "sm": "8px"
+              },
+              "fontFamily": {
+                      "body-lg": ["Plus Jakarta Sans"],
+                      "headline-md": ["Be Vietnam Pro"],
+                      "headline-lg-mobile": ["Be Vietnam Pro"],
+                      "body-md": ["Plus Jakarta Sans"],
+                      "label-bold": ["Plus Jakarta Sans"],
+                      "headline-lg": ["Be Vietnam Pro"]
+              },
+              "fontSize": {
+                      "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                      "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                      "headline-lg-mobile": ["28px", {"lineHeight": "36px", "fontWeight": "700"}],
+                      "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                      "label-bold": ["14px", {"lineHeight": "20px", "fontWeight": "700"}],
+                      "headline-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700"}]
+              }
+            }
+          }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        /* Custom scrollbar for a softer look */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #d6c1c5; border-radius: 10px; }
+        
+        /* Entrance animation */
+        @keyframes slideUpFade {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        .animate-slide-up-fade {
+            animation: slideUpFade 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+</head>
+<body class="bg-background text-on-surface font-body-md antialiased overflow-x-hidden pb-[200px]">
+<!-- TopAppBar -->
+<header class="fixed w-full top-0 z-50 bg-background/80 backdrop-blur-md flex justify-between items-center px-margin-mobile py-sm">
+<button class="hover:opacity-80 scale-95 transition-transform flex items-center justify-center p-2 rounded-full text-primary dark:text-primary-fixed-dim">
+<span class="material-symbols-outlined">favorite</span>
+</button>
+<h1 class="font-headline-md text-headline-md text-primary font-bold text-[18px]">点菜 - 挑选今日美味</h1>
+<button class="hover:opacity-80 scale-95 transition-transform flex items-center justify-center p-2 rounded-full text-primary dark:text-primary-fixed-dim">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+</header>
+<main class="max-w-md mx-auto pt-[80px] animate-slide-up-fade">
+<!-- Shop Card -->
+<div class="mx-margin-mobile mb-6 bg-secondary-container border-2 border-secondary rounded-3xl p-4 flex items-center gap-4 shadow-[0_4px_0_#78555e] relative overflow-hidden">
+<div class="absolute top-0 right-0 w-32 h-32 bg-white/20 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2"></div>
+<div class="w-16 h-16 rounded-full border-2 border-secondary overflow-hidden shrink-0 bg-white">
+<img class="w-full h-full object-cover" data-alt="A cute, hand-drawn style illustration of a fluffy white puppy and a light brown puppy sitting together with hearts above their heads, in a warm cream and pink color palette, tactile minimalism style." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDMcdQlwO5NFr2Kot7ou_Rje4TyAyNJIt-AeLjMZjQrfpJ1IVy9FK6-hZqNHkcJ50Tb76ECR5x4qAPyI2obNjCvROYKFA7MtltstVTIwA-GM-JZ1-qddJWTHYd-iVFgQCzav0zyDddrsDS43cDNsCxoMYoypFCtS9Y_IKWS2sTgHiEn6GOlZRxtbptdV4vbsAwgRGEYujtG1iaAt_0dm76mXBe4m5o_rpuGRvn1NTpD5lQ_3Z5ijTSc">
+</div>
+<div class="z-10">
+<h2 class="font-label-bold text-label-bold text-on-secondary-container text-lg mb-1">我们的小饭桌</h2>
+<p class="text-sm text-secondary flex items-center gap-1">
+<span class="material-symbols-outlined text-[16px]">campaign</span>
+                    今天也给你准备了好吃的 ✨
+                </p>
+</div>
+</div>
+<!-- Split Layout Area -->
+<div class="flex px-margin-mobile gap-lg">
+<!-- Left Navigation (Categories) -->
+<nav class="w-24 shrink-0 flex flex-col gap-3 sticky top-[100px] h-fit">
+<button class="w-full py-3 px-2 rounded-full bg-primary-container text-on-primary-container font-label-bold text-label-bold text-center shadow-[0_4px_0_rgba(137,76,92,0.2)] transition-transform active:translate-y-1 active:shadow-none">
+                    🔥 热销
+                </button>
+<button class="w-full py-3 px-2 rounded-full text-on-surface-variant font-label-bold text-label-bold text-center hover:bg-surface-variant transition-colors">
+                    🍚 主食
+                </button>
+<button class="w-full py-3 px-2 rounded-full text-on-surface-variant font-label-bold text-label-bold text-center hover:bg-surface-variant transition-colors">
+                    🥤 饮品
+                </button>
+<button class="w-full py-3 px-2 rounded-full text-on-surface-variant font-label-bold text-label-bold text-center hover:bg-surface-variant transition-colors">
+                    🍰 甜点
+                </button>
+</nav>
+<!-- Right Content (Menu Items) -->
+<div class="flex-1 flex flex-col gap-5">
+<!-- Food Item Card 1 -->
+<div class="bg-white/60 backdrop-blur-md rounded-2xl border-2 border-white p-3 flex flex-col gap-3 shadow-[0_8px_20px_rgba(137,76,92,0.05)]">
+<div class="w-full aspect-square rounded-xl overflow-hidden border-2 border-surface-variant relative">
+<img class="w-full h-full object-cover" data-alt="A top-down view of a heart-shaped pizza slice with pepperoni, styled as a soft, kawaii hand-drawn illustration with thick brown outlines, warm pink and cream background, tactile minimalism." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAPfgWu2TtnuSQzNOiTtqM-YiPL_eEEI_M0nqY-puL6kjCwG5VdhUDSq2skBxOgsUcHI0pq265Ran3gddGcDNDSHKEYVr0yGi8OYTgLa22Gd0gjD6IHdmoRdLjJDiLh1Wh5QAxV-EvF-djkS8uoJj5hb3zJGH1Np0miMy4Pl5Uy2vgVpQ7J4nt3o5lwsq5RJcN7NgGRqJISmaxWlMTs4onXnvxGEGhegq2SDHXrc6rIVfl1JEvHVVX3">
+<div class="absolute top-2 right-2 bg-white/80 backdrop-blur-sm rounded-full p-1 flex items-center justify-center shadow-sm">
+<span class="material-symbols-outlined text-primary text-[18px]">play_circle</span>
+</div>
+</div>
+<div>
+<h3 class="font-label-bold text-label-bold text-on-surface text-base">爱心披萨</h3>
+<div class="flex justify-between items-end mt-2">
+<span class="text-primary font-bold text-lg">¥ 48</span>
+<button class="bg-primary text-white w-8 h-8 rounded-full flex items-center justify-center shadow-[0_3px_0_#5e3e47] active:translate-y-[3px] active:shadow-none transition-all">
+<span class="material-symbols-outlined text-[20px]">add</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Food Item Card 2 -->
+<div class="bg-white/60 backdrop-blur-md rounded-2xl border-2 border-white p-3 flex flex-col gap-3 shadow-[0_8px_20px_rgba(137,76,92,0.05)]">
+<div class="w-full aspect-square rounded-xl overflow-hidden border-2 border-surface-variant relative">
+<img class="w-full h-full object-cover" data-alt="A small chocolate pudding dessert with a strawberry on top, presented in a soft, kawaii hand-drawn illustration style, tactile minimalism, warm pastel colors." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAr-26vF7YcjEphGx7dbaqmWxPT6fAYJ7YlPH4HlJjxNsmNhEIBJ2qFVOLxSB2jB0sCJCZTKtrx_niwZc5fLpGnmbIownGG-8pCr1n-Vwi0uy1nuf2lyDSFd2j1DcERBcpJq7DrOZ3faMPoCWfcVfcQa9cK27zA7UPVEeXFBld8j9BgOcElhCAmJ3GZWC5JELBzdcpzJrR8835nCjKtWd41Fhs3wSvBLNRylnXvONV7rkK0ShSrSoHA">
+</div>
+<div>
+<h3 class="font-label-bold text-label-bold text-on-surface text-base">草莓布丁</h3>
+<div class="flex justify-between items-end mt-2">
+<span class="text-primary font-bold text-lg">¥ 22</span>
+<button class="bg-primary text-white w-8 h-8 rounded-full flex items-center justify-center shadow-[0_3px_0_#5e3e47] active:translate-y-[3px] active:shadow-none transition-all">
+<span class="material-symbols-outlined text-[20px]">add</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Spacer for scrolling past floating elements -->
+<div class="h-10"></div>
+</div>
+</div>
+</main>
+<!-- Floating Cart Capsule -->
+<div class="fixed bottom-[110px] left-1/2 -translate-x-1/2 w-[90%] max-w-md bg-inverse-surface rounded-full flex justify-between items-center p-2 pl-6 shadow-[0_12px_24px_rgba(50,48,44,0.3)] z-40 border-2 border-outline-variant/30">
+<div class="flex items-center gap-4">
+<div class="relative">
+<span class="material-symbols-outlined text-inverse-on-surface text-[28px]">shopping_bag</span>
+<span class="absolute -top-1 -right-2 bg-primary text-white text-[10px] font-bold w-5 h-5 flex items-center justify-center rounded-full border-2 border-inverse-surface">2</span>
+</div>
+<span class="text-inverse-on-surface font-headline-md text-headline-md text-xl">¥ 70</span>
+</div>
+<button class="bg-primary text-white font-label-bold text-label-bold px-6 py-3 rounded-full shadow-[0_4px_0_#5e3e47] active:translate-y-[4px] active:shadow-none transition-all">
+            去结算
+        </button>
+</div>
+<!-- BottomNavBar (Liquid Glass) -->
+<nav class="fixed bottom-3 left-1/2 -translate-x-1/2 z-50 flex justify-around items-center w-[calc(100%-40px)] max-w-md h-[68px] rounded-full px-2 border border-white/30 shadow-[0_8px_32px_rgba(166,77,100,0.15)] transition-all duration-300 md:hidden" style="background: rgba(255, 255, 255, 0.55); backdrop-filter: blur(25px) saturate(180%); border: 1px solid rgba(255, 255, 255, 0.4);"><a aria-label="首页" class="flex flex-col items-center justify-center p-2 flex-1 transition-all duration-300 active:scale-90 group" href="#">
+<span class="material-symbols-outlined mb-1 text-[24px] transition-colors duration-280" style="color: #8C8480; font-variation-settings: 'FILL' 0;">home</span>
+<span class="font-label-bold text-[10px] transition-colors duration-280" style="color: #8C8480;">首页</span>
+</a>
+<a aria-label="点餐" class="relative flex flex-col items-center justify-center p-2 flex-1 transition-all duration-300 active:scale-90 group" href="#">
+<div class="absolute inset-0 flex items-center justify-center -z-10">
+<div class="w-[64px] h-[64px] rounded-full flex items-center justify-center transition-all duration-300" style="background: rgba(244, 167, 185, 0.35); clip-path: path('M 32 54 L 28.6 50.91 C 16.533 39.98 8.667 32.84 8.667 23.333 C 8.667 15.773 14.616 9.833 22.167 9.833 C 26.437 9.833 30.543 11.817 32 14.983 C 33.457 11.817 37.563 9.833 41.833 9.833 C 49.384 9.833 55.333 15.773 55.333 23.333 C 55.333 32.84 47.467 39.98 35.4 50.91 L 32 54 Z');"></div>
+</div>
+<span class="material-symbols-outlined mb-1 text-[24px] transition-colors duration-280" style="color: rgb(166, 77, 100); font-variation-settings: 'FILL' 1;">restaurant</span>
+<span class="font-label-bold text-[10px] transition-colors duration-280" style="color: rgb(166, 77, 100);">点餐</span>
+</a>
+<a aria-label="发现" class="flex flex-col items-center justify-center p-2 flex-1 transition-all duration-300 active:scale-90 group" href="#">
+<span class="material-symbols-outlined mb-1 text-[24px] transition-colors duration-280" style="color: #8C8480; font-variation-settings: 'FILL' 0;">explore</span>
+<span class="font-label-bold text-[10px] transition-colors duration-280" style="color: #8C8480;">发现</span>
+</a>
+<a aria-label="订单" class="flex flex-col items-center justify-center p-2 flex-1 transition-all duration-300 active:scale-90 group" href="#">
+<span class="material-symbols-outlined mb-1 text-[24px] transition-colors duration-280" style="color: #8C8480; font-variation-settings: 'FILL' 0;">receipt_long</span>
+<span class="font-label-bold text-[10px] transition-colors duration-280" style="color: #8C8480;">订单</span>
+</a>
+<a aria-label="我的" class="flex flex-col items-center justify-center p-2 flex-1 transition-all duration-300 active:scale-90 group" href="#">
+<span class="material-symbols-outlined mb-1 text-[24px] transition-colors duration-280" style="color: #8C8480; font-variation-settings: 'FILL' 0;">person</span>
+<span class="font-label-bold text-[10px] transition-colors duration-280" style="color: #8C8480;">我的</span>
+</a></nav>
+
+
+
+
+
+
+
+
+</body></html>

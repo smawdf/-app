@@ -13,20 +13,44 @@ import com.myorderapp.domain.repository.MenuRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+
+internal const val ORDERING_HOT_CATEGORY_ID = "__ordering_hot__"
+
+private val OrderingHotCategory = MenuCategory(
+    id = ORDERING_HOT_CATEGORY_ID,
+    shopId = SINGLE_SHOP_ID,
+    name = "热销",
+    sortOrder = -1
+)
 
 data class OrderingUiState(
     val shopName: String = "我的小店",
     val shopCoverUrl: String = "",
+    val shopAnnouncement: String = "",
     val categories: List<MenuCategory> = emptyList(),
     val selectedCategory: String = "",
     val searchQuery: String = "",
     val menuItems: List<MenuItem> = emptyList(),
     val cartState: CartState = CartState()
 ) {
+    val orderingCategories: List<MenuCategory>
+        get() = if (categories.isEmpty() && menuItems.isEmpty()) {
+            emptyList()
+        } else if (categories.any { it.isOrderingHotCategory() }) {
+            categories
+        } else {
+            listOf(OrderingHotCategory) + categories
+        }
+
     val visibleItems: List<MenuItem>
         get() {
-            val categoryFiltered = if (selectedCategory.isBlank()) {
+            val categoryFiltered = if (
+                selectedCategory.isBlank() ||
+                selectedCategory == ORDERING_HOT_CATEGORY_ID ||
+                categories.any { it.id == selectedCategory && it.isOrderingHotCategory() }
+            ) {
                 menuItems
             } else {
                 menuItems.filter { it.categoryId == selectedCategory }
@@ -55,7 +79,8 @@ class OrderingViewModel(
 
     init {
         viewModelScope.launch {
-            singleShopRepository.ensureSeedMenu()
+            singleShopRepository.removeBundledDemoMenu()
+            removeBundledDemoCartItems()
             combine(
                 singleShopRepository.getShopById(SINGLE_SHOP_ID),
                 menuRepository.getMenuCategories(SINGLE_SHOP_ID),
@@ -63,13 +88,17 @@ class OrderingViewModel(
                 cartRepository.observeCart()
             ) { shop, categories, items, cart ->
                 val previous = _uiState.value.selectedCategory
+                val hotCategoryId = categories.firstOrNull { it.isOrderingHotCategory() }?.id ?: ORDERING_HOT_CATEGORY_ID
                 val selected = when {
+                    previous == ORDERING_HOT_CATEGORY_ID && items.isNotEmpty() -> hotCategoryId
                     categories.any { it.id == previous } -> previous
+                    items.isNotEmpty() -> hotCategoryId
                     else -> categories.firstOrNull()?.id.orEmpty()
                 }
                 OrderingUiState(
                     shopName = shop?.name ?: singleShopRepository.getShopName(),
                     shopCoverUrl = shop?.coverUrl.orEmpty(),
+                    shopAnnouncement = shop?.announcement ?: singleShopRepository.getShopAnnouncement(),
                     categories = categories,
                     selectedCategory = selected,
                     searchQuery = _uiState.value.searchQuery,
@@ -80,6 +109,17 @@ class OrderingViewModel(
                 _uiState.value = state
             }
         }
+    }
+
+    private suspend fun removeBundledDemoCartItems() {
+        val demoIds = singleShopRepository.bundledDemoMenuIds()
+        cartRepository.observeCart().first().items
+            .filter { it.menuItemId in demoIds }
+            .forEach { item ->
+                repeat(item.quantity.coerceAtLeast(1)) {
+                    cartRepository.decrementItem(item.menuItemId)
+                }
+            }
     }
 
     fun selectCategory(categoryId: String) {
@@ -128,4 +168,8 @@ class OrderingViewModel(
             cartRepository.clearCart()
         }
     }
+}
+
+private fun MenuCategory.isOrderingHotCategory(): Boolean {
+    return id == ORDERING_HOT_CATEGORY_ID || name.contains("热") || name.contains("招牌")
 }

@@ -8,6 +8,7 @@ import com.myorderapp.data.repository.HybridDishRepository
 import com.myorderapp.data.repository.SupabaseProfileRepository
 import com.myorderapp.domain.model.Profile
 import io.github.jan.supabase.gotrue.auth
+import io.github.jan.supabase.gotrue.parseSessionFromUrl
 import io.github.jan.supabase.gotrue.providers.builtin.Email
 import io.github.jan.supabase.postgrest.from
 
@@ -22,6 +23,8 @@ data class AuthUiState(
     val rememberCredentials: Boolean = false,
     val isLoggedIn: Boolean = false,
     val isLoading: Boolean = false,
+    val isResetEmailSent: Boolean = false,
+    val isPasswordResetComplete: Boolean = false,
     val errorMessage: String? = null,
     val mode: String = "login"
 )
@@ -131,9 +134,8 @@ class AuthViewModel(
                     msg.contains("Invalid password", ignoreCase = true) ||
                     msg.contains("wrong password", ignoreCase = true) ->
                         "密码错误，请重试"
-                    msg.contains("already registered", ignoreCase = true) ||
-                    msg.contains("already exists", ignoreCase = true) ->
-                        "该邮箱已注册，请直接登录"
+                    isAccountAlreadyExistsMessage(msg) ->
+                        "账号已存在，请直接登录"
                     else -> "请求失败，请稍后重试"
                 }
                 _uiState.value = _uiState.value.copy(
@@ -142,6 +144,83 @@ class AuthViewModel(
                 )
             }
         }
+    }
+
+    fun sendPasswordResetEmail(email: String = _uiState.value.email) {
+        val normalizedEmail = email.trim()
+        if (normalizedEmail.isBlank()) {
+            _uiState.value = _uiState.value.copy(errorMessage = "请输入注册邮箱")
+            return
+        }
+
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null, isResetEmailSent = false)
+            try {
+                client.auth.resetPasswordForEmail(
+                    email = normalizedEmail,
+                    redirectUrl = PASSWORD_RESET_REDIRECT_URL
+                )
+                session.saveEmail(normalizedEmail)
+                _uiState.value = _uiState.value.copy(
+                    email = normalizedEmail,
+                    isLoading = false,
+                    isResetEmailSent = true,
+                    errorMessage = "重置邮件已发送，请打开邮箱继续修改密码"
+                )
+            } catch (_: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    errorMessage = "发送失败，请确认邮箱后重试"
+                )
+            }
+        }
+    }
+
+    fun resetPasswordFromDeepLink(deepLink: String, newPassword: String, confirmPassword: String) {
+        val password = newPassword.trim()
+        if (password.length < 8) {
+            _uiState.value = _uiState.value.copy(errorMessage = "密码最少8位")
+            return
+        }
+        if (password != confirmPassword.trim()) {
+            _uiState.value = _uiState.value.copy(errorMessage = "两次密码输入不一致")
+            return
+        }
+
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null, isPasswordResetComplete = false)
+            try {
+                val recoverySession = client.auth.parseSessionFromUrl(deepLink)
+                client.auth.importSession(recoverySession, autoRefresh = true)
+                client.auth.modifyUser {
+                    this.password = password
+                }
+                try { client.auth.signOut() } catch (_: Exception) { }
+                session.clear()
+                _uiState.value = AuthUiState(
+                    isPasswordResetComplete = true,
+                    errorMessage = "密码已修改，请重新登录"
+                )
+            } catch (_: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    errorMessage = "链接已失效，请重新发送重置邮件"
+                )
+            }
+        }
+    }
+
+    private fun isAccountAlreadyExistsMessage(message: String): Boolean {
+        return listOf(
+            "already registered",
+            "already exists",
+            "already been registered",
+            "user already registered",
+            "user_already_exists",
+            "email_exists",
+            "email already",
+            "duplicate key"
+        ).any { message.contains(it, ignoreCase = true) }
     }
 
     private suspend fun loadOrCreateProfile(userId: String): Profile? {
@@ -177,5 +256,9 @@ class AuthViewModel(
             _uiState.value = AuthUiState()
             onLoggedOut()
         }
+    }
+
+    companion object {
+        const val PASSWORD_RESET_REDIRECT_URL = "orderdisk://auth/reset-password"
     }
 }

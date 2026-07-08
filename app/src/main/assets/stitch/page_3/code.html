@@ -1,0 +1,492 @@
+<!DOCTYPE html><html lang="zh-CN" style=""><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=block" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;600;700&amp;family=Plus+Jakarta+Sans:wght@400;700&amp;family=Zhi+Mang+Xing&amp;display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        try {
+            tailwind.config = {
+                darkMode: "class",
+                theme: {
+                    extend: {
+                        "colors": {
+                            "tertiary-fixed-dim": "#ffb59c",
+                            "on-surface-variant": "#524346",
+                            "surface-tint": "#894c5c",
+                            "secondary-fixed-dim": "#e7bbc6",
+                            "on-error-container": "#93000a",
+                            "tertiary": "#8b4e38",
+                            "surface-container-high": "#ede7e1",
+                            "on-tertiary-fixed-variant": "#6f3723",
+                            "background": "#fef8f2",
+                            "secondary": "#78555e",
+                            "on-secondary-container": "#7a5761",
+                            "tertiary-fixed": "#ffdbcf",
+                            "on-tertiary-container": "#753c27",
+                            "surface-container-lowest": "#ffffff",
+                            "primary-fixed-dim": "#ffb1c3",
+                            "outline": "#847376",
+                            "on-primary-container": "#733949",
+                            "on-tertiary": "#ffffff",
+                            "surface-dim": "#dfd9d3",
+                            "on-secondary-fixed-variant": "#5e3e47",
+                            "inverse-surface": "#32302c",
+                            "inverse-primary": "#ffb1c3",
+                            "on-tertiary-fixed": "#380d01",
+                            "on-secondary-fixed": "#2d141c",
+                            "primary": "#894c5c",
+                            "on-primary": "#ffffff",
+                            "inverse-on-surface": "#f6f0ea",
+                            "on-error": "#ffffff",
+                            "surface": "#fef8f2",
+                            "surface-container": "#f3ede7",
+                            "on-surface": "#1d1b18",
+                            "on-secondary": "#ffffff",
+                            "error-container": "#ffdad6",
+                            "primary-container": "#f4a7b9",
+                            "tertiary-container": "#f8a98e",
+                            "surface-bright": "#fef8f2",
+                            "surface-variant": "#e7e2dc",
+                            "secondary-fixed": "#ffd9e2",
+                            "primary-fixed": "#ffd9e0",
+                            "secondary-container": "#ffd1dc",
+                            "on-primary-fixed-variant": "#6e3545",
+                            "error": "#ba1a1a",
+                            "outline-variant": "#d6c1c5",
+                            "surface-container-low": "#f8f3ed",
+                            "on-primary-fixed": "#380a1a",
+                            "surface-container-highest": "#e7e2dc",
+                            "on-background": "#1d1b18"
+                        },
+                        "borderRadius": {
+                            "DEFAULT": "0.25rem",
+                            "lg": "0.5rem",
+                            "xl": "0.75rem",
+                            "full": "9999px"
+                        },
+                        "spacing": {
+                            "xl": "40px",
+                            "unit": "4px",
+                            "md": "16px",
+                            "gutter": "16px",
+                            "xs": "4px",
+                            "margin-desktop": "64px",
+                            "lg": "24px",
+                            "margin-mobile": "20px",
+                            "sm": "8px"
+                        },
+                        "fontFamily": {
+                            "body-md": [
+                                "Plus Jakarta Sans"
+                            ],
+                            "headline-lg": [
+                                "Be Vietnam Pro"
+                            ],
+                            "headline-md": [
+                                "Be Vietnam Pro"
+                            ],
+                            "label-bold": [
+                                "Plus Jakarta Sans"
+                            ],
+                            "headline-lg-mobile": [
+                                "Be Vietnam Pro"
+                            ],
+                            "body-lg": [
+                                "Plus Jakarta Sans"
+                            ]
+                        },
+                        "fontSize": {
+                            "body-md": [
+                                "16px",
+                                {
+                                    "lineHeight": "24px",
+                                    "fontWeight": "400"
+                                }
+                            ],
+                            "headline-lg": [
+                                "32px",
+                                {
+                                    "lineHeight": "40px",
+                                    "letterSpacing": "-0.02em",
+                                    "fontWeight": "700"
+                                }
+                            ],
+                            "headline-md": [
+                                "24px",
+                                {
+                                    "lineHeight": "32px",
+                                    "fontWeight": "600"
+                                }
+                            ],
+                            "label-bold": [
+                                "14px",
+                                {
+                                    "lineHeight": "20px",
+                                    "fontWeight": "700"
+                                }
+                            ],
+                            "headline-lg-mobile": [
+                                "28px",
+                                {
+                                    "lineHeight": "36px",
+                                    "fontWeight": "700"
+                                }
+                            ],
+                            "body-lg": [
+                                "18px",
+                                {
+                                    "lineHeight": "28px",
+                                    "fontWeight": "400"
+                                }
+                            ]
+                        }
+                    },
+                },
+            }
+        } catch (_e) {}
+    </script>
+<style>
+        .interactive-card {
+            transition: transform 120ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        }
+        .interactive-card:active {
+            transform: scale(0.96);
+        }
+        .soft-border {
+            border: 1px solid rgba(244, 167, 185, 0.3);
+        }
+        .font-organic {
+            font-family: 'Zhi Mang Xing', sans-serif;
+            letter-spacing: 0.05em;
+        }
+
+        /* Animation Classes */
+        .page-enter {
+            opacity: 0;
+            transform: translateY(12px);
+            animation: pageEnterAnim 280ms cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+        }
+
+        @keyframes pageEnterAnim {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .stagger-item {
+            opacity: 0;
+            transform: translateY(12px);
+        }
+        
+        .stagger-enter {
+            animation: staggerEnterAnim 320ms cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+        }
+
+        @keyframes staggerEnterAnim {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        /* Nav indicator sliding */
+        #nav-indicator {
+            transition: transform 280ms cubic-bezier(0.2, 0.8, 0.2, 1.0);
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background min-h-screen pb-32 font-body-md relative overflow-x-hidden selection:bg-primary-container selection:text-on-primary-container">
+<div class="page-enter" id="app-container">
+<!-- Background Decorative Bubbles -->
+<div class="bubble text-primary/10 material-symbols-outlined absolute" style="left: 10%; top: 10%; font-size: 24px; animation-delay: 0s;">favorite</div>
+<div class="bubble text-tertiary/10 material-symbols-outlined absolute" style="left: 80%; top: 20%; font-size: 20px; animation-delay: 5s;">pets</div>
+<div class="bubble text-secondary/10 material-symbols-outlined absolute" style="left: 45%; top: 15%; font-size: 28px; animation-delay: 10s;">restaurant</div>
+<!-- Top App Bar -->
+<header class="w-full top-0 z-40 bg-background/80 backdrop-blur-md sticky border-none">
+<div class="flex justify-between items-center px-margin-mobile py-sm h-16">
+<span class="material-symbols-outlined text-primary/80 transition-transform active:scale-125" style="font-variation-settings: 'FILL' 1;">favorite</span>
+<h1 class="font-organic text-2xl text-on-surface font-medium tracking-wide">今天也要一起好好吃饭</h1>
+<span class="material-symbols-outlined text-outline font-light hover:text-primary transition-colors cursor-pointer interactive-card">notifications</span>
+</div>
+</header>
+<main class="px-margin-mobile max-w-md mx-auto space-y-lg mt-sm relative z-10">
+<!-- Top Relationship Area -->
+<section class="stagger-item bg-primary-container/30 border border-primary/30 rounded-2xl p-lg pb-md flex flex-col items-center relative overflow-hidden min-h-[220px] justify-between shadow-sm stagger-enter" style="animation-delay: 0ms;">
+<!-- Decorative image -->
+<div class="absolute inset-0 opacity-[0.03] pointer-events-none flex items-center justify-center">
+<img alt="Cute couple illustration" class="w-full h-full object-cover object-center" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB4HnMrlLAzAw6CFBrd9yt6_FIypUW0yk_NHdZ0Xs7-J2ZYm3zm2XFiTZp8BNW_t4Dbpy68pnJ30ZlHQR7ysHTuASDphVrHe6iwd3jKJoi4v4serZUU_YxhX0f5_2PJD72e2rAS7mkycOcFlz1hVbAJgykmymd7rQSXTQ-PIhEgAU4XbvnmmvaPWGRiCcUhZwTg02asnQHKIwt2T-PbqF0jyngzegBfMJh05V-LNwe8FKazgh5MBRCGgAtokue5mTJtUA">
+</div>
+<div class="grid grid-cols-3 items-center w-full z-10 mt-sm">
+<!-- User Avatar (Left) -->
+<div class="flex flex-col items-center gap-xs transition-all hover:scale-105">
+<div class="w-24 h-24 rounded-full border-4 border-white shadow-md overflow-hidden bg-white flex items-center justify-center">
+<span class="material-symbols-outlined text-5xl text-primary" style="font-variation-settings: 'FILL' 1;">pets</span>
+</div>
+<span class="font-label-bold text-base text-on-surface whitespace-nowrap mt-1 font-bold">我</span>
+<div class="h-6 flex items-center">
+<span class="text-xs text-on-surface-variant bg-white/90 px-2.5 py-1 rounded-full backdrop-blur-sm whitespace-nowrap shadow-sm border border-primary/10" id="current-role-label">当前角色：饲养员</span>
+</div>
+</div>
+<!-- Center Heart -->
+<div class="flex flex-col items-center animate-pulse">
+<span class="material-symbols-outlined text-primary text-5xl drop-shadow-md" style="font-variation-settings: 'FILL' 1;">favorite</span>
+</div>
+<!-- Partner Avatar (Right) -->
+<div class="flex flex-col items-center gap-xs transition-all hover:scale-105 interactive-card">
+<div class="w-24 h-24 rounded-full border-2 border-white/80 border-dashed shadow-sm overflow-hidden bg-white/80 flex items-center justify-center cursor-pointer hover:bg-white transition-all backdrop-blur-sm">
+<span class="material-symbols-outlined text-4xl text-outline/80">add</span>
+</div>
+<span class="font-label-bold text-base text-on-surface whitespace-nowrap mt-1 font-bold">邀请对方</span>
+<div class="h-6"></div>
+</div>
+</div>
+<!-- Anniversary Capsule -->
+<div class="mt-6 mb-2 text-center z-10 bg-white/90 backdrop-blur-md px-lg py-2.5 rounded-full shadow-md border border-primary/20 transition-all hover:scale-105 interactive-card relative cursor-pointer">
+<p class="font-label-bold text-base text-primary">一起吃饭 28 天</p>
+<p class="text-xs text-on-surface-variant mt-0.5">今天也想和你好好吃饭 ✨</p>
+</div>
+</section>
+<!-- Quick Action Area (Bento Grid Style) -->
+<section class="grid grid-cols-2 gap-md">
+<div class="stagger-item bg-white/90 border border-primary/20 p-md rounded-2xl flex flex-col justify-between items-start aspect-[4/3] cursor-pointer hover:bg-white transition-all duration-300 shadow-[0_4px_12px_rgba(244,167,185,0.08)] hover:shadow-[0_6px_16px_rgba(244,167,185,0.15)] group interactive-card stagger-enter" onclick="window.location.href='#anniversary'" style="animation-delay: 40ms;">
+<div class="bg-tertiary-container/40 p-2 rounded-full inline-flex mb-2 group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined text-tertiary" style="font-variation-settings: 'FILL' 1;">event</span>
+</div>
+<div>
+<h3 class="font-headline-md text-lg font-bold text-on-surface">纪念日</h3>
+<p class="text-xs text-on-surface-variant mt-1 leading-snug">看看我们一起吃饭的日子</p>
+</div>
+</div>
+<div class="flex flex-col gap-md">
+<div class="stagger-item bg-white/90 border border-primary/20 p-sm px-md flex items-center gap-3 h-full cursor-pointer hover:bg-white transition-all duration-300 shadow-[0_4px_12px_rgba(244,167,185,0.08)] hover:shadow-[0_6px_16px_rgba(244,167,185,0.15)] rounded-xl group interactive-card stagger-enter" style="animation-delay: 80ms;">
+<div class="bg-primary-container/40 p-2 rounded-full inline-flex shrink-0 group-hover:rotate-12 transition-transform">
+<span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">storefront</span>
+</div>
+<div>
+<h3 class="font-label-bold text-sm text-on-surface font-bold">我的店铺</h3>
+<p class="text-xs text-on-surface-variant line-clamp-1 mt-0.5">上传菜单，整理菜品</p>
+</div>
+</div>
+<div class="stagger-item bg-white/90 border border-primary/20 p-sm px-md flex items-center gap-3 h-full cursor-pointer hover:bg-white transition-all duration-300 shadow-[0_4px_12px_rgba(244,167,185,0.08)] hover:shadow-[0_6px_16px_rgba(244,167,185,0.15)] rounded-xl group interactive-card stagger-enter" style="animation-delay: 120ms;">
+<div class="bg-secondary-container/40 p-2 rounded-full inline-flex shrink-0 group-hover:-rotate-12 transition-transform">
+<span class="material-symbols-outlined text-secondary" style="font-variation-settings: 'FILL' 1;">restaurant_menu</span>
+</div>
+<div>
+<h3 class="font-label-bold text-sm text-on-surface font-bold">去点菜</h3>
+<p class="text-xs text-on-surface-variant line-clamp-1 mt-0.5">看看今天想吃什么</p>
+</div>
+</div>
+</div>
+</section>
+<!-- Role Switching Area -->
+<section class="space-y-md mt-2">
+<div class="grid gap-md grid-cols-2 h-40">
+<!-- Card 1 (Feeder - Initial Active) -->
+<div class="stagger-item role-card active-card bg-gradient-to-br from-primary-container/40 to-primary-container/10 backdrop-blur-sm border border-primary/40 rounded-2xl p-3 flex flex-col gap-3 relative overflow-hidden group shadow-[0_6px_16px_rgba(244,167,185,0.15)] transition-all duration-300 interactive-card cursor-pointer stagger-enter" id="role-feeder" onclick="switchRole('feeder')" style="animation-delay: 160ms;">
+<div class="absolute top-0 right-0 w-24 h-24 bg-primary/10 rounded-bl-full -z-0 transition-transform duration-700 group-hover:scale-125"></div>
+<div class="flex flex-col items-center text-center gap-2 z-10">
+<div class="bg-primary/20 text-primary p-2.5 rounded-2xl group-hover:rotate-6 transition-transform">
+<span class="material-symbols-outlined text-2xl" style="font-variation-settings: 'FILL' 1;">skillet</span>
+</div>
+<div class="flex-1">
+<div class="flex flex-col items-center gap-1">
+<h3 class="font-headline-md text-base font-bold text-on-surface">饲养员</h3>
+<span class="text-[10px] bg-primary text-white px-2 py-0.5 rounded-full shadow-sm font-medium" id="badge-feeder">当前角色</span>
+</div>
+<p class="text-[10px] text-on-surface-variant mt-1 leading-tight font-medium">上传菜单、照顾小饭桌</p>
+</div>
+</div>
+<button class="w-full bg-white/60 text-primary font-label-bold text-[10px] py-2 rounded-full transition-all z-10 mt-auto pointer-events-none" id="btn-feeder">当前：饲养员</button>
+</div>
+<!-- Card 2 (Foodie - Initial Inactive) -->
+<div class="stagger-item role-card inactive-card bg-white/80 backdrop-blur-sm border border-outline-variant/50 rounded-2xl p-3 flex flex-col gap-3 relative overflow-hidden group shadow-sm transition-all duration-300 interactive-card cursor-pointer hover:border-secondary/30 stagger-enter" id="role-foodie" onclick="switchRole('foodie')" style="animation-delay: 200ms;">
+<div class="absolute top-0 right-0 w-24 h-24 bg-secondary/5 rounded-bl-full -z-0 transition-transform duration-700 group-hover:scale-125"></div>
+<div class="flex flex-col items-center text-center gap-2 z-10">
+<div class="bg-secondary/10 text-secondary p-2.5 rounded-2xl group-hover:rotate-6 transition-transform">
+<span class="material-symbols-outlined text-2xl" style="font-variation-settings: 'FILL' 1;">restaurant</span>
+</div>
+<div class="flex-1">
+<div class="flex flex-col items-center gap-1">
+<h3 class="font-headline-md text-base font-bold text-on-surface">吃货</h3>
+<span class="text-[10px] bg-secondary text-white px-2 py-0.5 rounded-full shadow-sm font-medium hidden" id="badge-foodie">当前角色</span>
+</div>
+<p class="text-[10px] text-on-surface-variant mt-1 leading-tight">浏览菜单、准备开饭</p>
+</div>
+</div>
+<button class="w-full bg-surface-container text-on-surface-variant font-label-bold text-[10px] py-2 rounded-full transition-all z-10 mt-auto pointer-events-none" id="btn-foodie">切换为吃货</button>
+</div>
+</div>
+</section>
+<div class="h-32"></div> <!-- Spacer for floating nav -->
+</main>
+</div>
+<!-- Bottom Floating Nav Capsule -->
+<nav class="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 flex justify-around items-center w-[calc(100%-40px)] max-w-md h-[68px] rounded-full px-2 border border-white/30 shadow-[0_8px_32px_rgba(166,77,100,0.15)] transition-all duration-300 md:hidden backdrop-blur-xl" style="background: rgba(255, 255, 255, 0.55); backdrop-filter: blur(25px) saturate(180%); border: 1px solid rgba(255, 255, 255, 0.4); margin-bottom: 12px;"><a aria-label="首页" class="relative flex flex-col items-center justify-center p-2 flex-1 transition-all duration-300 active:scale-90 group" href="#"><div class="absolute inset-0 flex items-center justify-center -z-10"><div class="w-[64px] h-[64px] rounded-full flex items-center justify-center transition-all duration-300" style="background: rgba(244, 167, 185, 0.35); clip-path: path('M 32 54 L 28.6 50.91 C 16.533 39.98 8.667 32.84 8.667 23.333 C 8.667 15.773 14.616 9.833 22.167 9.833 C 26.437 9.833 30.543 11.817 32 14.983 C 33.457 11.817 37.563 9.833 41.833 9.833 C 49.384 9.833 55.333 15.773 55.333 23.333 C 55.333 32.84 47.467 39.98 35.4 50.91 L 32 54 Z');"></div></div><span class="material-symbols-outlined mb-1 text-[24px] transition-colors duration-280" style="color: rgb(166, 77, 100); font-variation-settings: &quot;FILL&quot; 1;">home</span><span class="font-label-bold text-[10px] transition-colors duration-280" style="color: rgb(166, 77, 100);">首页</span></a>
+<a aria-label="点餐" class="flex flex-col items-center justify-center p-2 flex-1 transition-all duration-300 active:scale-90 group" href="#">
+  <span class="material-symbols-outlined mb-1 text-[24px] transition-colors duration-280" style="color: #8C8480; font-variation-settings: 'FILL' 0;">restaurant_menu</span>
+  <span class="font-label-bold text-[10px] transition-colors duration-280" style="color: #8C8480;">点餐</span>
+</a>
+<a aria-label="发现" class="flex flex-col items-center justify-center p-2 flex-1 transition-all duration-300 active:scale-90 group" href="#">
+  <span class="material-symbols-outlined mb-1 text-[24px] transition-colors duration-280" style="color: #8C8480; font-variation-settings: 'FILL' 0;">explore</span>
+  <span class="font-label-bold text-[10px] transition-colors duration-280" style="color: #8C8480;">发现</span>
+</a>
+<a aria-label="订单" class="flex flex-col items-center justify-center p-2 flex-1 transition-all duration-300 active:scale-90 group" href="#">
+  <span class="material-symbols-outlined mb-1 text-[24px] transition-colors duration-280" style="color: #8C8480; font-variation-settings: 'FILL' 0;">receipt_long</span>
+  <span class="font-label-bold text-[10px] transition-colors duration-280" style="color: #8C8480;">订单</span>
+</a>
+<a aria-label="我的" class="flex flex-col items-center justify-center p-2 flex-1 transition-all duration-300 active:scale-90 group" href="#">
+  <span class="material-symbols-outlined mb-1 text-[24px] transition-colors duration-280" style="color: #8C8480; font-variation-settings: 'FILL' 0;">person</span>
+  <span class="font-label-bold text-[10px] transition-colors duration-280" style="color: #8C8480;">我的</span>
+</a></nav>
+<!-- Liquid Glass Toast -->
+<div class="fixed top-12 left-1/2 -translate-x-1/2 z-[100] hidden flex-col items-center justify-center bg-white/80 backdrop-blur-xl px-6 py-4 rounded-3xl shadow-[0_8px_32px_rgba(244,167,185,0.25)] border border-white/60 ring-1 ring-primary/10 transition-all duration-300 pointer-events-none transform scale-95 opacity-0" id="toast-message">
+<div class="bg-primary-container/40 text-primary p-2 rounded-full mb-2">
+<span class="material-symbols-outlined text-2xl" id="toast-icon" style="font-variation-settings: 'FILL' 1;">pets</span>
+</div>
+<p class="font-headline-md text-sm font-bold text-on-surface text-center" id="toast-text-main">已切换为饲养员</p>
+<p class="text-xs text-on-surface-variant mt-1 text-center font-medium" id="toast-text-sub">现在可以上传菜单啦</p>
+</div>
+<script>
+        // Staggered Animation Logic
+        document.addEventListener('DOMContentLoaded', () => {
+            const staggerItems = document.querySelectorAll('.stagger-item');
+            staggerItems.forEach((item, index) => {
+                item.style.animationDelay = `${index * 40}ms`;
+                item.classList.add('stagger-enter');
+            });
+            
+            // Setup Nav Indicator Position calculation
+            window.addEventListener('resize', () => {
+                const activeNav = document.querySelector('.nav-item.text-primary');
+                if(activeNav) {
+                    const index = parseInt(activeNav.getAttribute('data-index'));
+                    updateNavIndicator(index);
+                }
+            });
+        });
+
+        // Nav Switching Logic
+        function switchNav(element, index) {
+            // Update styles for items
+            document.querySelectorAll('.nav-item').forEach(el => {
+                el.classList.remove('text-primary');
+                el.classList.add('text-outline');
+                el.querySelector('.material-symbols-outlined').style.fontVariationSettings = "'FILL' 0";
+                el.querySelector('.font-label-bold').classList.remove('font-bold');
+                el.querySelector('.font-label-bold').classList.add('font-medium');
+            });
+            
+            element.classList.add('text-primary');
+            element.classList.remove('text-outline');
+            element.querySelector('.material-symbols-outlined').style.fontVariationSettings = "'FILL' 1";
+            element.querySelector('.font-label-bold').classList.add('font-bold');
+            element.querySelector('.font-label-bold').classList.remove('font-medium');
+
+            updateNavIndicator(index);
+        }
+
+        function updateNavIndicator(index) {
+            const indicator = document.getElementById('nav-indicator');
+            const navItems = document.querySelectorAll('.nav-item');
+            if(navItems.length > 0) {
+                 // Calculate the exact offset based on the nav container and item widths
+                 // Using flex layout, items are distributed. Let's calculate percentage offset roughly or pixel offset precisely.
+                 // A simpler reliable approach for this specific 5 item flex-around layout:
+                 const containerWidth = document.querySelector('nav').offsetWidth - 16; // minus px-2 (8px each side)
+                 const itemWidth = containerWidth / navItems.length;
+                 const offset = (itemWidth * index) + (itemWidth / 2) - (56 / 2); // 56 is w-14
+                 indicator.style.transform = `translateX(${offset}px)`;
+            }
+        }
+        
+        // Initial setup for nav indicator
+        setTimeout(() => { updateNavIndicator(0); }, 50);
+
+        function switchRole(role) {
+            const roleLabel = document.getElementById('current-role-label');
+            const feederCard = document.getElementById('role-feeder');
+            const foodieCard = document.getElementById('role-foodie');
+            const badgeFeeder = document.getElementById('badge-feeder');
+            const badgeFoodie = document.getElementById('badge-foodie');
+            const btnFeeder = document.getElementById('btn-feeder');
+            const btnFoodie = document.getElementById('btn-foodie');
+            const toast = document.getElementById('toast-message');
+            const toastIcon = document.getElementById('toast-icon');
+            const toastTextMain = document.getElementById('toast-text-main');
+            const toastTextSub = document.getElementById('toast-text-sub');
+
+            const activeFeederClasses = ['bg-gradient-to-br', 'from-primary-container/40', 'to-primary-container/10', 'border-primary/40', 'shadow-[0_6px_16px_rgba(244,167,185,0.15)]'];
+            const activeFoodieClasses = ['bg-gradient-to-br', 'from-secondary-container/40', 'to-secondary-container/10', 'border-secondary/40', 'shadow-[0_6px_16px_rgba(244,167,185,0.15)]'];
+            const inactiveClasses = ['bg-white/80', 'border-outline-variant/50', 'shadow-sm'];
+
+            if (role === 'foodie') {
+                roleLabel.textContent = '当前角色：吃货';
+                
+                // Set Foodie Active
+                foodieCard.classList.remove(...inactiveClasses);
+                foodieCard.classList.add(...activeFoodieClasses);
+                badgeFoodie.classList.remove('hidden');
+                btnFoodie.textContent = '当前：吃货';
+                btnFoodie.className = "w-full bg-white/60 text-secondary font-label-bold text-[10px] py-2 rounded-full transition-all z-10 mt-auto pointer-events-none";
+
+                // Set Feeder Inactive
+                feederCard.classList.remove(...activeFeederClasses);
+                feederCard.classList.add(...inactiveClasses);
+                badgeFeeder.classList.add('hidden');
+                btnFeeder.textContent = '切换为饲养员';
+                btnFeeder.className = "w-full bg-surface-container text-on-surface-variant font-label-bold text-[10px] py-2 rounded-full transition-all z-10 mt-auto pointer-events-none";
+
+                // Toast
+                toastIcon.textContent = 'restaurant';
+                toastTextMain.textContent = '已切换为吃货';
+                toastTextSub.textContent = '去看看今天想吃什么吧';
+            } else {
+                roleLabel.textContent = '当前角色：饲养员';
+                
+                // Set Feeder Active
+                feederCard.classList.remove(...inactiveClasses);
+                feederCard.classList.add(...activeFeederClasses);
+                badgeFeeder.classList.remove('hidden');
+                btnFeeder.textContent = '当前：饲养员';
+                btnFeeder.className = "w-full bg-white/60 text-primary font-label-bold text-[10px] py-2 rounded-full transition-all z-10 mt-auto pointer-events-none";
+
+                // Set Foodie Inactive
+                foodieCard.classList.remove(...activeFoodieClasses);
+                foodieCard.classList.add(...inactiveClasses);
+                badgeFoodie.classList.add('hidden');
+                btnFoodie.textContent = '切换为吃货';
+                btnFoodie.className = "w-full bg-surface-container text-on-surface-variant font-label-bold text-[10px] py-2 rounded-full transition-all z-10 mt-auto pointer-events-none";
+
+                // Toast
+                toastIcon.textContent = 'skillet';
+                toastTextMain.textContent = '已切换为饲养员';
+                toastTextSub.textContent = '现在可以上传菜单啦';
+            }
+
+            // Show Toast with animation
+            toast.classList.remove('hidden');
+            // trigger reflow
+            void toast.offsetWidth;
+            toast.classList.remove('scale-95', 'opacity-0', '-translate-y-4');
+            toast.classList.add('scale-100', 'opacity-100', 'translate-y-0');
+            toast.classList.add('flex');
+            
+            setTimeout(() => {
+                toast.classList.remove('scale-100', 'opacity-100', 'translate-y-0');
+                toast.classList.add('scale-95', 'opacity-0', '-translate-y-4');
+                setTimeout(() => {
+                    toast.classList.remove('flex');
+                    toast.classList.add('hidden');
+                }, 300); // Wait for transition
+            }, 2000);
+        }
+    </script>
+
+
+
+
+
+
+</body></html>

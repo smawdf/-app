@@ -21,6 +21,9 @@ class OrdersViewModel(
 
     init {
         viewModelScope.launch {
+            orderRepository.refreshOrders()
+        }
+        viewModelScope.launch {
             orderRepository.observeOrders().collect { orders ->
                 _uiState.value = OrdersUiState(orders = orders)
             }

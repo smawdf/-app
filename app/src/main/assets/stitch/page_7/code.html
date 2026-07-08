@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>登录 - Cozy Table</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;700&amp;family=Be+Vietnam+Pro:wght@600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-primary-fixed": "#380a1a",
+                        "outline": "#847376",
+                        "on-tertiary": "#ffffff",
+                        "error": "#ba1a1a",
+                        "on-surface": "#1d1b18",
+                        "on-secondary-container": "#7a5761",
+                        "on-surface-variant": "#524346",
+                        "tertiary": "#8b4e38",
+                        "inverse-surface": "#32302c",
+                        "primary-fixed-dim": "#ffb1c3",
+                        "on-primary": "#ffffff",
+                        "on-primary-container": "#733949",
+                        "secondary": "#78555e",
+                        "surface": "#fef8f2",
+                        "tertiary-fixed": "#ffdbcf",
+                        "outline-variant": "#d6c1c5",
+                        "on-tertiary-container": "#753c27",
+                        "surface-container-low": "#f8f3ed",
+                        "primary-fixed": "#ffd9e0",
+                        "on-tertiary-fixed-variant": "#6f3723",
+                        "on-secondary": "#ffffff",
+                        "error-container": "#ffdad6",
+                        "primary": "#894c5c",
+                        "on-error": "#ffffff",
+                        "on-error-container": "#93000a",
+                        "inverse-on-surface": "#f6f0ea",
+                        "inverse-primary": "#ffb1c3",
+                        "surface-container-high": "#ede7e1",
+                        "background": "#fef8f2",
+                        "surface-container": "#f3ede7",
+                        "secondary-fixed": "#ffd9e2",
+                        "secondary-fixed-dim": "#e7bbc6",
+                        "surface-container-highest": "#e7e2dc",
+                        "surface-variant": "#e7e2dc",
+                        "tertiary-container": "#f8a98e",
+                        "on-tertiary-fixed": "#380d01",
+                        "primary-container": "#f4a7b9",
+                        "surface-dim": "#dfd9d3",
+                        "surface-container-lowest": "#ffffff",
+                        "on-background": "#1d1b18",
+                        "secondary-container": "#ffd1dc",
+                        "on-primary-fixed-variant": "#6e3545",
+                        "tertiary-fixed-dim": "#ffb59c",
+                        "on-secondary-fixed": "#2d141c",
+                        "surface-tint": "#894c5c",
+                        "on-secondary-fixed-variant": "#5e3e47",
+                        "surface-bright": "#fef8f2"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "2xl": "1.375rem",
+                        "3xl": "1.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "xl": "40px",
+                        "sm": "8px",
+                        "md": "16px",
+                        "margin-desktop": "64px",
+                        "gutter": "16px",
+                        "margin-mobile": "20px",
+                        "unit": "4px",
+                        "xs": "4px",
+                        "lg": "24px"
+                    },
+                    "fontFamily": {
+                        "body-md": ["Plus Jakarta Sans"],
+                        "label-bold": ["Plus Jakarta Sans"],
+                        "headline-lg-mobile": ["Be Vietnam Pro"],
+                        "headline-lg": ["Be Vietnam Pro"],
+                        "body-lg": ["Plus Jakarta Sans"],
+                        "headline-md": ["Be Vietnam Pro"]
+                    },
+                    "fontSize": {
+                        "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "label-bold": ["14px", { "lineHeight": "20px", "fontWeight": "700" }],
+                        "headline-lg-mobile": ["28px", { "lineHeight": "36px", "fontWeight": "700" }],
+                        "headline-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "body-lg": ["18px", { "lineHeight": "28px", "fontWeight": "400" }],
+                        "headline-md": ["24px", { "lineHeight": "32px", "fontWeight": "600" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body {
+            background: linear-gradient(135deg, #FFF4F0 0%, #FFE3E9 50%, #FFF8EA 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+        }
+        
+        /* Decorative Background Elements */
+        .bg-deco-circle {
+            position: absolute;
+            border-radius: 50%;
+            background: rgba(255, 185, 200, 0.2);
+            filter: blur(40px);
+            z-index: 0;
+        }
+        .bg-deco-heart {
+            position: absolute;
+            opacity: 0.15;
+            z-index: 0;
+            color: #FF7D9D;
+            transform: rotate(-15deg);
+        }
+
+        /* Glassmorphism Card */
+        .glass-card {
+            background: rgba(255, 255, 255, 0.6);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 2px solid rgba(255, 217, 226, 0.8);
+            box-shadow: 0 8px 32px rgba(137, 76, 92, 0.08);
+        }
+
+        /* Input Fields */
+        .tactile-input {
+            background: rgba(255, 244, 240, 0.7);
+            border: 2px solid transparent;
+            transition: all 0.3s ease;
+        }
+        .tactile-input:focus-within {
+            background: #ffffff;
+            border-color: #f4a7b9;
+            box-shadow: 0 4px 12px rgba(244, 167, 185, 0.15);
+        }
+
+        /* Custom Checkbox */
+        .squishy-checkbox {
+            appearance: none;
+            width: 24px;
+            height: 24px;
+            border: 2px solid #d6c1c5;
+            border-radius: 8px;
+            background-color: rgba(255, 255, 255, 0.8);
+            cursor: pointer;
+            position: relative;
+            transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .squishy-checkbox:checked {
+            background-color: #894c5c;
+            border-color: #894c5c;
+            transform: scale(1.05);
+        }
+        .squishy-checkbox:checked::after {
+            content: "";
+            position: absolute;
+            left: 7px;
+            top: 3px;
+            width: 6px;
+            height: 12px;
+            border: solid white;
+            border-width: 0 2px 2px 0;
+            transform: rotate(45deg);
+        }
+
+        /* Gradient Button */
+        .btn-gradient {
+            background: linear-gradient(90deg, #FF7D9D 0%, #FFB08A 100%);
+            box-shadow: 0 4px 0 #e06886, 0 8px 16px rgba(255, 125, 157, 0.25);
+            transition: transform 0.1s, box-shadow 0.1s;
+        }
+        .btn-gradient:active {
+            transform: translateY(4px);
+            box-shadow: 0 0px 0 #e06886, 0 4px 8px rgba(255, 125, 157, 0.15);
+        }
+    </style>
+</head>
+<body class="font-body-md text-on-surface relative">
+<!-- Decorative Background -->
+<div class="bg-deco-circle w-64 h-64 top-[-10%] left-[-10%]"></div>
+<div class="bg-deco-circle w-96 h-96 bottom-[-20%] right-[-10%] bg-opacity-30" style="background: rgba(255, 248, 234, 0.4)"></div>
+<span class="material-symbols-outlined bg-deco-heart top-[15%] right-[20%] text-[80px]" style="font-variation-settings: 'FILL' 1;">favorite</span>
+<span class="material-symbols-outlined bg-deco-heart bottom-[30%] left-[10%] text-[120px] transform rotate-[25deg]" style="font-variation-settings: 'FILL' 1;">favorite</span>
+<main class="flex-1 flex flex-col justify-center items-center px-margin-mobile relative z-10 py-12">
+<!-- Header Section -->
+<div class="text-center mb-10 w-full max-w-sm flex flex-col items-center">
+<div class="w-32 h-32 rounded-[2.5rem] overflow-hidden mb-6 border-4 border-white shadow-lg bg-white relative">
+<img alt="Two cute mascot dogs sharing a meal" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCInS03c7T4Xmf4DqDI6GAmc6re1S1VLb01jDSz40RYlbPgAZpAl9dHe-TEQZwMGKWQeMKImCESIcEFPbiYaDySglbpBJW7JuwpNK5SDA-_OEUTREwpAPFlJaeFhlHL7U4m9mrxkqvKxN1j4Y95wtPey3f4SEqyz1rYM9e6PtNvZg04K0RZK9itBxAxLj1uX_C8WG4YSpiMBJCg7FcNm4j7My46e9RY844VGZFSb4ThkPIPY5ta5F3n68yFnRJ_UjSJxw"/>
+</div>
+<h1 class="font-headline-lg-mobile text-headline-lg-mobile text-on-primary-fixed mb-2 tracking-tight">欢迎回来</h1>
+<p class="font-body-md text-body-md text-on-surface-variant">今天也一起好好吃饭吧</p>
+</div>
+<!-- Login Card -->
+<div class="glass-card w-full max-w-sm rounded-[28px] p-6 sm:p-8 flex flex-col gap-6 relative">
+<!-- Inputs -->
+<div class="flex flex-col gap-5">
+<div class="tactile-input rounded-2xl flex items-center px-4 py-1 h-[60px]">
+<span class="material-symbols-outlined text-outline-variant mr-3 text-[28px]">person</span>
+<input class="w-full bg-transparent border-none focus:ring-0 font-body-md text-body-md text-on-surface placeholder-on-surface-variant/50 h-full py-0 outline-none" placeholder="账号 / 邮箱 / 手机号" type="text"/>
+</div>
+<div class="tactile-input rounded-2xl flex items-center px-4 py-1 h-[60px] relative group">
+<span class="material-symbols-outlined text-outline-variant mr-3 text-[28px]">lock</span>
+<input class="w-full bg-transparent border-none focus:ring-0 font-body-md text-body-md text-on-surface placeholder-on-surface-variant/50 h-full py-0 pr-10 outline-none" placeholder="密码" type="password"/>
+<button class="absolute right-4 text-outline-variant hover:text-primary transition-colors h-full flex items-center" type="button">
+<span class="material-symbols-outlined text-[24px]">visibility_off</span>
+</button>
+</div>
+</div>
+<!-- Options Row -->
+<div class="flex justify-between items-center px-1">
+<label class="flex items-center gap-3 cursor-pointer group">
+<input class="squishy-checkbox" type="checkbox"/>
+<span class="font-body-md text-[15px] text-on-surface-variant group-hover:text-primary transition-colors">记住账号密码</span>
+</label>
+<a class="font-label-bold text-label-bold text-primary hover:text-on-primary-fixed transition-colors" href="#">忘记密码？</a>
+</div>
+<!-- Primary Action -->
+<button class="btn-gradient w-full h-[64px] rounded-full text-white font-headline-md text-headline-md flex items-center justify-center mt-2 tracking-wide">
+                登录
+            </button>
+</div>
+<!-- Footer Link -->
+<div class="mt-8">
+<a class="font-body-md text-body-md text-on-surface-variant hover:text-primary transition-colors flex items-center gap-2" href="#">
+                还没有账号？<span class="font-label-bold text-label-bold underline decoration-2 underline-offset-4 decoration-primary-container">去注册</span>
+</a>
+</div>
+</main>
+</body></html>

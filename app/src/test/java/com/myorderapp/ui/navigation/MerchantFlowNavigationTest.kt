@@ -9,78 +9,81 @@ import org.junit.Test
 class MerchantFlowNavigationTest {
 
     @Test
-    fun `bottom navigation exposes single shop tabs`() {
+    fun `bottom navigation model exposes native single shop tabs`() {
         val source = readMainSource("ui/navigation/BottomNavItem.kt")
 
-        assertTrue(source.contains("title = \"首页\""))
+        assertTrue(source.contains("data object Home"))
         assertTrue(source.contains("data object Ordering"))
-        assertTrue(source.contains("route = \"ordering\""))
-        assertTrue(source.contains("title = \"点菜\""))
+        assertTrue(source.contains("route = Routes.ORDERING"))
         assertTrue(source.contains("data object Discover"))
         assertTrue(source.contains("data object Orders"))
+        assertTrue(source.contains("data object Profile"))
         assertTrue(source.contains("val items = listOf(Home, Ordering, Discover, Orders, Profile)"))
-        assertFalse(source.contains("route = \"menu_management\""))
-        assertFalse(source.contains("title = \"菜单\""))
+        assertTrue(source.contains("title = \"首页\""))
+        assertTrue(source.contains("title = \"点餐\""))
+        assertTrue(source.contains("title = \"发现\""))
+        assertTrue(source.contains("title = \"订单\""))
+        assertTrue(source.contains("title = \"我的\""))
+        assertTrue(source.contains("Icons.Outlined.Restaurant"))
+        assertTrue(source.contains("Icons.AutoMirrored.Outlined.ReceiptLong"))
+        assertFalse(source.contains("RamenDining"))
+        assertFalse(source.contains("AutoMirrored.Outlined.List"))
         assertFalse(source.contains("data object Merchant"))
-        assertFalse(source.contains("title = \"店铺\""))
     }
 
     @Test
-    fun `main screen keeps the bottom bar on home and switches tabs in place`() {
+    fun `main screen owns native floating liquid tab bar`() {
         val source = readMainSource("MainActivity.kt")
 
-        assertTrue(source.contains("if (sessionManager.isLoggedIn.value) Routes.HOME else Routes.AUTH"))
-        assertFalse(source.contains("if (sessionManager.isLoggedIn.value) Routes.HOME else Routes.ONBOARDING"))
-        assertTrue(source.contains("showBottomBar = currentDestination?.route in bottomNavRoutes"))
-        assertTrue(source.contains("WarmBottomBar"))
-        assertTrue(source.contains("LiquidBottomNavItem"))
-        assertTrue(source.contains("LiquidGlassTop"))
-        assertTrue(source.contains("LiquidGlassMiddle"))
-        assertTrue(source.contains("LiquidGlassBottom"))
-        assertTrue(source.contains("RoundedCornerShape(32.dp)"))
-        assertTrue(source.contains("shadow(24.dp"))
-        assertTrue(source.contains("Modifier.align(Alignment.BottomCenter)"))
-        assertTrue(source.contains("modifier = Modifier.fillMaxSize()"))
-        assertTrue(source.contains("Brush.verticalGradient"))
-        assertTrue(source.contains("modifier = Modifier.weight(1f)"))
-        assertFalse("底部导航不应再使用 Scaffold.bottomBar 生成旧白色底板", source.contains("Scaffold("))
-        assertFalse("底部导航不应再读取 Scaffold innerPadding 造成白色底部占位", source.contains("innerPadding"))
-        assertFalse("底部页签不应再使用固定宽度，避免右侧缺块", source.contains(".width(58.dp)"))
+        assertTrue(source.contains("FloatingLiquidBottomBar"))
+        assertTrue(source.contains("BottomNavItem.items"))
+        assertTrue(source.contains("currentRoute in tabRoutes"))
         assertTrue(source.contains("navController.navigateAsTab(route)"))
-        assertTrue(source.contains("popUpTo(graph.findStartDestination().id)"))
-        assertTrue(source.contains("restoreState = true"))
-        assertTrue(source.contains("launchSingleTop = true"))
-        assertFalse(source.contains("NavigationBar("))
-        assertFalse(source.contains("NavigationBarItem("))
+        assertTrue(source.contains("RoundedCornerShape(36.dp)"))
+        assertTrue(source.contains("Column("))
+        assertTrue(source.contains("Color(0xFFFFD1DC).copy(alpha = 0.82f)"))
+        assertTrue(source.contains("item.unselectedIcon"))
+
+        assertFalse(source.contains("blur("))
+        assertFalse(source.contains("shadow("))
+        assertFalse(source.contains("WarmBottomBar"))
+        assertFalse(source.contains("LiquidBottomNavItem"))
+        assertFalse(source.contains("Scaffold("))
+        assertFalse(source.contains("WebView"))
+        assertFalse(source.contains("file:///android_asset"))
     }
 
     @Test
-    fun `nav graph wires single shop flow screens`() {
+    fun `nav graph wires single shop flow through native compose screens`() {
         val source = readMainSource("ui/navigation/NavGraph.kt")
 
-        assertTrue(source.contains("const val MENU_MANAGEMENT = \"menu_management\""))
-        assertTrue(source.contains("const val SHOP_SETTINGS = \"shop_settings\""))
-        assertTrue(source.contains("const val ORDERING = \"ordering\""))
-        assertTrue(source.contains("const val DISCOVER = \"discover\""))
-        assertTrue(source.contains("const val ORDERS = \"orders\""))
-        assertTrue(source.contains("com.myorderapp.ui.couple.CoupleMenuScreen"))
-        assertTrue(source.contains("com.myorderapp.ui.order.OrderingScreen"))
-        assertTrue(source.contains("com.myorderapp.ui.discover.DiscoverScreen"))
-        assertTrue(source.contains("com.myorderapp.ui.menu.MenuManagementScreen"))
-        assertFalse(source.contains("com.myorderapp.ui.settings.ShopSettingsScreen"))
-        assertTrue(source.contains("com.myorderapp.ui.orders.OrdersScreen"))
-        assertFalse(source.contains("onCaretakerClick = { navController.navigate(Routes.SHOP_SETTINGS) }"))
-        assertFalse(source.contains("onEaterClick = { navController.navigateAsTab(Routes.ORDERING) }"))
-        assertTrue(source.contains("onGoOrderingClick = { navController.navigateAsTab(Routes.ORDERING) }"))
-        assertTrue(source.contains("onManageMenuClick = { navController.navigate(Routes.SHOP_SETTINGS) }"))
-        assertTrue(source.contains("onDishManageClick = { navController.navigate(Routes.SHOP_SETTINGS) }"))
-        assertTrue(source.contains("onLoginClick = {"))
-        assertTrue(source.contains("navController.navigate(Routes.AUTH)"))
-        assertTrue(source.contains("popUpTo(0) { inclusive = true }"))
-        assertTrue(source.contains("composable(Routes.SHOP_SETTINGS)"))
-        assertTrue(source.contains("MenuManagementScreen(onBack = { navController.popBackStack() })"))
-        assertFalse(source.contains("const val MERCHANT"))
-        assertFalse(source.contains("const val SHOP_DETAIL"))
+        listOf(
+            "const val MENU_MANAGEMENT = \"menu_management\"",
+            "const val SHOP_SETTINGS = \"shop_settings\"",
+            "const val ORDERING = \"ordering\"",
+            "const val DISCOVER = \"discover\"",
+            "const val ORDERS = \"orders\""
+        ).forEach { expected ->
+            assertTrue(source.contains(expected))
+        }
+
+        listOf(
+            "CoupleMenuScreen",
+            "OrderingScreen",
+            "DiscoverScreen",
+            "OrdersScreen",
+            "ProfileScreen",
+            "MenuManagementScreen",
+            "CheckoutScreen",
+            "AuthScreen",
+            "OnboardingScreen",
+            "onOrdersClick = { navController.navigateAsTab(Routes.ORDERS) }"
+        ).forEach { expected ->
+            assertTrue("Missing native route mapping: $expected", source.contains(expected))
+        }
+
+        assertFalse(source.contains("StitchScreen"))
+        assertFalse(source.contains("StitchPage"))
         assertFalse(source.contains("ui.merchant"))
     }
 

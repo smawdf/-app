@@ -2,6 +2,11 @@ package com.myorderapp.ui.couple
 
 import android.content.Context
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -11,8 +16,10 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -29,9 +36,13 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Event
 import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Pets
 import androidx.compose.material.icons.filled.Restaurant
+import androidx.compose.material.icons.filled.RestaurantMenu
+import androidx.compose.material.icons.filled.SoupKitchen
 import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -49,47 +60,43 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.PathEffect
-import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil3.compose.AsyncImage
 import com.myorderapp.domain.model.OrderRecord
 import com.myorderapp.domain.model.PairInfo
 import com.myorderapp.domain.model.Profile
 import com.myorderapp.domain.repository.OrderRepository
 import com.myorderapp.domain.repository.ProfileRepository
+import com.myorderapp.ui.components.CozyCard
+import com.myorderapp.ui.components.CozyBorder
+import com.myorderapp.ui.components.CozyCherry
+import com.myorderapp.ui.components.CozyCocoa
+import com.myorderapp.ui.components.CozyIconBadge
+import com.myorderapp.ui.components.CozyMainTopBar
+import com.myorderapp.ui.components.CozyMotionVisibility
+import com.myorderapp.ui.components.CozyMuted
+import com.myorderapp.ui.components.CozyPage
+import com.myorderapp.ui.components.CozyPill
+import com.myorderapp.ui.components.CozyPink
+import com.myorderapp.ui.components.CozyRose
+import com.myorderapp.ui.components.CozySurface
+import com.myorderapp.ui.components.CozyTerracotta
 import com.myorderapp.ui.notifications.notifyActiveOrderIfAllowed
-import coil3.compose.AsyncImage
-import java.text.SimpleDateFormat
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.temporal.ChronoUnit
-import java.util.Calendar
-import java.util.Locale
 import kotlinx.coroutines.delay
 import org.koin.compose.koinInject
-
-private val ToolBackground = Color(0xFFFFF6E8)
-private val ToolSurface = Color(0xFFFFFBF5)
-private val ToolSurfaceAlt = Color(0xFFFFE9C9)
-private val ToolBorder = Color(0xFFF2DAC7)
-private val ToolInk = Color(0xFF2B2019)
-private val ToolMuted = Color(0xFF8C6650)
-private val ToolAccent = Color(0xFF119482)
-private val ToolAccentSoft = Color(0xFFE0F6EF)
-private val ToolRose = Color(0xFFFF7088)
-private val ToolGold = Color(0xFFFFCF6F)
-private val ToolPeach = Color(0xFFFFB6AC)
 
 private enum class CoupleRole {
     Caretaker,
@@ -100,18 +107,22 @@ private enum class CoupleRole {
             Caretaker -> "caretaker"
             Eater -> "eater"
         }
+
+    val label: String
+        get() = when (this) {
+            Caretaker -> "饲养员"
+            Eater -> "吃货"
+        }
 }
 
-private data class RoleToastState(
-    val id: Int,
-    val role: CoupleRole
-)
+private data class RoleToastState(val id: Int, val role: CoupleRole)
 
 private const val COUPLE_HOME_PREFS = "couple_home_prefs"
 private const val KEY_SELECTED_ROLE = "selected_role"
 private const val PROFILE_PREFS = "profile_screen_prefs"
 private const val KEY_ORDER_NOTIFICATIONS_ENABLED = "order_notifications_enabled"
 private const val KEY_LAST_NOTIFIED_ORDER_ID = "last_notified_order_id"
+private const val ORDER_REFRESH_INTERVAL_MS = 15_000L
 
 private fun String?.toCoupleRole(): CoupleRole? = when (this) {
     CoupleRole.Caretaker.storageKey -> CoupleRole.Caretaker
@@ -134,12 +145,8 @@ fun CoupleMenuScreen(
     val orders by orderRepository.observeOrders().collectAsState(initial = emptyList())
     var pairInfo by remember { mutableStateOf(PairInfo()) }
     val context = LocalContext.current
-    val prefs = remember(context) {
-        context.getSharedPreferences(COUPLE_HOME_PREFS, Context.MODE_PRIVATE)
-    }
-    val profilePrefs = remember(context) {
-        context.getSharedPreferences(PROFILE_PREFS, Context.MODE_PRIVATE)
-    }
+    val prefs = remember(context) { context.getSharedPreferences(COUPLE_HOME_PREFS, Context.MODE_PRIVATE) }
+    val profilePrefs = remember(context) { context.getSharedPreferences(PROFILE_PREFS, Context.MODE_PRIVATE) }
     var selectedRole by rememberSaveable {
         mutableStateOf(prefs.getString(KEY_SELECTED_ROLE, null).toCoupleRole())
     }
@@ -150,18 +157,20 @@ fun CoupleMenuScreen(
         selectedRole = role
         prefs.edit().putString(KEY_SELECTED_ROLE, role.storageKey).apply()
         toastId += 1
-        toastState = RoleToastState(id = toastId, role = role)
+        toastState = RoleToastState(toastId, role)
     }
 
     LaunchedEffect(profile?.pairId) {
         pairInfo = profileRepository.getPairInfo()
+        orderRepository.refreshOrders()
     }
 
     LaunchedEffect(profile?.userId, profile?.pairId) {
         while (true) {
             profileRepository.touchPresence()
             pairInfo = profileRepository.getPairInfo()
-            delay(60_000)
+            orderRepository.refreshOrders()
+            delay(ORDER_REFRESH_INTERVAL_MS)
         }
     }
 
@@ -170,8 +179,7 @@ fun CoupleMenuScreen(
         val order = activeOrder ?: return@LaunchedEffect
         val notificationsEnabled = profilePrefs.getBoolean(KEY_ORDER_NOTIFICATIONS_ENABLED, false)
         val notifiedKey = "${order.id}:${order.status}"
-        val lastNotifiedKey = profilePrefs.getString(KEY_LAST_NOTIFIED_ORDER_ID, "")
-        if (notificationsEnabled && lastNotifiedKey != notifiedKey) {
+        if (notificationsEnabled && profilePrefs.getString(KEY_LAST_NOTIFIED_ORDER_ID, "") != notifiedKey) {
             notifyActiveOrderIfAllowed(
                 context = context,
                 order = order,
@@ -183,66 +191,71 @@ fun CoupleMenuScreen(
 
     LaunchedEffect(toastState?.id) {
         if (toastState != null) {
-            delay(1500)
+            delay(1600)
             toastState = null
         }
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(ToolBackground)
-    ) {
+    CozyPage(decorative = false) {
+        HomeDecorativeBubbles()
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(bottom = 92.dp)
         ) {
-            HomeHeader()
-            WorkbenchSummary(
-                days = daysEatingTogether(profile),
-                selectedRole = selectedRole,
-                profile = profile,
-                pairInfo = pairInfo,
-                onPartnerClick = onProfileClick
-            )
-            PrimaryActionGroup(
-                selectedRole = selectedRole,
-                onCaretakerClick = { selectRole(CoupleRole.Caretaker) },
-                onEaterClick = { selectRole(CoupleRole.Eater) }
-            )
-            RoleFunctionCard(
-                selectedRole = selectedRole,
-                onCustomizeMenuClick = onCustomizeMenuClick,
-                onGoOrderingClick = onGoOrderingClick
-            )
-            LatestOrderNudge(
-                order = activeOrder,
-                selectedRole = selectedRole,
-                onClick = onOrdersClick
-            )
-            AnniversaryCard(days = daysEatingTogether(profile), onClick = onAnniversaryClick)
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .verticalScroll(rememberScrollState())
+                    .padding(bottom = 188.dp)
+            ) {
+                Spacer(modifier = Modifier.height(8.dp))
+                CozyMotionVisibility {
+                    RelationshipCard(
+                        days = daysEatingTogether(profile),
+                        selectedRole = selectedRole,
+                        profile = profile,
+                        pairInfo = pairInfo,
+                        onPartnerClick = onProfileClick,
+                        onAnniversaryClick = onAnniversaryClick
+                    )
+                }
+                CozyMotionVisibility(delayMillis = 40) {
+                    QuickActionGrid(
+                        onAnniversaryClick = onAnniversaryClick,
+                        onCustomizeMenuClick = onCustomizeMenuClick,
+                        onGoOrderingClick = onGoOrderingClick
+                    )
+                }
+                CozyMotionVisibility(delayMillis = 80) {
+                    RoleSwitcher(
+                        selectedRole = selectedRole,
+                        onCaretakerClick = { selectRole(CoupleRole.Caretaker) },
+                        onEaterClick = { selectRole(CoupleRole.Eater) }
+                    )
+                }
+                CozyMotionVisibility(delayMillis = 120) {
+                    LatestOrderNudge(
+                        order = activeOrder,
+                        selectedRole = selectedRole,
+                        currentUserId = profile?.userId.orEmpty(),
+                        onClick = onOrdersClick
+                    )
+                }
+            }
         }
 
         AnimatedVisibility(
             visible = toastState != null,
-            modifier = Modifier
-                .matchParentSize()
-                .align(Alignment.Center),
-            enter = fadeIn(tween(180)),
+            modifier = Modifier.fillMaxSize(),
+            enter = fadeIn(tween(160)),
             exit = fadeOut(tween(160))
         ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color.Transparent),
-                contentAlignment = Alignment.Center
-            ) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 AnimatedVisibility(
                     visible = toastState != null,
-                    enter = fadeIn(tween(180)) + slideInVertically(tween(180)) { it / 5 },
-                    exit = fadeOut(tween(160)) + slideOutVertically(tween(160)) { it / 6 }
+                    enter = fadeIn(tween(160)) + slideInVertically(tween(180)) { it / 8 },
+                    exit = fadeOut(tween(140)) + slideOutVertically(tween(140)) { it / 8 }
                 ) {
                     toastState?.let { IdentitySwitchToast(role = it.role) }
                 }
@@ -252,432 +265,365 @@ fun CoupleMenuScreen(
 }
 
 @Composable
-private fun IdentitySwitchToast(role: CoupleRole) {
-    val title = when (role) {
-        CoupleRole.Caretaker -> "已切换为饲养员"
-        CoupleRole.Eater -> "已切换为吃货"
-    }
-    val subtitle = when (role) {
-        CoupleRole.Caretaker -> "现在可以上传菜单啦"
-        CoupleRole.Eater -> "去点菜入口已开启"
-    }
-    val icon = if (role == CoupleRole.Eater) Icons.Filled.Favorite else Icons.Filled.CheckCircle
-    val iconColor = if (role == CoupleRole.Eater) ToolRose else ToolAccent
-
-    Surface(
-        shape = RoundedCornerShape(32.dp),
-        color = ToolInk.copy(alpha = 0.68f),
-        shadowElevation = 18.dp
-    ) {
-        Row(
+private fun HomeDecorativeBubbles() {
+    Box(modifier = Modifier.fillMaxSize()) {
+        DecorativeBubble(
+            icon = Icons.Filled.Favorite,
+            tint = CozyRose.copy(alpha = 0.10f),
             modifier = Modifier
-                .width(356.dp)
-                .height(96.dp)
-                .padding(horizontal = 18.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(14.dp)
-        ) {
-            Surface(
-                shape = RoundedCornerShape(20.dp),
-                color = Color(0xFFFFF1C9),
-                modifier = Modifier.size(56.dp)
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        imageVector = icon,
-                        contentDescription = null,
-                        tint = iconColor,
-                        modifier = Modifier.size(30.dp)
-                    )
-                }
-            }
-            Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                Text(
-                    text = title,
-                    color = Color(0xFFFFFDF2),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Black
-                )
-                Text(
-                    text = subtitle,
-                    color = Color(0xFFF8DCC6),
-                    style = MaterialTheme.typography.bodySmall,
-                    fontWeight = FontWeight.Medium
-                )
-            }
-        }
+                .align(Alignment.TopStart)
+                .padding(start = 38.dp, top = 48.dp)
+                .size(24.dp)
+        )
+        DecorativeBubble(
+            icon = Icons.Filled.Pets,
+            tint = CozyTerracotta.copy(alpha = 0.10f),
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(end = 58.dp, top = 92.dp)
+                .size(20.dp)
+        )
+        DecorativeBubble(
+            icon = Icons.Filled.Restaurant,
+            tint = CozyPink.copy(alpha = 0.14f),
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = 70.dp)
+                .size(28.dp)
+        )
     }
+}
+
+@Composable
+private fun DecorativeBubble(
+    icon: ImageVector,
+    tint: Color,
+    modifier: Modifier = Modifier
+) {
+    Icon(
+        imageVector = icon,
+        contentDescription = null,
+        tint = tint,
+        modifier = modifier
+    )
 }
 
 @Composable
 private fun HomeHeader() {
-    Column(
+    CozyMainTopBar(title = "今天也要一起好好吃饭")
+    return
+    Row(
         modifier = Modifier
             .fillMaxWidth()
             .statusBarsPadding()
-            .padding(horizontal = 20.dp, vertical = 16.dp)
+            .height(64.dp)
+            .background(CozySurface.copy(alpha = 0.94f))
+            .padding(horizontal = 20.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
+        Box(modifier = Modifier.width(44.dp), contentAlignment = Alignment.CenterStart) {
+            Icon(Icons.Filled.Favorite, contentDescription = null, tint = CozyRose.copy(alpha = 0.82f), modifier = Modifier.size(26.dp))
+        }
         Text(
-            text = "今天也要好好吃饭",
-            color = ToolInk,
-            style = MaterialTheme.typography.displayLarge,
-            maxLines = 1
+            text = "今天也要一起好好吃饭",
+            color = CozyRose,
+            style = MaterialTheme.typography.headlineSmall.copy(
+                fontSize = 24.sp,
+                lineHeight = 32.sp,
+                fontWeight = FontWeight.Black,
+                letterSpacing = 0.sp
+            ),
+            textAlign = TextAlign.Center,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier
+                .weight(1f)
+                .padding(horizontal = 4.dp)
         )
-        Spacer(modifier = Modifier.height(6.dp))
-        Text(
-            text = todayText(),
-            color = ToolMuted,
-            style = MaterialTheme.typography.bodyMedium
-        )
+        Box(
+            modifier = Modifier.width(44.dp),
+            contentAlignment = Alignment.CenterEnd
+        ) {
+            Icon(Icons.Filled.Notifications, contentDescription = "通知", tint = CozyMuted, modifier = Modifier.size(24.dp))
+        }
     }
 }
 
 @Composable
-private fun WorkbenchSummary(
+private fun RelationshipCard(
     days: Long,
     selectedRole: CoupleRole?,
     profile: Profile?,
     pairInfo: PairInfo,
-    onPartnerClick: () -> Unit
+    onPartnerClick: () -> Unit,
+    onAnniversaryClick: () -> Unit
+) {
+    CozyCard(
+        modifier = Modifier.padding(horizontal = 20.dp),
+        containerColor = CozyPink.copy(alpha = 0.30f),
+        borderColor = CozyPink.copy(alpha = 0.42f),
+        radius = 26,
+        contentPadding = PaddingValues(0.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(252.dp)
+                .background(CozyPink.copy(alpha = 0.18f))
+                .padding(horizontal = 18.dp, vertical = 18.dp)
+        ) {
+            Icon(
+                Icons.Filled.Pets,
+                contentDescription = null,
+                tint = Color.White.copy(alpha = 0.09f),
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .size(210.dp)
+            )
+            Column(
+                modifier = Modifier.fillMaxSize(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    CurrentUserSlot(profile = profile, selectedRole = selectedRole)
+                    HeartConnector()
+                    PartnerSlot(pairInfo = pairInfo, onClick = onPartnerClick)
+                }
+                Surface(
+                    onClick = onAnniversaryClick,
+                    shape = RoundedCornerShape(999.dp),
+                    color = Color.White.copy(alpha = 0.90f),
+                    border = BorderStroke(1.dp, CozyRose.copy(alpha = 0.18f)),
+                    shadowElevation = 0.dp
+                ) {
+                    Column(
+                        modifier = Modifier.padding(horizontal = 22.dp, vertical = 8.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text("一起吃饭 $days 天", color = CozyRose, fontSize = 17.sp, lineHeight = 23.sp, fontWeight = FontWeight.Black)
+                        Text("今天也想和你好好吃饭", color = CozyMuted, fontSize = 12.sp, lineHeight = 16.sp)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CurrentUserSlot(profile: Profile?, selectedRole: CoupleRole?) {
+    val name = profile?.nickname?.takeIf { it.isNotBlank() } ?: "我"
+    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(128.dp)) {
+        AvatarBubble(
+            avatarUrl = profile?.avatarUrl,
+            fallback = name.take(1),
+            label = "当前用户",
+            filled = true,
+            showPetFallback = true,
+            onClick = null
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Text("我", color = CozyCocoa, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Black, maxLines = 1)
+        Spacer(modifier = Modifier.height(6.dp))
+        RoleLabelPill(text = "当前角色：${selectedRole?.label ?: "选择身份"}")
+    }
+}
+
+@Composable
+private fun PartnerSlot(pairInfo: PairInfo, onClick: () -> Unit) {
+    val name = if (pairInfo.isPaired) pairInfo.partnerName.ifBlank { "对方" } else "邀请对方"
+    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(128.dp)) {
+        AvatarBubble(
+            avatarUrl = null,
+            fallback = name.take(1),
+            label = name,
+            filled = pairInfo.isPaired,
+            onClick = onClick
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(name, color = CozyCocoa, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Black, maxLines = 1)
+        Spacer(modifier = Modifier.height(6.dp))
+        PartnerStatusSpacer(
+            text = when {
+                !pairInfo.isPaired -> ""
+                pairInfo.isOnline -> "在线"
+                else -> "已绑定"
+            }
+        )
+    }
+}
+
+@Composable
+private fun PartnerStatusSpacer(text: String) {
+    Text(
+        text = text,
+        color = CozyMuted.copy(alpha = 0.0f),
+        style = MaterialTheme.typography.labelSmall,
+        modifier = Modifier.height(18.dp)
+    )
+}
+
+@Composable
+private fun RoleLabelPill(text: String) {
+    Surface(
+        shape = RoundedCornerShape(999.dp),
+        color = Color.White.copy(alpha = 0.92f),
+        border = BorderStroke(1.dp, CozyRose.copy(alpha = 0.10f)),
+        shadowElevation = 0.dp
+    ) {
+        Text(
+            text = text,
+            color = CozyMuted,
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+            maxLines = 1
+        )
+    }
+}
+
+@Composable
+private fun AvatarBubble(
+    avatarUrl: String?,
+    fallback: String,
+    label: String,
+    filled: Boolean,
+    showPetFallback: Boolean = false,
+    onClick: (() -> Unit)?
 ) {
     Surface(
         modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp),
-        shape = RoundedCornerShape(32.dp),
-        color = Color.Transparent,
-        shadowElevation = 10.dp
+            .size(84.dp)
+            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier),
+        shape = CircleShape,
+        color = Color.White.copy(alpha = 0.92f),
+        border = BorderStroke(if (filled) 3.dp else 2.dp, if (filled) CozyRose.copy(alpha = 0.55f) else CozyMuted.copy(alpha = 0.35f)),
+        shadowElevation = 0.dp
     ) {
-        Column(
-            modifier = Modifier
-                .background(
-                    Brush.linearGradient(
-                        colors = listOf(Color(0xFFFFF1C8), Color(0xFFFFD8D3), Color(0xFFFFC6D8))
-                    )
+        Box(contentAlignment = Alignment.Center) {
+            if (!avatarUrl.isNullOrBlank()) {
+                AsyncImage(
+                    model = avatarUrl,
+                    contentDescription = label,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(CircleShape)
                 )
-                .padding(horizontal = 20.dp, vertical = 22.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            RelationshipSlots(
-                selectedRole = selectedRole,
-                profile = profile,
-                pairInfo = pairInfo,
-                onPartnerClick = onPartnerClick
-            )
-            Spacer(modifier = Modifier.height(20.dp))
-            Text(
-                text = "一起吃饭",
-                color = ToolInk,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
-            Row(verticalAlignment = Alignment.Bottom) {
-                Text(
-                    text = days.toString(),
-                    color = ToolInk,
-                    fontSize = 44.sp,
-                    lineHeight = 48.sp,
-                    fontWeight = FontWeight.Black
-                )
-                Text(
-                    text = "天",
-                    color = ToolInk,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(start = 6.dp, bottom = 7.dp)
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun RelationshipSlots(
-    selectedRole: CoupleRole?,
-    profile: Profile?,
-    pairInfo: PairInfo,
-    onPartnerClick: () -> Unit
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.Center
-    ) {
-        CurrentUserSlot(selectedRole = selectedRole, profile = profile)
-        HeartConnector()
-        PartnerSlot(
-            pairInfo = pairInfo,
-            accent = Color(0xFFC87482),
-            onClick = onPartnerClick
-        )
-    }
-}
-
-@Composable
-private fun CurrentUserSlot(
-    selectedRole: CoupleRole?,
-    profile: Profile?
-) {
-    val accent = if (selectedRole == CoupleRole.Eater) Color(0xFFC87482) else Color(0xFFC98A57)
-    val roleText = when (selectedRole) {
-        CoupleRole.Caretaker -> "饲养员"
-        CoupleRole.Eater -> "吃货"
-        null -> "选择身份"
-    }
-
-    Column(
-        modifier = Modifier.width(104.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Box(
-            modifier = Modifier
-                .size(76.dp)
-                .clip(CircleShape)
-                .background(Color(0xFFFFF8EA))
-                .drawBehind {
-                    drawCircle(
-                        color = accent,
-                        radius = size.minDimension / 2f - 4.dp.toPx(),
-                        style = androidx.compose.ui.graphics.drawscope.Stroke(width = 3.dp.toPx())
-                    )
-                },
-            contentAlignment = Alignment.Center
-        ) {
-            Surface(
-                shape = CircleShape,
-                color = accent,
-                modifier = Modifier.size(62.dp)
-            ) {
-                if (!profile?.avatarUrl.isNullOrBlank()) {
-                    AsyncImage(
-                        model = profile?.avatarUrl,
-                        contentDescription = "当前用户头像",
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize()
-                    )
-                } else {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.Person,
-                            contentDescription = "当前用户头像",
-                            tint = Color.White,
-                            modifier = Modifier.size(27.dp)
-                        )
-                        Text(
-                            text = profile?.nickname?.takeIf { it.isNotBlank() }?.take(1) ?: "我",
-                            color = Color.White,
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
-            }
-        }
-        Spacer(modifier = Modifier.height(8.dp))
-        Surface(
-            shape = RoundedCornerShape(999.dp),
-            color = Color.White.copy(alpha = 0.78f),
-            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.9f))
-        ) {
-            Text(
-                text = roleText,
-                color = ToolInk,
-                style = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
-            )
-        }
-    }
-}
-
-@Composable
-private fun PartnerSlot(
-    pairInfo: PairInfo,
-    accent: Color,
-    onClick: () -> Unit
-) {
-    val label = if (pairInfo.isPaired) pairInfo.partnerName.ifBlank { "我的小伙伴" } else "邀请对方"
-    val statusText = when {
-        !pairInfo.isPaired -> "等待绑定"
-        pairInfo.isOnline -> "在线"
-        else -> "已绑定"
-    }
-    val statusColor = when {
-        !pairInfo.isPaired -> ToolMuted
-        pairInfo.isOnline -> ToolAccent
-        else -> accent
-    }
-    Column(
-        modifier = Modifier.width(104.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Box(
-            modifier = Modifier
-                .size(76.dp)
-                .clip(CircleShape)
-                .clickable(onClick = onClick)
-                .background(Color(0xFFFFF8EA))
-                .drawBehind {
-                    drawCircle(
-                        color = accent,
-                        radius = size.minDimension / 2f - 4.dp.toPx(),
-                        style = androidx.compose.ui.graphics.drawscope.Stroke(
-                            width = 3.dp.toPx(),
-                            pathEffect = if (pairInfo.isPaired) null else PathEffect.dashPathEffect(floatArrayOf(12f, 10f))
-                        )
-                    )
-                },
-            contentAlignment = Alignment.Center
-        ) {
-            if (pairInfo.isPaired) {
-                Surface(
-                    shape = CircleShape,
-                    color = accent,
-                    modifier = Modifier.size(58.dp)
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            imageVector = Icons.Filled.Favorite,
-                            contentDescription = "伴侣头像",
-                            tint = Color.White,
-                            modifier = Modifier.size(30.dp)
-                        )
-                    }
-                }
+            } else if (showPetFallback) {
+                Icon(Icons.Filled.Pets, contentDescription = label, tint = CozyRose, modifier = Modifier.size(36.dp))
+            } else if (filled) {
+                Text(fallback, color = CozyRose, fontSize = 28.sp, fontWeight = FontWeight.Black)
             } else {
-                Icon(
-                    imageVector = Icons.Filled.Add,
-                    contentDescription = "邀请对方",
-                    tint = accent,
-                    modifier = Modifier.size(34.dp)
-                )
+                Icon(Icons.Filled.Add, contentDescription = label, tint = CozyRose, modifier = Modifier.size(32.dp))
             }
-        }
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = label,
-            color = ToolMuted,
-            style = MaterialTheme.typography.labelMedium,
-            fontWeight = FontWeight.Bold,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
-        Spacer(modifier = Modifier.height(5.dp))
-        Surface(
-            shape = RoundedCornerShape(999.dp),
-            color = Color.White.copy(alpha = 0.7f),
-            border = BorderStroke(1.dp, statusColor.copy(alpha = 0.28f))
-        ) {
-            Text(
-                text = statusText,
-                color = statusColor,
-                style = MaterialTheme.typography.labelSmall,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
-            )
         }
     }
 }
 
 @Composable
 private fun HeartConnector() {
-    Box(
-        modifier = Modifier.width(54.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Spacer(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(3.dp)
-                .drawBehind {
-                    drawLine(
-                        color = Color.White.copy(alpha = 0.86f),
-                        start = Offset(0f, size.height / 2f),
-                        end = Offset(size.width, size.height / 2f),
-                        strokeWidth = size.height,
-                        cap = StrokeCap.Round
-                    )
-                }
-        )
-        Surface(
-            shape = CircleShape,
-            color = Color.White.copy(alpha = 0.96f),
-            modifier = Modifier.size(40.dp)
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                Icon(
-                    imageVector = Icons.Filled.Favorite,
-                    contentDescription = null,
-                    tint = ToolRose,
-                    modifier = Modifier.size(23.dp)
-                )
-            }
+    val transition = rememberInfiniteTransition(label = "relationshipHeartBeat")
+    val scale by transition.animateFloat(
+        initialValue = 0.94f,
+        targetValue = 1.10f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 680, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "relationshipHeartScale"
+    )
+    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(44.dp)) {
+        Surface(modifier = Modifier.scale(scale), shape = CircleShape, color = Color.White.copy(alpha = 0.92f), shadowElevation = 0.dp) {
+            Icon(Icons.Filled.Favorite, contentDescription = null, tint = CozyRose, modifier = Modifier.padding(8.dp).size(22.dp))
         }
     }
 }
 
 @Composable
-private fun AnniversaryCard(days: Long, onClick: () -> Unit) {
-    Surface(
+private fun QuickActionGrid(
+    onAnniversaryClick: () -> Unit,
+    onCustomizeMenuClick: () -> Unit,
+    onGoOrderingClick: () -> Unit
+) {
+    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 10.dp)
-            .clickable(onClick = onClick),
-        shape = RoundedCornerShape(28.dp),
-        color = ToolSurface,
-        shadowElevation = 8.dp
+            .padding(horizontal = 20.dp, vertical = 14.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Row(
-            modifier = Modifier.padding(18.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            Surface(
-                shape = CircleShape,
-                color = Color(0xFFFFF1C9),
-                modifier = Modifier.size(52.dp)
+        QuickActionCard(
+            title = "纪念日",
+            subtitle = "记录我们一起吃饭的日子",
+            icon = Icons.Filled.Event,
+            tint = CozyTerracotta,
+            modifier = Modifier
+                .weight(1f)
+                .height(128.dp),
+            vertical = true,
+            onClick = onAnniversaryClick
+        )
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            QuickActionCard(
+                title = "我的店铺",
+                subtitle = "上传菜单，整理菜品",
+                icon = Icons.Filled.Storefront,
+                tint = CozyRose,
+                modifier = Modifier.height(58.dp),
+                onClick = onCustomizeMenuClick
+            )
+            QuickActionCard(
+                title = "去点菜",
+                subtitle = "看看今天想吃什么",
+                icon = Icons.Filled.RestaurantMenu,
+                tint = CozyTerracotta,
+                modifier = Modifier.height(58.dp),
+                onClick = onGoOrderingClick
+            )
+        }
+    }
+}
+
+@Composable
+private fun QuickActionCard(
+    title: String,
+    subtitle: String,
+    icon: ImageVector,
+    tint: Color,
+    modifier: Modifier,
+    vertical: Boolean = false,
+    onClick: () -> Unit
+) {
+    CozyCard(
+        modifier = modifier,
+        radius = 22,
+        onClick = onClick,
+        containerColor = Color.White.copy(alpha = 0.90f),
+        borderColor = CozyRose.copy(alpha = 0.20f),
+        contentPadding = PaddingValues(12.dp)
+    ) {
+        if (vertical) {
+            Column(
+                modifier = Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.SpaceBetween,
+                horizontalAlignment = Alignment.Start
             ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        imageVector = Icons.Filled.Favorite,
-                        contentDescription = null,
-                        tint = ToolRose,
-                        modifier = Modifier.size(27.dp)
-                    )
+                CozyIconBadge(icon = icon, background = tint.copy(alpha = 0.13f), tint = tint)
+                Column {
+                    Text(title, color = CozyCocoa, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Black, maxLines = 1)
+                    Text(subtitle, color = CozyMuted, style = MaterialTheme.typography.bodySmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 }
             }
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = "纪念日小日历",
-                    color = ToolInk,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "一起吃饭 $days 天，今天也要好好吃",
-                    color = ToolMuted,
-                    style = MaterialTheme.typography.bodySmall,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Spacer(modifier = Modifier.height(10.dp))
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(8.dp)
-                        .clip(RoundedCornerShape(999.dp))
-                        .background(Color(0xFFF4D7BD))
-                ) {
-                    Spacer(
-                        modifier = Modifier
-                            .fillMaxWidth(0.63f)
-                            .height(8.dp)
-                            .background(ToolAccent)
-                    )
+        } else {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                CozyIconBadge(icon = icon, background = tint.copy(alpha = 0.13f), tint = tint)
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(title, color = CozyCocoa, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Black, maxLines = 1)
+                    Text(subtitle, color = CozyMuted, style = MaterialTheme.typography.bodySmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 }
             }
         }
@@ -685,7 +631,7 @@ private fun AnniversaryCard(days: Long, onClick: () -> Unit) {
 }
 
 @Composable
-private fun PrimaryActionGroup(
+private fun RoleSwitcher(
     selectedRole: CoupleRole?,
     onCaretakerClick: () -> Unit,
     onEaterClick: () -> Unit
@@ -693,24 +639,24 @@ private fun PrimaryActionGroup(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 16.dp),
+            .padding(horizontal = 20.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        ActionButton(
-            title = "饲养员",
-            subtitle = "负责上传菜单",
-            icon = Icons.Filled.Storefront,
+        RoleCard(
+            role = CoupleRole.Caretaker,
+            subtitle = "上传菜单，照顾小饭桌",
+            icon = Icons.Filled.SoupKitchen,
             selected = selectedRole == CoupleRole.Caretaker,
-            accent = ToolGold,
+            accent = CozyRose,
             modifier = Modifier.weight(1f),
             onClick = onCaretakerClick
         )
-        ActionButton(
-            title = "吃货",
-            subtitle = "负责去点菜",
+        RoleCard(
+            role = CoupleRole.Eater,
+            subtitle = "浏览菜单，准备开饭",
             icon = Icons.Filled.Restaurant,
             selected = selectedRole == CoupleRole.Eater,
-            accent = ToolPeach,
+            accent = CozyTerracotta,
             modifier = Modifier.weight(1f),
             onClick = onEaterClick
         )
@@ -718,72 +664,104 @@ private fun PrimaryActionGroup(
 }
 
 @Composable
-private fun RoleFunctionCard(
-    selectedRole: CoupleRole?,
-    onCustomizeMenuClick: () -> Unit,
-    onGoOrderingClick: () -> Unit
+private fun RoleCard(
+    role: CoupleRole,
+    subtitle: String,
+    icon: ImageVector,
+    selected: Boolean,
+    accent: Color,
+    modifier: Modifier,
+    onClick: () -> Unit
 ) {
-    val title = when (selectedRole) {
-        CoupleRole.Caretaker -> "饲养员功能"
-        CoupleRole.Eater -> "吃货功能"
-        null -> "先选择你的身份"
-    }
-    val actionText = when (selectedRole) {
-        CoupleRole.Caretaker -> "上传菜单"
-        CoupleRole.Eater -> "去点菜"
-        null -> "选择身份后开启"
-    }
-    val subtitle = when (selectedRole) {
-        CoupleRole.Caretaker -> "把想做的菜、价格和库存放进我的店铺"
-        CoupleRole.Eater -> "进入我的店铺，开始挑今天想吃的菜"
-        null -> "切换成功后，这里会显示对应功能入口"
-    }
-    val onClick = when (selectedRole) {
-        CoupleRole.Caretaker -> onCustomizeMenuClick
-        CoupleRole.Eater -> onGoOrderingClick
-        null -> ({})
-    }
-
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp)
-            .clickable(enabled = selectedRole != null, onClick = onClick),
-        shape = RoundedCornerShape(24.dp),
-        color = ToolSurface,
-        border = BorderStroke(1.dp, ToolBorder),
-        shadowElevation = 6.dp
+    CozyCard(
+        modifier = modifier.aspectRatio(1f),
+        containerColor = if (selected) accent.copy(alpha = 0.15f) else Color.White.copy(alpha = 0.82f),
+        borderColor = if (selected) accent.copy(alpha = 0.45f) else Color.White.copy(alpha = 0.7f),
+        radius = 22,
+        onClick = onClick,
+        contentPadding = PaddingValues(14.dp)
     ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(14.dp)
-        ) {
-            Surface(shape = CircleShape, color = ToolAccentSoft, modifier = Modifier.size(46.dp)) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        imageVector = if (selectedRole == CoupleRole.Eater) Icons.Filled.Restaurant else Icons.Filled.Storefront,
-                        contentDescription = null,
-                        tint = ToolAccent,
-                        modifier = Modifier.size(24.dp)
+        Box(modifier = Modifier.fillMaxSize()) {
+            Surface(
+                shape = RoundedCornerShape(bottomStart = 48.dp),
+                color = accent.copy(alpha = if (selected) 0.12f else 0.05f),
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .size(72.dp)
+            ) {}
+            Column(
+                modifier = Modifier.fillMaxSize()
+                    .padding(end = 4.dp),
+                verticalArrangement = Arrangement.SpaceBetween,
+                horizontalAlignment = Alignment.Start
+            ) {
+                CozyIconBadge(icon = icon, background = accent.copy(alpha = 0.14f), tint = accent, modifier = Modifier.size(42.dp))
+                Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                    Text(role.label, color = CozyCocoa, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Black)
+                    if (selected) {
+                        Surface(shape = RoundedCornerShape(999.dp), color = accent.copy(alpha = 0.92f)) {
+                            Text(
+                                "当前角色",
+                                color = Color.White,
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                            )
+                        }
+                    }
+                    Text(
+                        subtitle,
+                        color = CozyMuted,
+                        style = MaterialTheme.typography.labelSmall,
+                        maxLines = 2,
+                        lineHeight = 15.sp,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        text = if (selected) "当前：${role.label}" else "切换为${role.label}",
+                        color = if (selected) accent else CozyMuted,
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1
                     )
                 }
             }
-            Column(modifier = Modifier.weight(1f)) {
-                Text(title, color = ToolInk, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                Spacer(modifier = Modifier.height(3.dp))
-                Text(subtitle, color = ToolMuted, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            }
-            Surface(
-                shape = RoundedCornerShape(999.dp),
-                color = if (selectedRole == null) ToolSurfaceAlt else ToolAccent
-            ) {
+        }
+    }
+}
+
+@Composable
+private fun IdentitySwitchToast(role: CoupleRole) {
+    Surface(
+        modifier = Modifier.size(188.dp),
+        shape = RoundedCornerShape(26.dp),
+        color = Color.White.copy(alpha = 0.48f),
+        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.72f)),
+        shadowElevation = 0.dp
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(CozyPink.copy(alpha = 0.16f))
+                .padding(18.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            CozyIconBadge(
+                icon = if (role == CoupleRole.Caretaker) Icons.Filled.CheckCircle else Icons.Filled.Favorite,
+                background = Color.White.copy(alpha = 0.58f),
+                tint = CozyRose,
+                modifier = Modifier.size(56.dp)
+            )
+            Spacer(modifier = Modifier.height(14.dp))
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("已切换为${role.label}", color = CozyCocoa, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Black)
                 Text(
-                    text = actionText,
-                    color = if (selectedRole == null) ToolMuted else Color.White,
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
+                    if (role == CoupleRole.Caretaker) "现在可以上传菜单啦" else "去看看今天想吃什么吧",
+                    color = CozyMuted,
+                    style = MaterialTheme.typography.bodySmall,
+                    textAlign = TextAlign.Center,
+                    maxLines = 2
                 )
             }
         }
@@ -796,128 +774,36 @@ private val activeOrderStatuses = setOf("submitted", "confirmed", "delivering")
 private fun LatestOrderNudge(
     order: OrderRecord?,
     selectedRole: CoupleRole?,
+    currentUserId: String,
     onClick: () -> Unit
 ) {
     if (order == null) return
 
     val isCaretaker = selectedRole == CoupleRole.Caretaker
+    val isMyOrder = currentUserId.isNotBlank() && order.userId == currentUserId
+    val dishCount = order.items.sumOf { it.quantity }.coerceAtLeast(order.items.size)
+    val buyerName = order.buyerName.ifBlank { if (isMyOrder) "你" else "对方" }
     val title = when (order.status) {
-        "submitted" -> if (isCaretaker) "有新的点菜单等你接单" else "订单已提交，等饲养员接单"
-        "confirmed" -> "饲养员已接单"
-        "delivering" -> "这顿饭正在准备中"
+        "submitted" -> if (isCaretaker && !isMyOrder) "$buyerName 点了 $dishCount 道菜，等你开做" else "点菜单已送达，等饲养员接单"
+        "confirmed" -> if (isMyOrder) "饲养员已接单，今天这顿稳了" else "你已接单，准备开做吧"
+        "delivering" -> if (isMyOrder) "饲养员正在准备，香味快来了" else "这份点菜单正在准备中"
         else -> "订单有新进展"
     }
-    val subtitle = order.items.take(2).joinToString("、") { it.menuItemName }
-        .ifBlank { order.shopName.ifBlank { "我的店铺" } }
-    val buttonText = if (isCaretaker && order.status == "submitted") "去接单" else "查看订单"
-
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 10.dp)
-            .clickable(onClick = onClick),
-        shape = RoundedCornerShape(26.dp),
-        color = ToolInk,
-        shadowElevation = 10.dp
+    val subtitle = order.items.take(2).joinToString("、") { "${it.menuItemName}×${it.quantity}" }
+        .ifBlank { order.shopName.ifBlank { "我的小店" } }
+    CozyCard(
+        modifier = Modifier.padding(horizontal = 20.dp, vertical = 2.dp),
+        containerColor = Color(0xFFFFFCF8),
+        borderColor = CozyBorder.copy(alpha = 0.72f),
+        onClick = onClick
     ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(14.dp)
-        ) {
-            Surface(shape = CircleShape, color = Color(0xFFFFF1C9), modifier = Modifier.size(48.dp)) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        imageVector = Icons.Filled.Restaurant,
-                        contentDescription = null,
-                        tint = ToolRose,
-                        modifier = Modifier.size(25.dp)
-                    )
-                }
-            }
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+            CozyIconBadge(Icons.Filled.Restaurant, background = Color(0xFFFFD1DC), tint = CozyRose)
             Column(modifier = Modifier.weight(1f)) {
-                Text(title, color = Color.White, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                Spacer(modifier = Modifier.height(3.dp))
-                Text(
-                    text = subtitle,
-                    color = Color(0xFFF8DCC6),
-                    style = MaterialTheme.typography.bodySmall,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
+                Text(title, color = CozyCocoa, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Black)
+                Text(subtitle, color = CozyMuted, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
-            Surface(shape = RoundedCornerShape(999.dp), color = Color.White.copy(alpha = 0.16f)) {
-                Text(
-                    text = buttonText,
-                    color = Color.White,
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(horizontal = 13.dp, vertical = 8.dp)
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun ActionButton(
-    title: String,
-    subtitle: String,
-    icon: ImageVector,
-    selected: Boolean,
-    accent: Color,
-    modifier: Modifier = Modifier,
-    onClick: () -> Unit
-) {
-    val container = if (selected) {
-        Brush.linearGradient(listOf(Color(0xFFFFE4EA), accent))
-    } else {
-        Brush.linearGradient(listOf(Color(0xFFFFFDF2), Color(0xFFFFF4C8)))
-    }
-    Surface(
-        modifier = modifier
-            .height(158.dp)
-            .clickable(onClick = onClick),
-        shape = RoundedCornerShape(28.dp),
-        color = Color.Transparent,
-        shadowElevation = 8.dp
-    ) {
-        Column(
-            modifier = Modifier
-                .background(container)
-                .padding(18.dp),
-            verticalArrangement = Arrangement.SpaceBetween
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(title, color = ToolInk, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                Surface(shape = CircleShape, color = Color(0xFFFFFDF2), modifier = Modifier.size(34.dp)) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            imageVector = icon,
-                            contentDescription = null,
-                            tint = if (selected) ToolRose else ToolAccent,
-                            modifier = Modifier.size(19.dp)
-                        )
-                    }
-                }
-            }
-            Column {
-                Text(subtitle, color = ToolInk, style = MaterialTheme.typography.bodySmall)
-                Spacer(modifier = Modifier.height(12.dp))
-                Surface(shape = RoundedCornerShape(999.dp), color = Color.White.copy(alpha = 0.76f)) {
-                    Text(
-                        text = if (selected) "已选择" else "选择身份",
-                        color = ToolMuted,
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp)
-                    )
-                }
-            }
+            CozyPill(text = if (isCaretaker && order.status == "submitted") "去接单" else "查看", color = CozyPink)
         }
     }
 }
@@ -936,14 +822,6 @@ private fun resolveAnniversaryStartDate(profile: Profile?): LocalDate {
 }
 
 private fun parseDateSafely(value: String): LocalDate? {
-    return runCatching { Instant.parse(value).atZone(ZoneId.systemDefault()).toLocalDate() }
-        .getOrNull()
+    return runCatching { Instant.parse(value).atZone(ZoneId.systemDefault()).toLocalDate() }.getOrNull()
         ?: runCatching { LocalDate.parse(value.take(10)) }.getOrNull()
-}
-
-private fun todayText(): String {
-    val calendar = Calendar.getInstance()
-    val date = SimpleDateFormat("yyyy/MM/dd", Locale.CHINA).format(calendar.time)
-    val week = arrayOf("周日", "周一", "周二", "周三", "周四", "周五", "周六")
-    return "$date ${week[calendar.get(Calendar.DAY_OF_WEEK) - 1]}"
 }

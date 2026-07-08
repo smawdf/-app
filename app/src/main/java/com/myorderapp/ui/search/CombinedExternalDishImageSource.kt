@@ -1,20 +1,30 @@
 package com.myorderapp.ui.search
 
 class CombinedExternalDishImageSource(
-    private val primarySource: ExternalDishImageSource,
-    private val fallbackSource: ExternalDishImageSource
+    private val sources: List<ExternalDishImageSource>
 ) : ExternalDishImageSource {
 
+    constructor(
+        primarySource: ExternalDishImageSource,
+        fallbackSource: ExternalDishImageSource
+    ) : this(listOf(primarySource, fallbackSource))
+
     override suspend fun search(query: String): ExternalDishImageSearchResult {
-        val primary = primarySource.search(query)
-        if (primary.primary.isNotEmpty()) {
-            return primary
+        val fallbackResults = mutableListOf<ExternalDishImageResult>()
+
+        for (source in sources) {
+            val result = source.search(query)
+            if (result.primary.isNotEmpty()) {
+                return ExternalDishImageSearchResult(
+                    primary = result.primary,
+                    fallback = fallbackResults + result.fallback
+                )
+            }
+            fallbackResults += result.fallback
         }
 
-        val fallback = fallbackSource.search(query)
         return ExternalDishImageSearchResult(
-            primary = primary.primary,
-            fallback = fallback.fallback.ifEmpty { primary.fallback }
+            fallback = fallbackResults
         )
     }
 }

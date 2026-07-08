@@ -1,32 +1,39 @@
 package com.myorderapp.ui.couple
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ArrowBack
-import androidx.compose.material.icons.outlined.Add
-import androidx.compose.material.icons.outlined.Cake
-import androidx.compose.material.icons.outlined.CalendarMonth
-import androidx.compose.material.icons.outlined.Favorite
+import androidx.compose.material.icons.automirrored.filled.ArrowBack 
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft 
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Cake
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.HistoryEdu
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -45,55 +52,71 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil3.compose.AsyncImage
+import com.myorderapp.domain.model.OrderRecord
 import com.myorderapp.domain.model.Profile
+import com.myorderapp.domain.repository.OrderRepository
 import com.myorderapp.domain.repository.ProfileRepository
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.YearMonth
-import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
-import java.util.Locale
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 
-private val AnniversaryBg = Color(0xFFFFF8F1)
-private val AnniversarySurface = Color(0xFFFBFCFD)
-private val AnniversaryInk = Color(0xFF4E3933)
-private val AnniversaryMuted = Color(0xFF8B7164)
-private val AnniversaryPrimary = Color(0xFFD86F8D)
-private val AnniversarySoft = Color(0xFFFFDDE7)
-private val AnniversaryBorder = Color(0xFFF3DED6)
+private val AnniversarySurface = Color(0xFFFEF8F2)
+private val AnniversaryCard = Color(0xFFFFFCF8)
+private val AnniversaryInk = Color(0xFF1D1B18)
+private val AnniversaryMuted = Color(0xFF524346)
+private val AnniversaryPrimary = Color(0xFF894C5C)
+private val AnniversarySecondary = Color(0xFF78555E)
+private val AnniversaryPink = Color(0xFFFFD1DC)
+private val AnniversarySoftPink = Color(0xFFF4A7B9)
+private val AnniversaryTerracotta = Color(0xFF8B4E38)
+private val AnniversaryBorder = Color(0xFFD6C1C5)
+private val AnniversaryCreamLine = Color(0xFFF0E5DC)
+private val completedMomentStatuses = setOf("completed", "delivered", "finished")
 
 @Composable
 fun AnniversaryScreen(
     profileRepository: ProfileRepository = koinInject(),
+    orderRepository: OrderRepository = koinInject(),
     onBack: () -> Unit
 ) {
     val profile by profileRepository.getProfile().collectAsState(initial = null)
+    val orders by orderRepository.observeOrders().collectAsState(initial = emptyList())
     val scope = rememberCoroutineScope()
     val state = remember(profile) { anniversaryState(profile) }
+    val sweetMomentOrders = remember(orders) {
+        orders
+            .filter { it.status in completedMomentStatuses }
+            .sortedByDescending { it.createdAt }
+            .take(5)
+    }
     var showEditor by remember { mutableStateOf(false) }
 
     if (showEditor) {
         AnniversaryEditorDialog(
             initialDate = state.startDate,
             onDismiss = { showEditor = false },
-            onSave = { name, date, countMode ->
+            onSave = { date ->
                 scope.launch {
                     val current = profile ?: Profile()
-                    profileRepository.saveProfile(
-                        current.copy(
-                            nickname = current.nickname,
-                            pairedAt = date.toString()
-                        )
-                    )
+                    profileRepository.saveProfile(current.copy(pairedAt = date.toString()))
                     showEditor = false
                 }
             }
@@ -103,33 +126,58 @@ fun AnniversaryScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(AnniversaryBg)
+            .background(AnniversarySurface)
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(bottom = 110.dp)
-        ) {
+        AnniversaryBackground()
+        Column(modifier = Modifier.fillMaxSize()) {
             AnniversaryHeader(onBack = onBack)
-            HeroHeart(state = state, onAddClick = { showEditor = true })
-            NextAnniversaryCard(state = state)
-            EmptyAnniversaryHint()
-        }
-
-        FloatingActionButton(
-            onClick = { showEditor = true },
-            shape = CircleShape,
-            containerColor = AnniversaryPrimary,
-            contentColor = Color.White,
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(end = 28.dp, bottom = 34.dp)
-                .size(64.dp)
-        ) {
-            Icon(Icons.Outlined.Add, contentDescription = "设置纪念日", modifier = Modifier.size(34.dp))
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 20.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Spacer(modifier = Modifier.height(24.dp))
+                AnniversaryHeroCard(state = state)
+                NextAnniversaryCard(state = state, onClick = { showEditor = true })
+                SweetMomentsTimeline(orders = sweetMomentOrders)
+                Spacer(modifier = Modifier.height(60.dp))
+            }
         }
     }
+}
+
+@Composable
+private fun AnniversaryBackground() {
+    Canvas(modifier = Modifier.fillMaxSize()) {
+        drawCircle(
+            color = Color(0xFFFFB1C3).copy(alpha = 0.10f),
+            radius = size.width * 0.42f,
+            center = Offset(size.width * 0.50f, -size.width * 0.15f)
+        )
+        drawNoodleBowl(
+            topLeft = Offset(size.width * 0.42f, size.height * 0.82f),
+            width = size.width * 0.50f,
+            color = AnniversaryPrimary.copy(alpha = 0.08f)
+        )
+    }
+}
+
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawNoodleBowl(
+    topLeft: Offset,
+    width: Float,
+    color: Color
+) {
+    val height = width * 0.52f
+    val path = Path().apply {
+        moveTo(topLeft.x + width * 0.18f, topLeft.y + height * 0.34f)
+        cubicTo(topLeft.x + width * 0.20f, topLeft.y + height, topLeft.x + width * 0.80f, topLeft.y + height, topLeft.x + width * 0.82f, topLeft.y + height * 0.34f)
+        close()
+    }
+    drawPath(path, color)
+    drawCircle(color, width * 0.06f, Offset(topLeft.x + width * 0.28f, topLeft.y + height * 0.16f))
+    drawCircle(color, width * 0.035f, Offset(topLeft.x + width * 0.70f, topLeft.y + height * 0.12f))
 }
 
 @Composable
@@ -139,106 +187,235 @@ private fun AnniversaryHeader(onBack: () -> Unit) {
             .fillMaxWidth()
             .statusBarsPadding()
             .height(64.dp)
-            .padding(horizontal = 12.dp)
+            .background(AnniversarySurface.copy(alpha = 0.94f))
+            .padding(horizontal = 22.dp)
     ) {
         IconButton(onClick = onBack, modifier = Modifier.align(Alignment.CenterStart)) {
-            Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "返回", tint = AnniversaryInk)
+            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回", tint = AnniversaryMuted, modifier = Modifier.size(24.dp)) 
         }
         Text(
             text = "纪念日",
-            color = AnniversaryInk,
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Bold,
+            color = AnniversaryPrimary,
+            fontSize = 24.sp,
+            lineHeight = 32.sp,
+            fontWeight = FontWeight.Black,
             modifier = Modifier.align(Alignment.Center)
+        )
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .height(1.dp)
+                .background(AnniversaryCreamLine.copy(alpha = 0.92f))
         )
     }
 }
 
 @Composable
-private fun HeroHeart(state: AnniversaryPageUiState, onAddClick: () -> Unit) {
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 22.dp, vertical = 10.dp),
-        shape = RoundedCornerShape(30.dp),
-        color = AnniversarySoft,
-        border = BorderStroke(1.dp, AnniversaryBorder)
+private fun AnniversaryHeroCard(state: AnniversaryPageUiState) {
+    StitchGlassCard(
+        modifier = Modifier.fillMaxWidth(),
+        containerColor = Color(0xFFFFEFF3).copy(alpha = 0.46f), 
+        borderColor = AnniversaryTerracotta.copy(alpha = 0.32f),
+        squishyShadow = true,
+        radius = 18,
+        contentPadding = PaddingValues(horizontal = 28.dp, vertical = 16.dp)
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(310.dp)
-                .background(
-                    Brush.verticalGradient(
-                        listOf(AnniversarySoft, Color(0xFFFFF8F1))
-                    )
-                )
-                .padding(24.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Surface(
-                shape = CircleShape,
-                color = Color.White.copy(alpha = 0.72f),
-                border = BorderStroke(1.dp, Color.White),
-                modifier = Modifier.size(176.dp)
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(Icons.Outlined.Favorite, contentDescription = null, tint = AnniversaryPrimary.copy(alpha = 0.22f), modifier = Modifier.size(128.dp))
-                }
-            }
+        Box(modifier = Modifier.fillMaxWidth().height(126.dp), contentAlignment = Alignment.Center) {
+            FloatingHeart(
+                modifier = Modifier.align(Alignment.TopStart).padding(start = 20.dp, top = 6.dp),
+                size = 34.dp,
+                color = AnniversaryPrimary.copy(alpha = 0.54f),
+                outline = true
+            )
+            FloatingHeart(
+                modifier = Modifier.align(Alignment.TopEnd).padding(end = 54.dp, top = 28.dp),
+                size = 44.dp,
+                color = AnniversaryPink.copy(alpha = 0.38f), 
+                outline = true
+            )
+            FloatingHeart(
+                modifier = Modifier.align(Alignment.BottomEnd).padding(end = 22.dp, bottom = 18.dp),
+                size = 20.dp,
+                color = AnniversaryTerracotta.copy(alpha = 0.64f),
+                outline = true
+            )
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Row(horizontalArrangement = Arrangement.spacedBy(0.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Surface(shape = CircleShape, color = Color.White, border = BorderStroke(1.dp, AnniversaryBorder), modifier = Modifier.size(62.dp)) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(Icons.Outlined.Cake, contentDescription = null, tint = AnniversaryPrimary, modifier = Modifier.size(30.dp))
-                        }
-                    }
-                    Surface(shape = CircleShape, color = Color.White, border = BorderStroke(1.dp, AnniversaryBorder), modifier = Modifier.size(62.dp), onClick = onAddClick) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(Icons.Outlined.Add, contentDescription = "设置纪念日", tint = AnniversaryPrimary, modifier = Modifier.size(32.dp))
-                        }
-                    }
-                }
-                Spacer(modifier = Modifier.height(22.dp))
-                Text("我们在一起已经", color = AnniversaryMuted, style = MaterialTheme.typography.bodyLarge)
-                Row(verticalAlignment = Alignment.Bottom) {
-                    Text(
-                        text = state.days.toString(),
-                        color = AnniversaryInk,
-                        fontSize = 62.sp,
-                        lineHeight = 66.sp,
-                        fontWeight = FontWeight.Light
-                    )
-                    Text("天", color = AnniversaryMuted, fontSize = 20.sp, modifier = Modifier.padding(start = 6.dp, bottom = 10.dp))
-                }
-                Text(state.startDateTextWithWeek, color = AnniversaryMuted, style = MaterialTheme.typography.bodyMedium)
+                Text(
+                    text = "恋爱第 ${state.days} 天",
+                    color = AnniversaryPrimary,
+                    fontSize = 21.sp,
+                    lineHeight = 29.sp,
+                    fontWeight = FontWeight.Black
+                )
+                Spacer(modifier = Modifier.height(15.dp))
+                Text(
+                    text = "每一次心跳，都在为你倒数",
+                    color = AnniversarySecondary,
+                    fontSize = 19.sp,
+                    lineHeight = 28.sp,
+                    textAlign = TextAlign.Center
+                )
             }
         }
     }
 }
 
 @Composable
-private fun NextAnniversaryCard(state: AnniversaryPageUiState) {
+private fun FloatingHeart(
+    modifier: Modifier,
+    size: androidx.compose.ui.unit.Dp,
+    color: Color,
+    outline: Boolean = false
+) {
+    if (outline) {
+        Canvas(modifier = modifier.size(size)) {
+            val w = this.size.width
+            val h = this.size.height
+            val path = Path().apply {
+                moveTo(w * 0.50f, h * 0.86f)
+                cubicTo(w * 0.06f, h * 0.52f, w * 0.06f, h * 0.16f, w * 0.30f, h * 0.16f)
+                cubicTo(w * 0.42f, h * 0.16f, w * 0.49f, h * 0.25f, w * 0.50f, h * 0.34f)
+                cubicTo(w * 0.51f, h * 0.25f, w * 0.58f, h * 0.16f, w * 0.70f, h * 0.16f)
+                cubicTo(w * 0.94f, h * 0.16f, w * 0.94f, h * 0.52f, w * 0.50f, h * 0.86f)
+            }
+            drawPath(path, color, style = Stroke(width = 2.6.dp.toPx(), cap = StrokeCap.Round))
+        }
+    } else {
+        Icon(
+            Icons.Filled.Favorite,
+            contentDescription = null,
+            tint = color,
+            modifier = modifier.size(size)
+        )
+    }
+}
+
+@Composable
+private fun NextAnniversaryCard(
+    state: AnniversaryPageUiState,
+    onClick: () -> Unit
+) {
     Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 22.dp, vertical = 14.dp),
-        shape = RoundedCornerShape(22.dp),
-        color = AnniversarySurface,
-        border = BorderStroke(1.dp, AnniversaryBorder)
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        color = Color(0xFFFFE7EC).copy(alpha = 0.54f), 
+        border = BorderStroke(1.5.dp, AnniversarySoftPink.copy(alpha = 0.34f)),
+        shadowElevation = 0.dp
     ) {
         Row(
-            modifier = Modifier.padding(22.dp),
+            modifier = Modifier
+                .heightIn(min = 114.dp)
+                .padding(horizontal = 24.dp, vertical = 20.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("下一个纪念日", color = AnniversaryInk, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                Text(state.nextAnniversaryText, color = AnniversaryMuted, style = MaterialTheme.typography.bodyMedium)
-            }
-            Surface(shape = RoundedCornerShape(18.dp), color = AnniversarySoft, modifier = Modifier.size(88.dp)) {
+            Surface(shape = CircleShape, color = AnniversaryPrimary.copy(alpha = 0.10f), modifier = Modifier.size(54.dp)) {
                 Box(contentAlignment = Alignment.Center) {
-                    Icon(Icons.Outlined.CalendarMonth, contentDescription = null, tint = AnniversaryPrimary, modifier = Modifier.size(42.dp))
+                    Icon(Icons.Filled.Cake, contentDescription = null, tint = AnniversaryPrimary, modifier = Modifier.size(28.dp))
+                }
+            }
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(state.nextAnniversaryTitle, color = AnniversaryMuted, fontSize = 18.sp, lineHeight = 25.sp, fontWeight = FontWeight.Bold)
+                Text("距离下一站浪漫", color = AnniversaryInk, fontSize = 18.sp, lineHeight = 25.sp)
+            }
+            Row(verticalAlignment = Alignment.Bottom) {
+                Text(
+                    text = state.nextAnniversaryRemainingDays.toString(),
+                    color = AnniversaryPrimary,
+                    fontSize = 25.sp,
+                    lineHeight = 29.sp,
+                    fontWeight = FontWeight.Black
+                )
+                Text("天", color = AnniversaryMuted, fontSize = 18.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(start = 4.dp, bottom = 2.dp))
+            }
+        }
+    }
+}
+
+@Composable
+private fun CalendarCard(
+    visibleMonth: YearMonth,
+    selectedDate: LocalDate,
+    calendarType: AnniversaryCalendarType,
+    onCalendarTypeChange: (AnniversaryCalendarType) -> Unit,
+    onPreviousMonth: () -> Unit,
+    onNextMonth: () -> Unit,
+    visibleWeekCount: Int? = null,
+    onDateSelected: (LocalDate) -> Unit
+) {
+    StitchGlassCard(
+        modifier = Modifier.fillMaxWidth(),
+        containerColor = AnniversaryCard.copy(alpha = 0.58f), 
+        borderColor = AnniversaryBorder.copy(alpha = 0.48f),
+        squishyShadow = true,
+        radius = 18,
+        contentPadding = PaddingValues(horizontal = 24.dp, vertical = 24.dp)
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(25.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = monthName(visibleMonth.monthValue),
+                    color = AnniversaryInk,
+                    fontSize = 22.sp,
+                    lineHeight = 30.sp,
+                    fontWeight = FontWeight.Normal
+                )
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                    CalendarTypeToggle(calendarType = calendarType, onCalendarTypeChange = onCalendarTypeChange)
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        IconButton(onClick = onPreviousMonth, modifier = Modifier.size(28.dp)) {
+                            Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = "上月", tint = AnniversarySecondary, modifier = Modifier.size(18.dp))
+                        }
+                        IconButton(onClick = onNextMonth, modifier = Modifier.size(28.dp)) {
+                            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = "下月", tint = AnniversarySecondary, modifier = Modifier.size(18.dp))
+                        }
+                    }
+                }
+            }
+            CalendarGrid(
+                visibleMonth = visibleMonth,
+                selectedDate = selectedDate,
+                calendarType = calendarType,
+                visibleWeekCount = visibleWeekCount,
+                onDateSelected = onDateSelected
+            )
+        }
+    }
+}
+
+@Composable
+private fun CalendarTypeToggle(
+    calendarType: AnniversaryCalendarType,
+    onCalendarTypeChange: (AnniversaryCalendarType) -> Unit
+) {
+    Surface(
+        shape = RoundedCornerShape(999.dp),
+        color = Color(0xFFE7E2DC).copy(alpha = 0.50f),
+        border = BorderStroke(1.dp, AnniversaryBorder.copy(alpha = 0.46f))
+    ) {
+        Row(modifier = Modifier.padding(3.dp), horizontalArrangement = Arrangement.spacedBy(1.dp)) {
+            AnniversaryCalendarType.entries.forEach { type ->
+                val selected = calendarType == type
+                Surface(
+                    onClick = { onCalendarTypeChange(type) },
+                    shape = RoundedCornerShape(999.dp),
+                    color = if (selected) AnniversaryPrimary else Color.Transparent,
+                    shadowElevation = 0.dp
+                ) {
+                    Text(
+                        text = type.label,
+                        color = if (selected) Color.White else AnniversaryMuted,
+                        fontSize = 14.sp,
+                        lineHeight = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 15.dp, vertical = 7.dp)
+                    )
                 }
             }
         }
@@ -246,20 +423,231 @@ private fun NextAnniversaryCard(state: AnniversaryPageUiState) {
 }
 
 @Composable
-private fun EmptyAnniversaryHint() {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 64.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(14.dp)
-    ) {
-        Surface(shape = RoundedCornerShape(26.dp), color = AnniversarySoft, modifier = Modifier.size(112.dp)) {
-            Box(contentAlignment = Alignment.Center) {
-                Icon(Icons.Outlined.CalendarMonth, contentDescription = null, tint = AnniversaryPrimary, modifier = Modifier.size(54.dp))
+private fun CalendarGrid(
+    visibleMonth: YearMonth,
+    selectedDate: LocalDate,
+    calendarType: AnniversaryCalendarType,
+    visibleWeekCount: Int? = null,
+    onDateSelected: (LocalDate) -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
+        Row(modifier = Modifier.fillMaxWidth()) {
+            listOf("日", "一", "二", "三", "四", "五", "六").forEach { day ->
+                Text(
+                    text = day,
+                    color = AnniversaryMuted,
+                    fontSize = 18.sp,
+                    lineHeight = 25.sp,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.weight(1f)
+                )
             }
         }
-        Text("暂无更多纪念日，创建一个试试吧~", color = AnniversaryMuted, textAlign = TextAlign.Center)
+
+        val cells = remember(visibleMonth, visibleWeekCount) {
+            calendarCellsFor(visibleMonth).let { allCells ->
+                visibleWeekCount?.let { allCells.take(it * 7) } ?: allCells
+            }
+        }
+        cells.chunked(7).forEach { rowCells ->
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                rowCells.forEach { cell ->
+                    CalendarDayCell(
+                        cell = cell,
+                        selectedDate = selectedDate,
+                        calendarType = calendarType,
+                        onDateSelected = onDateSelected,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CalendarDayCell(
+    cell: CalendarCell,
+    selectedDate: LocalDate,
+    calendarType: AnniversaryCalendarType,
+    onDateSelected: (LocalDate) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val isCurrentMonth = YearMonth.from(cell.date) == cell.visibleMonth
+    val isSelected = isCurrentMonth && cell.date == selectedDate
+    val hasDot = false
+    val hasHeart = false
+    Surface(
+        onClick = { if (isCurrentMonth) onDateSelected(cell.date) },
+        shape = CircleShape,
+        color = if (isSelected) AnniversaryPrimary else Color.Transparent,
+        modifier = modifier
+            .height(42.dp)
+            .aspectRatio(1f)
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Text(
+                text = cell.date.dayOfMonth.toString(),
+                color = when {
+                    isSelected -> Color.White
+                    isCurrentMonth -> AnniversaryInk
+                    else -> AnniversaryInk.copy(alpha = 0.13f)
+                },
+                fontSize = 19.sp,
+                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+            )
+            if (calendarType == AnniversaryCalendarType.Lunar && isCurrentMonth && !isSelected) {
+                Text(
+                    text = solarToLunar(cell.date).shortLabel(),
+                    color = AnniversaryMuted.copy(alpha = 0.62f),
+                    style = MaterialTheme.typography.labelSmall,
+                    modifier = Modifier.align(Alignment.BottomCenter)
+                )
+            }
+            if (hasDot && !isSelected) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = 2.dp)
+                        .size(6.dp)
+                        .background(AnniversaryPrimary, CircleShape)
+                )
+            }
+            if (hasHeart && !isSelected) {
+                Icon(
+                    Icons.Filled.Favorite,
+                    contentDescription = null,
+                    tint = if (cell.date.dayOfMonth == 4) AnniversaryTerracotta else AnniversaryPrimary,
+                    modifier = Modifier.align(Alignment.BottomCenter).size(12.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SweetMomentsTimeline(orders: List<OrderRecord>) {
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Icon(Icons.Filled.HistoryEdu, contentDescription = null, tint = AnniversaryPrimary, modifier = Modifier.size(28.dp))
+            Text("甜蜜时刻", color = AnniversaryInk, fontSize = 21.sp, lineHeight = 29.sp, fontWeight = FontWeight.Normal)
+        }
+        if (orders.isEmpty()) {
+            StitchGlassCard(
+                modifier = Modifier.fillMaxWidth(),
+                containerColor = AnniversaryCard.copy(alpha = 0.72f), 
+                contentPadding = PaddingValues(horizontal = 22.dp, vertical = 22.dp),
+                squishyShadow = true,
+                borderColor = AnniversaryBorder.copy(alpha = 0.42f),
+                radius = 16
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("还没有记录", color = AnniversaryInk, fontSize = 18.sp, lineHeight = 26.sp, fontWeight = FontWeight.Bold)
+                    Text("完成点菜后，可以在这里沉淀你们自己的甜蜜时刻。", color = AnniversaryMuted, fontSize = 16.sp, lineHeight = 24.sp)
+                }
+            }
+        } else {
+            orders.forEachIndexed { index, order ->
+                SweetMomentItem(
+                    dotColor = if (index == 0) AnniversarySoftPink else AnniversaryPink,
+                    dotBorder = AnniversaryPrimary.copy(alpha = 0.46f),
+                    date = order.createdAt.toMomentDateText(),
+                    text = order.toSweetMomentText(),
+                    imageUrl = order.items.firstOrNull { it.menuItemImageUrl.isNotBlank() }?.menuItemImageUrl,
+                    icon = Icons.Filled.Cake
+                )
+            }
+        }
+    }
+}
+
+private fun OrderRecord.toSweetMomentText(): String {
+    val dishNames = items.take(2).joinToString("、") { it.menuItemName }.ifBlank { "一顿小饭" }
+    val suffix = if (items.size > 2) "等 ${items.size} 道菜" else ""
+    val buyer = buyerName.ifBlank { if (buyerRole == "caretaker" || buyerRole == "keeper") "饲养员" else "吃货" }
+    return "$buyer 点了 $dishNames$suffix，一起完成了一次开饭记录。"
+}
+
+private fun String.toMomentDateText(): String {
+    return parseDateSafely(this)?.let { "${it.monthValue}月${it.dayOfMonth}日" } ?: take(10).ifBlank { "最近一次" }
+}
+
+@Composable
+private fun SweetMomentItem(
+    dotColor: Color,
+    dotBorder: Color,
+    date: String,
+    text: String,
+    imageUrl: String? = null,
+    icon: ImageVector? = null
+) {
+    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+        Surface(
+            shape = CircleShape,
+            color = dotColor,
+            border = BorderStroke(2.dp, dotBorder),
+            modifier = Modifier.padding(top = 15.dp, start = 3.dp).size(18.dp)
+        ) {}
+        Spacer(modifier = Modifier.width(20.dp))
+        StitchGlassCard(
+            modifier = Modifier.weight(1f),
+            containerColor = AnniversaryCard.copy(alpha = 0.86f), 
+            contentPadding = PaddingValues(horizontal = 22.dp, vertical = 22.dp),
+            squishyShadow = true,
+            borderColor = AnniversaryBorder.copy(alpha = 0.42f),
+            radius = 16
+        ) {
+            Row(horizontalArrangement = Arrangement.spacedBy(18.dp), verticalAlignment = Alignment.CenterVertically) {
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = AnniversaryPink,
+                    modifier = Modifier.size(82.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        when {
+                            imageUrl != null -> AsyncImage(
+                                model = imageUrl,
+                                contentDescription = date,
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop
+                            )
+                            icon != null -> Icon(icon, contentDescription = null, tint = AnniversaryPrimary, modifier = Modifier.size(32.dp))
+                        }
+                    }
+                }
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.weight(1f)) {
+                    Text(date, color = AnniversaryInk, fontSize = 18.sp, lineHeight = 26.sp, fontWeight = FontWeight.Normal)
+                    Text(text, color = AnniversaryInk, fontSize = 17.sp, lineHeight = 28.sp)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun StitchGlassCard(
+    modifier: Modifier = Modifier,
+    containerColor: Color = AnniversaryCard.copy(alpha = 0.70f),
+    borderColor: Color = AnniversaryTerracotta,
+    squishyShadow: Boolean = true,
+    radius: Int = 16,
+    contentPadding: PaddingValues = PaddingValues(20.dp),
+    content: @Composable () -> Unit
+) {
+    Box(modifier = modifier) {
+        Surface(
+            modifier = Modifier,
+            shape = RoundedCornerShape(radius.dp),
+            color = containerColor,
+            border = BorderStroke(1.dp, borderColor.copy(alpha = if (squishyShadow) 0.72f else 0.58f)),
+            shadowElevation = 0.dp
+        ) {
+            Box(
+                modifier = Modifier.padding(contentPadding)
+            ) {
+                content()
+            }
+        }
     }
 }
 
@@ -267,13 +655,11 @@ private fun EmptyAnniversaryHint() {
 private fun AnniversaryEditorDialog(
     initialDate: LocalDate,
     onDismiss: () -> Unit,
-    onSave: (String, LocalDate, String) -> Unit
+    onSave: (LocalDate) -> Unit
 ) {
-    var name by remember { mutableStateOf("在一起的日子") }
     var dateText by remember(initialDate) { mutableStateOf(initialDate.toString()) }
     var calendarType by remember { mutableStateOf(AnniversaryCalendarType.Solar) }
     var visibleMonth by remember(initialDate) { mutableStateOf(YearMonth.from(initialDate)) }
-    var countMode by remember { mutableStateOf("累计天数") }
     val parsedDate = remember(dateText, calendarType) { parseAnniversaryInput(dateText, calendarType) }
 
     LaunchedEffect(parsedDate) {
@@ -282,48 +668,23 @@ private fun AnniversaryEditorDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        shape = RoundedCornerShape(22.dp),
-        containerColor = AnniversarySurface,
-        title = { Text("创建纪念日", color = AnniversaryInk, fontWeight = FontWeight.Bold) },
+        shape = RoundedCornerShape(26.dp),
+        containerColor = AnniversaryCard,
+        title = { Text("设置纪念日", color = AnniversaryInk, fontWeight = FontWeight.Black) },
         text = {
             Column(
                 modifier = Modifier.verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
-                Text("每一个重要时刻都值得被铭记", color = AnniversaryMuted, style = MaterialTheme.typography.bodyMedium)
-                OutlinedTextField(
-                    value = name,
-                    onValueChange = { if (it.length <= 20) name = it },
-                    label = { Text("纪念日名称") },
-                    supportingText = { Text("${name.length}/20") },
-                    singleLine = true,
-                    shape = RoundedCornerShape(14.dp),
-                    colors = anniversaryFieldColors(),
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    AnniversaryCalendarType.entries.forEach { type ->
-                        val selected = calendarType == type
-                        Surface(
-                            onClick = {
-                                calendarType = type
-                                dateText = if (type == AnniversaryCalendarType.Solar) {
-                                    (parsedDate ?: initialDate).toString()
-                                } else {
-                                    solarToLunar(parsedDate ?: initialDate).toInputText()
-                                }
-                            },
-                            shape = RoundedCornerShape(999.dp),
-                            color = if (selected) AnniversaryPrimary else AnniversarySoft
-                        ) {
-                            Text(
-                                type.label,
-                                color = if (selected) Color.White else AnniversaryInk,
-                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp)
-                            )
-                        }
+                Text("支持文字输入，也可以在日历里选择日期。", color = AnniversaryMuted)
+                CalendarTypeToggle(calendarType = calendarType, onCalendarTypeChange = { type ->
+                    calendarType = type
+                    dateText = if (type == AnniversaryCalendarType.Solar) {
+                        (parsedDate ?: initialDate).toString()
+                    } else {
+                        solarToLunar(parsedDate ?: initialDate).toInputText()
                     }
-                }
+                })
                 OutlinedTextField(
                     value = dateText,
                     onValueChange = { dateText = it.take(11) },
@@ -333,20 +694,30 @@ private fun AnniversaryEditorDialog(
                     supportingText = {
                         Text(
                             when {
-                                parsedDate == null -> "请输入 yyyy-MM-dd，闰月可写 L06"
+                                parsedDate == null -> "请输入有效日期，例如 2026-05-20；农历闰月可写 闰04"
                                 calendarType == AnniversaryCalendarType.Lunar -> "将按阳历 ${parsedDate} 保存"
-                                else -> "也可以直接在下方日历点选"
-                            }
+                                else -> "也可以直接在下方日历点击选择"
+                            },
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
                         )
                     },
                     shape = RoundedCornerShape(14.dp),
                     colors = anniversaryFieldColors(),
                     modifier = Modifier.fillMaxWidth()
                 )
-                AnniversaryInlineCalendar(
+                CalendarCard(
                     visibleMonth = visibleMonth,
-                    selectedDate = parsedDate,
+                    selectedDate = parsedDate ?: initialDate,
                     calendarType = calendarType,
+                    onCalendarTypeChange = { type ->
+                        calendarType = type
+                        dateText = if (type == AnniversaryCalendarType.Solar) {
+                            (parsedDate ?: initialDate).toString()
+                        } else {
+                            solarToLunar(parsedDate ?: initialDate).toInputText()
+                        }
+                    },
                     onPreviousMonth = { visibleMonth = visibleMonth.minusMonths(1) },
                     onNextMonth = { visibleMonth = visibleMonth.plusMonths(1) },
                     onDateSelected = { selected ->
@@ -357,32 +728,16 @@ private fun AnniversaryEditorDialog(
                         }
                     }
                 )
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    listOf("累计天数", "每年倒数").forEach { mode ->
-                        val selected = countMode == mode
-                        Surface(
-                            onClick = { countMode = mode },
-                            shape = RoundedCornerShape(999.dp),
-                            color = if (selected) AnniversaryPrimary else AnniversarySoft
-                        ) {
-                            Text(
-                                mode,
-                                color = if (selected) Color.White else AnniversaryInk,
-                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp)
-                            )
-                        }
-                    }
-                }
             }
         },
         confirmButton = {
             Button(
-                enabled = name.isNotBlank() && parsedDate != null,
-                onClick = { parsedDate?.let { onSave(name, it, countMode) } },
+                enabled = parsedDate != null,
+                onClick = { parsedDate?.let(onSave) },
                 shape = RoundedCornerShape(999.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = AnniversaryPrimary, contentColor = Color.White)
             ) {
-                Text("保存纪念日")
+                Text("保存纪念日", fontWeight = FontWeight.Bold)
             }
         },
         dismissButton = {
@@ -392,120 +747,46 @@ private fun AnniversaryEditorDialog(
 }
 
 @Composable
-private fun AnniversaryInlineCalendar(
-    visibleMonth: YearMonth,
-    selectedDate: LocalDate?,
-    calendarType: AnniversaryCalendarType,
-    onPreviousMonth: () -> Unit,
-    onNextMonth: () -> Unit,
-    onDateSelected: (LocalDate) -> Unit
-) {
-    Surface(
-        shape = RoundedCornerShape(18.dp),
-        color = Color.White.copy(alpha = 0.72f),
-        border = BorderStroke(1.dp, AnniversaryBorder),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(
-            modifier = Modifier.padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                TextButton(onClick = onPreviousMonth) { Text("上月", color = AnniversaryPrimary) }
-                Text(
-                    text = visibleMonth.format(DateTimeFormatter.ofPattern("yyyy年MM月", Locale.CHINA)),
-                    color = AnniversaryInk,
-                    fontWeight = FontWeight.Bold
-                )
-                TextButton(onClick = onNextMonth) { Text("下月", color = AnniversaryPrimary) }
-            }
-            Row(modifier = Modifier.fillMaxWidth()) {
-                listOf("一", "二", "三", "四", "五", "六", "日").forEach { day ->
-                    Text(
-                        text = day,
-                        color = AnniversaryMuted,
-                        textAlign = TextAlign.Center,
-                        style = MaterialTheme.typography.labelSmall,
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-            }
-
-            val firstDay = visibleMonth.atDay(1)
-            val leadingEmptyDays = firstDay.dayOfWeek.value - 1
-            val totalCells = leadingEmptyDays + visibleMonth.lengthOfMonth()
-            val rows = (totalCells + 6) / 7
-            repeat(rows) { row ->
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    repeat(7) { column ->
-                        val day = row * 7 + column - leadingEmptyDays + 1
-                        if (day in 1..visibleMonth.lengthOfMonth()) {
-                            val date = visibleMonth.atDay(day)
-                            val selected = selectedDate == date
-                            val lunarDate = remember(date) { solarToLunar(date) }
-                            Surface(
-                                onClick = { onDateSelected(date) },
-                                shape = RoundedCornerShape(14.dp),
-                                color = if (selected) AnniversaryPrimary else Color.Transparent,
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .height(46.dp)
-                            ) {
-                                Column(
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                    verticalArrangement = Arrangement.Center
-                                ) {
-                                    Text(
-                                        text = day.toString(),
-                                        color = if (selected) Color.White else AnniversaryInk,
-                                        fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
-                                        style = MaterialTheme.typography.bodyMedium
-                                    )
-                                    Text(
-                                        text = if (calendarType == AnniversaryCalendarType.Lunar) {
-                                            lunarDate.dayLabel()
-                                        } else {
-                                            lunarDate.shortLabel()
-                                        },
-                                        color = if (selected) Color.White.copy(alpha = 0.86f) else AnniversaryMuted,
-                                        style = MaterialTheme.typography.labelSmall,
-                                        maxLines = 1
-                                    )
-                                }
-                            }
-                        } else {
-                            Spacer(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .height(46.dp)
-                            )
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
 private fun anniversaryFieldColors() = OutlinedTextFieldDefaults.colors(
     focusedBorderColor = AnniversaryPrimary,
     unfocusedBorderColor = AnniversaryBorder,
-    focusedContainerColor = AnniversarySurface,
-    unfocusedContainerColor = AnniversarySurface
+    focusedContainerColor = AnniversaryCard,
+    unfocusedContainerColor = AnniversaryCard
 )
 
-private enum class AnniversaryCalendarType(
-    val label: String,
-    val inputLabel: String
-) {
+private data class CalendarCell(
+    val date: LocalDate,
+    val visibleMonth: YearMonth
+)
+
+private fun calendarCellsFor(visibleMonth: YearMonth): List<CalendarCell> {
+    val firstDay = visibleMonth.atDay(1)
+    val leadingDays = firstDay.dayOfWeek.value % 7
+    val start = firstDay.minusDays(leadingDays.toLong())
+    return List(35) { index -> CalendarCell(date = start.plusDays(index.toLong()), visibleMonth = visibleMonth) }
+}
+
+private fun LocalDate.isSupportedInVisibleMonth(visibleMonth: YearMonth): Boolean {
+    return YearMonth.from(this) == visibleMonth
+}
+
+private fun monthName(month: Int): String = when (month) {
+    1 -> "一月"
+    2 -> "二月"
+    3 -> "三月"
+    4 -> "四月"
+    5 -> "五月"
+    6 -> "六月"
+    7 -> "七月"
+    8 -> "八月"
+    9 -> "九月"
+    10 -> "十月"
+    11 -> "十一月"
+    12 -> "十二月"
+    else -> "${month}月"
+}
+
+private enum class AnniversaryCalendarType(val label: String, val inputLabel: String) {
     Solar("阳历", "阳历日期，例如 2026-05-20"),
     Lunar("农历", "农历日期，例如 2026-04-04")
 }
@@ -517,16 +798,12 @@ private data class LunarDate(
     val isLeapMonth: Boolean = false
 ) {
     fun toInputText(): String = if (isLeapMonth) {
-        "%04d-L%02d-%02d".format(Locale.US, year, month, day)
+        listOf(year.toString().padStart(4, '0'), "闰" + month.toString().padStart(2, '0'), day.toString().padStart(2, '0')).joinToString("-")
     } else {
-        "%04d-%02d-%02d".format(Locale.US, year, month, day)
+        listOf(year.toString().padStart(4, '0'), month.toString().padStart(2, '0'), day.toString().padStart(2, '0')).joinToString("-")
     }
 
-    fun shortLabel(): String = if (day == 1) {
-        "${if (isLeapMonth) "闰" else ""}${month}月"
-    } else {
-        dayLabel()
-    }
+    fun shortLabel(): String = if (day == 1) "${if (isLeapMonth) "闰" else ""}${month}月" else dayLabel()
 
     fun dayLabel(): String {
         val labels = listOf(
@@ -560,11 +837,7 @@ private fun parseLunarDate(text: String): LunarDate? {
 }
 
 private fun solarToLunar(date: LocalDate): LunarDate {
-    val gregorianCalendar = android.icu.util.GregorianCalendar(
-        date.year,
-        date.monthValue - 1,
-        date.dayOfMonth
-    )
+    val gregorianCalendar = android.icu.util.GregorianCalendar(date.year, date.monthValue - 1, date.dayOfMonth)
     val chineseCalendar = android.icu.util.ChineseCalendar().apply {
         timeInMillis = gregorianCalendar.timeInMillis
     }
@@ -592,8 +865,8 @@ private const val CHINESE_EXTENDED_YEAR_OFFSET = 2637
 private data class AnniversaryPageUiState(
     val startDate: LocalDate,
     val days: Long,
-    val startDateTextWithWeek: String,
-    val nextAnniversaryText: String
+    val nextAnniversaryTitle: String,
+    val nextAnniversaryRemainingDays: Long
 )
 
 private fun anniversaryState(profile: Profile?): AnniversaryPageUiState {
@@ -602,11 +875,12 @@ private fun anniversaryState(profile: Profile?): AnniversaryPageUiState {
     val days = ChronoUnit.DAYS.between(startDate, today).coerceAtLeast(0)
     val next = nextYearlyDate(startDate, today)
     val remaining = ChronoUnit.DAYS.between(today, next).coerceAtLeast(0)
+    val years = (next.year - startDate.year).coerceAtLeast(1)
     return AnniversaryPageUiState(
         startDate = startDate,
         days = days,
-        startDateTextWithWeek = "${startDate.format(DateTimeFormatter.ofPattern("yyyy/MM/dd", Locale.CHINA))} ${weekText(startDate)}",
-        nextAnniversaryText = if (remaining == 0L) "今天就是纪念日" else "${next.format(DateTimeFormatter.ofPattern("MM月dd日", Locale.CHINA))} · 还有 $remaining 天"
+        nextAnniversaryTitle = "${years}周年纪念日",
+        nextAnniversaryRemainingDays = remaining
     )
 }
 
@@ -621,16 +895,10 @@ private fun resolveAnniversaryStartDate(profile: Profile?): LocalDate {
         profile?.pairedAt?.takeIf { it.isNotBlank() },
         profile?.createdAt?.takeIf { it.isNotBlank() }
     ).firstOrNull()
-    return source?.let(::parseDateSafely) ?: LocalDate.of(2026, 5, 20)
+    return source?.let(::parseDateSafely) ?: LocalDate.now()
 }
 
 private fun parseDateSafely(value: String): LocalDate? {
-    return runCatching { Instant.parse(value).atZone(ZoneId.systemDefault()).toLocalDate() }
-        .getOrNull()
+    return runCatching { Instant.parse(value).atZone(ZoneId.systemDefault()).toLocalDate() }.getOrNull()
         ?: runCatching { LocalDate.parse(value.take(10)) }.getOrNull()
-}
-
-private fun weekText(date: LocalDate): String {
-    val week = arrayOf("周一", "周二", "周三", "周四", "周五", "周六", "周日")
-    return week[date.dayOfWeek.value - 1]
 }

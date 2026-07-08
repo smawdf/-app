@@ -9,82 +9,84 @@ import org.junit.Test
 class CoupleMenuScreenSourceTest {
 
     @Test
-    fun `couple menu home uses readable relationship identity sections`() {
+    fun `couple menu home uses native Stitch relationship and role sections`() {
         val source = readMainSource("ui/couple/CoupleMenuScreen.kt")
 
         listOf(
-            "今天也要好好吃饭",
+            "CozyPage",
+            "RelationshipCard",
+            "QuickActionGrid",
+            "RoleSwitcher",
+            "LatestOrderNudge",
+            "HomeDecorativeBubbles",
+            "RoleLabelPill",
+            "CozyPage(decorative = false)",
+            "CozySurface.copy(alpha = 0.94f)",
+            ".size(84.dp)",
+            "vertical: Boolean = false",
+            "vertical = true",
+            "showPetFallback = true",
+            "今天也要一起好好吃饭",
             "饲养员",
             "吃货",
             "一起吃饭",
             "选择身份",
-            "已选择",
-            "当前用户头像",
-            "已切换为饲养员",
-            "已切换为吃货",
-            "现在可以上传菜单啦",
-            "去点菜入口已开启",
-            "负责上传菜单",
-            "负责去点菜",
+            "当前用户",
+            "邀请对方",
+            "已切换为",
             "上传菜单",
             "去点菜",
-            "邀请对方",
-            "等待绑定",
-            "在线",
-            "已绑定",
-            "纪念日小日历",
-            "有新的点菜单等你接单",
-            "订单已提交，等饲养员接单",
-            "饲养员已接单",
-            "这顿饭正在准备中",
-            "去接单",
-            "查看订单"
+            "当前：",
+            "切换为",
+            "点了 \$dishCount 道菜，等你开做",
+            "点菜单已送达，等饲养员接单"
         ).forEach { expected ->
-            assertTrue("缺少情侣身份首页文案：$expected", source.contains(expected))
+            assertTrue("Missing native couple home marker: $expected", source.contains(expected))
         }
 
         assertTrue(source.contains("rememberSaveable"))
+        assertTrue("首页顶部栏应固定在滚动内容外", source.indexOf("HomeHeader()") < source.indexOf("verticalScroll(rememberScrollState())"))
         assertTrue(source.contains("getSharedPreferences(COUPLE_HOME_PREFS"))
         assertTrue(source.contains("putString(KEY_SELECTED_ROLE, role.storageKey)"))
         assertTrue(source.contains("prefs.getString(KEY_SELECTED_ROLE, null).toCoupleRole()"))
         assertTrue(source.contains("selectRole(CoupleRole.Caretaker)"))
         assertTrue(source.contains("selectRole(CoupleRole.Eater)"))
         assertTrue(source.contains("IdentitySwitchToast"))
+        assertTrue(source.contains("shadowElevation = 0.dp"))
+        assertTrue("当前用户槽位应足够展示 当前角色：饲养员", source.contains("Modifier.width(128.dp)"))
+        assertTrue("饲养员/吃货角色切换卡片应为正方形，避免文字被遮挡", source.contains("modifier.aspectRatio(1f)"))
+        assertTrue("首页顶部标题应和全局顶部栏一样使用主色加粗", source.contains("color = CozyRose") && source.contains("fontWeight = FontWeight.Black"))
         assertTrue(source.contains("RoleToastState"))
         assertTrue(source.contains("profileRepository.getProfile().collectAsState"))
         assertTrue(source.contains("profileRepository.getPairInfo()"))
         assertTrue(source.contains("orderRepository.observeOrders().collectAsState"))
-        assertTrue(source.contains("LatestOrderNudge"))
+        assertTrue(source.contains("orderRepository.refreshOrders()"))
         assertTrue(source.contains("activeOrderStatuses"))
+        assertTrue(source.contains("currentUserId = profile?.userId.orEmpty()"))
+        assertTrue(source.contains("val isMyOrder = currentUserId.isNotBlank() && order.userId == currentUserId"))
         assertTrue(source.contains("onClick = onOrdersClick"))
         assertTrue(source.contains("PairInfo"))
         assertTrue(source.contains("PartnerSlot"))
         assertTrue(source.contains("pairInfo.isPaired"))
         assertTrue(source.contains("pairInfo.isOnline"))
         assertTrue(source.contains("pairInfo.partnerName.ifBlank"))
-        assertTrue(source.contains("伴侣头像"))
         assertTrue(source.contains("daysEatingTogether(profile)"))
         assertTrue(source.contains("profile?.pairedAt"))
         assertTrue(source.contains("LaunchedEffect(toastState?.id)"))
-        assertTrue(source.contains("delay(1500)"))
-        assertTrue(source.contains(".align(Alignment.Center)"))
-        assertTrue(source.contains("ToolInk.copy(alpha = 0.68f)"))
-        assertTrue(source.contains("Color.Transparent"))
-        assertFalse("弹框出现时不应该模糊背景", source.contains(".blur("))
-        assertFalse("身份切换提示不应再使用系统 Toast", source.contains("Toast.makeText"))
-        assertTrue(source.contains("CurrentUserSlot(selectedRole = selectedRole, profile = profile)"))
-        assertTrue(source.contains("profile?.avatarUrl"))
+        assertTrue(source.contains("delay(1600)"))
         assertTrue(source.contains("AsyncImage("))
         assertTrue(source.contains("ContentScale.Crop"))
         assertTrue(source.contains("profile?.nickname?.takeIf"))
-        assertTrue(source.contains("RoleFunctionCard"))
-        assertFalse("首页不应自己再画一条底部导航", source.contains("CoupleHomeBottomBar"))
-        assertFalse("首页不应包含 VIP", source.contains("VIP"))
-        assertFalse("首页不应包含小程序三点胶囊", source.contains("•••"))
-        assertFalse("首页不应保留装扮入口", source.contains("装扮"))
-        assertFalse("首页不应保留成就入口", source.contains("成就"))
-        assertFalse("首页不应保留任务大厅游戏化入口", source.contains("任务大厅"))
-        assertFalse("选择身份不应暗示直接去点菜", source.contains("前往点菜"))
+        assertTrue(source.contains("今天也想和你好好吃饭"))
+        assertTrue(source.contains("我的店铺"))
+        assertTrue(source.contains("看看今天想吃什么"))
+        assertFalse(source.contains("Toast.makeText"))
+        assertFalse(source.contains("CoupleHomeBottomBar"))
+        assertFalse(source.contains("RoleFunctionCard"))
+        assertFalse(source.contains("WebView"))
+        assertFalse(source.contains("StitchScreen"))
+        assertFalse(source.contains("VIP"))
+        assertFalse(source.contains("TA"))
     }
 
     private fun readMainSource(relativePath: String): String {
@@ -92,10 +94,8 @@ class CoupleMenuScreenSourceTest {
             Paths.get("src/main/java/com/myorderapp").resolve(relativePath),
             Paths.get("app/src/main/java/com/myorderapp").resolve(relativePath)
         )
-
         val sourcePath = candidates.firstOrNull { Files.exists(it) }
             ?: error("Source file not found: $relativePath from ${Paths.get("").toAbsolutePath()}")
-
         return Files.readString(sourcePath)
     }
 }

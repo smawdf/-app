@@ -14,7 +14,7 @@ data class MenuDishEntity(
     val description: String,
     val sortOrder: Int,
     val monthlySales: Int = 0,
-    val stock: Int = 32,
+    val stock: Int = 0,
     val isAvailable: Boolean = true,
     val isSignature: Boolean = false,
     val updatedAt: String

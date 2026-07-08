@@ -26,8 +26,14 @@ class OrderDetailStatusSourceTest {
             "完成这顿饭",
             "取消订单",
             "知道了",
+            "GradientOrderActionButton",
+            "color = if (enabled) Color(0xFF894C5C) else Color(0xFFE7E2DC)",
+            "statusBarsPadding()",
             "viewModel.advanceStatus(canAdvance = canAdvanceOrder)",
-            "viewModel::cancelOrder"
+            "viewModel::cancelOrder",
+            "TimelineCard(order = order)",
+            "progressTimelineEntries()",
+            "if (entry.timestamp.isNotBlank())"
         ).forEach { expected ->
             assertTrue("订单详情缺少状态操作：$expected", screen.contains(expected))
         }

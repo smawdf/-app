@@ -12,5 +12,6 @@ data class ProfileEntity(
     val tastePrefsJson: String = "{}",
     val allergiesJson: String = "[]",
     val createdAt: String = "",
-    val updatedAt: String = ""
+    val updatedAt: String = "",
+    val candyCoins: Int = 66
 )

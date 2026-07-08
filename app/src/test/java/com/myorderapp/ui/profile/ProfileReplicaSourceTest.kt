@@ -9,21 +9,34 @@ import org.junit.Test
 class ProfileReplicaSourceTest {
 
     @Test
-    fun `profile screen is personal center without old membership history or tutorial entries`() {
+    fun `profile screen is native personal center without old membership history or tutorial entries`() {
         val source = readMainSource("ui/profile/ProfileScreen.kt")
 
         listOf(
-            "未设置昵称",
-            "订单通知设置",
-            "邀请小伙伴",
-            "厨房设置",
-            "设置头像和名称",
+            "CozyPage",
+            "CozyCard",
+            "ProfileTopBar()",
+            "ProfileSurface.copy(alpha = 0.94f)",
+            "CozyPage(decorative = false)",
+            "SecondaryContainer.copy(alpha = 0.58f)",
+            "BorderStroke(1.dp, OutlineVariant)",
+            ".offset(x = (-36).dp, y = (-38).dp)",
+            ".weight(1f)",
+            ".clipToBounds()",
+            "contentPadding = PaddingValues(start = 20.dp, top = 18.dp, end = 20.dp, bottom = 172.dp)",
+            "糯米小狗",
+            "账号设置",
+            "帮助与客服",
+            "我的店铺",
+            "订单记录",
+            "onOrdersClick",
+            "设置头像和昵称",
             "ProfileEditDialog",
-            "updateNickname",
-            "saveAvatarUri"
+            "saveProfileEdits"
         ).forEach { expected ->
-            assertTrue("缺少我的页功能文案：$expected", source.contains(expected))
+            assertTrue("Profile page missing function copy: $expected", source.contains(expected))
         }
+        assertFalse("Profile page should avoid intentional shadow styling", source.contains(".shadow("))
 
         listOf(
             "会员",
@@ -34,10 +47,12 @@ class ProfileReplicaSourceTest {
             "联系客服",
             "QuestionAnswer",
             "浏览历史",
-            "新手教程"
+            "新手教程",
+            "WebView"
         ).forEach { forbidden ->
-            assertFalse("我的页不应该包含：$forbidden", source.contains(forbidden))
+            assertFalse("Profile page should not contain: $forbidden", source.contains(forbidden))
         }
+        assertFalse("Profile top bar should be fixed outside the scrolling list", source.contains("item { ProfileTopBar() }"))
     }
 
     @Test
@@ -50,51 +65,60 @@ class ProfileReplicaSourceTest {
             "avatarPicker.launch(\"image/*\")",
             "从相册选择头像",
             "头像从本地相册选择",
-            "不再手动填写图片链接",
+            "选择后先预览，保存资料后生效",
+            "保存资料",
             "LogoutButton",
             "LogoutConfirmDialog",
-            "确认退出登录？",
+            "确认要离开吗？",
+            "小狗会想念你的哦...",
+            "再留一会",
+            "狠心退出",
             "退出登录",
-            "Color(0xFFE54848)",
+            "Color(0xFFBA1A1A)",
             "authViewModel.logout(onLoggedOut = onLoginClick)"
         ).forEach { expected ->
-            assertTrue("个人页缺少相册头像或退出登录能力：$expected", source.contains(expected))
+            assertTrue("Profile page missing gallery avatar or logout ability: $expected", source.contains(expected))
         }
 
-        assertFalse("个人页不应再要求用户手动输入头像链接", source.contains("头像图片链接"))
-        assertTrue("头像 URI 应复制到 App 私有目录后保存", viewModel.contains("saveAvatarUri(context: Context, uri: Uri)"))
-        assertTrue("头像保存后应即时刷新 UI", viewModel.contains("profile = _uiState.value.profile?.copy(avatarUrl = localPath)"))
+        assertFalse(source.contains("头像图片链接"))
+        assertTrue(viewModel.contains("saveAvatarUri(context: Context, uri: Uri)"))
+        assertTrue(viewModel.contains("copy(avatarUrl = localPath)"))
+        assertTrue(viewModel.contains("saveProfileEdits(context: Context, nickname: String, avatarUri: Uri?)"))
+        assertFalse(viewModel.contains("customTags"))
+        assertFalse(viewModel.contains("newTag"))
+        assertFalse(viewModel.contains("fun addTag()"))
+
         val authViewModel = readMainSource("ui/auth/AuthViewModel.kt")
         val supabaseRepository = readMainSource("data/repository/SupabaseProfileRepository.kt")
-        assertTrue("退出登录后应清理全局 SessionManager", authViewModel.contains("session.clear()"))
-        assertTrue("退出登录完成后应通知页面执行清栈导航", authViewModel.contains("onLoggedOut()"))
-        assertTrue("更新昵称后应同步首页使用的本地昵称缓存", supabaseRepository.contains("session.saveNickname(updated.nickname)"))
-        assertTrue("更新头像后应同步首页使用的本地头像缓存", supabaseRepository.contains("session.saveAvatar(updated.avatarUrl ?: \"\")"))
+        assertTrue(authViewModel.contains("session.clear()"))
+        assertTrue(authViewModel.contains("onLoggedOut()"))
+        assertTrue(supabaseRepository.contains("session.saveNickname(updated.nickname)"))
+        assertTrue(supabaseRepository.contains("session.saveAvatar(updated.avatarUrl ?: \"\")"))
     }
 
     @Test
-    fun `profile screen keeps sharing and shop management affordances`() {
+    fun `profile page keeps Stitch page 5 actions only while pairing backend remains available`() {
         val source = readMainSource("ui/profile/ProfileScreen.kt")
 
         listOf(
-            "已开启",
-            "未开启",
-            "KEY_ORDER_NOTIFICATIONS_ENABLED",
-            "getSharedPreferences(PROFILE_PREFS",
-            "putBoolean(KEY_ORDER_NOTIFICATIONS_ENABLED",
+            "Icons.Filled.Storefront",
+            "邀请对方",
             "PairManagementDialog",
-            "生成邀请码",
-            "重新生成邀请码",
-            "输入 6 位绑定码",
-            "解除绑定",
+            "Icons.Filled.PersonAdd",
             "viewModel::generatePairCode",
-            "viewModel.joinPair(uiState.joinPairCode)",
-            "viewModel::unpair",
-            "Icons.Outlined.NotificationsNone",
-            "Icons.Outlined.PersonAdd",
-            "Icons.Outlined.Storefront"
+            "viewModel::onJoinPairCodeChanged",
+            "viewModel.joinPair"
         ).forEach { expected ->
-            assertTrue("缺少我的页入口或状态：$expected", source.contains(expected))
+            assertTrue("Profile page missing Stitch action affordance: $expected", source.contains(expected))
+        }
+
+        listOf(
+            "订单通知",
+            "邀请小伙伴",
+            "KEY_ORDER_NOTIFICATIONS_ENABLED",
+            "Icons.Filled.Notifications"
+        ).forEach { forbidden ->
+            assertFalse("Profile page should match Stitch page 5 and not show: $forbidden", source.contains(forbidden))
         }
 
         val viewModel = readMainSource("ui/profile/ProfileViewModel.kt")
@@ -102,16 +126,15 @@ class ProfileReplicaSourceTest {
         val inMemoryRepository = readMainSource("data/repository/InMemoryProfileRepository.kt")
         val supabaseGeneratePairCode = functionBody(supabaseRepository, "generatePairCode")
         val inMemoryGeneratePairCode = functionBody(inMemoryRepository, "generatePairCode")
-        assertTrue("生成邀请码后应刷新伴侣状态", viewModel.contains("profileRepository.getPairInfo()"))
-        assertTrue("生成邀请码后应保留可复制的绑定码", viewModel.contains("pairCode = code"))
-        assertTrue("生成邀请码后应提示用户发给对方", viewModel.contains("邀请码已生成，可以发给对方"))
-        assertTrue("云端仓储生成邀请码应只保存待分享绑定码", supabaseRepository.contains("KEY_PENDING_PAIR_CODE"))
-        assertTrue("本地仓储生成邀请码应只保存待分享绑定码", inMemoryRepository.contains("pendingPairCode = code"))
-        assertFalse("云端仓储生成邀请码不能直接写入 pairId", supabaseGeneratePairCode.contains("copy(pairId"))
-        assertFalse("本地仓储生成邀请码不能直接写入 pairId", inMemoryGeneratePairCode.contains("copy(pairId"))
-        assertFalse("云端仓储生成邀请码不能更新 Session pairId", supabaseGeneratePairCode.contains("setPairId"))
-        assertTrue("云端仓储点击绑定后才写入真实 pairId", supabaseRepository.contains("copy(pairId = normalizedCode"))
-        assertTrue("本地仓储点击绑定后才写入真实 pairId", inMemoryRepository.contains("copy(pairId = code.uppercase()"))
+        assertTrue(viewModel.contains("profileRepository.getPairInfo()"))
+        assertTrue(viewModel.contains("pairCode = code"))
+        assertTrue(supabaseRepository.contains("KEY_PENDING_PAIR_CODE"))
+        assertTrue(inMemoryRepository.contains("pendingPairCode = code"))
+        assertTrue(supabaseGeneratePairCode.contains("copy(pairId = code"))
+        assertTrue(inMemoryGeneratePairCode.contains("copy(pairId = code"))
+        assertTrue(supabaseGeneratePairCode.contains("setPairId(code"))
+        assertTrue(supabaseRepository.contains("copy(pairId = normalizedCode"))
+        assertTrue(inMemoryRepository.contains("copy(pairId = code.uppercase()"))
     }
 
     private fun functionBody(source: String, functionName: String): String {

@@ -9,73 +9,58 @@ import org.junit.Test
 class OrderingScreenLayoutTest {
 
     @Test
-    fun `ordering screen uses current single shop ordering layout`() {
+    fun `ordering screen uses native single shop layout without video shortcuts`() {
         val source = readMainSource("ui/order/OrderingScreen.kt")
 
-        assertTrue(source.contains("ShopBanner("))
-        assertTrue(source.contains("OrderingSearchBar("))
-        assertTrue(source.contains("NoticePromotionBar("))
-        assertTrue(source.contains("CategoryRail("))
-        assertTrue(source.contains("DishList("))
-        assertTrue(source.contains("OrderingDishDetailSheet("))
-        assertTrue(source.contains("ModalBottomSheet"))
-        assertTrue(source.contains("LazyColumn"))
+        listOf(
+            "CozyPage",
+            "ShopCard(",
+            "CategoryRail(",
+            "DishList(",
+            "OrderingDishDetailSheet(",
+            "CartFloatingBar",
+            "AddDishButton",
+            "announcement = uiState.shopAnnouncement",
+            "R.drawable.ic_launcher_orderdisk_dogs_cropped"
+        ).forEach { expected ->
+            assertTrue("Ordering screen missing marker: $expected", source.contains(expected))
+        }
+
+        assertFalse(source.contains("RecipeVideoLinkIcons("))
         assertFalse(source.contains("LazyVerticalGrid"))
+        assertFalse(source.contains("WebView"))
+        assertFalse(source.contains("images.unsplash.com"))
+        assertFalse("点餐页外层容器不应通过底部 padding 缩短内容区", source.contains(".padding(bottom = if (uiState.cartState.isEmpty) FloatingBottomNavClearance else FloatingCartListClearance)"))
+        assertFalse("左侧分类应统一为无图标文字", source.contains("\"🔥 热销\""))
+        assertTrue("购物车应按系统导航栏计算并贴在底部导航上方", source.contains("WindowInsets.navigationBars") && source.contains("bottomOffset = cartBottomOffset"))
+        assertTrue("点菜页购物车按钮文案应明确为去结算", source.contains("SquishyCheckoutButton(text = \"去结算\""))
+        assertTrue("菜品列表应通过 contentPadding 预留浮动导航空间", source.contains("bottom = bottomClearance + 14.dp"))
+        assertTrue("店铺卡容器必须由内容撑开，不能被 matchParentSize 压成 0 高度", source.contains("modifier = modifier\n            .scale(if (pressed) 0.985f else 1f)"))
     }
 
     @Test
-    fun `ordering banner uses shop cover without marketplace metrics`() {
-        val source = readMainSource("ui/order/OrderingScreen.kt")
+    fun `cart sheet uses only modal drag handle and clear checkout copy`() {
+        val source = readMainSource("ui/shop/components/CartSheet.kt")
+
+        assertFalse("购物车弹层不应再额外绘制第二条拖拽条", source.contains("size(width = 46.dp, height = 5.dp)"))
+        assertFalse("购物车说明不应再使用含混的去结算提示", source.contains("点击下方去结算会直接进入确认点菜"))
+        assertTrue(source.contains("确认购物篮后进入确认点菜"))
+        assertTrue(source.contains("text = \"去结算\""))
+    }
+
+    @Test
+    fun `ordering screen observes managed shop data`() {
+        val repository = readMainSource("data/repository/SingleShopRepository.kt")
         val viewModel = readMainSource("ui/order/OrderingViewModel.kt")
 
-        assertTrue(source.contains(".height(176.dp)"))
-        assertTrue(source.contains("bannerImageUrl = uiState.shopCoverUrl"))
-        assertTrue(viewModel.contains("singleShopRepository.getShopById(SINGLE_SHOP_ID)"))
-        assertTrue(viewModel.contains("shopCoverUrl = shop?.coverUrl.orEmpty()"))
-        assertTrue(viewModel.contains("shopCoverUrl = singleShopRepository.getShopImageUrl()"))
-        assertFalse(source.contains("4.5"))
-        assertFalse(source.contains("monthlySales = uiState.monthlySales"))
-        assertFalse(source.contains("距离"))
-        assertFalse(source.contains("45 分钟"))
-    }
-
-    @Test
-    fun `ordering screen keeps category rail search and notice`() {
-        val source = readMainSource("ui/order/OrderingScreen.kt")
-
-        assertTrue(source.contains(".width(86.dp)"))
-        assertTrue(source.contains(".height(48.dp)"))
-        assertTrue(source.contains(".width(3.dp)"))
-        assertTrue(source.contains(".size(78.dp)"))
-        assertTrue(source.contains(".size(30.dp)"))
-        assertTrue(source.contains("OrderSearchField("))
-        assertTrue(source.contains("Icons.Outlined.Notifications"))
-        assertTrue(source.contains("月售 \${item.monthlySales}"))
-        assertTrue(source.contains("搜索本店菜品"))
-        assertTrue(source.contains("小狗厨师提醒"))
-        assertTrue(source.contains("Color(0xFF247A84)"))
-    }
-
-    @Test
-    fun `floating cart bar stays hidden until cart has items`() {
-        val source = readMainSource("ui/order/OrderingScreen.kt")
-
-        assertTrue(source.contains("if (!uiState.cartState.isEmpty)"))
-        assertTrue(source.contains("\"¥%.2f\""))
-        assertTrue(source.contains("去结算"))
-        assertTrue(source.contains("Color(0xFF247A84)"))
-        assertTrue(source.contains("shadowElevation = 10.dp"))
-        assertTrue(source.contains("ShoppingCart"))
-        assertFalse(source.contains("购物车为空"))
-    }
-
-    @Test
-    fun `ordering empty state sends owners to menu settings`() {
-        val source = readMainSource("ui/order/OrderingScreen.kt")
-
-        assertTrue(source.contains("去设置菜品"))
-        assertTrue(source.contains("onManageMenuClick"))
-        assertFalse(source.contains("Text(\"添加菜品\")"))
+        assertTrue(repository.contains("categoryState.value = getCategoryNames()"))
+        assertTrue(repository.contains("combine(categoryState.asStateFlow(), menuDishDao.observeAll())"))
+        assertTrue(viewModel.contains("menuRepository.getMenuCategories(SINGLE_SHOP_ID)"))
+        assertTrue(viewModel.contains("menuRepository.getMenuItems(SINGLE_SHOP_ID)"))
+        assertTrue(viewModel.contains("shopAnnouncement = shop?.announcement ?: singleShopRepository.getShopAnnouncement()"))
+        assertTrue(viewModel.contains("categories.any { it.isOrderingHotCategory() }"))
+        assertTrue(viewModel.contains("singleShopRepository.removeBundledDemoMenu()"))
+        assertFalse(viewModel.contains("ensureSeedMenu"))
     }
 
     private fun readMainSource(relativePath: String): String {
@@ -83,10 +68,8 @@ class OrderingScreenLayoutTest {
             Paths.get("src/main/java/com/myorderapp").resolve(relativePath),
             Paths.get("app/src/main/java/com/myorderapp").resolve(relativePath)
         )
-
         val sourcePath = candidates.firstOrNull { Files.exists(it) }
             ?: error("Source file not found: $relativePath from ${Paths.get("").toAbsolutePath()}")
-
         return Files.readString(sourcePath)
     }
 }

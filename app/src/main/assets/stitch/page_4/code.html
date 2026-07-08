@@ -1,0 +1,376 @@
+<!DOCTYPE html><html lang="zh-CN"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>订单页</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;700&amp;family=Be+Vietnam+Pro:wght@600;700&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+  tailwind.config = {
+    darkMode: "class",
+    theme: {
+      extend: {
+        "colors": {
+                "surface-container-lowest": "#ffffff",
+                "on-tertiary-container": "#753c27",
+                "tertiary-fixed": "#ffdbcf",
+                "on-primary-fixed-variant": "#6e3545",
+                "surface": "#fef8f2",
+                "primary-fixed": "#ffd9e0",
+                "surface-container-high": "#ede7e1",
+                "outline-variant": "#d6c1c5",
+                "inverse-surface": "#32302c",
+                "secondary-container": "#ffd1dc",
+                "on-error-container": "#93000a",
+                "secondary-fixed": "#ffd9e2",
+                "on-surface-variant": "#524346",
+                "on-tertiary": "#ffffff",
+                "surface-container-highest": "#e7e2dc",
+                "surface-container": "#f3ede7",
+                "on-primary": "#ffffff",
+                "inverse-primary": "#ffb1c3",
+                "secondary": "#78555e",
+                "on-tertiary-fixed": "#380d01",
+                "tertiary": "#8b4e38",
+                "on-secondary-container": "#7a5761",
+                "surface-dim": "#dfd9d3",
+                "on-secondary-fixed-variant": "#5e3e47",
+                "tertiary-container": "#f8a98e",
+                "secondary-fixed-dim": "#e7bbc6",
+                "on-primary-container": "#733949",
+                "primary-fixed-dim": "#ffb1c3",
+                "primary": "#894c5c",
+                "on-tertiary-fixed-variant": "#6f3723",
+                "on-secondary": "#ffffff",
+                "error-container": "#ffdad6",
+                "on-primary-fixed": "#380a1a",
+                "surface-bright": "#fef8f2",
+                "background": "#fef8f2",
+                "on-background": "#1d1b18",
+                "inverse-on-surface": "#f6f0ea",
+                "on-error": "#ffffff",
+                "surface-variant": "#e7e2dc",
+                "tertiary-fixed-dim": "#ffb59c",
+                "primary-container": "#f4a7b9",
+                "on-secondary-fixed": "#2d141c",
+                "error": "#ba1a1a",
+                "surface-container-low": "#f8f3ed",
+                "on-surface": "#1d1b18",
+                "outline": "#847376",
+                "surface-tint": "#894c5c"
+        },
+        "borderRadius": {
+                "DEFAULT": "0.25rem",
+                "lg": "0.5rem",
+                "xl": "0.75rem",
+                "full": "9999px"
+        },
+        "spacing": {
+                "xl": "40px",
+                "margin-mobile": "20px",
+                "gutter": "16px",
+                "xs": "4px",
+                "lg": "24px",
+                "unit": "4px",
+                "sm": "8px",
+                "margin-desktop": "64px",
+                "md": "16px"
+        },
+        "fontFamily": {
+                "label-bold": [
+                        "Plus Jakarta Sans"
+                ],
+                "headline-lg-mobile": [
+                        "Be Vietnam Pro"
+                ],
+                "body-lg": [
+                        "Plus Jakarta Sans"
+                ],
+                "headline-lg": [
+                        "Be Vietnam Pro"
+                ],
+                "body-md": [
+                        "Plus Jakarta Sans"
+                ],
+                "headline-md": [
+                        "Be Vietnam Pro"
+                ]
+        },
+        "fontSize": {
+                "label-bold": [
+                        "14px",
+                        {
+                                "lineHeight": "20px",
+                                "fontWeight": "700"
+                        }
+                ],
+                "headline-lg-mobile": [
+                        "28px",
+                        {
+                                "lineHeight": "36px",
+                                "fontWeight": "700"
+                        }
+                ],
+                "body-lg": [
+                        "18px",
+                        {
+                                "lineHeight": "28px",
+                                "fontWeight": "400"
+                        }
+                ],
+                "headline-lg": [
+                        "32px",
+                        {
+                                "lineHeight": "40px",
+                                "letterSpacing": "-0.02em",
+                                "fontWeight": "700"
+                        }
+                ],
+                "body-md": [
+                        "16px",
+                        {
+                                "lineHeight": "24px",
+                                "fontWeight": "400"
+                        }
+                ],
+                "headline-md": [
+                        "24px",
+                        {
+                                "lineHeight": "32px",
+                                "fontWeight": "600"
+                        }
+                ]
+        }
+},
+    },
+  }
+</script>
+<style>
+        body {
+            background-color: theme('colors.background');
+            color: theme('colors.on-background');
+            font-family: theme('fontFamily.body-md');
+        }
+        
+        .hand-drawn-border {
+            border: 2px solid theme('colors.secondary');
+            border-radius: theme('borderRadius.xl');
+        }
+        
+        .squishy-shadow {
+            box-shadow: 0 4px 0 0 theme('colors.secondary');
+        }
+
+        .squishy-shadow:active {
+            transform: translateY(4px);
+            box-shadow: 0 0 0 0 theme('colors.secondary');
+        }
+        
+        .glass-card {
+            background: rgba(253, 209, 220, 0.4);
+            backdrop-filter: blur(8px);
+        }
+        
+        .tab-active {
+            background-color: theme('colors.primary');
+            color: theme('colors.on-primary');
+            box-shadow: 0 2px 0 0 theme('colors.secondary');
+        }
+
+        /* 动画类 */
+        @keyframes slideUpFade {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        .animate-slide-up {
+            animation: slideUpFade 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+        
+        .nav-glass {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(25px);
+            -webkit-backdrop-filter: blur(25px);
+        }
+
+        .heart-shape {
+            position: relative;
+            width: 48px;
+            height: 48px;
+        }
+        .heart-shape::before,
+        .heart-shape::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            width: 24px;
+            height: 38px;
+            border-radius: 24px 24px 0 0;
+            background: rgba(137, 76, 92, 0.15); /* primary color transparent */
+        }
+        .heart-shape::before {
+            left: 24px;
+            transform: rotate(-45deg);
+            transform-origin: 0 100%;
+        }
+        .heart-shape::after {
+            left: 0;
+            transform: rotate(45deg);
+            transform-origin: 100% 100%;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+</head>
+<body class="min-h-screen pb-32">
+<!-- TopAppBar -->
+<header class="fixed top-0 w-full z-50 bg-background/80 backdrop-blur-md px-margin-mobile py-sm flex justify-between items-center flat no shadows transition-transform animate-slide-up" style="animation-delay: 0.1s; opacity: 0;">
+<button class="p-2 hover:opacity-80 scale-95 transition-transform text-primary dark:text-primary-fixed-dim">
+<span class="material-symbols-outlined" data-icon="favorite" style="font-variation-settings: 'FILL' 0;">favorite</span>
+</button>
+<h1 class="font-headline-md text-headline-md text-primary font-bold">订单 - 甜蜜点菜记录</h1>
+<button class="p-2 hover:opacity-80 scale-95 transition-transform text-primary dark:text-primary-fixed-dim">
+<span class="material-symbols-outlined" data-icon="notifications" style="font-variation-settings: 'FILL' 0;">notifications</span>
+</button>
+</header>
+<!-- Main Content Canvas -->
+<main class="pt-24 px-margin-mobile max-w-[1200px] mx-auto space-y-6 animate-slide-up" style="animation-delay: 0.2s; opacity: 0;">
+<!-- Tabs -->
+<div class="flex space-x-4 mb-6">
+<button class="px-6 py-2 rounded-full font-label-bold text-label-bold hand-drawn-border tab-active transition-all">全部</button>
+<button class="px-6 py-2 rounded-full font-label-bold text-label-bold hand-drawn-border bg-white text-secondary hover:bg-surface-container transition-all">待确认</button>
+<button class="px-6 py-2 rounded-full font-label-bold text-label-bold hand-drawn-border bg-white text-secondary hover:bg-surface-container transition-all">已完成</button>
+</div>
+<!-- Order List -->
+<div class="space-y-6">
+<!-- Order Card 1: 待确认 (Waiting for confirmation) -->
+<div class="glass-card hand-drawn-border p-6 relative overflow-hidden group animate-slide-up" style="animation-delay: 0.3s; opacity: 0;">
+<div class="absolute top-0 right-0 bg-secondary text-white px-3 py-1 rounded-bl-xl font-label-bold text-label-bold z-10">
+                    等你来投喂~
+                </div>
+<div class="flex items-start justify-between relative z-10">
+<div class="flex items-center space-x-4">
+<div class="w-12 h-12 rounded-full bg-white hand-drawn-border flex items-center justify-center overflow-hidden">
+<img class="w-full h-full object-cover" data-alt="可爱柔和的手绘风格狗狗头像" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC3D-6ZDhmhmjHCmDb1p3Qzc3hEr1ERczROhTDb0iFZCIexJ8E6xW5fVbGNO06NtLVJa3BbIdGvBr9ZOn1ai1R2o_7hTN10h4fM-hemSRdE8JTKrTxoH8XfVCmh1zeVgnDclI2T34LaZeVp7UKKf336yUtjQ-oNdeyRj7Os2Y_pWjIyXX-h9ZKA2UVXbVM3JdInvp7dRg9JRCcUCtNFggAofRj11MtHjf5AdSt3ZJKscqwlOEEuvw5z">
+</div>
+<div>
+<p class="font-label-bold text-label-bold text-secondary">吃货小宝</p>
+<p class="font-body-md text-body-md text-on-surface-variant text-sm">今天 12:30 下单</p>
+</div>
+</div>
+</div>
+<div class="mt-4 bg-white/60 p-4 rounded-lg hand-drawn-border">
+<p class="font-body-md text-body-md text-on-surface">“TA想吃这些，快去看看吧！”</p>
+<div class="mt-2 flex items-center space-x-2 text-primary">
+<span class="material-symbols-outlined" data-icon="restaurant">restaurant</span>
+<span class="font-label-bold text-label-bold">爱心披萨、草莓小蛋糕</span>
+</div>
+</div>
+<div class="mt-4 flex justify-end">
+<button class="bg-primary text-white px-6 py-2 rounded-full font-label-bold text-label-bold hand-drawn-border squishy-shadow transition-all hover:bg-surface-tint">
+                        去准备
+                    </button>
+</div>
+</div>
+<!-- Order Card 2: 已完成 (Completed) -->
+<div class="glass-card hand-drawn-border p-6 relative overflow-hidden group opacity-80 animate-slide-up" style="animation-delay: 0.4s; opacity: 0;">
+<div class="absolute top-0 right-0 bg-surface-variant text-on-surface-variant px-3 py-1 rounded-bl-xl font-label-bold text-label-bold z-10">
+                    已送达胃里
+                </div>
+<div class="flex items-start justify-between relative z-10">
+<div class="flex items-center space-x-4">
+<div class="w-12 h-12 rounded-full bg-white hand-drawn-border flex items-center justify-center overflow-hidden">
+<img class="w-full h-full object-cover" data-alt="可爱柔和的手绘风格白色小狗头像" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAdoxzIlB7bzYBzjQk00FF12EUxK25ViV2lZq6oplzRHayrCw2KcfOEmqtGWeSmp5061B2XydxPzA6Ku_M8cpV0mN9Ff-3z3KzTnwwITc61nxqjL0Lg2RvK6TrKrKBxfNwIy8o8rY7-Csaaeom0VPqXyWdwPAOjNvu83caszJOIQ72guCMdwmixtZtJcGq_o1jVXByDIE_VArvjXhZwbcIIof2y6GGpK5kmnzWn6UQV22Wbz088-7SH">
+</div>
+<div>
+<p class="font-label-bold text-label-bold text-secondary">饲养员</p>
+<p class="font-body-md text-body-md text-on-surface-variant text-sm">昨天 19:00 投喂</p>
+</div>
+</div>
+</div>
+<div class="mt-4 bg-white/40 p-4 rounded-lg hand-drawn-border border-outline-variant">
+<p class="font-body-md text-body-md text-on-surface">“昨天这顿安排上啦~”</p>
+<div class="mt-2 flex items-center space-x-2 text-secondary">
+<span class="material-symbols-outlined" data-icon="receipt_long">receipt_long</span>
+<span class="font-label-bold text-label-bold text-sm">寿司拼盘、布丁</span>
+</div>
+</div>
+</div>
+<!-- Order Card 3: 待确认 (Waiting - different perspective) -->
+<div class="bg-surface-container-low hand-drawn-border p-6 relative overflow-hidden group animate-slide-up" style="animation-delay: 0.5s; opacity: 0;">
+<div class="absolute top-0 right-0 bg-tertiary-container text-on-tertiary-container px-3 py-1 rounded-bl-xl font-label-bold text-label-bold z-10">
+                    呼叫饲养员
+                </div>
+<div class="flex items-start justify-between relative z-10">
+<div class="flex items-center space-x-4">
+<div class="w-12 h-12 rounded-full bg-white hand-drawn-border flex items-center justify-center overflow-hidden">
+<span class="material-symbols-outlined text-tertiary" data-icon="person">person</span>
+</div>
+<div>
+<p class="font-label-bold text-label-bold text-secondary">我</p>
+<p class="font-body-md text-body-md text-on-surface-variant text-sm">2天前 下单</p>
+</div>
+</div>
+</div>
+<div class="mt-4 bg-white/80 p-4 rounded-lg hand-drawn-border border-tertiary/30">
+<p class="font-body-md text-body-md text-on-surface">“已告诉饲养员你的小愿望咯~”</p>
+<div class="mt-2 flex items-center space-x-2 text-tertiary">
+<span class="material-symbols-outlined" data-icon="favorite">favorite</span>
+<span class="font-label-bold text-label-bold">想吃炸鸡</span>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-4 z-50 flex justify-around items-center w-[calc(100%-40px)] max-w-md h-[68px] rounded-full px-2 border border-white/30 shadow-[0_8px_32px_rgba(166,77,100,0.15)] transition-all duration-300 md:hidden" style="background: rgba(255, 255, 255, 0.55); backdrop-filter: blur(25px) saturate(180%); border: 1px solid rgba(255, 255, 255, 0.4); bottom: 20px; left: 20px; right: 20px; width: calc(100% - 40px); margin: 0px auto;">
+<a aria-label="首页" class="flex flex-col items-center justify-center p-2 flex-1 transition-all duration-300 active:scale-90 group" href="#">
+<span class="material-symbols-outlined mb-1 text-[24px] transition-colors duration-280" style="color: #8C8480; font-variation-settings: 'FILL' 0;">home</span>
+<span class="font-label-bold text-[10px] transition-colors duration-280" style="color: #8C8480;">首页</span>
+</a>
+<a aria-label="点餐" class="flex flex-col items-center justify-center p-2 flex-1 transition-all duration-300 active:scale-90 group" href="#">
+<span class="material-symbols-outlined mb-1 text-[24px] transition-colors duration-280" style="color: #8C8480; font-variation-settings: 'FILL' 0;">restaurant</span>
+<span class="font-label-bold text-[10px] transition-colors duration-280" style="color: #8C8480;">点餐</span>
+</a>
+<a aria-label="发现" class="flex flex-col items-center justify-center p-2 flex-1 transition-all duration-300 active:scale-90 group" href="#">
+<span class="material-symbols-outlined mb-1 text-[24px] transition-colors duration-280" style="color: #8C8480; font-variation-settings: 'FILL' 0;">explore</span>
+<span class="font-label-bold text-[10px] transition-colors duration-280" style="color: #8C8480;">发现</span>
+</a>
+<a aria-label="订单" class="relative flex flex-col items-center justify-center p-2 flex-1 transition-all duration-300 active:scale-90 group" href="#"><div class="absolute inset-0 flex items-center justify-center -z-10"><div class="w-[64px] h-[64px] rounded-full flex items-center justify-center transition-all duration-300" style="background: rgba(137, 76, 92, 0.15); clip-path: path('M 32 54 L 28.6 50.91 C 16.533 39.98 8.667 32.84 8.667 23.333 C 8.667 15.773 14.616 9.833 22.167 9.833 C 26.437 9.833 30.543 11.817 32 14.983 C 33.457 11.817 37.563 9.833 41.833 9.833 C 49.384 9.833 55.333 15.773 55.333 23.333 C 55.333 32.84 47.467 39.98 35.4 50.91 L 32 54 Z');"></div></div><span class="material-symbols-outlined mb-1 text-[24px] transition-colors duration-280" style="color: rgb(137, 76, 92); font-variation-settings: &quot;FILL&quot; 1;">receipt_long</span><span class="font-label-bold text-[10px] transition-colors duration-280" style="color: rgb(137, 76, 92);">订单</span></a>
+<a aria-label="我的" class="flex flex-col items-center justify-center p-2 flex-1 transition-all duration-300 active:scale-90 group" href="#">
+<span class="material-symbols-outlined mb-1 text-[24px] transition-colors duration-280" style="color: #8C8480; font-variation-settings: 'FILL' 0;">person</span>
+<span class="font-label-bold text-[10px] transition-colors duration-280" style="color: #8C8480;">我的</span>
+</a>
+</nav>
+<script>
+        // Simple tab interaction
+        const tabs = document.querySelectorAll('.flex.space-x-4 button');
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                // Remove active classes from all
+                tabs.forEach(t => {
+                    t.classList.remove('tab-active');
+                    t.classList.add('bg-white', 'text-secondary');
+                });
+                // Add active classes to clicked
+                tab.classList.remove('bg-white', 'text-secondary');
+                tab.classList.add('tab-active');
+            });
+        });
+    </script>
+
+
+
+
+
+
+</body></html>

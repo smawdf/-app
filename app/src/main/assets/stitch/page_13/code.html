@@ -1,0 +1,300 @@
+<!DOCTYPE html><html class="light" lang="zh-CN"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Cozy Table - Add Dish</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@600;700&amp;family=Plus+Jakarta+Sans:wght@400;700&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "secondary": "#78555e",
+                        "primary-container": "#f4a7b9",
+                        "on-surface": "#1d1b18",
+                        "on-tertiary-fixed-variant": "#6f3723",
+                        "on-secondary": "#ffffff",
+                        "surface": "#fef8f2",
+                        "on-secondary-container": "#7a5761",
+                        "on-surface-variant": "#524346",
+                        "error-container": "#ffdad6",
+                        "tertiary-container": "#f8a98e",
+                        "surface-tint": "#894c5c",
+                        "on-tertiary-fixed": "#380d01",
+                        "primary": "#894c5c",
+                        "tertiary": "#8b4e38",
+                        "inverse-on-surface": "#f6f0ea",
+                        "secondary-fixed-dim": "#e7bbc6",
+                        "primary-fixed-dim": "#ffb1c3",
+                        "on-secondary-fixed-variant": "#5e3e47",
+                        "on-secondary-fixed": "#2d141c",
+                        "outline": "#847376",
+                        "inverse-primary": "#ffb1c3",
+                        "surface-container": "#f3ede7",
+                        "surface-container-low": "#f8f3ed",
+                        "on-primary": "#ffffff",
+                        "on-error": "#ffffff",
+                        "on-tertiary-container": "#753c27",
+                        "surface-container-highest": "#e7e2dc",
+                        "on-primary-container": "#733949",
+                        "background": "#fef8f2",
+                        "surface-variant": "#e7e2dc",
+                        "tertiary-fixed": "#ffdbcf",
+                        "error": "#ba1a1a",
+                        "inverse-surface": "#32302c",
+                        "surface-container-high": "#ede7e1",
+                        "primary-fixed": "#ffd9e0",
+                        "outline-variant": "#d6c1c5",
+                        "surface-container-lowest": "#ffffff",
+                        "surface-bright": "#fef8f2",
+                        "on-background": "#1d1b18",
+                        "on-primary-fixed": "#380a1a",
+                        "secondary-container": "#ffd1dc",
+                        "on-error-container": "#93000a",
+                        "tertiary-fixed-dim": "#ffb59c",
+                        "secondary-fixed": "#ffd9e2",
+                        "on-tertiary": "#ffffff",
+                        "on-primary-fixed-variant": "#6e3545",
+                        "surface-dim": "#dfd9d3"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px",
+                        "modal": "24px"
+                    },
+                    "spacing": {
+                        "gutter": "16px",
+                        "margin-mobile": "20px",
+                        "margin-desktop": "64px",
+                        "xs": "4px",
+                        "unit": "4px",
+                        "md": "16px",
+                        "xl": "40px",
+                        "lg": "24px",
+                        "sm": "8px"
+                    },
+                    "fontFamily": {
+                        "headline-md": ["Be Vietnam Pro"],
+                        "headline-lg-mobile": ["Be Vietnam Pro"],
+                        "headline-lg": ["Be Vietnam Pro"],
+                        "label-bold": ["Plus Jakarta Sans"],
+                        "body-lg": ["Plus Jakarta Sans"],
+                        "body-md": ["Plus Jakarta Sans"]
+                    },
+                    "fontSize": {
+                        "headline-md": ["24px", { "lineHeight": "32px", "fontWeight": "600" }],
+                        "headline-lg-mobile": ["28px", { "lineHeight": "36px", "fontWeight": "700" }],
+                        "headline-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "label-bold": ["14px", { "lineHeight": "20px", "fontWeight": "700" }],
+                        "body-lg": ["18px", { "lineHeight": "28px", "fontWeight": "400" }],
+                        "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .squishy-button {
+            box-shadow: 0px 4px 0px var(--tw-shadow-color);
+            transition: all 0.1s ease-in-out;
+        }
+        .squishy-button:active {
+            transform: translateY(4px);
+            box-shadow: 0px 0px 0px var(--tw-shadow-color);
+        }
+        
+        .toggle-checkbox:checked {
+            right: 0;
+            border-color: transparent;
+        }
+        .toggle-checkbox:checked + .toggle-label {
+            background-color: theme('colors.primary');
+        }
+        
+        /* Custom scrollbar for form area */
+        ::-webkit-scrollbar {
+            width: 4px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: theme('colors.secondary-container');
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body class="bg-surface-variant font-body-md text-on-surface antialiased overflow-hidden h-screen flex flex-col justify-end">
+<!-- Screen Content (Simulated behind backdrop) -->
+<div class="fixed inset-0 bg-[url('placeholder')] bg-cover bg-center" data-alt="A softly lit, warm and inviting dining table setting in a cozy cafe. Sunbeams stream through a nearby window, illuminating plates of beautifully presented, appetizing food. The color palette is dominated by gentle cream, soft pastel pinks, and warm earthy browns. The scene evokes a feeling of relaxed comfort and tactile delight, perfectly suited for a food journaling or recipe sharing app. The overall aesthetic is clean, modern yet distinctly hand-drawn and approachable.">
+<div class="absolute inset-0 bg-background/50"></div>
+</div>
+<!-- Backdrop Blur Overlay -->
+<div class="fixed inset-0 bg-on-surface/20 backdrop-blur-sm z-40" id="modal-backdrop"></div>
+<!-- Bottom Sheet Modal -->
+<div class="bg-surface w-full max-w-2xl mx-auto rounded-t-[24px] z-50 flex flex-col max-h-[90vh] shadow-[0_-8px_32px_rgba(137,76,92,0.15)] relative transform transition-transform duration-300 ease-out translate-y-0" id="bottom-sheet" style="transform: translateY(0px);">
+<!-- Drag Handle -->
+<div class="w-full flex justify-center pt-md pb-xs cursor-grab active:cursor-grabbing">
+<div class="w-12 h-1.5 bg-outline-variant rounded-full"></div>
+</div>
+<!-- Header -->
+<div class="px-margin-mobile pb-md flex justify-between items-start border-b border-surface-container-highest">
+<div>
+<h1 class="font-headline-md text-headline-md text-primary">新增菜品</h1>
+<p class="font-body-md text-body-md text-on-surface-variant mt-1">给你们的小饭桌添一道新菜</p>
+</div>
+<button class="w-8 h-8 flex items-center justify-center text-on-surface-variant hover:text-primary transition-colors bg-surface-container-low rounded-full hover:bg-surface-container" id="close-btn">
+<span class="material-symbols-outlined text-[20px]">close</span>
+</button>
+</div>
+<!-- Scrollable Form Content -->
+<div class="flex-1 overflow-y-auto p-margin-mobile space-y-lg">
+<!-- Image Upload -->
+<div class="w-full h-48 bg-secondary-container border-2 border-dashed border-secondary/30 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:bg-primary-container/30 transition-colors group">
+<div class="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-sm text-primary mb-3 group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">add_photo_alternate</span>
+</div>
+<span class="font-label-bold text-label-bold text-on-secondary-container">从相册选择菜品图</span>
+</div>
+<!-- Dish Name -->
+<div class="space-y-sm">
+<label class="font-label-bold text-label-bold text-on-surface block">名称</label>
+<input class="w-full bg-surface-container-lowest border-2 border-surface-container-highest rounded-lg px-md py-3 font-body-md text-body-md text-on-surface placeholder:text-outline focus:border-primary focus:ring-0 transition-colors shadow-sm" placeholder="比如 爱心披萨" type="text">
+</div>
+<!-- Price & Original Price Row -->
+<div class="flex gap-gutter">
+<div class="space-y-sm flex-1">
+<label class="font-label-bold text-label-bold text-on-surface block">售价 (¥)</label>
+<input class="w-full bg-surface-container-lowest border-2 border-surface-container-highest rounded-lg px-md py-3 font-body-md text-body-md text-on-surface placeholder:text-outline focus:border-primary focus:ring-0 transition-colors shadow-sm" placeholder="比如 28.00" type="number">
+</div>
+<div class="space-y-sm flex-1">
+<label class="font-label-bold text-label-bold text-on-surface block">原价 <span class="text-on-surface-variant/60 font-body-md text-[12px] font-normal">(可选)</span></label>
+<input class="w-full bg-surface-container-lowest border-2 border-surface-container-highest rounded-lg px-md py-3 font-body-md text-body-md text-on-surface placeholder:text-outline focus:border-primary focus:ring-0 transition-colors shadow-sm" placeholder="可不填" type="number">
+</div>
+</div>
+<!-- Category & Stock Row -->
+<div class="flex gap-gutter">
+<div class="space-y-sm flex-[2]">
+<label class="font-label-bold text-label-bold text-on-surface block">分类</label>
+<div class="relative">
+<select class="w-full bg-surface-container-lowest border-2 border-surface-container-highest rounded-lg px-md py-3 font-body-md text-body-md text-on-surface appearance-none focus:border-primary focus:ring-0 transition-colors shadow-sm pr-10">
+<option class="text-outline" disabled="" selected="" value="">选择或新建分类</option>
+<option value="main">主食</option>
+<option value="snack">小吃</option>
+<option value="drink">饮品</option>
+</select>
+<span class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-outline pointer-events-none">expand_more</span>
+</div>
+</div>
+<div class="space-y-sm flex-1">
+<label class="font-label-bold text-label-bold text-on-surface block">库存</label>
+<input class="w-full bg-surface-container-lowest border-2 border-surface-container-highest rounded-lg px-md py-3 font-body-md text-body-md text-on-surface focus:border-primary focus:ring-0 transition-colors shadow-sm text-center" type="number" value="32">
+</div>
+</div>
+<!-- Description -->
+<div class="space-y-sm">
+<label class="font-label-bold text-label-bold text-on-surface block">描述</label>
+<textarea class="w-full bg-surface-container-lowest border-2 border-surface-container-highest rounded-lg px-md py-3 font-body-md text-body-md text-on-surface placeholder:text-outline focus:border-primary focus:ring-0 transition-colors shadow-sm resize-none" placeholder="写一句它为什么好吃" rows="3"></textarea>
+</div>
+<!-- Toggles -->
+<div class="space-y-4 bg-surface-container-low p-md rounded-xl border border-surface-container-highest/50">
+<!-- Listed Toggle -->
+<div class="flex items-center justify-between">
+<div>
+<span class="font-label-bold text-label-bold text-on-surface block">是否上架</span>
+<span class="font-body-md text-[13px] text-on-surface-variant">立即在小店展示</span>
+</div>
+<div class="relative inline-block w-12 h-6 align-middle select-none transition duration-200 ease-in">
+<input checked="" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer border-primary transition-all duration-300 ease-in-out focus:ring-0 focus:outline-none z-10 checked:translate-x-6" id="toggle-listed" name="toggle" type="checkbox">
+<label class="toggle-label block overflow-hidden h-6 rounded-full bg-surface-container-highest cursor-pointer transition-colors duration-300 ease-in-out" for="toggle-listed"></label>
+</div>
+</div>
+<div class="w-full h-px bg-surface-container-highest"></div>
+<!-- Signature Toggle -->
+<div class="flex items-center justify-between">
+<div>
+<span class="font-label-bold text-label-bold text-on-surface block flex items-center gap-1">
+                            是否招牌
+                            <span class="material-symbols-outlined text-[16px] text-tertiary-container" style="font-variation-settings: 'FILL' 1;">star</span>
+</span>
+<span class="font-body-md text-[13px] text-on-surface-variant">带有专属标识</span>
+</div>
+<div class="relative inline-block w-12 h-6 align-middle select-none transition duration-200 ease-in">
+<input class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer border-surface-variant transition-all duration-300 ease-in-out focus:ring-0 focus:outline-none z-10 checked:translate-x-6 checked:border-primary" id="toggle-signature" name="toggle" type="checkbox">
+<label class="toggle-label block overflow-hidden h-6 rounded-full bg-surface-container-highest cursor-pointer transition-colors duration-300 ease-in-out" for="toggle-signature"></label>
+</div>
+</div>
+</div>
+<!-- Spacer for bottom fixed area -->
+<div class="h-4"></div>
+</div>
+<!-- Bottom Fixed Actions -->
+<div class="p-margin-mobile border-t border-surface-container bg-surface flex gap-gutter shadow-[0_-4px_20px_rgba(137,76,92,0.05)] pb-8 md:pb-margin-mobile z-10">
+<button class="flex-1 h-[52px] px-6 rounded-full border-2 border-secondary font-label-bold text-label-bold text-secondary bg-surface hover:bg-surface-container-low transition-colors text-center" id="cancel-btn">
+                取消
+            </button>
+<button class="flex-[2] h-[52px] px-6 rounded-full bg-gradient-to-r from-[#f4a7b9] to-[#fb9b8a] font-label-bold text-label-bold text-on-primary [text-shadow:0_1px_2px_rgba(0,0,0,0.1)] shadow-[0_4px_12px_rgba(244,167,185,0.3)] hover:shadow-[0_6px_16px_rgba(244,167,185,0.4)] active:scale-[0.96] transition-all duration-200 flex items-center justify-center gap-2" id="save-btn">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">done</span>
+                保存菜品
+            </button>
+</div>
+</div>
+<!-- Toast Notification (Hidden by default) -->
+<div class="fixed top-10 left-1/2 -translate-x-1/2 bg-surface border-2 border-primary rounded-full px-lg py-sm flex items-center gap-2 shadow-[0_4px_16px_rgba(137,76,92,0.2)] opacity-0 translate-y-[-20px] pointer-events-none transition-all duration-300 z-[60]" id="toast">
+<span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+<span class="font-label-bold text-label-bold text-on-surface">已新增菜品</span>
+</div>
+<script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const bottomSheet = document.getElementById('bottom-sheet');
+            const backdrop = document.getElementById('modal-backdrop');
+            const closeBtn = document.getElementById('close-btn');
+            const cancelBtn = document.getElementById('cancel-btn');
+            const saveBtn = document.getElementById('save-btn');
+            const toast = document.getElementById('toast');
+
+            const closeModal = () => {
+                bottomSheet.style.transform = 'translateY(100%)';
+                backdrop.style.opacity = '0';
+                setTimeout(() => {
+                    // In a real app, this would hide/remove the elements
+                    // For preview, we just animate down
+                }, 300);
+            };
+
+            const showToast = () => {
+                toast.style.opacity = '1';
+                toast.style.transform = 'translate(-50%, 0)';
+                
+                setTimeout(() => {
+                    toast.style.opacity = '0';
+                    toast.style.transform = 'translate(-50%, -20px)';
+                }, 2500);
+            };
+
+            closeBtn.addEventListener('click', closeModal);
+            cancelBtn.addEventListener('click', closeModal);
+            backdrop.addEventListener('click', closeModal);
+
+            saveBtn.addEventListener('click', () => {
+                // Simulate save action
+                setTimeout(() => {
+                    closeModal();
+                    setTimeout(showToast, 300);
+                }, 400);
+            });
+
+            // Initial animation in
+            setTimeout(() => {
+                bottomSheet.style.transform = 'translateY(0)';
+            }, 50);
+        });
+    </script>
+
+
+</body></html>

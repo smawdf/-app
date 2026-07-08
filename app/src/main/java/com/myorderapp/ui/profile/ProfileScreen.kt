@@ -1,36 +1,52 @@
 package com.myorderapp.ui.profile
 
-import android.Manifest
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
-import android.content.pm.PackageManager
-import android.os.Build
+import android.net.Uri
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.outlined.LocalDining
-import androidx.compose.material.icons.outlined.NotificationsNone
-import androidx.compose.material.icons.outlined.PersonAdd
-import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.automirrored.filled.Logout
+import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.LocalDining
+import androidx.compose.material.icons.filled.Logout
+import androidx.compose.material.icons.filled.PersonAdd
+import androidx.compose.material.icons.filled.Pets
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Storefront
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.outlined.Storefront
+import androidx.compose.material.icons.outlined.SupportAgent
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -45,92 +61,99 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.content.ContextCompat
-import com.myorderapp.domain.model.PairInfo
 import coil3.compose.AsyncImage
+import com.myorderapp.ui.components.CandyCoinIcon
 import com.myorderapp.ui.auth.AuthViewModel
-import com.myorderapp.ui.components.OrderCard
-import com.myorderapp.ui.theme.Background
-import com.myorderapp.ui.theme.OnBackground
+import com.myorderapp.ui.components.CozyCherry
+import com.myorderapp.ui.components.CozyCocoa
+import com.myorderapp.ui.components.CozyMotionVisibility
+import com.myorderapp.ui.components.CozyMuted
+import com.myorderapp.ui.components.CozyPage
+import com.myorderapp.ui.components.CozyRose
+import com.myorderapp.ui.components.CozySurface
+import com.myorderapp.ui.components.cozyTextFieldColors
+import com.myorderapp.ui.theme.Error
+import com.myorderapp.ui.theme.OnSurface
 import com.myorderapp.ui.theme.OnSurfaceVariant
-import com.myorderapp.ui.theme.OrderDiskSpacing
+import com.myorderapp.ui.theme.OutlineVariant
 import com.myorderapp.ui.theme.Primary
 import com.myorderapp.ui.theme.PrimaryContainer
-import com.myorderapp.ui.theme.Surface
+import com.myorderapp.ui.theme.Secondary
+import com.myorderapp.ui.theme.SecondaryContainer
+import com.myorderapp.ui.theme.SurfaceVariant
 import org.koin.androidx.compose.koinViewModel
 
-private const val PROFILE_PREFS = "profile_screen_prefs"
-private const val KEY_ORDER_NOTIFICATIONS_ENABLED = "order_notifications_enabled"
+private const val COUPLE_HOME_PREFS = "couple_home_prefs"
+private const val KEY_SELECTED_ROLE = "selected_role"
 
 @Composable
 fun ProfileScreen(
     viewModel: ProfileViewModel = koinViewModel(),
     authViewModel: AuthViewModel = koinViewModel(),
     onLoginClick: () -> Unit = {},
-    onDishManageClick: () -> Unit = {}
+    onDishManageClick: () -> Unit = {},
+    onOrdersClick: () -> Unit = {},
+    onCandyCoinsClick: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val profile = uiState.profile
-    val displayName = profile?.nickname?.takeIf { it.isNotBlank() } ?: "未设置昵称"
+    val savedName = profile?.nickname?.takeIf { it.isNotBlank() }
+    val displayName = savedName ?: "糯米小狗"
     val context = LocalContext.current
-    val prefs = remember(context) {
-        context.getSharedPreferences(PROFILE_PREFS, Context.MODE_PRIVATE)
-    }
-    var notificationsEnabled by rememberSaveable {
-        mutableStateOf(prefs.getBoolean(KEY_ORDER_NOTIFICATIONS_ENABLED, false))
-    }
-    val notificationPermissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission()
-    ) { granted ->
-        if (granted) {
-            notificationsEnabled = true
-            prefs.edit().putBoolean(KEY_ORDER_NOTIFICATIONS_ENABLED, true).apply()
-        }
+    val rolePrefs = remember(context) { context.getSharedPreferences(COUPLE_HOME_PREFS, Context.MODE_PRIVATE) }
+    val selectedRoleKey = rolePrefs.getString(KEY_SELECTED_ROLE, null)
+    val selectedRoleText = when (selectedRoleKey) {
+        "caretaker" -> "饲养员"
+        "eater" -> "吃货"
+        else -> "待选择"
     }
     var showProfileEditor by remember { mutableStateOf(false) }
-    var showPairDialog by remember { mutableStateOf(false) }
+    var showHelpDialog by remember { mutableStateOf(false) }
     var showLogoutConfirm by remember { mutableStateOf(false) }
+    var showPairDialog by remember { mutableStateOf(false) }
 
     if (showProfileEditor) {
         ProfileEditDialog(
-            name = displayName,
+            name = savedName.orEmpty(),
             avatarUrl = profile?.avatarUrl.orEmpty(),
+            message = uiState.saveMessage,
             onDismiss = { showProfileEditor = false },
-            onAvatarSelected = { uri ->
-                viewModel.saveAvatarUri(context, uri)
-            },
-            onSave = { name ->
-                viewModel.updateNickname(name)
-                showProfileEditor = false
-            }
+            onDismissMessage = viewModel::dismissMessage,
+            onSave = { name, avatarUri -> viewModel.saveProfileEdits(context, name, avatarUri) }
         )
+    }
+
+    if (showHelpDialog) {
+        HelpDialog(onDismiss = { showHelpDialog = false })
     }
 
     if (showPairDialog) {
         PairManagementDialog(
-            pairInfo = uiState.pairInfo,
-            pairCode = uiState.pairCode,
-            joinPairCode = uiState.joinPairCode,
-            message = uiState.saveMessage,
-            onGenerateCode = viewModel::generatePairCode,
-            onJoinCodeChanged = viewModel::onJoinPairCodeChanged,
-            onJoin = { viewModel.joinPair(uiState.joinPairCode) },
-            onUnpair = viewModel::unpair,
-            onDismissMessage = viewModel::dismissMessage,
-            onDismiss = { showPairDialog = false }
+            uiState = uiState,
+            onDismiss = {
+                showPairDialog = false
+                viewModel.dismissMessage()
+            },
+            onGeneratePairCode = viewModel::generatePairCode,
+            onJoinPairCodeChanged = viewModel::onJoinPairCodeChanged,
+            onJoinPair = { viewModel.joinPair(uiState.joinPairCode) },
+            onUnpair = viewModel::unpair
         )
     }
 
@@ -144,339 +167,452 @@ fun ProfileScreen(
         )
     }
 
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Background),
-        contentPadding = PaddingValues(start = 16.dp, top = 12.dp, end = 16.dp, bottom = 96.dp),
-        verticalArrangement = Arrangement.spacedBy(OrderDiskSpacing.lg)
-    ) {
-        item {
-            ProfileHeader(
-                name = displayName,
-                avatarUrl = profile?.avatarUrl,
-                onSettingsClick = { showProfileEditor = true }
-            )
-        }
+    val navigationBottomPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
 
-        item {
-            ProfileActionList(
-                pairInfo = uiState.pairInfo,
-                notificationsEnabled = notificationsEnabled,
-                onToggleNotifications = {
-                    val shouldEnable = !notificationsEnabled
-                    if (shouldEnable &&
-                        Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-                        ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
-                    ) {
-                        notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-                    } else {
-                        notificationsEnabled = shouldEnable
-                        prefs.edit().putBoolean(KEY_ORDER_NOTIFICATIONS_ENABLED, shouldEnable).apply()
+    CozyPage(decorative = false) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .clipToBounds(),
+                contentPadding = PaddingValues(bottom = navigationBottomPadding + 132.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                item {
+                    CozyMotionVisibility {
+                        ImmersiveProfileHeader(
+                            name = displayName,
+                            avatarUrl = profile?.avatarUrl,
+                            userId = profile?.userId.orEmpty(),
+                            isSynced = uiState.isSynced,
+                            isPaired = uiState.pairInfo.isPaired,
+                            selectedRoleText = selectedRoleText,
+                            onSettingsClick = { showProfileEditor = true },
+                            onDishManageClick = onDishManageClick,
+                            onOrdersClick = onOrdersClick
+                        )
                     }
-                },
-                onPairClick = { showPairDialog = true },
-                onDishManageClick = onDishManageClick,
-                onLoginClick = onLoginClick
-            )
-        }
-
-        item {
-            LogoutButton(
-                onClick = {
-                    showLogoutConfirm = true
                 }
+                item {
+                    CozyMotionVisibility(delayMillis = 40) {
+                        SimulatedCurrencyBalanceCard(
+                            balance = profile?.candyCoins ?: 66,
+                            modifier = Modifier.padding(horizontal = 20.dp)
+                        )
+                    }
+                }
+                item {
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(16.dp),
+                        modifier = Modifier.padding(horizontal = 20.dp)
+                    ) {
+                        ProfileActionRow(
+                            icon = Icons.Filled.Settings,
+                            title = "账号设置",
+                            onClick = { showProfileEditor = true }
+                        )
+                        if (selectedRoleKey == "caretaker") {
+                            ProfileActionRow(
+                                icon = Icons.Filled.Pets,
+                                title = "糖糖币专属管理",
+                                trailingText = "吃货 ${uiState.pairInfo.partnerCandyCoins ?: 0} 枚",
+                                onClick = onCandyCoinsClick
+                            )
+                        } else {
+                            ProfileActionRow(
+                                icon = Icons.Filled.Pets,
+                                title = "糖糖币明细",
+                                trailingText = "${profile?.candyCoins ?: 66} 枚",
+                                onClick = onCandyCoinsClick
+                            )
+                        }
+                        ProfileActionRow(
+                            icon = Icons.Filled.PersonAdd,
+                            title = if (uiState.pairInfo.isPaired) "伴侣已绑定" else "邀请对方",
+                            trailingText = uiState.pairInfo.partnerName.takeIf { it.isNotBlank() },
+                            onClick = { showPairDialog = true }
+                        )
+                        ProfileActionRow(
+                            icon = Icons.Outlined.SupportAgent,
+                            title = "帮助与客服",
+                            onClick = { showHelpDialog = true }
+                        )
+                    }
+                }
+                item { LogoutButton(onClick = { showLogoutConfirm = true }, modifier = Modifier.padding(horizontal = 20.dp)) }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ImmersiveProfileHeader(
+    name: String,
+    avatarUrl: String?,
+    userId: String,
+    isSynced: Boolean,
+    isPaired: Boolean,
+    selectedRoleText: String,
+    onSettingsClick: () -> Unit,
+    onDishManageClick: () -> Unit,
+    onOrdersClick: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 20.dp, end = 20.dp, bottom = 18.dp)
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            ProfileHeader(
+                name = name,
+                avatarUrl = avatarUrl,
+                userId = userId,
+                isSynced = isSynced,
+                isPaired = isPaired,
+                selectedRoleText = selectedRoleText,
+                onSettingsClick = onSettingsClick
+            )
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                ProfileFeatureTile(
+                    Icons.Filled.Storefront,
+                    "我的店铺",
+                    Modifier.weight(1f),
+                    onClick = onDishManageClick
+                )
+                ProfileFeatureTile(
+                    Icons.AutoMirrored.Outlined.ReceiptLong,
+                    "订单记录",
+                    Modifier.weight(1f),
+                    onClick = onOrdersClick
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ProfileHeader(
+    name: String,
+    avatarUrl: String?,
+    userId: String,
+    isSynced: Boolean,
+    isPaired: Boolean,
+    selectedRoleText: String,
+    onSettingsClick: () -> Unit
+) {
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val displayUserId = userId.takeIf { it.isNotBlank() }?.takeLast(7) ?: "未同步"
+    val roleText = selectedRoleText
+
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .scale(if (pressed) 0.985f else 1f)
+            .clickable(interactionSource = interaction, indication = null, onClick = onSettingsClick),
+        shape = RoundedCornerShape(18.dp),
+        color = Color(0xFFFFF8FA).copy(alpha = 0.72f),
+        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.62f))
+    ) {
+        Box {
+            Box(
+                modifier = Modifier
+                    .size(132.dp)
+                    .align(Alignment.TopStart)
+                    .offset(x = (-36).dp, y = (-38).dp)
+                    .background(SecondaryContainer.copy(alpha = 0.16f), RoundedCornerShape(48.dp))
+            )
+            Box(
+                modifier = Modifier
+                    .size(160.dp)
+                    .align(Alignment.BottomEnd)
+                    .offset(x = 44.dp, y = 42.dp)
+                    .background(PrimaryContainer.copy(alpha = 0.10f), CircleShape)
+            )
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp, vertical = 22.dp)
+            ) {
+                Box(modifier = Modifier.size(102.dp), contentAlignment = Alignment.BottomEnd) {
+                Surface(
+                    shape = CircleShape,
+                    color = Color.White,
+                    border = BorderStroke(3.dp, Color(0xFFFFFCF8)),
+                    modifier = Modifier.size(96.dp)
+                ) {
+                    if (!avatarUrl.isNullOrBlank()) {
+                        AsyncImage(model = avatarUrl, contentDescription = "头像", contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize().clip(CircleShape))
+                    } else {
+                        Box(modifier = Modifier.background(Color(0xFFFFFCF8)), contentAlignment = Alignment.Center) {
+                            Icon(Icons.Filled.Pets, contentDescription = null, tint = Primary, modifier = Modifier.size(42.dp))
+                        }
+                    }
+                }
+                Surface(shape = CircleShape, color = Primary, border = BorderStroke(1.dp, OutlineVariant), modifier = Modifier.size(32.dp)) {
+                    Icon(Icons.Filled.Edit, contentDescription = "编辑资料", tint = Color.White, modifier = Modifier.padding(7.dp))
+                }
+            }
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(name, color = OnSurface, fontSize = 24.sp, lineHeight = 32.sp, fontWeight = FontWeight.Black, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "ID: $displayUserId",
+                color = OnSurfaceVariant,
+                style = MaterialTheme.typography.bodyMedium
+            )
+            Spacer(modifier = Modifier.height(10.dp))
+            Surface(
+                shape = RoundedCornerShape(999.dp),
+                color = Color.White.copy(alpha = 0.62f),
+                border = BorderStroke(1.dp, OutlineVariant)
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Icon(Icons.Filled.Pets, contentDescription = null, tint = Primary, modifier = Modifier.size(18.dp))
+                    Text(
+                        text = "当前身份：$roleText",
+                        color = OnSurface,
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Black
+                    )
+                }
+            }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SimulatedCurrencyBalanceCard(
+    balance: Int,
+    modifier: Modifier = Modifier
+) {
+    SquishySurface(modifier = modifier.fillMaxWidth(), onClick = {}) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "模拟货币余额",
+                        color = OnSurface,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Black
+                    )
+                    Text(
+                        text = "糖糖币不是金币，但点菜时会真实扣减",
+                        color = OnSurfaceVariant,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+                Surface(shape = RoundedCornerShape(999.dp), color = PrimaryContainer.copy(alpha = 0.72f)) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(5.dp)
+                    ) {
+                        CandyCoinIcon(modifier = Modifier.size(24.dp))
+                        Text(
+                            text = "$balance 枚",
+                            color = Primary,
+                            fontWeight = FontWeight.Black
+                        )
+                    }
+                }
+            }
+            Text(
+                text = "余额不足时，需要饲养员增加糖糖币后才能提交点菜",
+                color = OnSurfaceVariant,
+                style = MaterialTheme.typography.bodySmall
             )
         }
     }
 }
 
 @Composable
-private fun LogoutConfirmDialog(
+private fun CandyCoinsRechargeDialog(
+    balance: Int,
     onDismiss: () -> Unit,
-    onConfirm: () -> Unit
+    onRecharge: (Int) -> Unit
 ) {
+    var customAmountText by remember { mutableStateOf("") }
+    val customAmount = customAmountText.toIntOrNull()
+    val fixedAmounts = listOf(10, 50, 100, 150)
+    val canRechargeCustom = customAmount != null && customAmount > 0
+
     AlertDialog(
         onDismissRequest = onDismiss,
-        shape = RoundedCornerShape(18.dp),
-        containerColor = Surface,
+        shape = RoundedCornerShape(30.dp),
+        containerColor = Color(0xFFFFFCF8),
+        icon = {
+            Surface(
+                shape = CircleShape,
+                color = Color(0xFFFFD1DC).copy(alpha = 0.76f),
+                border = BorderStroke(1.dp, OutlineVariant),
+                modifier = Modifier.size(62.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    CandyCoinIcon(modifier = Modifier.size(54.dp))
+                }
+            }
+        },
         title = {
-            Text("确认退出登录？", color = OnBackground, fontWeight = FontWeight.Bold)
+            Text(
+                text = "糖糖币专属管理",
+                color = CozyCocoa,
+                fontWeight = FontWeight.Black,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth()
+            )
         },
         text = {
-            Text(
-                text = "退出后会回到登录页，本地菜单和订单记录仍会保留。",
-                color = OnSurfaceVariant,
-                fontSize = 14.sp,
-                lineHeight = 20.sp
-            )
+            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                Surface(
+                    shape = RoundedCornerShape(22.dp),
+                    color = Color(0xFFFFD1DC).copy(alpha = 0.34f),
+                    border = BorderStroke(1.dp, OutlineVariant),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 18.dp, vertical = 14.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Text("吃货当前余额", color = CozyMuted, style = MaterialTheme.typography.bodySmall)
+                            Text("$balance 枚", color = Primary, fontSize = 26.sp, lineHeight = 32.sp, fontWeight = FontWeight.Black)
+                        }
+                        Surface(shape = RoundedCornerShape(999.dp), color = Color.White.copy(alpha = 0.72f)) {
+                            Text(
+                                text = "真实额度",
+                                color = Primary,
+                                fontWeight = FontWeight.Black,
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp)
+                            )
+                        }
+                    }
+                }
+
+                Text("快捷充值", color = CozyCocoa, fontWeight = FontWeight.Black)
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    fixedAmounts.chunked(2).forEach { rowAmounts ->
+                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+                            rowAmounts.forEach { amount ->
+                                RechargeAmountButton(
+                                    amount = amount,
+                                    modifier = Modifier.weight(1f),
+                                    onClick = { onRecharge(amount) }
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("自定义金额", color = CozyCocoa, fontWeight = FontWeight.Black)
+                    OutlinedTextField(
+                        value = customAmountText,
+                        onValueChange = { value ->
+                            customAmountText = value.filter { it.isDigit() }.take(4)
+                        },
+                        placeholder = { Text("输入糖糖币数量") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        colors = cozyTextFieldColors(),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Text(
+                        text = "充值会增加吃货余额，不会增加饲养员自己的余额。",
+                        color = CozyMuted,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+            }
         },
         confirmButton = {
             Button(
-                onClick = onConfirm,
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFFE54848),
-                    contentColor = Color.White
-                )
+                onClick = { customAmount?.let(onRecharge) },
+                enabled = canRechargeCustom,
+                shape = RoundedCornerShape(999.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Primary)
             ) {
-                Text("退出登录", fontWeight = FontWeight.Bold)
+                Text("充值自定义金额", fontWeight = FontWeight.Black)
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("取消", color = OnSurfaceVariant)
+                Text("关闭", color = CozyMuted)
             }
         }
     )
 }
 
 @Composable
-private fun ProfileHeader(name: String, avatarUrl: String?, onSettingsClick: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .statusBarsPadding()
-            .height(142.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .align(Alignment.CenterStart)
-                .fillMaxWidth()
-                .padding(end = 54.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Surface(
-                modifier = Modifier.size(82.dp),
-                shape = CircleShape,
-                color = Surface,
-                shadowElevation = 2.dp
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    if (!avatarUrl.isNullOrBlank()) {
-                        AsyncImage(
-                            model = avatarUrl,
-                            contentDescription = "头像",
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier
-                                .size(72.dp)
-                                .clip(CircleShape)
-                        )
-                    } else {
-                        Box(
-                            modifier = Modifier
-                                .size(72.dp)
-                                .clip(CircleShape)
-                                .background(Primary),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(Icons.Outlined.LocalDining, contentDescription = null, tint = Color.White, modifier = Modifier.size(44.dp))
-                        }
-                    }
-                }
-            }
-            Spacer(modifier = Modifier.width(18.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = name,
-                    color = OnBackground,
-                    fontSize = 28.sp,
-                    lineHeight = 34.sp,
-                    fontWeight = FontWeight.Medium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-                Surface(
-                    shape = RoundedCornerShape(999.dp),
-                    color = PrimaryContainer,
-                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
-                ) {
-                    Text(
-                        text = "个人中心",
-                        color = OnBackground,
-                        fontSize = 15.sp,
-                        lineHeight = 19.sp,
-                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 5.dp)
-                    )
-                }
-            }
-        }
-
-        Surface(
-            modifier = Modifier
-                .align(Alignment.CenterEnd)
-                .clickable(onClick = onSettingsClick),
-            shape = CircleShape,
-            color = Color.Transparent
-        ) {
-            Icon(Icons.Outlined.Settings, contentDescription = "设置头像和名称", tint = Primary, modifier = Modifier.padding(8.dp).size(28.dp))
-        }
-    }
-}
-
-@Composable
-private fun ProfileActionList(
-    pairInfo: PairInfo,
-    notificationsEnabled: Boolean,
-    onToggleNotifications: () -> Unit,
-    onPairClick: () -> Unit,
-    onDishManageClick: () -> Unit,
-    onLoginClick: () -> Unit
+private fun RechargeAmountButton(
+    amount: Int,
+    modifier: Modifier,
+    onClick: () -> Unit
 ) {
-    OrderCard(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(vertical = 12.dp)) {
-            ProfileActionRow(
-                icon = Icons.Outlined.NotificationsNone,
-                title = "订单通知设置",
-                trailingText = if (notificationsEnabled) "已开启" else "未开启",
-                onClick = onToggleNotifications
-            )
-            ProfileActionRow(
-                icon = Icons.Outlined.PersonAdd,
-                title = if (pairInfo.isPaired) "伴侣已绑定" else "邀请小伙伴",
-                buttonText = if (pairInfo.isPaired) "管理" else "绑定",
-                onClick = onPairClick
-            )
-            ProfileActionRow(
-                icon = Icons.Outlined.Storefront,
-                title = "厨房设置",
-                onClick = onDishManageClick
-            )
-        }
-    }
-}
-
-@Composable
-private fun LogoutButton(onClick: () -> Unit) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 8.dp, bottom = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        Button(
-            onClick = onClick,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(56.dp),
-            shape = RoundedCornerShape(18.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = Color(0xFFE54848),
-                contentColor = Color.White
-            )
-        ) {
-            Text("退出登录", fontSize = 18.sp, fontWeight = FontWeight.Bold)
-        }
-        Text(
-            text = "退出后会回到登录页，本地菜单和订单记录仍会保留。",
-            color = OnSurfaceVariant,
-            fontSize = 13.sp,
-            lineHeight = 18.sp,
-            modifier = Modifier.padding(horizontal = 4.dp)
-        )
-    }
-}
-
-@Composable
-private fun PairManagementDialog(
-    pairInfo: PairInfo,
-    pairCode: String,
-    joinPairCode: String,
-    message: String?,
-    onGenerateCode: () -> Unit,
-    onJoinCodeChanged: (String) -> Unit,
-    onJoin: () -> Unit,
-    onUnpair: () -> Unit,
-    onDismissMessage: () -> Unit,
-    onDismiss: () -> Unit
-) {
-    AlertDialog(
-        onDismissRequest = {
-            onDismissMessage()
-            onDismiss()
-        },
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    Surface(
+        onClick = onClick,
         shape = RoundedCornerShape(18.dp),
-        containerColor = Surface,
-        title = {
-            Text(
-                text = if (pairInfo.isPaired) "管理伴侣绑定" else "邀请小伙伴",
-                color = OnBackground,
-                fontWeight = FontWeight.Bold
-            )
-        },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                if (pairInfo.isPaired) {
-                    Text(
-                        text = "当前已绑定：${pairInfo.partnerName.ifBlank { "我的小伙伴" }}",
-                        color = OnBackground
-                    )
-                    Text(
-                        text = "绑定码：${pairCode.ifBlank { pairInfo.pairCode.ifBlank { "已保存" } }}",
-                        color = OnSurfaceVariant,
-                        fontSize = 14.sp
-                    )
-                } else {
-                    Text("生成邀请码给对方，或者输入对方发来的 6 位绑定码。", color = OnSurfaceVariant)
-                    Surface(shape = RoundedCornerShape(12.dp), color = PrimaryContainer) {
-                        Text(
-                            text = pairCode.ifBlank { "还没有邀请码" },
-                            color = OnBackground,
-                            fontSize = 24.sp,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(horizontal = 18.dp, vertical = 12.dp)
-                        )
-                    }
-                    OutlinedTextField(
-                        value = joinPairCode,
-                        onValueChange = onJoinCodeChanged,
-                        label = { Text("输入 6 位绑定码") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-                message?.let {
-                    Text(text = it, color = Primary, fontSize = 14.sp)
-                }
-            }
-        },
-        confirmButton = {
-            if (pairInfo.isPaired) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    TextButton(onClick = onGenerateCode) {
-                        Text("重新生成邀请码", color = Primary)
-                    }
-                    TextButton(onClick = onUnpair) {
-                        Text("解除绑定", color = Primary)
-                    }
-                }
-            } else {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    TextButton(onClick = onGenerateCode) {
-                        Text("生成邀请码", color = Primary)
-                    }
-                    Button(
-                        onClick = onJoin,
-                        enabled = joinPairCode.length == 6,
-                        shape = RoundedCornerShape(10.dp)
-                    ) {
-                        Text("绑定")
-                    }
-                }
-            }
-        },
-        dismissButton = {
-            TextButton(
-                onClick = {
-                    onDismissMessage()
-                    onDismiss()
-                }
-            ) {
-                Text("关闭", color = OnSurfaceVariant)
-            }
+        color = Color(0xFFFFF3F6),
+        border = BorderStroke(1.dp, Color(0xFFD6C1C5)),
+        modifier = modifier
+            .height(58.dp)
+            .scale(if (pressed) 0.97f else 1f)
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text("+$amount", color = Primary, fontSize = 20.sp, fontWeight = FontWeight.Black)
+            Text("糖糖币", color = CozyMuted, style = MaterialTheme.typography.bodySmall)
         }
-    )
+    }
+}
+
+@Composable
+private fun ProfileFeatureTile(
+    icon: ImageVector,
+    title: String,
+    modifier: Modifier,
+    onClick: () -> Unit
+) {
+    SquishySurface(
+        modifier = modifier
+            .aspectRatio(1f),
+        onClick = onClick
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center, modifier = Modifier.fillMaxSize().padding(12.dp)) {
+            Surface(shape = CircleShape, color = PrimaryContainer.copy(alpha = 0.72f), modifier = Modifier.size(52.dp)) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(icon, contentDescription = null, tint = Primary, modifier = Modifier.size(28.dp))
+                }
+            }
+            Spacer(modifier = Modifier.height(10.dp))
+            Text(title, color = OnSurface, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Black)
+        }
+    }
 }
 
 @Composable
@@ -484,147 +620,351 @@ private fun ProfileActionRow(
     icon: ImageVector,
     title: String,
     trailingText: String? = null,
-    buttonText: String? = null,
+    leadingContent: @Composable (() -> Unit)? = null,
     onClick: () -> Unit
 ) {
-    Row(
+    SquishySurface(
         modifier = Modifier
             .fillMaxWidth()
-            .height(72.dp)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 22.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .height(68.dp),
+        onClick = onClick
     ) {
-        Icon(icon, contentDescription = null, tint = Primary, modifier = Modifier.size(26.dp))
-        Spacer(modifier = Modifier.width(22.dp))
-        Text(
-            text = title,
-            color = OnBackground,
-            fontSize = 19.sp,
-            lineHeight = 24.sp,
-            modifier = Modifier.weight(1f),
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
-        when {
-            trailingText != null -> Text(text = trailingText, color = Primary, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-            buttonText != null -> TextButton(
-                onClick = onClick,
-                shape = RoundedCornerShape(8.dp),
-                colors = ButtonDefaults.textButtonColors(
-                    containerColor = Primary,
-                    contentColor = Color.White
-                )
-            ) {
-                Text(buttonText, fontSize = 16.sp)
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Surface(shape = CircleShape, color = SurfaceVariant, modifier = Modifier.size(42.dp)) {
+                Box(contentAlignment = Alignment.Center) {
+                    if (leadingContent != null) {
+                        leadingContent()
+                    } else {
+                        Icon(icon, contentDescription = null, tint = OnSurfaceVariant, modifier = Modifier.size(24.dp))
+                    }
+                }
             }
-            else -> Icon(
-                Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                contentDescription = null,
-                tint = OnSurfaceVariant,
-                modifier = Modifier.size(30.dp)
-            )
+            Spacer(modifier = Modifier.width(14.dp))
+            Text(title, color = OnSurface, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+            if (trailingText != null) {
+                Surface(
+                    shape = RoundedCornerShape(999.dp),
+                    color = Color(0xFFFFE6A7).copy(alpha = 0.78f),
+                    border = BorderStroke(1.dp, Color(0xFFE8BE63).copy(alpha = 0.38f))
+                ) {
+                    Text(
+                        trailingText,
+                        color = Color(0xFF7A5320),
+                        fontWeight = FontWeight.Black,
+                        style = MaterialTheme.typography.labelMedium,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+                    )
+                }
+            } else {
+                Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = OnSurfaceVariant)
+            }
         }
     }
+}
+
+@Composable
+private fun SquishySurface(
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+    content: @Composable () -> Unit
+) {
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    Box(modifier = modifier.scale(if (pressed) 0.985f else 1f)) {
+        Surface(
+            modifier = Modifier
+                .matchParentSize()
+                .clickable(interactionSource = interaction, indication = null, onClick = onClick),
+            shape = RoundedCornerShape(16.dp),
+            color = Color(0xFFFFFCF8),
+            border = BorderStroke(1.dp, OutlineVariant)
+        ) {
+            Box {
+                content()
+            }
+        }
+    }
+}
+
+@Composable
+private fun LogoutButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    Box(modifier = modifier.fillMaxWidth().height(58.dp).scale(if (pressed) 0.985f else 1f)) {
+        Button(
+            onClick = onClick,
+            interactionSource = interaction,
+            modifier = Modifier.matchParentSize(),
+            shape = RoundedCornerShape(999.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = Error.copy(alpha = 0.08f),
+                contentColor = Error
+            ),
+            border = BorderStroke(1.dp, Error.copy(alpha = 0.34f))
+        ) {
+            Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = null)
+            Spacer(modifier = Modifier.width(8.dp))
+            Text("退出登录", fontSize = 18.sp, lineHeight = 26.sp, fontWeight = FontWeight.Black)
+        }
+    }
+}
+
+@Composable
+private fun PairManagementDialog(
+    uiState: ProfileUiState,
+    onDismiss: () -> Unit,
+    onGeneratePairCode: () -> Unit,
+    onJoinPairCodeChanged: (String) -> Unit,
+    onJoinPair: () -> Unit,
+    onUnpair: () -> Unit
+) {
+    val context = LocalContext.current
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        shape = RoundedCornerShape(28.dp),
+        containerColor = CozySurface.copy(alpha = 0.94f),
+        title = {
+            Text(
+                text = if (uiState.pairInfo.isPaired) "伴侣已绑定" else "邀请对方",
+                color = CozyCocoa,
+                fontWeight = FontWeight.Black,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth()
+            )
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                Text(
+                    text = if (uiState.pairInfo.isPaired) {
+                        "你们已经绑定，可以一起同步点菜和订单。"
+                    } else {
+                        "生成邀请码发给对方，或者输入对方的邀请码完成绑定。"
+                    },
+                    color = CozyMuted,
+                    textAlign = TextAlign.Center
+                )
+                if (!uiState.pairInfo.isPaired) {
+                    Surface(
+                        shape = RoundedCornerShape(18.dp),
+                        color = Color.White.copy(alpha = 0.62f),
+                        border = BorderStroke(1.dp, OutlineVariant),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(16.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Text(
+                                text = uiState.pairCode.ifBlank { "点击下方生成邀请码" },
+                                color = Primary,
+                                fontSize = 24.sp,
+                                fontWeight = FontWeight.Black,
+                                textAlign = TextAlign.Center
+                            )
+                            Button(
+                                onClick = onGeneratePairCode,
+                                shape = RoundedCornerShape(999.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = Primary)
+                            ) {
+                                Text("生成邀请码", fontWeight = FontWeight.Black)
+                            }
+                        }
+                    }
+                    TextButton(
+                        onClick = { copyPairCode(context, uiState.pairCode) },
+                        enabled = uiState.pairCode.isNotBlank(),
+                        modifier = Modifier.align(Alignment.CenterHorizontally)
+                    ) {
+                        Text("复制邀请码", fontWeight = FontWeight.Black)
+                    }
+                    OutlinedTextField(
+                        value = uiState.joinPairCode,
+                        onValueChange = onJoinPairCodeChanged,
+                        label = { Text("输入对方邀请码") },
+                        singleLine = true,
+                        colors = cozyTextFieldColors(),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+                uiState.saveMessage?.let {
+                    Text(it, color = Primary, style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+                }
+            }
+        },
+        confirmButton = {
+            if (uiState.pairInfo.isPaired) {
+                TextButton(onClick = onUnpair) {
+                    Text("解除绑定", color = Error, fontWeight = FontWeight.Black)
+                }
+            } else {
+                Button(
+                    onClick = onJoinPair,
+                    enabled = uiState.joinPairCode.length == 6,
+                    shape = RoundedCornerShape(999.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Primary)
+                ) {
+                    Text("完成绑定", fontWeight = FontWeight.Black)
+                }
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("关闭", color = CozyMuted) }
+        }
+    )
+}
+
+private fun copyPairCode(context: Context, code: String) {
+    if (code.isBlank()) return
+    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+    clipboard.setPrimaryClip(ClipData.newPlainText("邀请码", code))
+    Toast.makeText(context, "已复制邀请码", Toast.LENGTH_SHORT).show()
+}
+
+@Composable
+private fun HelpDialog(onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        shape = RoundedCornerShape(28.dp),
+        containerColor = CozySurface.copy(alpha = 0.94f),
+        title = {
+            Text(
+                text = "帮助与客服",
+                color = CozyCocoa,
+                fontWeight = FontWeight.Black,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth()
+            )
+        },
+        text = {
+            Text(
+                text = "遇到账号、绑定或点菜问题，可以先检查网络和登录状态。后续会在这里接入反馈入口。",
+                color = CozyMuted,
+                textAlign = TextAlign.Center
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("知道了", color = Primary, fontWeight = FontWeight.Black)
+            }
+        }
+    )
+}
+
+@Composable
+private fun LogoutConfirmDialog(onDismiss: () -> Unit, onConfirm: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        shape = RoundedCornerShape(28.dp),
+        containerColor = CozySurface.copy(alpha = 0.92f),
+        icon = {
+            Surface(
+                shape = CircleShape,
+                color = Error.copy(alpha = 0.12f),
+                border = BorderStroke(1.dp, OutlineVariant),
+                modifier = Modifier.size(64.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(Icons.Filled.Warning, contentDescription = null, tint = Error, modifier = Modifier.size(34.dp))
+                }
+            }
+        },
+        title = { Text("确认要离开吗？", color = CozyCocoa, fontWeight = FontWeight.Black, textAlign = TextAlign.Center) },
+        text = { Text("小狗会想念你的哦...", color = CozyMuted, textAlign = TextAlign.Center) },
+        confirmButton = {
+            Button(onClick = onConfirm, shape = RoundedCornerShape(999.dp), colors = ButtonDefaults.buttonColors(containerColor = Error)) {
+                Text("狠心退出", fontWeight = FontWeight.Black)
+            }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("再留一会", color = CozyMuted) } }
+    )
 }
 
 @Composable
 private fun ProfileEditDialog(
     name: String,
     avatarUrl: String,
+    message: String?,
     onDismiss: () -> Unit,
-    onAvatarSelected: (android.net.Uri) -> Unit,
-    onSave: (String) -> Unit
+    onDismissMessage: () -> Unit,
+    onSave: (String, Uri?) -> Unit
 ) {
     var nameDraft by remember(name) { mutableStateOf(name) }
     var previewAvatar by remember(avatarUrl) { mutableStateOf(avatarUrl) }
-    val avatarPicker = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
-    ) { uri ->
+    var selectedAvatarUri by remember { mutableStateOf<Uri?>(null) }
+    val trimmedName = nameDraft.trim()
+    val nameError = when {
+        trimmedName.isBlank() -> "请输入昵称"
+        trimmedName.length > 12 -> "昵称最多 12 个字"
+        else -> null
+    }
+    val avatarPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         uri?.let {
             previewAvatar = it.toString()
-            onAvatarSelected(it)
+            selectedAvatarUri = it
+            onDismissMessage()
         }
     }
 
     AlertDialog(
-        onDismissRequest = onDismiss,
-        shape = RoundedCornerShape(18.dp),
-        containerColor = Surface,
-        title = { Text("设置头像和名称", color = OnBackground, fontWeight = FontWeight.Bold) },
+        onDismissRequest = { onDismissMessage(); onDismiss() },
+        shape = RoundedCornerShape(28.dp),
+        containerColor = CozySurface,
+        title = { Text("设置头像和昵称", color = CozyCocoa, fontWeight = FontWeight.Black) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedTextField(
                     value = nameDraft,
-                    onValueChange = { nameDraft = it },
-                    label = { Text("名称") },
+                    onValueChange = {
+                        if (it.length <= 12) {
+                            nameDraft = it
+                            onDismissMessage()
+                        }
+                    },
+                    label = { Text("昵称") },
+                    isError = nameError != null,
+                    supportingText = { Text(nameError ?: "${trimmedName.length}/12") },
                     singleLine = true,
+                    colors = cozyTextFieldColors(),
                     modifier = Modifier.fillMaxWidth()
                 )
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(14.dp)
-                ) {
-                    Surface(
-                        modifier = Modifier.size(58.dp),
-                        shape = CircleShape,
-                        color = PrimaryContainer
-                    ) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                    Surface(modifier = Modifier.size(62.dp), shape = CircleShape, color = CozyCherry) {
                         if (previewAvatar.isNotBlank()) {
-                            AsyncImage(
-                                model = previewAvatar,
-                                contentDescription = "头像预览",
-                                contentScale = ContentScale.Crop,
-                                modifier = Modifier.clip(CircleShape)
-                            )
+                            AsyncImage(model = previewAvatar, contentDescription = "头像预览", contentScale = ContentScale.Crop, modifier = Modifier.clip(CircleShape))
                         } else {
                             Box(contentAlignment = Alignment.Center) {
-                                Icon(
-                                    Icons.Outlined.LocalDining,
-                                    contentDescription = null,
-                                    tint = Primary,
-                                    modifier = Modifier.size(30.dp)
-                                )
+                                Icon(Icons.Filled.LocalDining, contentDescription = null, tint = CozyRose, modifier = Modifier.size(30.dp))
                             }
                         }
                     }
                     Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "头像从本地相册选择",
-                            color = OnBackground,
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Medium
-                        )
-                        Text(
-                            text = "不再手动填写图片链接",
-                            color = OnSurfaceVariant,
-                            fontSize = 13.sp
-                        )
+                        Text("头像从本地相册选择", color = CozyCocoa, fontWeight = FontWeight.Bold)
+                        Text(if (selectedAvatarUri == null) "选择后先预览，保存资料后生效" else "已选择新头像，保存资料后生效", color = CozyMuted, fontSize = 13.sp)
                     }
                 }
                 Button(
                     onClick = { avatarPicker.launch("image/*") },
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = PrimaryContainer,
-                        contentColor = OnBackground
-                    )
-                ) {
-                    Text("从相册选择头像")
-                }
+                    shape = RoundedCornerShape(999.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = CozyCherry, contentColor = CozyCocoa)
+                ) { Text("从相册选择头像", fontWeight = FontWeight.Bold) }
+                message?.let { Text(it, color = if (it.contains("失败") || it.contains("请输入")) Color(0xFFBA1A1A) else CozyRose) }
             }
         },
         confirmButton = {
-            Button(onClick = { onSave(nameDraft) }, shape = RoundedCornerShape(10.dp)) {
-                Text("保存")
+            Button(onClick = { onSave(trimmedName, selectedAvatarUri) }, enabled = nameError == null, shape = RoundedCornerShape(999.dp)) {
+                Text("保存资料")
             }
         },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("取消", color = OnSurfaceVariant)
-            }
-        }
+        dismissButton = { TextButton(onClick = { onDismissMessage(); onDismiss() }) { Text("取消", color = CozyMuted) } }
     )
 }

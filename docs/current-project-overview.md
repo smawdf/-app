@@ -77,7 +77,7 @@ MainActivity
 - `MyOrderApp.kt`：初始化 Koin 和 Coil 3 ImageLoader。
 - `AppModule.kt`：Koin 业务注入模块。
 - `NetworkModule.kt`：Retrofit、Moshi、SessionManager、外部图源和菜谱 API 注入模块。
-- `AppDatabase.kt`：Room 数据库，当前版本 6。
+- `AppDatabase.kt`：Room 数据库，当前版本 9。
 
 ## 数据层事实
 
@@ -87,7 +87,7 @@ MainActivity
 - `RoomAddressRepository`：本地地址持久化。
 - `SupabaseOrderRepository`：订单保存与 Supabase 同步。
 - `HybridDishRepository`：发现页搜菜的数据聚合仓储，服务“搜索菜品并加入我的店铺”，不再作为旧随机选菜主流程。
-- `DiscoverViewModel`：聚合本地菜品、菜单菜品、Tian 菜谱搜索和 Spoonacular/TheMealDB 图源。
+- `DiscoverViewModel`：聚合本地菜品、菜单菜品、本地中文菜谱、Tian 菜谱搜索、下厨房实时搜索和 Bing 图片兜底。
 
 ## 不能再误用的旧假设
 

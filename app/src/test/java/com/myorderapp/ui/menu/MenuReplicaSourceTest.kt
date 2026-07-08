@@ -1,8 +1,7 @@
-﻿package com.myorderapp.ui.menu
+package com.myorderapp.ui.menu
 
 import java.nio.file.Files
 import java.nio.file.Paths
-import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -10,118 +9,120 @@ import org.junit.Test
 class MenuReplicaSourceTest {
 
     @Test
-    fun `my shop keeps manual add as the only add sheet action`() {
+    fun `my shop follows Stitch sections and scrolls as one page`() {
         val source = readMainSource("ui/menu/MenuManagementScreen.kt")
+
+        listOf(
+            "StoreTopBar",
+            "ShopSettingsStrip",
+            "CategoryManagementBento",
+            "DishManagementHeader",
+            "DishEditorDialog",
+            "LazyColumn(",
+            "contentPadding = PaddingValues(bottom = 128.dp)",
+            "modifier = modifier.fillMaxWidth()"
+        ).forEach { expected ->
+            assertTrue("My shop page missing marker: $expected", source.contains(expected))
+        }
+
+        assertFalse(source.contains("RecipeVideoLinkIcons("))
+        assertFalse(source.contains("MenuCartBar"))
+        assertFalse(source.contains("QuantityStepper"))
+        assertFalse(source.contains("AddShoppingCart"))
+        assertFalse("新增菜品应直接进入原型表单，不应保留中间选择层", source.contains("AddRecipeSheet"))
+        assertFalse("新增菜品应直接进入原型表单，不应保留手动添加入口", source.contains("手动添加"))
+        assertFalse(source.contains("Row(\n                    modifier = Modifier\n                        .fillMaxSize()"))
+        assertFalse(source.contains("LazyColumn(\n                modifier = Modifier.fillMaxSize()"))
+    }
+
+    @Test
+    fun `category and dish management use prototype controls`() {
+        val source = readMainSource("ui/menu/MenuManagementScreen.kt")
+
+        listOf(
+            "categories.map { CategoryCardModel.Category(it) } + CategoryCardModel.Create",
+            "LazyRow(",
+            "modifier = Modifier.width(154.dp)",
+            "CategoryBentoCard",
+            "CategoryBentoCardContent",
+            "onManageCategoriesClick = { showCategoryManagerDialog = true }",
+            "管理全部分类",
+            "新增分类",
+            "菜品管理",
+            "新增菜品",
+            "categoryIcon(category)",
+            "Icons.Outlined.LocalPizza",
+            "Icons.Outlined.Cake",
+            "Icons.Outlined.LocalCafe",
+            "Color(0xFFFF9FB7)",
+            "Icons.Outlined.AddPhotoAlternate",
+            "onClick = viewModel::newDish",
+            "MenuFilter.All to \"全部\"",
+            "MenuFilter.Available to \"已上架\"",
+            "MenuFilter.Unavailable to \"已下架\""
+        ).forEach { expected ->
+            assertTrue("Prototype management control missing: $expected", source.contains(expected))
+        }
+
+        assertFalse("Visible dish management header should not expose batch controls", source.contains("DishManagementHeader(\n    totalCount"))
+        assertFalse("Visible dish management header should not expose sorting controls", source.contains("onSortSelected = viewModel::setSortMode"))
+        assertFalse("Category bento cards should not filter or expand the dish list", source.contains("onCategoryClick = viewModel::selectCategory"))
+    }
+
+    @Test
+    fun `dish editor follows page 13 add dish prototype`() {
+        val source = readMainSource("ui/menu/MenuManagementScreen.kt")
+        val viewModel = readMainSource("ui/menu/MenuManagementViewModel.kt")
+
+        listOf(
+            "DishEditorDialog",
+            "新增菜品",
+            "给你们的小饭桌添一道新菜",
+            "从相册选择菜品图",
+            "名称",
+            "售价 (¥)",
+            "原价 (可选)",
+            "分类",
+            "选择或新建分类",
+            "主食",
+            "小吃",
+            "饮品",
+            "库存",
+            "描述",
+            "是否上架",
+            "立即在小店展示",
+            "是否招牌",
+            "带有专属标识",
+            "保存菜品",
+            "已新增菜品"
+        ).forEach { expected ->
+            assertTrue("Page 13 dish editor missing prototype text: $expected", source.contains(expected) || viewModel.contains(expected))
+        }
+
+        assertFalse("新增菜品不应回退为 page_12 的旧弹层标题", source.contains("上新啦！"))
+        assertFalse("新增菜品不应回退为 page_12 的旧上传文案", source.contains("点击上传美味照片"))
+        assertFalse("新增菜品不应回退为 page_12 的旧提交文案", source.contains("确认上架"))
+    }
+
+    @Test
+    fun `dish management list is not scoped by category card taps`() {
+        val viewModel = readMainSource("ui/menu/MenuManagementViewModel.kt")
+
+        assertFalse(
+            "Dish management should follow the Stitch all-listed-available-unavailable tabs, not category-card filtering",
+            viewModel.contains(".filter { selectedCategory.isBlank() || it.category == selectedCategory }")
+        )
+        assertTrue("Unavailable dishes should move after available dishes in all filter", viewModel.contains("compareBy<MenuDishEntity> { !it.isAvailable }"))
+    }
+
+    @Test
+    fun `old bundled demo menu is removed`() {
         val viewModel = readMainSource("ui/menu/MenuManagementViewModel.kt")
         val repository = readMainSource("data/repository/SingleShopRepository.kt")
-        val combinedSource = source + viewModel + repository
 
-        listOf(
-            "MenuTopBar",
-            "ShopSettingsStrip",
-            "updateShopImage",
-            "getShopImageUrl",
-            "updateShopImageUrl",
-            "AddRecipeSheet",
-            "Icons.Outlined.Add",
-            "onAddDish = { showAddSheet = true }"
-        ).forEach { expected ->
-            assertTrue("我的店铺缺少入口或能力：$expected", combinedSource.contains(expected))
-        }
-
-        assertEquals("添加弹层只应保留一个手动添加功能项", 1, Regex("Text\\(\"手动添加\"").findAll(source).count())
-        assertFalse("我的店铺添加弹层不应包含广场偷菜", source.contains("广场偷菜"))
-        assertFalse("我的店铺添加弹层不应包含克隆厨房", source.contains("克隆厨房"))
-        assertTrue("排序应使用独立下拉菜单", source.contains("sortMenuExpanded"))
-        assertTrue("排序按钮应只保留图标", source.contains("IconOnlyButton("))
-        assertFalse("工具栏不应再保留额外分类管理入口", source.contains("contentDescription = \"分类管理\"") || source.contains("contentDescription = \"鍒嗙被绠＄悊\""))
-        assertFalse("工具栏不应显示分类管理文字按钮", source.contains("SecondaryButton(text = \"分类管理\"") || source.contains("SecondaryButton(text = \"鍒嗙被绠＄悊\""))
-    }
-
-    @Test
-    fun `menu category rail follows ordering categories and uses long press actions`() {
-        val source = readMainSource("ui/menu/MenuManagementScreen.kt")
-        val viewModel = readMainSource("ui/menu/MenuManagementViewModel.kt")
-
-        listOf(
-            "singleShopRepository.getCategoryNames()",
-            "dishes.map { it.category }",
-            "normalizedMenuCategories"
-        ).forEach { expected ->
-            assertTrue("分类栏应和点菜页使用同一套店铺分类来源：$expected", viewModel.contains(expected))
-        }
-
-        listOf(
-            "CategoryRenameDialog",
-            "renameCategory",
-            "deleteCategory",
-            "combinedClickable",
-            "activeCategoryAction",
-            "onCategoryRenameClick",
-            "onCategoryDeleteClick",
-            "onCategoryLongClick",
-            "if (actionsVisible)"
-        ).forEach { expected ->
-            assertTrue("分类标签应长按后才能修改删除：$expected", (source + viewModel).contains(expected))
-        }
-
-        assertTrue("分类区应只保留可点击展开的分类入口", source.contains("onToggleCollapsed()"))
-        assertTrue("收起态分类标签默认展示两个字", source.contains("title.trim().take(2).ifBlank"))
-        assertTrue("静态分类标题应隐藏，避免和可点击分类入口重复", source.contains("Static title is intentionally hidden"))
-        assertTrue("分类新增入口应只显示一个加号图标", source.contains("Icon(Icons.Outlined.Add"))
-        assertTrue("分类新增入口应显示新建分类文字", source.contains("Text(\"新建分类\"") || source.contains("Text(\"鏂板缓鍒嗙被\""))
-        assertFalse("分类新增入口不应同时显示文本加号", source.contains("\"+ 新建分类\"") || source.contains("\"+ 鏂板缓鍒嗙被\""))
-        assertTrue("分类标签普通点击只应选择分类，长按才进入操作态", source.contains("onClick = onClick") && source.contains("onLongClick = onCategoryLongClick"))
-        assertFalse("我的店铺左栏不应额外插入全部分类", source.contains("listOf(MenuManagementViewModel.ALL_CATEGORIES)"))
-    }
-
-    @Test
-    fun `my shop implements requested merchant operations without cart controls`() {
-        val screen = readMainSource("ui/menu/MenuManagementScreen.kt")
-        val viewModel = readMainSource("ui/menu/MenuManagementViewModel.kt")
-        val combinedSource = screen + viewModel
-
-        listOf(
-            "batchSetAvailability",
-            "batchMoveToCategory",
-            "batchDeleteSelected",
-            "selectAllVisibleDishes",
-            "选择当前列表全部",
-            "已选择当前列表全部菜品",
-            "toggleDishAvailability",
-            "MenuFilter",
-            "MenuSortMode",
-            "SalesDesc",
-            "PriceAsc",
-            "Newest",
-            "DeleteDishDialog",
-            "AvailabilitySwitch"
-        ).forEach { expected ->
-            assertTrue("新版我的店铺缺少商家操作：$expected", combinedSource.contains(expected))
-        }
-
-        listOf(
-            "自定义拖拽",
-            "DragIndicator",
-            "MenuCartBar",
-            "QuantityStepper",
-            "AddShoppingCart",
-            "去结算",
-            "cartQuantities",
-            "addDishToCart",
-            "decreaseDishInCart"
-        ).forEach { forbidden ->
-            assertFalse("我的店铺不应包含客户购物车或拖拽排序：$forbidden", combinedSource.contains(forbidden))
-        }
-    }
-
-    @Test
-    fun `menu page removes mini program capsule chrome`() {
-        val source = readMainSource("ui/menu/MenuManagementScreen.kt")
-
-        listOf("MiniProgramCapsule", "•••").forEach { forbidden ->
-            assertFalse("我的店铺页不应包含小程序胶囊：$forbidden", source.contains(forbidden))
-        }
+        assertTrue(repository.contains("removeBundledDemoMenu"))
+        assertTrue(viewModel.contains("singleShopRepository.removeBundledDemoMenu()"))
+        assertFalse(repository.contains("ensureSeedMenu"))
     }
 
     private fun readMainSource(relativePath: String): String {

@@ -26,6 +26,7 @@ data class OnboardingUiState(
     val pairCode: String = "",
     val joinPairCode: String = "",
     val pairSkipped: Boolean = false,
+    val accountCreated: Boolean = false,
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
     val registrationComplete: Boolean = false
@@ -67,7 +68,11 @@ class OnboardingViewModel(
             _uiState.value = state.copy(errorMessage = "两次密码输入不一致")
             return
         }
-        _uiState.value = state.copy(step = 2, errorMessage = null)
+        if (state.accountCreated) {
+            _uiState.value = state.copy(step = 2, errorMessage = null)
+            return
+        }
+        createAccountBeforeProfile(state)
     }
 
     fun goBackToStep1() {
@@ -87,7 +92,7 @@ class OnboardingViewModel(
             _uiState.value = _uiState.value.copy(errorMessage = "请输入昵称")
             return
         }
-        registerAccount()
+        saveProfileAndFinishRegistration()
     }
 
     fun goToStep3() = completeRegistration()
@@ -127,45 +132,39 @@ class OnboardingViewModel(
         _uiState.value = _uiState.value.copy(pairSkipped = true, registrationComplete = true)
     }
 
-    // ── 注册账号 ──
-    private fun registerAccount() {
-        val state = _uiState.value
+    // ── 注册账号：在进入资料页前先创建账号，避免用户填完资料后才发现账号已存在 ──
+    private fun createAccountBeforeProfile(state: OnboardingUiState) {
         viewModelScope.launch {
             _uiState.value = state.copy(isLoading = true, errorMessage = null)
             try {
-                client.auth.signUpWith(Email) {
+                val signUpResult = client.auth.signUpWith(Email) {
                     email = state.email
                     password = state.password
                 }
 
                 val user = client.auth.currentUserOrNull()
                 val token = client.auth.currentAccessTokenOrNull()
-                val userId = user?.id ?: ""
+                val userId = user?.id ?: signUpResult?.id.orEmpty()
                 if (token != null && userId.isNotBlank()) {
-                    createProfileWithDetails(userId)
                     session.setSession(token, userId, "")
                     session.saveEmail(state.email)
-                    session.saveNickname(state.nickname)
-                    session.saveAvatar(state.avatarUrl)
-                    dishRepo.syncFromCloud()
-                    profileRepo.loadFromCloud()
                     _uiState.value = _uiState.value.copy(
+                        step = 2,
+                        accountCreated = true,
                         isLoading = false,
-                        errorMessage = null,
-                        registrationComplete = true
+                        errorMessage = null
                     )
                 } else {
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
-                        errorMessage = "注册失败：请稍后重试"
+                        errorMessage = "账号已存在，请直接登录"
                     )
                 }
             } catch (e: Exception) {
                 val msg = e.message ?: ""
                 val errorMsg = when {
-                    msg.contains("already registered", ignoreCase = true) ||
-                    msg.contains("already exists", ignoreCase = true) ->
-                        "该邮箱已注册，请直接登录"
+                    isAccountAlreadyExistsMessage(msg) ->
+                        "账号已存在，请直接登录"
                     else -> "请求失败，请稍后重试"
                 }
                 _uiState.value = _uiState.value.copy(
@@ -174,6 +173,45 @@ class OnboardingViewModel(
                 )
             }
         }
+    }
+
+    private fun saveProfileAndFinishRegistration() {
+        val state = _uiState.value
+        viewModelScope.launch {
+            _uiState.value = state.copy(isLoading = true, errorMessage = null)
+            val userId = client.auth.currentUserOrNull()?.id.orEmpty()
+            if (userId.isBlank()) {
+                _uiState.value = state.copy(
+                    isLoading = false,
+                    errorMessage = "登录状态已失效，请返回上一步重新注册"
+                )
+                return@launch
+            }
+
+            createProfileWithDetails(userId)
+            session.saveNickname(state.nickname)
+            session.saveAvatar(state.avatarUrl)
+            dishRepo.syncFromCloud()
+            profileRepo.loadFromCloud()
+            _uiState.value = _uiState.value.copy(
+                isLoading = false,
+                errorMessage = null,
+                registrationComplete = true
+            )
+        }
+    }
+
+    private fun isAccountAlreadyExistsMessage(message: String): Boolean {
+        return listOf(
+            "already registered",
+            "already exists",
+            "already been registered",
+            "user already registered",
+            "user_already_exists",
+            "email_exists",
+            "email already",
+            "duplicate key"
+        ).any { message.contains(it, ignoreCase = true) }
     }
 
     private suspend fun createProfileWithDetails(userId: String) {

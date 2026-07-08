@@ -1,42 +1,57 @@
 package com.myorderapp.ui.order
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Add
-import androidx.compose.material.icons.outlined.Notifications
-import androidx.compose.material.icons.outlined.Restaurant
-import androidx.compose.material.icons.outlined.ShoppingCart
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Campaign
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Restaurant
+import androidx.compose.material.icons.filled.ShoppingBag
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -45,32 +60,49 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
+import com.myorderapp.R
 import com.myorderapp.domain.model.MenuCategory
 import com.myorderapp.domain.model.MenuItem
-import com.myorderapp.ui.components.OrderSearchField
+import com.myorderapp.ui.components.CozyCard
+import com.myorderapp.ui.components.CozyCherry
+import com.myorderapp.ui.components.CozyCocoa
+import com.myorderapp.ui.components.CozyIconBadge
+import com.myorderapp.ui.components.CozyMainTopBar
+import com.myorderapp.ui.components.CozyMuted
+import com.myorderapp.ui.components.CozyMotion
+import com.myorderapp.ui.components.CozyMotionVisibility
+import com.myorderapp.ui.components.CozyPage
+import com.myorderapp.ui.components.CozyPill
+import com.myorderapp.ui.components.CozyPrimaryButton
+import com.myorderapp.ui.components.CozyRose
+import com.myorderapp.ui.components.CozySurface
+import com.myorderapp.ui.components.CozyTerracotta
+import com.myorderapp.ui.components.cozyPulseOnChange
 import com.myorderapp.ui.shop.components.CartSheet
+import kotlin.math.roundToInt
 import org.koin.androidx.compose.koinViewModel
 
-private val OrderingPrimary = Color(0xFF247A84)
-private val OrderingInk = Color(0xFF213138)
-private val OrderingHeart = Color(0xFFFF8585)
-private val OrderingWarm = Color(0xFFFFE0AF)
-private val CartBadgeRed = OrderingHeart
-private val CategoryRailBackground = Color(0xFFE4F7F4)
-private val ContentBackground = Color(0xFFFFF7E8)
-private val NoticeBackground = Color(0xFFFFF0D2)
-private val MutedText = Color(0xFF72858B)
-private const val FallbackBannerImageUrl =
-    "https://images.unsplash.com/photo-1543353071-10c8ba85a904?auto=format&fit=crop&w=1200&q=80"
+private val FloatingBottomNavHeight = 68.dp
+private val FloatingBottomNavMargin = 14.dp
+private val FloatingCartGap = 8.dp
+private val FloatingCartHeight = 66.dp
+private val OrderingSurface = Color(0xFFFEF8F2)
+private val OrderingHandDrawnBorder = Color(0xFF78555E)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -83,9 +115,24 @@ fun OrderingScreen(
     val uiState by viewModel.uiState.collectAsState()
     var showCartSheet by remember { mutableStateOf(false) }
     var detailItem by remember { mutableStateOf<MenuItem?>(null) }
+    var cartFlyStart by remember { mutableStateOf<Offset?>(null) }
+    var cartIconCenter by remember { mutableStateOf<Offset?>(null) }
+    var pageRootOffset by remember { mutableStateOf(Offset.Zero) }
 
     if (showCartSheet) {
-        ModalBottomSheet(onDismissRequest = { showCartSheet = false }) {
+        ModalBottomSheet(
+            onDismissRequest = { showCartSheet = false },
+            containerColor = Color(0xFFFEF8F2),
+            dragHandle = {
+                Surface(
+                    shape = RoundedCornerShape(999.dp),
+                    color = Color(0xFF5E4B52).copy(alpha = 0.76f),
+                    modifier = Modifier
+                        .padding(top = 18.dp, bottom = 14.dp)
+                        .size(width = 58.dp, height = 6.dp)
+                ) {}
+            }
+        ) {
             CartSheet(
                 cartState = uiState.cartState,
                 onDecrease = viewModel::decrease,
@@ -111,170 +158,207 @@ fun OrderingScreen(
         }
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(
-                Brush.linearGradient(
-                    colors = listOf(
-                        Color(0xFFEEF9FB),
-                        Color(0xFFFFF7E8),
-                        Color(0xFFFFE2C6)
-                    )
-                )
-            )
+    CozyPage(
+        modifier = Modifier.onGloballyPositioned { coordinates ->
+            pageRootOffset = coordinates.positionInRoot()
+        },
+        decorative = false
     ) {
-        Column(modifier = Modifier.fillMaxSize()) {
-            ShopBanner(
-                shopName = uiState.shopName,
+        val navigationBottomPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+        val floatingNavClearance = navigationBottomPadding + FloatingBottomNavMargin + FloatingBottomNavHeight
+        val cartBottomOffset = floatingNavClearance + FloatingCartGap
+        val bottomClearance = if (uiState.cartState.isEmpty) {
+            floatingNavClearance + 16.dp
+        } else {
+            cartBottomOffset + FloatingCartHeight + 18.dp
+        }
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+        ) {
+            ShopCard(
+                shopName = uiState.shopName.ifBlank { "我们的小饭桌" },
                 bannerImageUrl = uiState.shopCoverUrl,
-                onShopNameClick = onShopNameClick
+                announcement = uiState.shopAnnouncement.ifBlank { "今天也给你准备了好吃的 ✨" },
+                onClick = onShopNameClick
             )
-            OrderingSearchBar(
-                query = uiState.searchQuery,
-                onQueryChange = viewModel::onSearchQueryChange
-            )
-            NoticePromotionBar()
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f)
-                    .padding(bottom = if (uiState.cartState.isEmpty) 0.dp else 64.dp)
+                    .padding(horizontal = 20.dp)
             ) {
                 CategoryRail(
-                    categories = uiState.categories,
+                    categories = uiState.orderingCategories,
                     selectedCategory = uiState.selectedCategory,
+                    bottomClearance = bottomClearance,
                     onSelect = viewModel::selectCategory
                 )
                 DishList(
                     items = uiState.visibleItems,
-                    onAdd = viewModel::addToCart,
+                    onAdd = { item, start ->
+                        viewModel.addToCart(item)
+                        cartFlyStart = start - pageRootOffset
+                    },
                     onDishClick = { detailItem = it },
                     onManageMenuClick = onManageMenuClick,
+                    bottomClearance = bottomClearance,
                     modifier = Modifier.weight(1f)
                 )
             }
         }
 
-        if (!uiState.cartState.isEmpty) {
+        AnimatedVisibility(
+            visible = !uiState.cartState.isEmpty,
+            modifier = Modifier.align(Alignment.BottomCenter),
+            enter = CozyMotion.fadeUp(offset = 36, durationMillis = CozyMotion.Standard),
+            exit = fadeOut(tween(CozyMotion.Quick, easing = FastOutSlowInEasing)) +
+                slideOutVertically(tween(CozyMotion.Quick, easing = FastOutSlowInEasing)) { it / 3 }
+        ) {
             CartFloatingBar(
                 count = uiState.cartState.itemCount,
                 totalPrice = uiState.cartState.totalPrice,
-                modifier = Modifier.align(Alignment.BottomCenter),
+                bottomOffset = cartBottomOffset,
+                onCartIconPositioned = { cartIconCenter = it - pageRootOffset },
                 onCartClick = { showCartSheet = true },
                 onCheckoutClick = onCheckoutClick
             )
         }
-    }
-}
 
-@Composable
-private fun ShopBanner(
-    shopName: String,
-    bannerImageUrl: String,
-    onShopNameClick: () -> Unit
-) {
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(176.dp)
-                .background(OrderingPrimary)
-        ) {
-            AsyncImage(
-                model = bannerImageUrl.ifBlank { FallbackBannerImageUrl },
-                contentDescription = shopName,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize()
+        val target = cartIconCenter
+        if (cartFlyStart != null && target != null) {
+            CartFlyToBasketAnimation(
+                start = cartFlyStart!!,
+                target = target,
+                onFinished = { cartFlyStart = null }
             )
-
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        Brush.verticalGradient(
-                            colors = listOf(
-                                Color.Transparent,
-                                OrderingInk.copy(alpha = 0.64f)
-                            )
-                        )
-                    )
-            )
-
-            Column(
-                modifier = Modifier
-                    .align(Alignment.BottomStart)
-                    .padding(start = 20.dp, end = 20.dp, bottom = 18.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                Text(
-                    text = shopName,
-                    color = Color.White,
-                    fontSize = 26.sp,
-                    lineHeight = 31.sp,
-                    fontWeight = FontWeight.Black,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.clickable(onClick = onShopNameClick)
-                )
-                Text(
-                    text = "两个人的今日菜单 · 现点现做",
-                    color = Color.White.copy(alpha = 0.88f),
-                    fontSize = 12.sp,
-                    lineHeight = 16.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
         }
-
     }
 }
 
 @Composable
-private fun OrderingSearchBar(
-    query: String,
-    onQueryChange: (String) -> Unit
-) {
-    Surface(color = Color.Transparent) {
-        OrderSearchField(
-            value = query,
-            onValueChange = onQueryChange,
-            placeholder = "搜索本店菜品",
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+private fun OrderingHeader() {
+    CozyMainTopBar(title = "点菜 - 挑选今日美味")
+    return
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(64.dp)
+            .background(OrderingSurface.copy(alpha = 0.94f))
+            .padding(horizontal = 20.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(Icons.Filled.Favorite, contentDescription = null, tint = CozyRose, modifier = Modifier.size(24.dp))
+        Text(
+            text = "点菜 - 挑选今日美味",
+            color = CozyRose,
+            fontSize = 18.sp,
+            lineHeight = 24.sp,
+            fontWeight = FontWeight.Black,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.weight(1f)
         )
+        Icon(Icons.Filled.Notifications, contentDescription = "通知", tint = CozyRose, modifier = Modifier.size(24.dp))
     }
 }
 
 @Composable
-private fun NoticePromotionBar() {
-    Surface(color = Color.Transparent) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 4.dp)
-                .clip(RoundedCornerShape(999.dp))
-                .height(34.dp)
-                .background(NoticeBackground.copy(alpha = 0.92f))
-                .padding(horizontal = 16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                imageVector = Icons.Outlined.Notifications,
-                contentDescription = null,
-                tint = OrderingPrimary,
-                modifier = Modifier.size(16.dp)
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = "小狗厨师提醒：今天也要好好吃饭，现点现做",
-                color = OrderingInk,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.SemiBold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
+private fun ShopCard(shopName: String, bannerImageUrl: String, announcement: String, onClick: () -> Unit) {
+    val displayShopName = shopName.trim().ifBlank { "我们的小饭桌" }
+    val displayAnnouncement = announcement.trim().ifBlank { "今天也给你准备了好吃的" }
+    val titleFontSize = when {
+        displayShopName.length > 18 -> 16.sp
+        displayShopName.length > 12 -> 17.sp
+        else -> 20.sp
+    }
+    val titleLineHeight = when {
+        displayShopName.length > 18 -> 22.sp
+        displayShopName.length > 12 -> 24.sp
+        else -> 28.sp
+    }
+    val announcementFontSize = when {
+        displayAnnouncement.length > 46 -> 12.sp
+        displayAnnouncement.length > 28 -> 13.sp
+        else -> 15.sp
+    }
+    val announcementLineHeight = when {
+        displayAnnouncement.length > 46 -> 18.sp
+        displayAnnouncement.length > 28 -> 20.sp
+        else -> 22.sp
+    }
+    val announcementMaxLines = if (displayAnnouncement.length > 46) 3 else 2
+
+    SquishyOrderSurface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 88.dp)
+            .padding(horizontal = 20.dp, vertical = 4.dp),
+        radius = 24,
+        containerColor = Color(0xFFFFFCF8),
+        borderColor = OrderingHandDrawnBorder.copy(alpha = 0.48f),
+        onClick = onClick
+    ) {
+        Box(modifier = Modifier.fillMaxWidth()) {
+            Surface(
+                shape = CircleShape,
+                color = Color.White.copy(alpha = 0.24f),
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .offset(x = 38.dp, y = (-38).dp)
+                    .size(108.dp)
+            ) {}
+            Row(
+                modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Surface(
+                    shape = CircleShape,
+                    color = Color.White,
+                    border = BorderStroke(2.dp, OrderingHandDrawnBorder),
+                    modifier = Modifier.size(54.dp)
+                ) {
+                    AsyncImage(
+                        model = bannerImageUrl.takeIf { it.isNotBlank() } ?: R.drawable.ic_launcher_orderdisk_dogs_cropped,
+                        contentDescription = displayShopName,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize().clip(CircleShape)
+                    )
+                }
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text(
+                        text = displayShopName,
+                        color = CozyCocoa,
+                        fontSize = titleFontSize,
+                        lineHeight = titleLineHeight,
+                        fontWeight = FontWeight.Black,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                        Icon(
+                            Icons.Filled.Campaign,
+                            contentDescription = null,
+                            tint = CozyRose,
+                            modifier = Modifier
+                                .padding(top = 1.dp)
+                                .size(15.dp)
+                        )
+                        Text(
+                            text = displayAnnouncement,
+                            color = OrderingHandDrawnBorder,
+                            fontSize = announcementFontSize,
+                            lineHeight = announcementLineHeight,
+                            maxLines = announcementMaxLines,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+            }
         }
     }
 }
@@ -283,184 +367,125 @@ private fun NoticePromotionBar() {
 private fun CategoryRail(
     categories: List<MenuCategory>,
     selectedCategory: String,
+    bottomClearance: Dp,
     onSelect: (String) -> Unit
 ) {
     LazyColumn(
         modifier = Modifier
-            .width(86.dp)
+            .width(96.dp)
             .fillMaxHeight()
-            .padding(start = 8.dp, top = 6.dp, bottom = 6.dp)
-            .clip(RoundedCornerShape(22.dp))
-            .background(Color.White.copy(alpha = 0.74f)),
-        contentPadding = PaddingValues(vertical = 6.dp)
+            .padding(top = 8.dp, bottom = 8.dp),
+        contentPadding = PaddingValues(top = 4.dp, bottom = bottomClearance),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         items(categories, key = { it.id }) { category ->
             val selected = category.id == selectedCategory
-            Row(
+            Surface(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(48.dp)
-                    .background(if (selected) Color.White else Color.Transparent)
+                    .height(46.dp)
                     .clickable { onSelect(category.id) },
-                verticalAlignment = Alignment.CenterVertically
+                shape = RoundedCornerShape(999.dp),
+                color = if (selected) CozyCherry else Color.Transparent,
+                border = BorderStroke(1.dp, if (selected) CozyRose.copy(alpha = 0.24f) else Color.Transparent),
+                shadowElevation = 0.dp
             ) {
-                Box(
-                    modifier = Modifier
-                        .width(3.dp)
-                        .fillMaxHeight()
-                        .background(if (selected) OrderingPrimary else Color.Transparent)
-                )
-                Text(
-                    text = category.name,
-                    modifier = Modifier
-                        .weight(1f)
-                        .padding(horizontal = 6.dp),
-                    color = if (selected) OrderingPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontSize = 13.sp,
-                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
-                    textAlign = TextAlign.Center,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
+                Box(contentAlignment = Alignment.Center) {
+                    Text(
+                        text = category.decoratedCategoryName(),
+                        color = if (selected) CozyRose else CozyMuted,
+                        style = androidx.compose.material3.MaterialTheme.typography.labelMedium,
+                        fontWeight = if (selected) FontWeight.Black else FontWeight.SemiBold,
+                        textAlign = TextAlign.Center,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(horizontal = 8.dp)
+                    )
+                }
             }
         }
+    }
+}
+
+private fun MenuCategory.decoratedCategoryName(): String {
+    return when {
+        id == ORDERING_HOT_CATEGORY_ID || name.contains("热") || name.contains("招牌") -> "热销"
+        name.contains("主") || name.contains("披萨") || name.contains("饭") || name.contains("面") -> "主食"
+        name.contains("饮") || name.contains("喝") || name.contains("咖啡") || name.contains("茶") -> "饮品"
+        name.contains("甜") || name.contains("蛋糕") || name.contains("布丁") -> "甜点"
+        else -> name.take(3)
     }
 }
 
 @Composable
 private fun DishList(
     items: List<MenuItem>,
-    onAdd: (MenuItem) -> Unit,
+    onAdd: (MenuItem, Offset) -> Unit,
     onDishClick: (MenuItem) -> Unit,
     onManageMenuClick: () -> Unit,
+    bottomClearance: Dp,
     modifier: Modifier = Modifier
 ) {
     if (items.isEmpty()) {
-        EmptyMenu(onManageMenuClick = onManageMenuClick, modifier = modifier)
+        EmptyMenu(onManageMenuClick = onManageMenuClick, bottomClearance = bottomClearance, modifier = modifier)
         return
     }
 
     LazyColumn(
-        modifier = modifier
-            .fillMaxHeight()
-            .background(Color.Transparent),
-        contentPadding = PaddingValues(start = 10.dp, top = 6.dp, end = 10.dp, bottom = 14.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
+        modifier = modifier.fillMaxHeight(),
+        contentPadding = PaddingValues(start = 20.dp, top = 8.dp, end = 0.dp, bottom = bottomClearance + 14.dp),
+        verticalArrangement = Arrangement.spacedBy(18.dp)
     ) {
         items(items, key = { it.id }) { item ->
-            SingleShopDishCard(
-                item = item,
-                onClick = { onDishClick(item) },
-                onAdd = { onAdd(item) }
-            )
+            CozyMotionVisibility(delayMillis = (items.indexOf(item).coerceAtMost(4)) * 28) {
+                SingleShopDishCard(item = item, onClick = { onDishClick(item) }, onAdd = { start -> onAdd(item, start) })
+            }
         }
     }
 }
 
 @Composable
-private fun SingleShopDishCard(
-    item: MenuItem,
-    onClick: () -> Unit,
-    onAdd: () -> Unit
-) {
-    Card(
-        shape = RoundedCornerShape(22.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.96f)),
-        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
-        modifier = Modifier.fillMaxWidth()
+private fun SingleShopDishCard(item: MenuItem, onClick: () -> Unit, onAdd: (Offset) -> Unit) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(18.dp),
+        color = Color.White.copy(alpha = 0.68f),
+        border = BorderStroke(2.dp, Color.White),
+        shadowElevation = 0.dp
     ) {
-        Box(modifier = Modifier.fillMaxWidth()) {
-            Row(
+        Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(11.dp)) {
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable(onClick = onClick)
-                    .padding(12.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically
+                    .aspectRatio(1f)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(CozyCherry.copy(alpha = 0.62f)),
+                contentAlignment = Alignment.Center
             ) {
-                DishImage(item = item)
-                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                    Text(
-                        text = item.name,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        fontSize = 16.sp,
-                        lineHeight = 20.sp,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                if (item.imageUrl.isNotBlank()) {
+                    AsyncImage(
+                        model = item.imageUrl,
+                        contentDescription = item.name,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
                     )
-                    Text(
-                        text = item.description.ifBlank { item.subtitle },
-                        color = MutedText,
-                        fontSize = 12.sp,
-                        lineHeight = 16.sp,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Text(
-                        text = "月售 ${item.monthlySales}",
-                        color = MutedText,
-                        fontSize = 12.sp,
-                        maxLines = 1
-                    )
-                    Text(
-                        text = priceYuanText(item.price),
-                        color = OrderingHeart,
-                        fontSize = 18.sp,
-                        lineHeight = 22.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-                Spacer(modifier = Modifier.width(34.dp))
-            }
-
-            Surface(
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(end = 12.dp, bottom = 12.dp)
-                    .size(30.dp)
-                    .clickable(onClick = onAdd),
-                shape = CircleShape,
-                color = OrderingPrimary
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        imageVector = Icons.Outlined.Add,
-                        contentDescription = "加入购物车",
-                        tint = Color.White,
-                        modifier = Modifier.size(18.dp)
-                    )
+                } else {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Icon(Icons.Filled.Restaurant, contentDescription = null, tint = CozyRose, modifier = Modifier.size(40.dp))
+                        Text("暂无图片", color = CozyMuted, style = androidx.compose.material3.MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                    }
                 }
             }
-        }
-    }
-}
-
-@Composable
-private fun DishImage(item: MenuItem) {
-    if (item.imageUrl.isNotBlank()) {
-        AsyncImage(
-            model = item.imageUrl,
-            contentDescription = item.name,
-            contentScale = ContentScale.Crop,
-            modifier = Modifier
-                .size(78.dp)
-                .clip(RoundedCornerShape(18.dp))
-        )
-    } else {
-        Box(
-            modifier = Modifier
-                .size(78.dp)
-                .clip(RoundedCornerShape(18.dp))
-                .background(OrderingWarm.copy(alpha = 0.75f)),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                Icons.Outlined.Restaurant,
-                contentDescription = null,
-                tint = OrderingPrimary,
-                modifier = Modifier.size(38.dp)
-            )
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(item.name, color = CozyCocoa, fontSize = 17.sp, lineHeight = 24.sp, fontWeight = FontWeight.Black, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(item.description.ifBlank { item.subtitle }.ifBlank { "今天也很适合点这一道" }, color = CozyMuted, style = androidx.compose.material3.MaterialTheme.typography.labelSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Row(verticalAlignment = Alignment.Bottom, modifier = Modifier.fillMaxWidth()) {
+                    Text(priceYuanText(item.price), color = CozyRose, fontSize = 19.sp, fontWeight = FontWeight.Black, modifier = Modifier.weight(1f))
+                    AddDishButton(onClick = onAdd)
+                }
+            }
         }
     }
 }
@@ -470,183 +495,246 @@ private fun CartFloatingBar(
     count: Int,
     totalPrice: Double,
     modifier: Modifier = Modifier,
+    bottomOffset: Dp,
+    onCartIconPositioned: (Offset) -> Unit,
     onCartClick: () -> Unit,
     onCheckoutClick: () -> Unit
 ) {
     Surface(
         modifier = modifier
-            .padding(start = 18.dp, end = 18.dp, bottom = 14.dp)
+            .padding(start = 20.dp, end = 20.dp, bottom = bottomOffset)
             .fillMaxWidth()
-            .height(58.dp),
-        shape = RoundedCornerShape(22.dp),
-        color = OrderingInk,
-        shadowElevation = 10.dp,
+            .height(FloatingCartHeight),
+        shape = RoundedCornerShape(999.dp),
+        color = Color(0xFFFFFCF8),
+        border = BorderStroke(1.dp, Color(0xFFD6C1C5).copy(alpha = 0.82f)),
+        shadowElevation = 0.dp,
         onClick = onCartClick
     ) {
-        Row(
-            modifier = Modifier.fillMaxSize(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+        Row(modifier = Modifier.fillMaxSize().padding(start = 26.dp, end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(
                 modifier = Modifier
-                    .padding(start = 16.dp)
-                    .size(34.dp),
+                    .size(38.dp)
+                    .onGloballyPositioned { coordinates ->
+                        val topLeft = coordinates.positionInRoot()
+                        onCartIconPositioned(
+                            Offset(
+                                x = topLeft.x + coordinates.size.width / 2f,
+                                y = topLeft.y + coordinates.size.height / 2f
+                            )
+                        )
+                    }
+                    .cozyPulseOnChange(count, targetScale = 1.1f),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = Icons.Outlined.ShoppingCart,
-                    contentDescription = null,
-                    tint = if (count > 0) OrderingPrimary else Color(0xFF8E8E8E),
-                    modifier = Modifier.size(28.dp)
-                )
-                if (count > 0) {
-                    Surface(
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .offset(x = 6.dp, y = (-5).dp)
-                            .size(18.dp),
-                        shape = CircleShape,
-                        color = CartBadgeRed
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Text(
-                                text = count.toString(),
-                                color = Color.White,
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold,
-                                textAlign = TextAlign.Center
-                            )
-                        }
+                Icon(Icons.Filled.ShoppingBag, contentDescription = "购物篮", tint = CozyRose, modifier = Modifier.size(30.dp))
+                Surface(
+                    modifier = Modifier.align(Alignment.TopEnd).offset(x = 5.dp, y = (-5).dp).size(20.dp).cozyPulseOnChange(count, targetScale = 1.16f),
+                    shape = CircleShape,
+                    color = CozyRose
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Text(count.toString(), color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Black)
                     }
                 }
             }
+            Text(priceYuanText(totalPrice), color = CozyCocoa, fontSize = 22.sp, fontWeight = FontWeight.Black, modifier = Modifier.weight(1f).padding(start = 14.dp))
+            SquishyCheckoutButton(text = "去结算", onClick = onCheckoutClick)
+        }
+    }
+}
 
-            Text(
-                text = priceYuanText(totalPrice),
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(start = 14.dp, end = 8.dp),
-                color = Color.White,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Black,
-                maxLines = 1
-            )
-
-            Button(
-                onClick = onCheckoutClick,
-                modifier = Modifier
-                    .padding(end = 6.dp)
-                    .height(44.dp)
-                    .width(112.dp),
-                shape = RoundedCornerShape(18.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = OrderingPrimary,
-                    contentColor = Color.White,
-                    disabledContainerColor = OrderingPrimary.copy(alpha = 0.45f),
-                    disabledContentColor = Color.White.copy(alpha = 0.88f)
+@Composable
+private fun SquishyCheckoutButton(text: String, onClick: () -> Unit) {
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    Box(
+        modifier = Modifier
+            .height(54.dp)
+            .scale(if (pressed) 0.96f else 1f)
+    ) {
+        Surface(
+            modifier = Modifier
+                .fillMaxHeight()
+                .clickable(
+                    interactionSource = interaction,
+                    indication = null,
+                    onClick = onClick
                 ),
-                contentPadding = PaddingValues(horizontal = 0.dp)
+            shape = RoundedCornerShape(999.dp),
+            color = CozyRose
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .padding(horizontal = 34.dp),
+                contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = "去结算",
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Black
-                )
+                Text(text, color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Black, maxLines = 1)
             }
         }
     }
 }
 
 @Composable
-private fun EmptyMenu(
-    onManageMenuClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
+private fun EmptyMenu(onManageMenuClick: () -> Unit, bottomClearance: Dp, modifier: Modifier = Modifier) {
     Column(
-            modifier = modifier
-                .fillMaxSize()
-            .background(Color.Transparent)
-            .padding(24.dp),
+        modifier = modifier.fillMaxSize().padding(start = 24.dp, top = 24.dp, end = 24.dp, bottom = bottomClearance),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Icon(
-            Icons.Outlined.Restaurant,
-            contentDescription = null,
-            tint = OrderingPrimary,
-            modifier = Modifier.size(48.dp)
-        )
+        CozyIconBadge(Icons.Filled.Restaurant, background = CozyCherry, tint = CozyRose, modifier = Modifier.size(62.dp))
         Spacer(modifier = Modifier.height(12.dp))
-        Text("还没有菜品", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        Text("还没有菜品", color = CozyCocoa, style = androidx.compose.material3.MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Black)
         Spacer(modifier = Modifier.height(6.dp))
-        Text(
-            text = "先添加菜名、价格、图片和分类，然后就能开始下单。",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MutedText,
-            textAlign = TextAlign.Center
-        )
-        Spacer(modifier = Modifier.height(14.dp))
-        Button(
-            onClick = onManageMenuClick,
-            shape = RoundedCornerShape(8.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = OrderingPrimary, contentColor = Color.White)
-        ) {
-            Text("去设置菜品")
+        Text("先添加菜名、价格、图片和分类，然后就能开始下单。", color = CozyMuted, textAlign = TextAlign.Center, style = androidx.compose.material3.MaterialTheme.typography.bodyMedium)
+        Spacer(modifier = Modifier.height(16.dp))
+        CozyPrimaryButton(text = "去设置菜品", onClick = onManageMenuClick, modifier = Modifier.fillMaxWidth())
+    }
+}
+
+private fun priceYuanText(value: Double): String {
+    val cents = kotlin.math.round(value * 100).toLong()
+    return if (cents % 100L == 0L) {
+        "¥ ${cents / 100L}"
+    } else {
+        "¥ %.2f".format(value)
+    }
+}
+
+@Composable
+private fun CartFlyToBasketAnimation(
+    start: Offset,
+    target: Offset,
+    onFinished: () -> Unit
+) {
+    val x = remember(start) { Animatable(start.x) }
+    val y = remember(start) { Animatable(start.y) }
+    val scale = remember(start) { Animatable(1f) }
+    val dotRadius = with(LocalDensity.current) { 14.dp.toPx() }
+    val density = LocalDensity.current
+    val jumpPeakY = start.y - with(density) { 72.dp.toPx() }
+    val jumpPeakX = start.x - with(density) { 30.dp.toPx() }
+
+    LaunchedEffect(start, target) {
+        x.animateTo(jumpPeakX, animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing))
+        x.animateTo(target.x, animationSpec = tween(durationMillis = 620, easing = FastOutSlowInEasing))
+    }
+    LaunchedEffect(start, target) {
+        y.animateTo(jumpPeakY, animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing))
+        y.animateTo(target.y, animationSpec = tween(durationMillis = 620, easing = FastOutSlowInEasing))
+        onFinished()
+    }
+    LaunchedEffect(start) {
+        scale.animateTo(1.1f, animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing))
+        scale.animateTo(0.72f, animationSpec = tween(durationMillis = 620, easing = FastOutSlowInEasing))
+    }
+
+    Surface(
+        modifier = Modifier
+            .offset {
+                IntOffset(
+                    x = (x.value - dotRadius).roundToInt(),
+                    y = (y.value - dotRadius).roundToInt()
+                )
+            }
+            .size(28.dp)
+            .scale(scale.value),
+        shape = CircleShape,
+        color = CozyRose,
+        border = BorderStroke(2.dp, Color.White)
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Icon(Icons.Filled.Add, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
         }
     }
 }
 
-private fun priceYuanText(value: Double): String = "¥%.2f".format(value)
+@Composable
+private fun AddDishButton(onClick: (Offset) -> Unit) {
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    var centerInRoot by remember { mutableStateOf(Offset.Zero) }
+    Box(modifier = Modifier.size(36.dp).scale(if (pressed) 0.96f else 1f)) {
+        Surface(
+            modifier = Modifier
+                .matchParentSize()
+                .onGloballyPositioned { coordinates ->
+                    val topLeft = coordinates.positionInRoot()
+                    centerInRoot = Offset(
+                        x = topLeft.x + coordinates.size.width / 2f,
+                        y = topLeft.y + coordinates.size.height / 2f
+                    )
+                }
+                .clickable(interactionSource = interaction, indication = null, onClick = { onClick(centerInRoot) }),
+            shape = CircleShape,
+            color = CozyRose
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(Icons.Filled.Add, contentDescription = "加入购物篮", tint = Color.White, modifier = Modifier.size(20.dp))
+            }
+        }
+    }
+}
 
 @Composable
-private fun OrderingDishDetailSheet(
-    item: MenuItem,
-    onAdd: () -> Unit,
-    onClose: () -> Unit
+private fun SquishyOrderSurface(
+    modifier: Modifier = Modifier,
+    radius: Int,
+    containerColor: Color,
+    borderColor: Color,
+    onClick: () -> Unit,
+    content: @Composable () -> Unit
 ) {
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    Surface(
+        modifier = modifier
+            .scale(if (pressed) 0.985f else 1f)
+            .clickable(interactionSource = interaction, indication = null, onClick = onClick),
+        shape = RoundedCornerShape(radius.dp),
+        color = containerColor,
+        border = BorderStroke(1.dp, borderColor)
+    ) {
+        content()
+    }
+}
+
+@Composable
+private fun OrderingDishDetailSheet(item: MenuItem, onAdd: () -> Unit, onClose: () -> Unit) {
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(start = 20.dp, end = 20.dp, bottom = 28.dp),
+        modifier = Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, bottom = 28.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(190.dp)
-                .clip(RoundedCornerShape(14.dp))
-                .background(MaterialTheme.colorScheme.primaryContainer),
+            modifier = Modifier.fillMaxWidth().height(210.dp).clip(RoundedCornerShape(24.dp)).background(CozyCherry),
             contentAlignment = Alignment.Center
         ) {
             if (item.imageUrl.isNotBlank()) {
-                AsyncImage(
-                    model = item.imageUrl,
-                    contentDescription = item.name,
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop
-                )
+                AsyncImage(model = item.imageUrl, contentDescription = item.name, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
             } else {
-                Icon(Icons.Outlined.Restaurant, contentDescription = null, tint = OrderingPrimary, modifier = Modifier.size(42.dp))
+                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Icon(Icons.Filled.Restaurant, contentDescription = null, tint = CozyRose, modifier = Modifier.size(44.dp))
+                    Text("暂无图片", color = CozyMuted, fontWeight = FontWeight.Bold)
+                }
             }
         }
-        Text(item.name, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-        Text(item.description.ifBlank { item.subtitle }, color = MutedText, style = MaterialTheme.typography.bodyMedium)
+        Text(item.name, color = CozyCocoa, style = androidx.compose.material3.MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Black)
+        Text(item.description.ifBlank { item.subtitle }.ifBlank { "暂无描述" }, color = CozyMuted, style = androidx.compose.material3.MaterialTheme.typography.bodyMedium)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Surface(shape = RoundedCornerShape(999.dp), color = NoticeBackground) {
-                Text(item.categoryId, color = OrderingPrimary, modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp))
-            }
-            Text("月售 ${item.monthlySales}", color = MutedText)
+            CozyPill(item.categoryId, color = CozyTerracotta)
+            Text("小店在售", color = CozyMuted)
         }
-        Text(priceYuanText(item.price), color = OrderingHeart, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+        Text(priceYuanText(item.price), color = CozyRose, fontSize = 26.sp, fontWeight = FontWeight.Black)
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            TextButton(onClick = onClose, modifier = Modifier.weight(1f)) { Text("关闭") }
+            TextButton(onClick = onClose, modifier = Modifier.weight(1f)) { Text("关闭", color = CozyMuted) }
             Button(
                 onClick = onAdd,
                 modifier = Modifier.weight(1f),
-                shape = RoundedCornerShape(8.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = OrderingPrimary, contentColor = Color.White)
+                shape = RoundedCornerShape(999.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = CozyRose, contentColor = Color.White)
             ) {
-                Text("加入购物车")
+                Text("加入购物篮", fontWeight = FontWeight.Black)
             }
         }
     }

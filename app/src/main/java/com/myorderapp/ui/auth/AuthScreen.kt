@@ -1,5 +1,6 @@
 package com.myorderapp.ui.auth
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -12,13 +13,13 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -29,6 +30,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import org.koin.androidx.compose.koinViewModel
 
@@ -36,7 +38,8 @@ import org.koin.androidx.compose.koinViewModel
 fun AuthScreen(
     viewModel: AuthViewModel = koinViewModel(),
     onLoggedIn: () -> Unit = {},
-    onRegisterClick: () -> Unit = {}
+    onRegisterClick: () -> Unit = {},
+    onForgotPasswordClick: () -> Unit = { viewModel.sendPasswordResetEmail() }
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
@@ -58,18 +61,18 @@ fun AuthScreen(
         ) {
             AuthLogo()
 
-            Spacer(modifier = Modifier.height(18.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
             Text(
                 text = "欢迎回来",
                 style = MaterialTheme.typography.displayLarge,
-                color = Color(0xFF173B44),
+                color = AuthInk,
                 fontWeight = FontWeight.ExtraBold
             )
             Text(
-                text = "继续今天的菜单",
+                text = "今天也一起好好吃饭吧",
                 style = MaterialTheme.typography.bodyMedium,
-                color = Color(0xFF6F858B),
+                color = AuthMuted,
                 modifier = Modifier.padding(top = 6.dp)
             )
 
@@ -80,80 +83,100 @@ fun AuthScreen(
                     AuthInputField(
                         value = uiState.email,
                         onValueChange = viewModel::onEmailChanged,
-                        label = "邮箱",
-                        placeholder = "输入邮箱地址",
+                        label = "账号 / 邮箱 / 手机号",
+                        placeholder = "账号 / 邮箱 / 手机号",
                         modifier = Modifier.fillMaxWidth(),
+                        floatingLabel = false,
                         keyboardOptions = KeyboardOptions(
                             keyboardType = KeyboardType.Email,
                             imeAction = ImeAction.Next
                         )
                     )
 
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(20.dp))
 
                     AuthInputField(
                         value = uiState.password,
                         onValueChange = viewModel::onPasswordChanged,
                         label = "密码",
-                        placeholder = "输入密码",
+                        placeholder = "密码",
                         modifier = Modifier.fillMaxWidth(),
                         isPassword = true,
+                        floatingLabel = false,
                         keyboardOptions = KeyboardOptions(
                             keyboardType = KeyboardType.Password,
                             imeAction = ImeAction.Done
                         )
                     )
 
-                    Spacer(modifier = Modifier.height(10.dp))
+                    Spacer(modifier = Modifier.height(18.dp))
 
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable {
-                                viewModel.onRememberCredentialsChanged(!uiState.rememberCredentials)
-                            },
+                        modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Checkbox(
-                            checked = uiState.rememberCredentials,
-                            onCheckedChange = viewModel::onRememberCredentialsChanged,
-                            colors = CheckboxDefaults.colors(
-                                checkedColor = Color(0xFF2E7F99),
-                                uncheckedColor = Color(0xFF8AA6AB),
-                                checkmarkColor = Color(0xFFFFFBF5)
+                        Row(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clickable {
+                                    viewModel.onRememberCredentialsChanged(!uiState.rememberCredentials)
+                                },
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Checkbox(
+                                checked = uiState.rememberCredentials,
+                                onCheckedChange = viewModel::onRememberCredentialsChanged,
+                                colors = CheckboxDefaults.colors(
+                                    checkedColor = AuthPrimaryEnd,
+                                    uncheckedColor = AuthMuted.copy(alpha = 0.70f),
+                                    checkmarkColor = Color(0xFFFFFBF5)
+                                )
                             )
-                        )
+                            Text(
+                                text = "记住账号密码",
+                                color = AuthInk,
+                                style = MaterialTheme.typography.bodySmall,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                        TextButton(
+                            onClick = onForgotPasswordClick,
+                            enabled = !uiState.isLoading
+                        ) {
+                            Text(
+                                text = "忘记密码？",
+                                color = AuthPrimaryEnd,
+                                style = MaterialTheme.typography.bodySmall,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+
+                    uiState.errorMessage?.let { message ->
+                        Spacer(modifier = Modifier.height(10.dp))
                         Text(
-                            text = "记住账号密码",
-                            color = Color(0xFF173B44),
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.SemiBold
+                            text = message,
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodySmall,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth()
                         )
                     }
 
-                    if (uiState.errorMessage != null) {
-                        Spacer(modifier = Modifier.height(10.dp))
-                        Text(
-                            text = uiState.errorMessage!!,
-                            color = MaterialTheme.colorScheme.error,
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                    }
+                    Spacer(modifier = Modifier.height(18.dp))
+
+                    AuthPrimaryButton(
+                        text = if (uiState.isLoading) "登录中..." else "登录",
+                        onClick = viewModel::submit,
+                        enabled = !uiState.isLoading,
+                        modifier = Modifier.fillMaxWidth()
+                    )
                 }
             }
 
-            Spacer(modifier = Modifier.height(18.dp))
-
-            AuthPrimaryButton(
-                text = if (uiState.isLoading) "请稍候..." else "登录",
-                onClick = viewModel::submit,
-                enabled = !uiState.isLoading,
-                modifier = Modifier.fillMaxWidth()
-            )
-
             AuthBottomLink(
-                prefix = "没有账号？",
-                actionText = "创建账号",
+                prefix = "还没有账号？",
+                actionText = "去注册",
                 onClick = onRegisterClick,
                 modifier = Modifier.padding(top = 10.dp)
             )

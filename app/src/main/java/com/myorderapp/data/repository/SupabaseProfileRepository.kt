@@ -3,20 +3,24 @@ package com.myorderapp.data.repository
 import android.content.Context
 import com.myorderapp.data.remote.supabase.SessionManager
 import com.myorderapp.data.remote.supabase.SupabaseClientProvider
+import com.myorderapp.domain.model.CandyCoinRecord
 import com.myorderapp.domain.model.DietaryPreference
 import com.myorderapp.domain.model.PairInfo
 import com.myorderapp.domain.model.Profile
 import com.myorderapp.domain.repository.ProfileRepository
+import com.myorderapp.domain.repository.CandyCoinLedgerRepository
 import io.github.jan.supabase.postgrest.from
 import java.time.Duration
 import java.time.Instant
+import java.util.UUID
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 class SupabaseProfileRepository(
     private val session: SessionManager,
-    context: Context
+    context: Context,
+    private val candyCoinLedgerRepository: CandyCoinLedgerRepository
 ) : ProfileRepository {
 
     private companion object {
@@ -67,6 +71,54 @@ class SupabaseProfileRepository(
         }
     }
 
+    override suspend fun addCandyCoins(amount: Int): Boolean {
+        if (amount <= 0) return true
+        val current = _profile.value ?: loadLocalProfile()
+        return persistCandyCoins(current, (current.candyCoins + amount).coerceAtMost(9999))
+    }
+
+    override suspend fun addPartnerCandyCoins(amount: Int): Boolean {
+        if (amount <= 0) return true
+        val current = _profile.value ?: loadLocalProfile()
+        val pairId = current.pairId
+        if (!session.isLoggedIn.value || pairId.isBlank() || pairId == "00000000-0000-0000-0000-000000000000") {
+            return false
+        }
+        return try {
+            val partner = client.from("profiles").select {
+                filter { eq("pair_id", pairId) }
+            }.decodeList<Profile>().firstOrNull { it.userId != session.currentUserId } ?: return false
+            val newBalance = (partner.candyCoins + amount).coerceAtMost(9999)
+            client.from("profiles").update(
+                mapOf("candy_coins" to newBalance, "updated_at" to Instant.now().toString())
+            ) {
+                filter { eq("user_id", partner.userId) }
+            }
+            candyCoinLedgerRepository.addRecord(
+                CandyCoinRecord(
+                    id = UUID.randomUUID().toString(),
+                    type = "recharge",
+                    amount = amount,
+                    balanceAfter = newBalance,
+                    actorRole = "caretaker",
+                    targetRole = "eater",
+                    note = "饲养员充值",
+                    createdAt = Instant.now().toString()
+                )
+            )
+            true
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    override suspend fun spendCandyCoins(amount: Int): Boolean {
+        if (amount <= 0) return true
+        val current = _profile.value ?: loadLocalProfile()
+        if (current.candyCoins < amount) return false
+        return persistCandyCoins(current, current.candyCoins - amount)
+    }
+
     override suspend fun loadProfile() {
         val local = loadLocalProfile()
         if (_profile.value == null) _profile.value = local
@@ -76,6 +128,9 @@ class SupabaseProfileRepository(
     override suspend fun generatePairCode(): String {
         val chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
         val code = (1..6).map { chars.random() }.joinToString("")
+        val current = _profile.value ?: loadLocalProfile()
+        saveProfile(current.copy(pairId = code, pairedAt = current.pairedAt.ifBlank { Instant.now().toString() }))
+        session.setPairId(code)
         prefs.edit().putString(KEY_PENDING_PAIR_CODE, code).apply()
         return code
     }
@@ -98,6 +153,7 @@ class SupabaseProfileRepository(
         }
         var partnerName = ""
         var partnerUpdatedAt = ""
+        var partnerCandyCoins: Int? = null
         if (session.isLoggedIn.value) {
             try {
                 val partnerProfiles = client.from("profiles").select {
@@ -106,13 +162,15 @@ class SupabaseProfileRepository(
                 val partner = partnerProfiles.firstOrNull { it.userId != session.currentUserId }
                 partnerName = partner?.nickname ?: ""
                 partnerUpdatedAt = partner?.updatedAt ?: ""
+                partnerCandyCoins = partner?.candyCoins
             } catch (_: Exception) { }
         }
         return PairInfo(
             partnerName = partnerName.ifBlank { "已配对" },
             isPaired = true,
             isOnline = partnerUpdatedAt.isRecentlySeen(),
-            pairCode = pairId
+            pairCode = pairId,
+            partnerCandyCoins = partnerCandyCoins
         )
     }
 
@@ -200,6 +258,7 @@ class SupabaseProfileRepository(
             .putString("paired_at", profile.pairedAt)
             .putString("created_at", profile.createdAt)
             .putString("updated_at", profile.updatedAt)
+            .putInt("candy_coins", profile.candyCoins)
             .apply()
     }
 
@@ -212,6 +271,7 @@ class SupabaseProfileRepository(
             tastePrefs = DietaryPreference(),
             createdAt = prefs.getString("created_at", "") ?: "",
             updatedAt = prefs.getString("updated_at", "") ?: "",
+            candyCoins = prefs.getInt("candy_coins", 66),
             pairedAt = prefs.getString("paired_at", "") ?: ""
         )
     }
@@ -225,6 +285,36 @@ class SupabaseProfileRepository(
             },
             createdAt = profile.createdAt.ifBlank { Instant.now().toString() }
         )
+    }
+
+    private suspend fun persistCandyCoins(current: Profile, newBalance: Int): Boolean {
+        val updated = normalizeProfile(current).copy(candyCoins = newBalance, updatedAt = Instant.now().toString())
+        if (session.isLoggedIn.value) {
+            try {
+                client.from("profiles").update(
+                    mapOf("candy_coins" to updated.candyCoins, "updated_at" to updated.updatedAt)
+                ) {
+                    filter { eq("user_id", updated.userId) }
+                }
+            } catch (_: Exception) {
+                return false
+            }
+        }
+        _profile.value = updated
+        saveLocalProfile(updated)
+        candyCoinLedgerRepository.addRecord(
+            CandyCoinRecord(
+                id = UUID.randomUUID().toString(),
+                type = if (newBalance >= current.candyCoins) "refund" else "spend",
+                amount = newBalance - current.candyCoins,
+                balanceAfter = newBalance,
+                actorRole = "system",
+                targetRole = "eater",
+                note = if (newBalance >= current.candyCoins) "取消订单返还" else "点菜消耗",
+                createdAt = Instant.now().toString()
+            )
+        )
+        return true
     }
 
     private fun String.isRecentlySeen(): Boolean {

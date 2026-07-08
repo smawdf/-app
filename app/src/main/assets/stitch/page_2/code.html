@@ -1,0 +1,307 @@
+<!DOCTYPE html><html lang="zh-CN" style=""><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>发现 - 探索新菜谱</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;700&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@600;700&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "inverse-primary": "#ffb1c3",
+                        "secondary": "#78555e",
+                        "surface-tint": "#894c5c",
+                        "on-primary-container": "#733949",
+                        "on-tertiary-fixed": "#380d01",
+                        "on-tertiary-container": "#753c27",
+                        "secondary-container": "#ffd1dc",
+                        "on-primary": "#ffffff",
+                        "outline": "#847376",
+                        "on-surface-variant": "#524346",
+                        "on-error": "#ffffff",
+                        "surface-container-lowest": "#ffffff",
+                        "surface-container-highest": "#e7e2dc",
+                        "on-tertiary": "#ffffff",
+                        "inverse-surface": "#32302c",
+                        "error-container": "#ffdad6",
+                        "background": "#fef8f2",
+                        "outline-variant": "#d6c1c5",
+                        "on-secondary-fixed": "#2d141c",
+                        "tertiary": "#8b4e38",
+                        "surface-dim": "#dfd9d3",
+                        "tertiary-container": "#f8a98e",
+                        "surface-container-low": "#f8f3ed",
+                        "primary-fixed-dim": "#ffb1c3",
+                        "on-primary-fixed-variant": "#6e3545",
+                        "error": "#ba1a1a",
+                        "primary-fixed": "#ffd9e0",
+                        "secondary-fixed": "#ffd9e2",
+                        "primary": "#894c5c",
+                        "on-surface": "#1d1b18",
+                        "tertiary-fixed": "#ffdbcf",
+                        "surface-container": "#f3ede7",
+                        "surface": "#fef8f2",
+                        "on-secondary": "#ffffff",
+                        "tertiary-fixed-dim": "#ffb59c",
+                        "surface-variant": "#e7e2dc",
+                        "on-tertiary-fixed-variant": "#6f3723",
+                        "on-primary-fixed": "#380a1a",
+                        "on-background": "#1d1b18",
+                        "secondary-fixed-dim": "#e7bbc6",
+                        "inverse-on-surface": "#f6f0ea",
+                        "on-secondary-fixed-variant": "#5e3e47",
+                        "surface-container-high": "#ede7e1",
+                        "surface-bright": "#fef8f2",
+                        "on-error-container": "#93000a",
+                        "primary-container": "#f4a7b9",
+                        "on-secondary-container": "#7a5761"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "lg": "24px",
+                        "md": "16px",
+                        "margin-desktop": "64px",
+                        "margin-mobile": "20px",
+                        "xl": "40px",
+                        "xs": "4px",
+                        "unit": "4px",
+                        "gutter": "16px",
+                        "sm": "8px"
+                    },
+                    "fontFamily": {
+                        "body-lg": ["Plus Jakarta Sans"],
+                        "headline-md": ["Be Vietnam Pro"],
+                        "headline-lg-mobile": ["Be Vietnam Pro"],
+                        "body-md": ["Plus Jakarta Sans"],
+                        "label-bold": ["Plus Jakarta Sans"],
+                        "headline-lg": ["Be Vietnam Pro"]
+                    },
+                    "fontSize": {
+                        "body-lg": ["18px", { "lineHeight": "28px", "fontWeight": "400" }],
+                        "headline-md": ["24px", { "lineHeight": "32px", "fontWeight": "600" }],
+                        "headline-lg-mobile": ["28px", { "lineHeight": "36px", "fontWeight": "700" }],
+                        "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "label-bold": ["14px", { "lineHeight": "20px", "fontWeight": "700" }],
+                        "headline-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700" }]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            background-color: #fef8f2;
+            color: #1d1b18;
+            min-height: max(884px, 100dvh);
+        }
+        .squishy-btn {
+            box-shadow: 0 4px 0 0 #733949;
+            transition: all 0.1s ease;
+        }
+        .squishy-btn:active {
+            transform: translateY(4px);
+            box-shadow: 0 0 0 0 #733949;
+        }
+        .card-border {
+            border: 2px solid #78555e;
+            border-radius: 16px;
+        }
+        .input-border {
+            border: 2px solid transparent;
+            transition: border-color 0.2s ease;
+        }
+        .input-border:focus-within {
+            border-color: #894c5c;
+        }
+        
+        /* Animations */
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .animate-slide-up {
+            animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        .animate-slide-up-delay-1 {
+            animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.1s forwards;
+            opacity: 0;
+        }
+
+        .animate-slide-up-delay-2 {
+            animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.2s forwards;
+            opacity: 0;
+        }
+
+        /* Glass NavBar */
+        .glass-nav {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(25px);
+            -webkit-backdrop-filter: blur(25px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.05);
+        }
+
+        /* Heart Shape Background for Active Item */
+        .heart-bg {
+            position: relative;
+        }
+        
+        .heart-bg::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 52px;
+            height: 52px;
+            background-color: var(--tw-colors-primary-container);
+            opacity: 0.8;
+            border-radius: 50%;
+            z-index: -1;
+            /* Adjust shape slightly if a true heart is complex in pure CSS without an SVG, using a rounded square rotated or simple circle for 'pill' design if heart is too complex for this simplified edit. Assuming a stylistic heart-like blob or circle is intended given standard UI constraints, we'll use a soft circle that fits the aesthetic closely. */
+            border-radius: 40% 60% 60% 40% / 50% 40% 60% 50%; /* Soft organic shape */
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .heart-shape-actual::before, .heart-shape-actual::after {
+            content: "";
+            position: absolute;
+            top: 0;
+            width: 26px;
+            height: 40px;
+            border-radius: 26px 26px 0 0;
+            background: var(--tw-colors-primary-container);
+        }
+        
+        /* Simpler approach for the heart active state that scales better */
+        .heart-active-state {
+            position: relative;
+            z-index: 1;
+        }
+        
+        .heart-active-state::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 48px;
+            height: 48px;
+            background-color: #ffd1dc; /* secondary-container */
+            border-radius: 50%;
+            transform: translate(-50%, -50%) scale(1);
+            z-index: -1;
+            transition: transform 0.3s ease;
+        }
+    </style>
+</head>
+<body class="font-body-md antialiased pb-[100px]">
+<!-- Top App Bar -->
+<header class="sticky top-0 w-full z-40 bg-background/80 backdrop-blur-md flex justify-between items-center px-margin-mobile py-sm">
+<button aria-label="Favorite" class="text-primary hover:opacity-80 scale-95 transition-transform p-2 active:scale-90">
+<span class="material-symbols-outlined" data-icon="favorite" style="font-variation-settings: 'FILL' 0;">favorite</span>
+</button>
+<h1 class="font-headline-md text-headline-md text-primary font-bold">发现</h1>
+<button aria-label="Notifications" class="text-primary hover:opacity-80 scale-95 transition-transform p-2 active:scale-90">
+<span class="material-symbols-outlined" data-icon="notifications" style="font-variation-settings: 'FILL' 0;">notifications</span>
+</button>
+</header>
+<main class="max-w-[1200px] mx-auto px-margin-mobile md:px-margin-desktop pt-lg">
+<!-- Header Section -->
+<div class="mb-xl text-center md:text-left animate-slide-up">
+<h2 class="font-headline-lg-mobile md:font-headline-lg text-primary mb-sm">发现 - 探索新菜谱</h2>
+<p class="font-body-lg text-on-surface-variant">搜一搜，给你们的小饭桌加点新菜</p>
+</div>
+<!-- Search Bar -->
+<div class="mb-xl relative max-w-2xl mx-auto md:mx-0 animate-slide-up-delay-1">
+<div class="input-border bg-surface-container-highest rounded-full flex items-center px-lg py-sm h-[60px]">
+<span class="material-symbols-outlined text-outline mr-sm" data-icon="search">search</span>
+<input class="w-full bg-transparent border-none outline-none font-body-lg text-on-surface placeholder:text-outline focus:ring-0" placeholder="想吃点什么？例如：糖醋排骨..." type="text">
+</div>
+</div>
+<!-- Search Results -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-lg mb-xl animate-slide-up-delay-2">
+<!-- Result Item 1 -->
+<div class="card-border bg-secondary-container p-sm flex items-center gap-md hover:-translate-y-1 transition-transform duration-300 active:scale-[0.98]">
+<div class="w-[100px] h-[100px] rounded-lg overflow-hidden shrink-0 border-2 border-secondary">
+<img class="w-full h-full object-cover" data-alt="A warm, hand-drawn style illustration of a plate of sweet and sour pork ribs..." src="https://lh3.googleusercontent.com/aida-public/AB6AXuD6ucbydFtl05Smxn9GFoxAqFitViMGjsvKgyQ-aurNt9d6Da6i6O7H3hpue02skU0CCDPQozAs-ERl_Ix1UTt6B0ufH_eDauCnX_9EiCDJbW05tCn8sKDg6Mo2n28F_nMdBOretQTITXqJY9NsquZ7j9ZzoENCBHtQsAQXXiRRkkNURQ1NLEzHm_0PEu2W835IpHx4MYkISQtKvcQUJoSmmWusawfTEVI6teXmIyffwDqviEaMYyvf">
+</div>
+<div class="flex-1 min-w-0 py-sm">
+<h3 class="font-headline-md text-on-primary-container truncate mb-xs">经典糖醋排骨</h3>
+<div class="flex items-center gap-sm mb-sm">
+<span class="inline-block text-on-tertiary font-label-bold text-[10px] px-2 py-1 rounded-full bg-primary">下厨房</span>
+<span class="font-body-md text-on-surface-variant text-sm truncate">酸甜可口，下饭神器</span>
+</div>
+<button class="squishy-btn bg-primary text-on-primary font-label-bold px-md py-sm rounded-full w-fit text-sm">
+                        加入我的小店
+                    </button>
+</div>
+</div>
+<!-- Result Item 2 -->
+<div class="card-border bg-secondary-container p-sm flex items-center gap-md hover:-translate-y-1 transition-transform duration-300 active:scale-[0.98]">
+<div class="w-[100px] h-[100px] rounded-lg overflow-hidden shrink-0 border-2 border-secondary">
+<img class="w-full h-full object-cover" data-alt="A soft, tactile illustration of a bowl of creamy mushroom soup..." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAIxlez8Azgo8Oxw_AObKjtPQkBMdhaqDhBhrEpgTgN3dRmd2plSZwr5YDCJOQTf9ijR3bjvzjOkVZBWCjjgG_Sg3ztU1o1hfRR7QC-x8QKZ1m9olgMhNSISFrJmKpY-PigI-3arFHVZDHX9RbtmbSg1IbV9aoAXKtVgGdkANWikiwRN7e92qb8qHLzHq4DyVhU165ULXNZ8k_CJfvi6Do3AfSAZEqKo6eicpLjlNrRsxrIuMAw009Q">
+</div>
+<div class="flex-1 min-w-0 py-sm">
+<h3 class="font-headline-md text-on-primary-container truncate mb-xs">奶油蘑菇汤</h3>
+<div class="flex items-center gap-sm mb-sm">
+<span class="inline-block bg-primary-container text-on-primary-container border border-primary font-label-bold text-[10px] px-2 py-1 rounded-full">我的小店</span>
+<span class="font-body-md text-on-surface-variant text-sm truncate">浓郁奶香，冬日暖胃</span>
+</div>
+<button class="squishy-btn bg-primary text-on-primary font-label-bold px-md py-sm rounded-full w-fit text-sm">
+                        加入我的小店
+                    </button>
+</div>
+</div>
+<!-- Result Item 3 -->
+<div class="card-border bg-secondary-container p-sm flex items-center gap-md hover:-translate-y-1 transition-transform duration-300 active:scale-[0.98]">
+<div class="w-[100px] h-[100px] rounded-lg overflow-hidden shrink-0 border-2 border-secondary">
+<img class="w-full h-full object-cover" data-alt="A cute, minimalist drawing of a colorful vegetable salad..." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCrX6iALus3IZSRXPDiFYVK5PBctys3YSZAyJYGdSj9iSJ6z12rXxWSnExudjCAEi8OHJFCed1fjD1sr3fJIhfz6h9s3HisLXBkWctxqWfkl7vg4S8qbUzNK4vWAVM7mn6r5YBuGHJ9Fpw70OxaR9SxMRlwH9K9yVJNfrZazGJWiozC9YXFo7MgnqY-d2KG-dnSQPG5diDr9EzC09wqE7Cw9muzr94P7k3dw7LWsaXTrhjovopsa1-_">
+</div>
+<div class="flex-1 min-w-0 py-sm">
+<h3 class="font-headline-md text-on-primary-container truncate mb-xs">缤纷鲜蔬沙拉</h3>
+<div class="flex items-center gap-sm mb-sm">
+<span class="inline-block bg-surface-variant text-on-surface-variant font-label-bold text-[10px] px-2 py-1 rounded-full">天行</span>
+<span class="font-body-md text-on-surface-variant text-sm truncate">减脂必备，清爽解腻</span>
+</div>
+<button class="squishy-btn bg-primary text-on-primary font-label-bold px-md py-sm rounded-full w-fit text-sm">
+                        加入我的小店
+                    </button>
+</div>
+</div>
+</div>
+</main>
+<!-- Bottom Nav Bar (Glass Capsule) -->
+<nav class="fixed bottom-4 z-50 flex justify-around items-center w-[calc(100%-40px)] max-w-md h-[68px] rounded-full px-2 border border-white/30 shadow-[0_8px_32px_rgba(166,77,100,0.15)] transition-all duration-300 md:hidden" style="background: rgba(255, 255, 255, 0.55); backdrop-filter: blur(25px) saturate(180%); border: 1px solid rgba(255, 255, 255, 0.4); bottom: 20px; left: 50%; transform: translateX(-50%); width: calc(100% - 40px); max-width: 400px;">
+<a aria-label="首页" class="flex flex-col items-center justify-center p-2 flex-1 transition-all duration-300 active:scale-90 group" href="#"><span class="material-symbols-outlined mb-1 text-[24px] transition-colors duration-280" style="color: rgb(140, 132, 128); font-variation-settings: &quot;FILL&quot; 0;">home</span><span class="font-label-bold text-[10px] transition-colors duration-280" style="color: rgb(140, 132, 128);">首页</span></a>
+<a aria-label="点餐" class="flex flex-col items-center justify-center p-2 flex-1 transition-all duration-300 active:scale-90 group" href="#"><span class="material-symbols-outlined mb-1 text-[24px] transition-colors duration-280" style="color: rgb(140, 132, 128); font-variation-settings: &quot;FILL&quot; 0;">restaurant</span><span class="font-label-bold text-[10px] transition-colors duration-280" style="color: rgb(140, 132, 128);">点餐</span></a>
+<a aria-label="发现" class="relative flex flex-col items-center justify-center p-2 flex-1 transition-all duration-300 active:scale-90 group" href="#"><div class="absolute inset-0 flex items-center justify-center -z-10"><div class="w-[64px] h-[64px] rounded-full flex items-center justify-center transition-all duration-300" style="background: rgb(255, 209, 220); border-radius: 40% 60% 60% 40% / 50% 40% 60% 50%; width: 52px; height: 52px;"></div></div><span class="material-symbols-outlined mb-1 text-[24px] transition-colors duration-280" style="color: rgb(137, 76, 92); font-variation-settings: &quot;FILL&quot; 1;">explore</span><span class="font-label-bold text-[10px] transition-colors duration-280" style="color: rgb(137, 76, 92);">发现</span></a>
+<a aria-label="订单" class="flex flex-col items-center justify-center p-2 flex-1 transition-all duration-300 active:scale-90 group" href="#"><span class="material-symbols-outlined mb-1 text-[24px] transition-colors duration-280" style="color: rgb(140, 132, 128); font-variation-settings: &quot;FILL&quot; 0;">receipt_long</span><span class="font-label-bold text-[10px] transition-colors duration-280" style="color: rgb(140, 132, 128);">订单</span></a>
+<a aria-label="我的" class="flex flex-col items-center justify-center p-2 flex-1 transition-all duration-300 active:scale-90 group" href="#"><span class="material-symbols-outlined mb-1 text-[24px] transition-colors duration-280" style="color: rgb(140, 132, 128); font-variation-settings: &quot;FILL&quot; 0;">person</span><span class="font-label-bold text-[10px] transition-colors duration-280" style="color: rgb(140, 132, 128);">我的</span></a>
+</nav>
+<div class="hidden md:flex fixed top-0 right-margin-desktop h-full items-center z-50 pointer-events-none">
+</div>
+
+
+
+
+
+
+
+
+</body></html>

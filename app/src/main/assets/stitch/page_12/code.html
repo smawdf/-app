@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+
+<html lang="zh" style=""><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>我的店铺管理页</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;700&amp;family=Be+Vietnam+Pro:wght@600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "inverse-primary": "#ffb1c3",
+                      "secondary": "#78555e",
+                      "surface-tint": "#894c5c",
+                      "on-primary-container": "#733949",
+                      "on-tertiary-fixed": "#380d01",
+                      "on-tertiary-container": "#753c27",
+                      "secondary-container": "#ffd1dc",
+                      "on-primary": "#ffffff",
+                      "outline": "#847376",
+                      "on-surface-variant": "#524346",
+                      "on-error": "#ffffff",
+                      "surface-container-lowest": "#ffffff",
+                      "surface-container-highest": "#e7e2dc",
+                      "on-tertiary": "#ffffff",
+                      "inverse-surface": "#32302c",
+                      "error-container": "#ffdad6",
+                      "background": "#fef8f2",
+                      "outline-variant": "#d6c1c5",
+                      "on-secondary-fixed": "#2d141c",
+                      "tertiary": "#8b4e38",
+                      "surface-dim": "#dfd9d3",
+                      "tertiary-container": "#f8a98e",
+                      "surface-container-low": "#f8f3ed",
+                      "primary-fixed-dim": "#ffb1c3",
+                      "on-primary-fixed-variant": "#6e3545",
+                      "error": "#ba1a1a",
+                      "primary-fixed": "#ffd9e0",
+                      "secondary-fixed": "#ffd9e2",
+                      "primary": "#894c5c",
+                      "on-surface": "#1d1b18",
+                      "tertiary-fixed": "#ffdbcf",
+                      "surface-container": "#f3ede7",
+                      "surface": "#fef8f2",
+                      "on-secondary": "#ffffff",
+                      "tertiary-fixed-dim": "#ffb59c",
+                      "surface-variant": "#e7e2dc",
+                      "on-tertiary-fixed-variant": "#6f3723",
+                      "on-primary-fixed": "#380a1a",
+                      "on-background": "#1d1b18",
+                      "secondary-fixed-dim": "#e7bbc6",
+                      "inverse-on-surface": "#f6f0ea",
+                      "on-secondary-fixed-variant": "#5e3e47",
+                      "surface-container-high": "#ede7e1",
+                      "surface-bright": "#fef8f2",
+                      "on-error-container": "#93000a",
+                      "primary-container": "#f4a7b9",
+                      "on-secondary-container": "#7a5761"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "lg": "24px",
+                      "md": "16px",
+                      "margin-desktop": "64px",
+                      "margin-mobile": "20px",
+                      "xl": "40px",
+                      "xs": "4px",
+                      "unit": "4px",
+                      "gutter": "16px",
+                      "sm": "8px"
+              },
+              "fontFamily": {
+                      "body-lg": ["Plus Jakarta Sans"],
+                      "headline-md": ["Be Vietnam Pro"],
+                      "headline-lg-mobile": ["Be Vietnam Pro"],
+                      "body-md": ["Plus Jakarta Sans"],
+                      "label-bold": ["Plus Jakarta Sans"],
+                      "headline-lg": ["Be Vietnam Pro"]
+              },
+              "fontSize": {
+                      "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                      "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                      "headline-lg-mobile": ["28px", {"lineHeight": "36px", "fontWeight": "700"}],
+                      "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                      "label-bold": ["14px", {"lineHeight": "20px", "fontWeight": "700"}],
+                      "headline-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700"}]
+              }
+            }
+          }
+        }
+    </script>
+<style>
+        /* Custom styles for the hand-drawn, soft comfort feel */
+        .squishy-shadow {
+            box-shadow: 0 4px 0 0 #894c5c; /* Using primary color for shadow */
+        }
+        .squishy-shadow:active {
+            transform: translateY(4px);
+            box-shadow: 0 0 0 0 #894c5c;
+        }
+        .hand-drawn-border {
+            border: 2px solid #78555e; /* secondary color */
+        }
+        
+        /* Toggle Switch Styling */
+        .toggle-checkbox:checked {
+            right: 0;
+            border-color: #894c5c;
+        }
+        .toggle-checkbox:checked + .toggle-label {
+            background-color: #f4a7b9;
+        }
+        
+        /* Modal Animation */
+        #add-dish-modal {
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+        #add-dish-modal.hidden {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+        #add-dish-modal:not(.hidden) {
+            opacity: 1;
+            visibility: visible;
+            pointer-events: auto;
+        }
+        #add-dish-modal > div {
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            transform: scale(0.95);
+        }
+        #add-dish-modal:not(.hidden) > div {
+            transform: scale(1);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+</head>
+<body class="bg-background text-on-surface font-body-md min-h-screen relative md:pb-12 pb-48">
+<!-- TopAppBar -->
+<header class="sticky top-0 z-40 bg-background/80 backdrop-blur-md dark:bg-background/80 w-full flex justify-between items-center px-margin-mobile py-sm">
+<button class="p-2 text-primary hover:opacity-80 scale-95 transition-transform rounded-full">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">favorite</span>
+</button>
+<h1 class="font-headline-md text-headline-md text-primary font-bold">我的店铺</h1>
+<button class="p-2 text-primary hover:opacity-80 scale-95 transition-transform rounded-full">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">notifications</span>
+</button>
+</header>
+<main class="max-w-[1200px] mx-auto px-margin-mobile md:px-margin-desktop py-lg space-y-xl">
+<!-- Shop Cover & Announcement -->
+<section class="relative rounded-xl overflow-hidden hand-drawn-border bg-secondary-container">
+<div class="h-48 w-full bg-cover bg-center" data-alt="A hand-drawn illustration style shop banner. Warm, creamy pastel colors. Two cute animals, a white fluffy dog and a brown dog, peeking over a counter full of pastel-colored pastries and heart-shaped pizzas. The mood is welcoming, cute, and kawaii minimalist. Soft, airy lighting." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuC_6DIzRl3diD19BQX5s9AefRbq3KdopwfSTpENrEpQsOR1RFhxOb-p1AYlZUqY_IfeL3hKmAT1hSn96CI6inI3PdCBCTna2_8MKiSRTCIhx2Ggz97deQ-1i95qT2hMUHBYzSD_zmBqcxTywQ4vlF2vCJchnQYLa_M3_lh8TNqgL_H470d0VCRxdSeV1zQ0u3TOoLfHqpMjbhn4lV7BxZb6-mFCJtiQyO9srpj823u-erYujZhdEIKT')">
+</div>
+<div class="absolute bottom-4 right-4">
+<button class="bg-white/80 backdrop-blur-sm px-4 py-2 rounded-full font-label-bold text-label-bold text-primary flex items-center gap-2 squishy-shadow transition-all">
+<span class="material-symbols-outlined text-[18px]">edit</span>
+                    编辑封面
+                </button>
+</div>
+<div class="p-md bg-white/50 backdrop-blur-md flex items-start gap-md border-t-2 border-secondary">
+<span class="material-symbols-outlined text-primary mt-1">campaign</span>
+<div class="flex-1">
+<h3 class="font-label-bold text-label-bold text-secondary mb-1">店铺公告</h3>
+<p class="text-on-surface-variant text-sm">欢迎来到我们的温馨小店！今天有新鲜出炉的心形披萨哦~ 🐾</p>
+</div>
+<button class="text-primary hover:text-surface-tint p-1 rounded-full hover:bg-white/50 transition-colors">
+<span class="material-symbols-outlined text-[20px]">edit_note</span>
+</button>
+</div>
+</section>
+<!-- Category Management (Bento Style) -->
+<section>
+<div class="flex justify-between items-end mb-md">
+<h2 class="font-headline-md text-headline-md text-on-surface">分类管理</h2>
+<button class="text-primary font-label-bold text-label-bold flex items-center gap-1 hover:underline">
+                    管理全部分类 <span class="material-symbols-outlined text-[16px]">chevron_right</span>
+</button>
+</div>
+<div class="grid grid-cols-2 md:grid-cols-4 gap-md">
+<!-- Category Card -->
+<div class="bg-surface-container-low rounded-xl p-md flex flex-col items-center justify-center gap-2 hand-drawn-border hover:bg-surface-container transition-colors cursor-pointer relative group shadow-[0_8px_32px_rgba(137,76,92,0.15)] hover:shadow-lg">
+<div class="w-12 h-12 rounded-full bg-primary-container text-primary flex items-center justify-center">
+<span class="material-symbols-outlined text-[24px]">local_pizza</span>
+</div>
+<span class="font-label-bold text-label-bold text-secondary">主食披萨</span>
+<span class="text-xs text-on-surface-variant">8款菜品</span>
+</div>
+<!-- Category Card -->
+<div class="bg-surface-container-low rounded-xl p-md flex flex-col items-center justify-center gap-2 hand-drawn-border hover:bg-surface-container transition-colors cursor-pointer relative group shadow-[0_8px_32px_rgba(137,76,92,0.15)] hover:shadow-lg">
+<div class="w-12 h-12 rounded-full bg-secondary-container text-secondary flex items-center justify-center">
+<span class="material-symbols-outlined text-[24px]">cake</span>
+</div>
+<span class="font-label-bold text-label-bold text-secondary">甜点蛋糕</span>
+<span class="text-xs text-on-surface-variant">5款菜品</span>
+</div>
+<!-- Category Card -->
+<div class="bg-surface-container-low rounded-xl p-md flex flex-col items-center justify-center gap-2 hand-drawn-border hover:bg-surface-container transition-colors cursor-pointer relative group shadow-[0_8px_32px_rgba(137,76,92,0.15)] hover:shadow-lg">
+<div class="w-12 h-12 rounded-full bg-tertiary-container text-tertiary flex items-center justify-center">
+<span class="material-symbols-outlined text-[24px]">coffee</span>
+</div>
+<span class="font-label-bold text-label-bold text-secondary">特调饮品</span>
+<span class="text-xs text-on-surface-variant">12款菜品</span>
+</div>
+<!-- Add Category -->
+<div class="bg-surface-container-lowest rounded-xl p-md flex flex-col items-center justify-center gap-2 border-2 border-dashed border-outline-variant hover:border-primary hover:bg-primary-fixed/20 transition-all cursor-pointer text-primary">
+<div class="w-10 h-10 rounded-full border-2 border-primary flex items-center justify-center">
+<span class="material-symbols-outlined text-[20px]">add</span>
+</div>
+<span class="font-label-bold text-label-bold">新增分类</span>
+</div>
+</div>
+</section>
+<!-- Dishes List -->
+<section>
+<div class="flex justify-between items-center mb-md">
+<h2 class="font-headline-md text-headline-md text-on-surface">菜品管理</h2>
+<div class="flex gap-2"><button class="h-[36px] px-4 rounded-full bg-primary-container/50 text-on-primary-container font-label-bold text-sm transition-colors">全部</button><button class="h-[36px] px-4 rounded-full bg-surface-container-low text-on-surface-variant font-label-bold text-sm hover:bg-primary-container/20 transition-colors">已上架</button><button class="h-[36px] px-4 rounded-full bg-surface-container-low text-on-surface-variant font-label-bold text-sm hover:bg-primary-container/20 transition-colors">已下架</button></div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-lg">
+<!-- Dish Item 1 -->
+<div class="bg-white/70 backdrop-blur-md rounded-[20px] p-3 flex gap-3 border border-primary/20 relative group transition-all shadow-sm hover:shadow-md"><img class="w-[76px] h-[76px] rounded-[16px] object-cover shrink-0" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAVj0fEbPLfPEQqQQxzDqknRmH54ufA6KzG3ted42sH4vrxu_oWk5XFLVRXax5NslHJuPIJ8pSNkMWqHAi9GaaITBd5_B-AUU8_DH2_66Egu_846CxVYywDiYjQVIirAv0b6Siyqa0HIjg-WJO0pojZglbNmOWoPLI_ja6-D_Dv-gRe5oKpeoubFs5n9Bh-Cf_58uV5rYPaJWCyHzzBVpoJwbqMqsuH13RlSNGaG6837RcOF7nS43ay"/><div class="flex-1 flex flex-col justify-between"><div><div class="flex justify-between items-start"><h3 class="font-bold text-[16px] text-on-surface leading-tight">爱心满溢披萨</h3><div class="relative inline-block w-10 align-middle select-none transition duration-200 ease-in"><input checked="" class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 appearance-none cursor-pointer z-10 top-0 left-0 transition-all border-primary-container" id="toggle1-new" name="toggle" type="checkbox"/><label class="toggle-label block overflow-hidden h-5 rounded-full bg-primary-container cursor-pointer" for="toggle1-new"></label></div></div><div class="flex items-center gap-2 mt-1"><span class="text-primary text-[10px] px-2 py-0.5 rounded-full bg-primary-container/30">主食披萨</span><span class="text-[10px] text-primary font-bold">在售</span></div></div><div class="flex justify-between items-end"><span class="font-bold text-[18px] text-primary">¥48.00</span><button class="w-8 h-8 rounded-full bg-surface-container-low flex items-center justify-center text-primary hover:bg-primary-container/20 transition-colors"><span class="material-symbols-outlined text-[18px]">more_horiz</span></button></div></div></div>
+<!-- Dish Item 2 -->
+<div class="bg-white/40 backdrop-blur-sm rounded-[20px] p-3 flex gap-3 border border-primary/10 relative group transition-all opacity-60"><img class="w-[76px] h-[76px] rounded-[16px] object-cover shrink-0 grayscale" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD4_oMlEdMp7gEh6hRJxuNuQpQGIIGOY0aAYMDHjfMLW-VsBBE-o1oI8xRmaZr_WdnMiVEd_k2TYSpSpgJjIfAYhxMdLDF6w_tv5SK-s1H58Dgc0iCRZBxM3WVdkmoKpIap8bZDdgseOA4LlL7m34l2Um43b2P0t28bic8uXxrUzt1rCWXouBJ-C6SwzOYP_NcBgvjp3dq8YCbrmCbnbybLE48rc8iO0uu3MXgVanwmymJMqCnJbiZV"/><div class="flex-1 flex flex-col justify-between"><div><div class="flex justify-between items-start"><h3 class="font-bold text-[16px] text-on-surface-variant leading-tight">莓莓巧克力蛋糕</h3><div class="relative inline-block w-10 align-middle select-none transition duration-200 ease-in"><input class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 appearance-none cursor-pointer z-10 top-0 left-0 transition-all border-surface-variant" id="toggle2-new" name="toggle" type="checkbox"/><label class="toggle-label block overflow-hidden h-5 rounded-full bg-surface-variant cursor-pointer" for="toggle2-new"></label></div></div><div class="flex items-center gap-2 mt-1"><span class="text-on-surface-variant text-[10px] px-2 py-0.5 rounded-full bg-surface-container-high">甜点蛋糕</span><span class="text-[10px] text-on-surface-variant">已下架</span></div></div><div class="flex justify-between items-end"><span class="font-bold text-[18px] text-on-surface-variant">¥32.00</span><button class="w-8 h-8 rounded-full bg-surface-container-low flex items-center justify-center text-on-surface-variant"><span class="material-symbols-outlined text-[18px]">more_horiz</span></button></div></div></div>
+<!-- Dish Item 3 -->
+<div class="bg-white/70 backdrop-blur-md rounded-[20px] p-3 flex gap-3 border border-primary/20 relative group transition-all shadow-sm hover:shadow-md"><img class="w-[76px] h-[76px] rounded-[16px] object-cover shrink-0" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCp5MFEWVy4NLq__wreDV6pcJVIUYw86npGpHbQ7HDy0yZQLgr96mAzJc4BliwvHmP4rQbgVE8VZgXINtugOjkbNsnbJHLYIGtQW4UET5qkPUWQ2F8kC-W-TFOa_VAbpjtiKbIj7VQTJBepJ0resK9_E9V-pA26HsHwmmnZuR0UcZps64w2B-BlksJA2roStz19Mp8Y15hXXJBqR77Bs9Nx1VAzSxn4QzWK1cBAmYWdc_uwPqk-5Bl6"/><div class="flex-1 flex flex-col justify-between"><div><div class="flex justify-between items-start"><h3 class="font-bold text-[16px] text-on-surface leading-tight">狗狗寿司卷</h3><div class="relative inline-block w-10 align-middle select-none transition duration-200 ease-in"><input checked="" class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 appearance-none cursor-pointer z-10 top-0 left-0 transition-all border-primary-container" id="toggle3-new" name="toggle" type="checkbox"/><label class="toggle-label block overflow-hidden h-5 rounded-full bg-primary-container cursor-pointer" for="toggle3-new"></label></div></div><div class="flex items-center gap-2 mt-1"><span class="text-primary text-[10px] px-2 py-0.5 rounded-full bg-primary-container/30">主食</span><span class="text-[10px] text-primary font-bold">在售</span></div></div><div class="flex justify-between items-end"><span class="font-bold text-[18px] text-primary">¥28.00</span><button class="w-8 h-8 rounded-full bg-surface-container-low flex items-center justify-center text-primary hover:bg-primary-container/20 transition-colors"><span class="material-symbols-outlined text-[18px]">more_horiz</span></button></div></div></div>
+</div>
+</section>
+</main>
+<!-- FAB for adding dish (Mobile sticky, Desktop floating) -->
+<div class="fixed bottom-[20px] right-[20px] z-50"><button class="h-[50px] px-6 rounded-[25px] bg-gradient-to-r from-tertiary-container to-primary-container text-white font-bold flex items-center gap-2 shadow-[0_8px_20px_rgba(137,76,92,0.3)] hover:scale-105 active:scale-95 transition-all" id="add-dish-btn"><span class="material-symbols-outlined">add_circle</span><span>新增菜品</span></button></div>
+<!-- Liquid Glass Modal (Add Dish) -->
+<div class="hidden fixed inset-0 z-50 flex items-center justify-center px-4" id="add-dish-modal">
+<!-- Backdrop -->
+<div class="absolute inset-0 bg-secondary/20 backdrop-blur-sm" id="modal-backdrop"></div>
+<!-- Modal Content -->
+<div class="relative w-full max-w-md bg-white/70 backdrop-blur-xl rounded-[24px] hand-drawn-border shadow-[0_8px_32px_rgba(137,76,92,0.15)] p-lg overflow-hidden border-2 border-white/40">
+<!-- Decorative soft circles -->
+<div class="absolute -top-10 -right-10 w-32 h-32 bg-primary-fixed rounded-full mix-blend-multiply filter blur-xl opacity-70"></div>
+<div class="absolute -bottom-10 -left-10 w-32 h-32 bg-secondary-fixed rounded-full mix-blend-multiply filter blur-xl opacity-70"></div>
+<div class="relative z-10">
+<div class="flex justify-between items-center mb-6">
+<h2 class="font-headline-md text-[24px] text-primary">上新啦！</h2>
+<button class="w-8 h-8 rounded-full bg-white/50 flex items-center justify-center text-on-surface-variant hover:bg-white transition-colors" id="close-modal-btn">
+<span class="material-symbols-outlined text-[20px]">close</span>
+</button>
+</div>
+<form class="space-y-4">
+<!-- Image Upload -->
+<div class="w-full h-32 rounded-xl bg-surface-container-lowest border-2 border-dashed border-outline-variant flex flex-col items-center justify-center gap-2 cursor-pointer hover:border-primary transition-colors">
+<span class="material-symbols-outlined text-primary text-[32px]">add_photo_alternate</span>
+<span class="text-sm text-on-surface-variant font-label-bold">点击上传美味照片</span>
+</div>
+<!-- Inputs -->
+<div>
+<label class="block text-sm font-label-bold text-secondary mb-1 ml-2">菜品名称</label>
+<input class="w-full bg-white/50 border-2 border-transparent focus:border-primary rounded-xl px-4 py-3 text-on-surface outline-none transition-colors placeholder:text-outline placeholder:text-sm" placeholder="给它取个可爱的名字吧..." type="text"/>
+</div>
+<div class="flex gap-4">
+<div class="flex-1">
+<label class="block text-sm font-label-bold text-secondary mb-1 ml-2">价格 (元)</label>
+<input class="w-full bg-white/50 border-2 border-transparent focus:border-primary rounded-xl px-4 py-3 text-on-surface outline-none transition-colors" placeholder="0.00" type="number"/>
+</div>
+<div class="flex-1">
+<label class="block text-sm font-label-bold text-secondary mb-1 ml-2">所属分类</label>
+<select class="w-full bg-white/50 border-2 border-transparent focus:border-primary rounded-xl px-4 py-3 text-on-surface outline-none transition-colors appearance-none">
+<option>主食披萨</option>
+<option>甜点蛋糕</option>
+<option>特调饮品</option>
+</select>
+</div>
+</div>
+<!-- Modal Actions -->
+<div class="pt-4 flex gap-4">
+<button class="flex-1 py-3 rounded-xl bg-surface-container text-on-surface-variant font-label-bold hand-drawn-border" id="cancel-modal-btn" type="button">取消</button>
+<button class="flex-1 py-3 rounded-xl bg-primary text-on-primary font-label-bold squishy-shadow hand-drawn-border" type="button">确认上架</button>
+</div>
+</form>
+</div>
+</div>
+</div>
+<!-- BottomNavBar (Semantic Match: Home/My Shop equivalent) -->
+<!-- Fix the above nav to exactly match JSON active logic for Profile -->
+<script>
+        // Fix the nav active state strictly based on JSON
+        const navContainer = document.querySelector('nav > div');
+        navContainer.innerHTML = `
+            <a href="#" class="flex flex-col items-center justify-center text-on-surface-variant p-3 hover:bg-white/40 transition-colors scale-90 duration-300 ease-out w-16 rounded-full">
+                <span class="material-symbols-outlined">home</span>
+                <span class="font-label-bold text-[10px] mt-1">首页</span>
+            </a>
+            <a href="#" class="flex flex-col items-center justify-center text-on-surface-variant p-3 hover:bg-white/40 transition-colors scale-90 duration-300 ease-out w-16 rounded-full">
+                <span class="material-symbols-outlined">restaurant</span>
+                <span class="font-label-bold text-[10px] mt-1">点餐</span>
+            </a>
+            <a href="#" class="flex flex-col items-center justify-center text-on-surface-variant p-3 hover:bg-white/40 transition-colors scale-90 duration-300 ease-out w-16 rounded-full">
+                <span class="material-symbols-outlined">explore</span>
+                <span class="font-label-bold text-[10px] mt-1">发现</span>
+            </a>
+            <a href="#" class="flex flex-col items-center justify-center text-on-surface-variant p-3 hover:bg-white/40 transition-colors scale-90 duration-300 ease-out w-16 rounded-full">
+                <span class="material-symbols-outlined">receipt_long</span>
+                <span class="font-label-bold text-[10px] mt-1">订单</span>
+            </a>
+            <a href="#" class="flex flex-col items-center justify-center bg-primary-container text-on-primary-container rounded-full p-3 shadow-[0_4px_10px_rgba(137,76,92,0.2)] scale-90 duration-300 ease-out w-16">
+                <span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">person</span>
+                <span class="font-label-bold text-[10px] mt-1">我的</span>
+            </a>
+        `;
+    </script>
+<!-- Modal Interaction Script -->
+<script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const modal = document.getElementById('add-dish-modal');
+            const openBtn = document.getElementById('add-dish-btn');
+            const closeBtn = document.getElementById('close-modal-btn');
+            const cancelBtn = document.getElementById('cancel-modal-btn');
+            const backdrop = document.getElementById('modal-backdrop');
+
+            const openModal = () => modal.classList.remove('hidden');
+            const closeModal = () => modal.classList.add('hidden');
+
+            openBtn.addEventListener('click', openModal);
+            closeBtn.addEventListener('click', closeModal);
+            cancelBtn.addEventListener('click', closeModal);
+            backdrop.addEventListener('click', closeModal);
+            
+            // Toggle Switch logic for visual feedback (though CSS handles the look, we can add simple bounce)
+            const toggles = document.querySelectorAll('.toggle-checkbox');
+            toggles.forEach(toggle => {
+                toggle.addEventListener('change', (e) => {
+                    const label = e.target.nextElementSibling;
+                    label.style.transform = 'scale(0.9)';
+                    setTimeout(() => label.style.transform = 'scale(1)', 150);
+                });
+            });
+        });
+    </script>
+</body></html>

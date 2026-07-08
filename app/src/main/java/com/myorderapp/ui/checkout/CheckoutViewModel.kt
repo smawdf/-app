@@ -6,9 +6,11 @@ import com.myorderapp.domain.model.Address
 import com.myorderapp.domain.model.CartState
 import com.myorderapp.domain.repository.CartRepository
 import com.myorderapp.domain.repository.OrderRepository
+import com.myorderapp.domain.repository.ProfileRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlin.math.ceil
 
 data class CheckoutUiState(
     val cartState: CartState = CartState(),
@@ -17,6 +19,7 @@ data class CheckoutUiState(
     val addressLine1: String = "本店",
     val addressLine2: String = "",
     val buyerNote: String = "",
+    val candyCoins: Int = 66,
     val orderSubmittedId: String? = null,
     val isSubmitting: Boolean = false,
     val errorMessage: String? = null
@@ -24,7 +27,8 @@ data class CheckoutUiState(
 
 class CheckoutViewModel(
     private val cartRepository: CartRepository,
-    private val orderRepository: OrderRepository
+    private val orderRepository: OrderRepository,
+    private val profileRepository: ProfileRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(CheckoutUiState())
@@ -34,6 +38,11 @@ class CheckoutViewModel(
         viewModelScope.launch {
             cartRepository.observeCart().collect { cart ->
                 _uiState.value = _uiState.value.copy(cartState = cart)
+            }
+        }
+        viewModelScope.launch {
+            profileRepository.getProfile().collect { profile ->
+                _uiState.value = _uiState.value.copy(candyCoins = profile?.candyCoins ?: 66)
             }
         }
     }
@@ -62,16 +71,12 @@ class CheckoutViewModel(
         val state = _uiState.value
         if (state.isSubmitting) return
         if (state.cartState.isEmpty) {
-            _uiState.value = state.copy(errorMessage = "购物车为空，先去点菜吧")
+            _uiState.value = state.copy(errorMessage = "购物篮还是空的，先去点菜吧")
             return
         }
 
-        val contactName = state.contactName.trim()
-        val addressLine1 = state.addressLine1.trim()
-        if (contactName.isBlank() || addressLine1.isBlank()) {
-            _uiState.value = state.copy(errorMessage = "请填写联系人和收餐地址")
-            return
-        }
+        val contactName = state.contactName.trim().ifBlank { "到店取餐" }
+        val addressLine1 = state.addressLine1.trim().ifBlank { "本店" }
 
         _uiState.value = state.copy(isSubmitting = true, errorMessage = null)
 
@@ -86,7 +91,7 @@ class CheckoutViewModel(
                         contactPhone = state.contactPhone.trim(),
                         addressLine1 = addressLine1,
                         addressLine2 = state.addressLine2.trim(),
-                        tag = "收餐",
+                        tag = "小饭桌",
                         isDefault = true
                     ),
                     note = state.buyerNote.trim()
@@ -99,11 +104,18 @@ class CheckoutViewModel(
                     errorMessage = null
                 )
             }.onFailure {
+                val message = if (it.message == "NOT_ENOUGH_CANDY_COINS") {
+                    "糖糖币不够啦，找饲养员撒点糖再点菜"
+                } else {
+                    "提交失败，请稍后再试"
+                }
                 _uiState.value = _uiState.value.copy(
                     isSubmitting = false,
-                    errorMessage = "提交失败，请稍后再试"
+                    errorMessage = message
                 )
             }
         }
     }
 }
+
+fun candyCoinsCost(totalPrice: Double): Int = ceil(totalPrice).toInt().coerceAtLeast(1)

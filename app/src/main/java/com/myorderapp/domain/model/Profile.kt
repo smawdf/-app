@@ -16,6 +16,7 @@ data class Profile(
     val allergies: List<String> = emptyList(),
     @SerialName("created_at") @Json(name = "created_at") val createdAt: String = "",
     @SerialName("updated_at") @Json(name = "updated_at") val updatedAt: String = "",
+    @SerialName("candy_coins") @Json(name = "candy_coins") val candyCoins: Int = 66,
     @Transient @Json(ignore = true) val pairedAt: String = "",
     @Transient @Json(ignore = true) val sessionId: String = ""
 )
@@ -24,5 +25,6 @@ data class PairInfo(
     val partnerName: String = "",
     val isPaired: Boolean = false,
     val isOnline: Boolean = false,
-    val pairCode: String = ""
+    val pairCode: String = "",
+    val partnerCandyCoins: Int? = null
 )

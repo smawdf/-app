@@ -13,16 +13,22 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -35,6 +41,17 @@ fun AddressManagementScreen(
     onBack: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    var showAddDialog by remember { mutableStateOf(false) }
+
+    if (showAddDialog) {
+        AddAddressDialog(
+            onDismiss = { showAddDialog = false },
+            onSave = { name, phone, line1, line2, tag ->
+                viewModel.addAddress(name, phone, line1, line2, tag)
+                showAddDialog = false
+            }
+        )
+    }
 
     Column(
         modifier = Modifier
@@ -50,7 +67,7 @@ fun AddressManagementScreen(
             Text("收货地址", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
         }
 
-        Button(onClick = viewModel::addSampleAddress, modifier = Modifier.fillMaxWidth()) {
+        Button(onClick = { showAddDialog = true }, modifier = Modifier.fillMaxWidth()) {
             Text("添加地址")
         }
 
@@ -89,4 +106,42 @@ fun AddressManagementScreen(
             }
         }
     }
+}
+
+@Composable
+private fun AddAddressDialog(
+    onDismiss: () -> Unit,
+    onSave: (String, String, String, String, String) -> Unit
+) {
+    var name by remember { mutableStateOf("") }
+    var phone by remember { mutableStateOf("") }
+    var addressLine1 by remember { mutableStateOf("") }
+    var addressLine2 by remember { mutableStateOf("") }
+    var tag by remember { mutableStateOf("") }
+    val canSave = name.isNotBlank() && phone.isNotBlank() && addressLine1.isNotBlank()
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("添加地址") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("联系人") }, singleLine = true)
+                OutlinedTextField(value = phone, onValueChange = { phone = it }, label = { Text("手机号") }, singleLine = true)
+                OutlinedTextField(value = addressLine1, onValueChange = { addressLine1 = it }, label = { Text("地址") }, singleLine = true)
+                OutlinedTextField(value = addressLine2, onValueChange = { addressLine2 = it }, label = { Text("门牌号，可选") }, singleLine = true)
+                OutlinedTextField(value = tag, onValueChange = { tag = it }, label = { Text("标签，可选") }, singleLine = true)
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { onSave(name, phone, addressLine1, addressLine2, tag) },
+                enabled = canSave
+            ) {
+                Text("保存")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("取消") }
+        }
+    )
 }

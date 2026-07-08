@@ -60,7 +60,7 @@ di/      Koin 注入模块：AppModule.kt、NetworkModule.kt
 
 - Jetpack Compose + Material 3 + Navigation Compose
 - Koin，非 Hilt
-- Room，当前 `AppDatabase` 版本为 6
+- Room，当前 `AppDatabase` 版本为 9
 - Retrofit + Moshi
 - official Supabase Kotlin SDK
 - Coil 3
@@ -73,7 +73,7 @@ di/      Koin 注入模块：AppModule.kt、NetworkModule.kt
 - `RoomCartRepository`、`RoomAddressRepository` 维护本地购物车和地址。
 - `SupabaseOrderRepository` 负责订单仓储：本地 Room 保存为主，登录态下同步/读取 Supabase。
 - `HybridDishRepository` 合并 Room 本地菜品与 Supabase 云端菜品，主要服务旧版菜品库兼容能力。
-- `SupabaseProfileRepository`、`SupabaseMealRepository`、`SupabaseDishRepository` 仍通过 `SupabaseClientProvider` 访问 Supabase。
+- `SupabaseProfileRepository`、`SupabaseOrderRepository`、`SupabaseDishRepository` 通过 `SupabaseClientProvider` 访问 Supabase；订单接收当前采用 App 端短轮询。
 - 当前网络模块接入 Tian 菜谱 API，以及 Spoonacular、TheMealDB 图源；Jisu/Juhe 旧菜谱接入已移除，不要再新增或恢复这些旧入口。
 
 ## 设计与实现注意事项
@@ -97,3 +97,21 @@ di/      Koin 注入模块：AppModule.kt、NetworkModule.kt
 - 文档、Figma、代码三者冲突时，以当前可编译源码为准。
 - 新增功能优先服务当前主线：登录/注册、情侣首页、角色选择、纪念日、类美团点菜、发现搜菜、加入我的店铺、我的页、店铺编辑、购物车、结算、订单。
 - 如果要重新做多商家/美团式方向，必须先更新产品目标、导航、仓储模型和文档，再开始画图或写代码。
+
+
+<claude-mem-context>
+# Memory Context
+
+# claude-mem status
+
+This project has no memory yet. The current session will seed it; subsequent sessions will receive auto-injected context for relevant past work.
+
+Memory injection starts on your second session in a project.
+
+`/learn-codebase` is available if the user wants to front-load the entire repo into memory in a single pass (~5 minutes on a typical repo, optional). Otherwise memory builds passively as work happens.
+
+Live activity: http://localhost:37777
+How it works: `/how-it-works`
+
+This message disappears once the first observation lands.
+</claude-mem-context>

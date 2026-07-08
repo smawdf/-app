@@ -4,165 +4,221 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
-import androidx.navigation.NavHostController
-import androidx.navigation.NavDestination.Companion.hierarchy
-import androidx.navigation.NavGraph.Companion.findStartDestination
-import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Path
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.compose.currentBackStackEntryAsState
+import com.myorderapp.data.remote.supabase.SessionManager
+import com.myorderapp.ui.components.CozyMainTopBar
 import com.myorderapp.ui.navigation.BottomNavItem
 import com.myorderapp.ui.navigation.NavGraph
 import com.myorderapp.ui.navigation.Routes
+import com.myorderapp.ui.navigation.navigateAsTab
+import com.myorderapp.ui.theme.Background
 import com.myorderapp.ui.theme.OrderDiskTheme
-import com.myorderapp.data.remote.supabase.SessionManager
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Text
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.zIndex
 import org.koin.compose.getKoin
-
-private val LiquidGlassTop = Color(0xCFFFFFF8)
-private val LiquidGlassMiddle = Color(0x9FFFF6E8)
-private val LiquidGlassBottom = Color(0x88F3DCC6)
-private val LiquidGlassBorder = Color(0xE8FFFFFF)
-private val LiquidGlassHairline = Color(0x66B58B71)
-private val LiquidNavSelected = Color(0xFF116F67)
-private val LiquidNavMuted = Color(0xFF8B7164)
-private val LiquidNavGlow = Color(0xD8FFF2D2)
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        val initialDeepLink = intent?.data?.toString()
         setContent {
             OrderDiskTheme {
-                MainScreen()
+                MainScreen(initialDeepLink = initialDeepLink)
             }
         }
     }
 }
 
 @Composable
-fun MainScreen() {
+fun MainScreen(initialDeepLink: String? = null) {
     val sessionManager = getKoin().get<SessionManager>()
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
-    val currentDestination = navBackStackEntry?.destination
+    val currentRoute = navBackStackEntry?.destination?.route
+    val tabRoutes = BottomNavItem.items.map { it.route }.toSet()
 
     val startDestination = remember {
-        if (sessionManager.isLoggedIn.value) Routes.HOME else Routes.AUTH
+        if (initialDeepLink?.startsWith("orderdisk://auth/reset-password") == true) {
+            Routes.resetPassword(initialDeepLink)
+        } else if (sessionManager.isLoggedIn.value) {
+            Routes.HOME
+        } else {
+            Routes.AUTH
+        }
     }
-
-    val bottomNavRoutes = BottomNavItem.items.map { it.route }
-    val showBottomBar = currentDestination?.route in bottomNavRoutes
+    val shellRoute = currentRoute ?: startDestination.takeIf { it in tabRoutes }
+    val showMainShell = shellRoute in tabRoutes
+    val mainTopBarHeight = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + 64.dp
 
     Box(modifier = Modifier.fillMaxSize()) {
         NavGraph(
             navController = navController,
-            modifier = Modifier.fillMaxSize(),
-            startDestination = startDestination
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(top = if (showMainShell) mainTopBarHeight else 0.dp),
+            startDestination = startDestination,
+            resetPasswordDeepLink = initialDeepLink.orEmpty()
         )
-
-        if (showBottomBar) {
-            WarmBottomBar(
-                currentRoute = currentDestination?.route,
-                modifier = Modifier.align(Alignment.BottomCenter),
-                onTabClick = { route ->
-                    if (currentDestination?.route != route) {
-                        navController.navigateAsTab(route)
-                    }
-                }
+        if (showMainShell) {
+            CozyMainTopBar(
+                title = shellRoute.mainTabTopBarTitle(),
+                containerColor = shellRoute.mainTabTopBarContainerColor(),
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .zIndex(20f)
+            )
+            FloatingLiquidBottomBar(
+                currentRoute = currentRoute,
+                onTabClick = { route -> navController.navigateAsTab(route) },
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .zIndex(20f)
             )
         }
     }
 }
 
+private fun String?.mainTabTopBarTitle(): String = when (this) {
+    Routes.HOME -> "今天也要一起好好吃饭"
+    Routes.ORDERING -> "点菜 - 挑选今日美味"
+    Routes.DISCOVER -> "发现"
+    Routes.ORDERS -> "订单 - 甜蜜点菜记录"
+    Routes.PROFILE -> "个人中心"
+    else -> ""
+}
+
+private fun String?.mainTabTopBarContainerColor(): Color = Background
+
 @Composable
-private fun WarmBottomBar(
+private fun FloatingLiquidBottomBar(
     currentRoute: String?,
-    modifier: Modifier = Modifier,
-    onTabClick: (String) -> Unit
+    onTabClick: (String) -> Unit,
+    modifier: Modifier = Modifier
 ) {
+    val bottomPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
     Box(
         modifier = modifier
+            .padding(horizontal = 20.dp)
+            .padding(bottom = bottomPadding + 14.dp)
             .fillMaxWidth()
-            .navigationBarsPadding()
-            .padding(horizontal = 22.dp, vertical = 10.dp)
-            .height(74.dp),
+            .widthIn(max = 430.dp)
+            .height(68.dp),
         contentAlignment = Alignment.Center
     ) {
-        Box(
+        val selectedIndex = BottomNavItem.items.indexOfFirst { it.route == currentRoute }.coerceAtLeast(0)
+        BoxWithConstraints(
             modifier = Modifier
-                .fillMaxWidth(0.94f)
-                .height(64.dp)
-                .shadow(24.dp, RoundedCornerShape(32.dp), clip = false, ambientColor = Color(0x5539251D), spotColor = Color(0x4439251D))
-                .clip(RoundedCornerShape(32.dp))
+                .matchParentSize()
+                .clip(RoundedCornerShape(36.dp))
                 .background(
-                    Brush.verticalGradient(
-                        listOf(LiquidGlassTop, LiquidGlassMiddle, LiquidGlassBottom)
+                    Brush.linearGradient(
+                        colors = listOf(
+                            Color(0xE6FFFFFF),
+                            Color(0xAFFFF8FB),
+                            Color(0x91FFF1F6)
+                        )
                     )
                 )
-                .border(1.dp, LiquidGlassBorder, RoundedCornerShape(34.dp))
-                .border(0.6.dp, LiquidGlassHairline, RoundedCornerShape(34.dp))
+                .border(1.dp, Color(0xC9FFFFFF), RoundedCornerShape(36.dp))
+                .padding(horizontal = 8.dp, vertical = 6.dp),
         ) {
+            val tabWidth = maxWidth / BottomNavItem.items.size
+            val heartOffset by animateDpAsState(
+                targetValue = tabWidth * selectedIndex + (tabWidth - 58.dp) / 2,
+                animationSpec = spring(
+                    dampingRatio = Spring.DampingRatioNoBouncy,
+                    stiffness = Spring.StiffnessMediumLow
+                ),
+                label = "heartNavOffset"
+            )
+            LiquidGlassNavLayer(modifier = Modifier.matchParentSize())
             Box(
                 modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .padding(top = 6.dp)
-                    .width(132.dp)
-                    .height(2.dp)
-                    .clip(CircleShape)
-                    .background(Color.White.copy(alpha = 0.82f))
-            )
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(bottom = 5.dp)
-                    .width(96.dp)
-                    .height(1.dp)
-                    .clip(CircleShape)
-                    .background(Color(0xFFFFD7A6).copy(alpha = 0.30f))
-            )
+                    .offset(x = heartOffset)
+                    .size(width = 58.dp, height = 56.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                HeartNavIndicator()
+            }
             Row(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 8.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                modifier = Modifier.matchParentSize(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 BottomNavItem.items.forEach { item ->
                     val selected = currentRoute == item.route
-                    LiquidBottomNavItem(
-                        icon = if (selected) item.selectedIcon else item.unselectedIcon,
-                        label = item.title,
-                        selected = selected,
-                        modifier = Modifier.weight(1f),
-                        onClick = { onTabClick(item.route) }
-                    )
+                    val tint = if (selected) Color(0xFF894C5C) else Color(0xFF8C8480)
+                    val interaction = remember(item.route) { MutableInteractionSource() }
+                    val pressed by interaction.collectIsPressedAsState()
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(56.dp)
+                            .scale(if (pressed) 0.96f else 1f)
+                            .clip(RoundedCornerShape(28.dp))
+                            .clickable(
+                                interactionSource = interaction,
+                                indication = null
+                            ) { onTabClick(item.route) },
+                        verticalArrangement = Arrangement.Center,
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = if (selected) item.selectedIcon else item.unselectedIcon,
+                                contentDescription = item.title,
+                                tint = tint,
+                                modifier = Modifier.size(23.dp)
+                            )
+                        }
+                        Text(
+                            text = item.title,
+                            color = tint,
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                            modifier = Modifier.padding(top = 1.dp)
+                        )
+                    }
                 }
             }
         }
@@ -170,80 +226,37 @@ private fun WarmBottomBar(
 }
 
 @Composable
-private fun LiquidBottomNavItem(
-    icon: ImageVector,
-    label: String,
-    selected: Boolean,
-    modifier: Modifier = Modifier,
-    onClick: () -> Unit
-) {
-    val itemShape = RoundedCornerShape(27.dp)
-    val color = if (selected) LiquidNavSelected else LiquidNavMuted
-    val itemBackground = if (selected) {
-        Brush.verticalGradient(
-            listOf(
-                Color.White.copy(alpha = 0.88f),
-                LiquidNavGlow.copy(alpha = 0.66f)
-            )
+private fun LiquidGlassNavLayer(modifier: Modifier = Modifier) {
+    Canvas(modifier = modifier) {
+        drawCircle(
+            color = Color.White.copy(alpha = 0.48f),
+            radius = size.height * 0.62f,
+            center = androidx.compose.ui.geometry.Offset(size.width * 0.18f, size.height * 0.18f)
         )
-    } else {
-        Brush.verticalGradient(
-            listOf(
-                Color.Transparent,
-                Color.Transparent
-            )
+        drawCircle(
+            color = Color.White.copy(alpha = 0.34f),
+            radius = size.height * 0.46f,
+            center = androidx.compose.ui.geometry.Offset(size.width * 0.86f, size.height * 0.22f)
         )
-    }
-
-    Box(
-        modifier = modifier
-            .height(54.dp)
-            .clip(itemShape)
-            .clickable(onClick = onClick)
-            .background(itemBackground)
-            .then(
-                if (selected) {
-                    Modifier.border(1.dp, Color.White.copy(alpha = 0.82f), itemShape)
-                } else {
-                    Modifier
-                }
-            ),
-        contentAlignment = Alignment.Center
-    ) {
-        if (selected) {
-            Box(
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .padding(top = 5.dp)
-                    .width(26.dp)
-                    .height(2.dp)
-                    .clip(CircleShape)
-                    .background(Color.White.copy(alpha = 0.84f))
-            )
-        }
-        Column(
-            modifier = Modifier.padding(top = 3.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            Icon(icon, contentDescription = label, tint = color, modifier = Modifier.size(if (selected) 23.dp else 22.dp))
-            Text(
-                text = label,
-                color = color,
-                style = MaterialTheme.typography.labelSmall,
-                fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-                maxLines = 1
-            )
-        }
     }
 }
 
-private fun NavHostController.navigateAsTab(route: String) {
-    navigate(route) {
-        popUpTo(graph.findStartDestination().id) {
-            saveState = true
+@Composable
+private fun HeartNavIndicator() {
+    Canvas(modifier = Modifier.size(58.dp)) {
+        val w = size.width
+        val h = size.height
+        val path = Path().apply {
+            moveTo(w * 0.50f, h * 0.84f)
+            cubicTo(w * 0.44f, h * 0.78f, w * 0.31f, h * 0.67f, w * 0.20f, h * 0.56f)
+            cubicTo(w * 0.05f, h * 0.42f, w * 0.08f, h * 0.18f, w * 0.32f, h * 0.18f)
+            cubicTo(w * 0.42f, h * 0.18f, w * 0.48f, h * 0.25f, w * 0.50f, h * 0.33f)
+            cubicTo(w * 0.52f, h * 0.25f, w * 0.58f, h * 0.18f, w * 0.68f, h * 0.18f)
+            cubicTo(w * 0.92f, h * 0.18f, w * 0.95f, h * 0.42f, w * 0.80f, h * 0.56f)
+            cubicTo(w * 0.69f, h * 0.67f, w * 0.56f, h * 0.78f, w * 0.50f, h * 0.84f)
+            close()
         }
-        launchSingleTop = true
-        restoreState = true
+        drawPath(path, Color(0xFFFFD1DC).copy(alpha = 0.58f))
+        drawPath(path, Color.White.copy(alpha = 0.20f))
     }
 }

@@ -12,15 +12,16 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
+private const val DefaultShopAnnouncement = "欢迎来到我们的温馨小店！今天有新鲜出炉的心形披萨哦~ 🐾"
+
 enum class MenuFilter(val title: String) {
     All("全部"),
-    Available("在售"),
-    Unavailable("下架"),
+    Available("已上架"),
+    Unavailable("已下架"),
     Signature("招牌")
 }
 
 enum class MenuSortMode(val title: String) {
-    SalesDesc("销量从高到低"),
     PriceAsc("价格升序"),
     Newest("上新时间")
 }
@@ -31,9 +32,9 @@ data class DishEditorState(
     val price: String = "",
     val originPrice: String = "",
     val imageUrl: String = "",
-    val category: String = "招牌必吃",
+    val category: String = "",
     val description: String = "",
-    val stock: String = "32",
+    val stock: String = "",
     val isAvailable: Boolean = true,
     val isSignature: Boolean = false
 )
@@ -42,6 +43,8 @@ data class MenuManagementUiState(
     val shopName: String = "我的小店",
     val shopNameDraft: String = "我的小店",
     val shopImageUrl: String = "",
+    val shopAnnouncement: String = DefaultShopAnnouncement,
+    val shopAnnouncementDraft: String = DefaultShopAnnouncement,
     val dishes: List<MenuDishEntity> = emptyList(),
     val visibleDishes: List<MenuDishEntity> = emptyList(),
     val categories: List<String> = emptyList(),
@@ -72,6 +75,8 @@ class MenuManagementViewModel(
             shopName = singleShopRepository.getShopName(),
             shopNameDraft = singleShopRepository.getShopName(),
             shopImageUrl = singleShopRepository.getShopImageUrl(),
+            shopAnnouncement = singleShopRepository.getShopAnnouncement(),
+            shopAnnouncementDraft = singleShopRepository.getShopAnnouncement(),
             categories = singleShopRepository.getCategoryNames().normalizedMenuCategories()
         )
     )
@@ -79,7 +84,7 @@ class MenuManagementViewModel(
 
     init {
         viewModelScope.launch {
-            singleShopRepository.ensureSeedMenu()
+            singleShopRepository.removeBundledDemoMenu()
             menuRepository.observeMenuDishes().collect { dishes ->
                 val categories = (singleShopRepository.getCategoryNames() + dishes.map { it.category }).normalizedMenuCategories()
                 val selected = _uiState.value.selectedCategory.takeIf { it in categories } ?: categories.firstOrNull().orEmpty()
@@ -110,6 +115,20 @@ class MenuManagementViewModel(
 
     fun resetShopNameDraft() {
         updateState { copy(shopNameDraft = shopName, message = null) }
+    }
+
+    fun onShopAnnouncementChange(value: String) {
+        updateState { copy(shopAnnouncementDraft = value, message = null) }
+    }
+
+    fun saveShopAnnouncement() {
+        val announcement = _uiState.value.shopAnnouncementDraft.trim().ifBlank { DefaultShopAnnouncement }
+        singleShopRepository.updateShopAnnouncement(announcement)
+        updateState { copy(shopAnnouncement = announcement, shopAnnouncementDraft = announcement, message = "公告已保存") }
+    }
+
+    fun resetShopAnnouncementDraft() {
+        updateState { copy(shopAnnouncementDraft = shopAnnouncement, message = null) }
     }
 
     fun updateShopImage(imageUrl: String) {
@@ -267,6 +286,10 @@ class MenuManagementViewModel(
         updateState { copy(isEditing = false, message = null) }
     }
 
+    fun dismissMessage() {
+        updateState { copy(message = null) }
+    }
+
     fun onNameChange(value: String) = updateEditor { copy(name = value) }
 
     fun onPriceChange(value: String) = updateEditor { copy(price = value.filterDecimal()) }
@@ -287,6 +310,7 @@ class MenuManagementViewModel(
 
     fun saveDish() {
         val editor = _uiState.value.editor
+        val isNewDish = editor.id == null
         val price = editor.price.toDoubleOrNull()
         if (editor.name.isBlank() || price == null || price <= 0.0) {
             updateState { copy(message = "请填写菜名和有效价格") }
@@ -312,7 +336,7 @@ class MenuManagementViewModel(
                 copy(
                     isEditing = false,
                     editor = DishEditorState(category = editor.category),
-                    message = "菜品已保存"
+                    message = if (isNewDish) "已新增菜品" else "菜品已保存"
                 ).withVisibleDishes()
             }
         }
@@ -381,7 +405,6 @@ class MenuManagementViewModel(
         val query = searchQuery.trim()
         val filtered = dishes
             .asSequence()
-            .filter { selectedCategory.isBlank() || it.category == selectedCategory }
             .filter {
                 when (selectedFilter) {
                     MenuFilter.All -> true
@@ -393,9 +416,17 @@ class MenuManagementViewModel(
             .filter { query.isBlank() || it.name.contains(query, ignoreCase = true) }
             .let { sequence ->
                 when (sortMode) {
-                    MenuSortMode.SalesDesc -> sequence.sortedByDescending { it.monthlySales }
                     MenuSortMode.PriceAsc -> sequence.sortedBy { it.price }
-                    MenuSortMode.Newest -> sequence.sortedByDescending { it.updatedAt }
+                    MenuSortMode.Newest -> {
+                        if (selectedFilter == MenuFilter.All) {
+                            sequence.sortedWith(
+                                compareBy<MenuDishEntity> { !it.isAvailable }
+                                    .thenByDescending { it.updatedAt }
+                            )
+                        } else {
+                            sequence.sortedByDescending { it.updatedAt }
+                        }
+                    }
                 }
             }
             .toList()

@@ -3,34 +3,51 @@ package com.myorderapp.ui.orders
 import android.content.Context
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.RadioButtonUnchecked
+import androidx.compose.material.icons.filled.RestaurantMenu
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.myorderapp.domain.model.OrderRecord
+import com.myorderapp.domain.model.OrderTimelineEntry
+import com.myorderapp.ui.components.CandyCoinIcon
+import com.myorderapp.ui.components.CozyCard
+import com.myorderapp.ui.components.CozyCocoa
+import com.myorderapp.ui.components.CozyMuted
+import com.myorderapp.ui.components.CozyPill
+import com.myorderapp.ui.components.CozyRose
 import com.myorderapp.ui.util.yuanText
 import org.koin.androidx.compose.koinViewModel
 
@@ -57,124 +74,282 @@ fun OrderDetailScreen(
         .getString(KEY_SELECTED_ROLE, null)
     val canAdvanceOrder = selectedRole == ROLE_CARETAKER
 
-    Column(
+    Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .padding(20.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
+            .background(Color(0xFFFEF8F2))
     ) {
-        Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-            IconButton(onClick = onBack) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
-            }
-            Text("订单详情", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-        }
-        uiState.message?.let { message ->
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+        Column(modifier = Modifier.fillMaxSize()) {
+            OrderDetailTopBar(onBack = onBack)
+
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(start = 20.dp, top = 8.dp, end = 20.dp, bottom = 28.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
+                uiState.message?.let { message ->
+                    item {
+                        CozyCard(
+                            containerColor = Color.White.copy(alpha = 0.56f),
+                            borderColor = Color.White.copy(alpha = 0.72f),
+                            radius = 24
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(Icons.Filled.CheckCircle, contentDescription = null, tint = CozyRose)
+                                Text(message, color = CozyCocoa, modifier = Modifier.weight(1f))
+                                TextButton(onClick = viewModel::dismissMessage) {
+                                    Text("知道了", color = CozyRose)
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if (order == null) {
+                    item {
+                        CozyCard(
+                            containerColor = Color.White.copy(alpha = 0.58f),
+                            borderColor = Color.White.copy(alpha = 0.72f),
+                            radius = 24
+                        ) {
+                            Text("正在读取订单...", color = CozyMuted)
+                        }
+                    }
+                } else {
+                    item { OrderSummaryCard(order = order) }
+
+                    if (nextActionText != null && !canAdvanceOrder) {
+                        item { CaretakerOnlyCard() }
+                    }
+
+                    if (nextActionText != null || order.status !in setOf("completed", "cancelled")) {
+                        item {
+                            OrderActionRow(
+                                nextActionText = nextActionText,
+                                canAdvanceOrder = canAdvanceOrder,
+                                canCancel = order.status !in setOf("completed", "cancelled"),
+                                onAdvance = { viewModel.advanceStatus(canAdvance = canAdvanceOrder) },
+                                onCancel = viewModel::cancelOrder
+                            )
+                        }
+                    }
+
+                    item { TimelineCard(order = order) }
+                    item { OrderItemsCard(order = order) }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun OrderDetailTopBar(onBack: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .statusBarsPadding()
+            .height(64.dp)
+            .padding(horizontal = 12.dp, vertical = 8.dp)
+    ) {
+        IconButton(onClick = onBack, modifier = Modifier.align(Alignment.CenterStart)) {
+            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回", tint = CozyRose)
+        }
+        Text(
+            text = "订单详情",
+            color = CozyRose,
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Black,
+            modifier = Modifier.align(Alignment.Center)
+        )
+    }
+}
+
+@Composable
+private fun OrderSummaryCard(order: OrderRecord) {
+    CozyCard(
+        containerColor = Color.White.copy(alpha = 0.62f),
+        borderColor = Color.White.copy(alpha = 0.72f),
+        radius = 24,
+        contentPadding = PaddingValues(24.dp)
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Surface(shape = CircleShape, color = Color(0xFFFFD1DC).copy(alpha = 0.62f)) {
+                    Icon(
+                        Icons.Filled.RestaurantMenu,
+                        contentDescription = null,
+                        tint = CozyRose,
+                        modifier = Modifier.padding(12.dp).size(24.dp)
+                    )
+                }
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(order.shopName, color = CozyCocoa, fontWeight = FontWeight.Black)
+                    Text(order.buyerDetailText(), color = CozyRose, fontWeight = FontWeight.SemiBold)
+                }
+                CozyPill(order.status.toOrderStatusText(), selected = true, color = CozyRose)
+            }
+            Text(order.addressSnapshot.ifBlank { "小饭桌信息待补充" }, color = CozyMuted)
+            Text(order.buyerNote.ifBlank { "暂无备注" }, color = CozyMuted)
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text("合计", color = CozyCocoa, fontWeight = FontWeight.Black)
+                Text(yuanText(order.totalPrice), color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Black)
+            }
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Row(
-                    modifier = Modifier.padding(14.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(5.dp)
                 ) {
-                    Text(message, color = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.weight(1f))
-                    TextButton(onClick = viewModel::dismissMessage) {
-                        Text("知道了")
+                    CandyCoinIcon(modifier = Modifier.size(20.dp))
+                    Text("糖糖币", color = CozyMuted)
+                }
+                Text(
+                    text = if (order.status == "cancelled") "已返还 ${order.candyCoinsSpent} 枚" else "消耗 ${order.candyCoinsSpent} 枚",
+                    color = if (order.status == "cancelled") CozyMuted else CozyRose,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun CaretakerOnlyCard() {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        color = Color(0xFFFFD1DC).copy(alpha = 0.52f)
+    ) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text("只有饲养员可以更新订单进度", color = CozyCocoa, fontWeight = FontWeight.Black)
+            Text("请先在首页切换为饲养员，再处理这份点菜单。", color = CozyMuted, style = MaterialTheme.typography.bodySmall)
+        }
+    }
+}
+
+@Composable
+private fun OrderActionRow(
+    nextActionText: String?,
+    canAdvanceOrder: Boolean,
+    canCancel: Boolean,
+    onAdvance: () -> Unit,
+    onCancel: () -> Unit
+) {
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        nextActionText?.let { actionText ->
+            GradientOrderActionButton(
+                text = actionText,
+                enabled = canAdvanceOrder,
+                onClick = onAdvance,
+                modifier = Modifier.weight(1f)
+            )
+        }
+        if (canCancel) {
+            TextButton(
+                onClick = onCancel,
+                modifier = Modifier.weight(1f).height(52.dp),
+                shape = RoundedCornerShape(999.dp),
+                colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFFB85C5C))
+            ) {
+                Text("取消订单", fontWeight = FontWeight.Bold)
+            }
+        }
+    }
+}
+
+@Composable
+private fun GradientOrderActionButton(
+    text: String,
+    enabled: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        onClick = onClick,
+        enabled = enabled,
+        shape = RoundedCornerShape(999.dp),
+        color = if (enabled) Color(0xFF894C5C) else Color(0xFFE7E2DC),
+        modifier = modifier
+            .height(52.dp)
+    ) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(text, color = Color(0xFFFFFCF8), fontWeight = FontWeight.Bold)
+        }
+    }
+}
+
+@Composable
+private fun TimelineCard(order: OrderRecord) {
+    val entries = order.progressTimelineEntries()
+    CozyCard(
+        containerColor = Color.White.copy(alpha = 0.58f),
+        borderColor = Color.White.copy(alpha = 0.72f),
+        radius = 24
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text("订单进度", color = CozyCocoa, fontWeight = FontWeight.Black)
+            if (entries.isEmpty()) {
+                Text("暂无进度记录", color = CozyMuted)
+            } else {
+                entries.forEach { entry ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.Top) {
+                        Icon(
+                            imageVector = if (entry.isCompleted) Icons.Filled.CheckCircle else Icons.Filled.RadioButtonUnchecked,
+                            contentDescription = null,
+                            tint = if (entry.isCompleted) CozyRose else CozyMuted,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Column {
+                            Text(entry.title, color = CozyCocoa, fontWeight = FontWeight.SemiBold)
+                            if (entry.timestamp.isNotBlank()) {
+                                Text(entry.timestamp, color = CozyMuted, style = MaterialTheme.typography.bodySmall)
+                            }
+                        }
                     }
                 }
             }
         }
-        if (order != null) {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(18.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-            ) {
-                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text(order.shopName, fontWeight = FontWeight.Bold)
-                    Text(order.addressSnapshot)
-                    Text(order.buyerNote.ifBlank { "暂无备注" })
-                    Text(order.status.toOrderStatusText(), color = MaterialTheme.colorScheme.primary)
-                }
+    }
+}
+
+@Composable
+private fun OrderItemsCard(order: OrderRecord) {
+    CozyCard(
+        containerColor = Color.White.copy(alpha = 0.62f),
+        borderColor = Color.White.copy(alpha = 0.72f),
+        radius = 24,
+        contentPadding = PaddingValues(24.dp)
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text("菜品明细", color = CozyCocoa, fontWeight = FontWeight.Black)
+                Text("共 ${order.items.sumOf { it.quantity }} 份", color = CozyMuted, style = MaterialTheme.typography.bodySmall)
             }
-            if (nextActionText != null && !canAdvanceOrder) {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
-                ) {
-                    Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text(
-                            "只有饲养员可以更新订单进度",
-                            color = MaterialTheme.colorScheme.onSecondaryContainer,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            "请先在首页切换为饲养员，再处理这份点菜单",
-                            color = MaterialTheme.colorScheme.onSecondaryContainer,
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                    }
+            order.items.forEachIndexed { index, item ->
+                if (index > 0) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(1.dp)
+                            .background(CozyRose.copy(alpha = 0.08f))
+                    )
                 }
-            }
-            if (nextActionText != null || order.status !in setOf("completed", "cancelled")) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    nextActionText?.let { actionText ->
-                        Button(
-                            onClick = { viewModel.advanceStatus(canAdvance = canAdvanceOrder) },
-                            enabled = canAdvanceOrder,
-                            modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(14.dp)
-                        ) {
-                            Text(actionText)
-                        }
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(item.menuItemName, color = CozyCocoa, fontWeight = FontWeight.SemiBold)
+                        Text("${item.quantity} 份 x ${yuanText(item.unitPrice)}", color = CozyMuted, style = MaterialTheme.typography.bodySmall)
                     }
-                    if (order.status !in setOf("completed", "cancelled")) {
-                        TextButton(
-                            onClick = viewModel::cancelOrder,
-                            modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(14.dp),
-                            colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFFB85C5C))
-                        ) {
-                            Text("取消订单")
-                        }
-                    }
-                }
-            }
-            Text("订单进度", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                items(order.timeline) { entry ->
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = if (entry.isCompleted) MaterialTheme.colorScheme.primaryContainer
-                            else MaterialTheme.colorScheme.surface
-                        )
-                    ) {
-                        Column(modifier = Modifier.padding(14.dp)) {
-                            Text(entry.title, fontWeight = FontWeight.Bold)
-                            Text(entry.timestamp, style = MaterialTheme.typography.bodySmall)
-                        }
-                    }
-                }
-                items(order.items) { item ->
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-                    ) {
-                        Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Text(item.menuItemName, fontWeight = FontWeight.Bold)
-                            Text("${item.quantity} 份 × ${yuanText(item.unitPrice)}")
-                        }
-                    }
+                    Text(yuanText(item.subtotal), color = CozyCocoa, fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -195,4 +370,42 @@ private fun String.nextActionText(): String? = when (this) {
     "confirmed" -> "开始准备"
     "delivering" -> "完成这顿饭"
     else -> null
+}
+
+private val orderProgressSteps = listOf(
+    "submitted" to "已提交",
+    "confirmed" to "饲养员已确认",
+    "delivering" to "准备中",
+    "completed" to "已完成"
+)
+
+private fun OrderRecord.progressTimelineEntries(): List<OrderTimelineEntry> {
+    if (status == "cancelled") {
+        return listOf(
+            OrderTimelineEntry(title = "已提交", timestamp = createdAt, isCompleted = true),
+            OrderTimelineEntry(title = "已取消", timestamp = "", isCompleted = true)
+        )
+    }
+    val currentIndex = orderProgressSteps.indexOfFirst { it.first == status }.coerceAtLeast(0)
+    return orderProgressSteps.mapIndexed { index, (step, title) ->
+        val isCompleted = index <= currentIndex
+        val matchingEntry = timeline.firstOrNull { it.title == title || it.title == step.toOrderStatusText() }
+        val timestamp = when {
+            !isCompleted -> ""
+            index == 0 -> matchingEntry?.timestamp?.takeIf { it.isNotBlank() } ?: createdAt
+            matchingEntry != null && matchingEntry.timestamp.isNotBlank() && matchingEntry.timestamp != createdAt -> matchingEntry.timestamp
+            else -> ""
+        }
+        OrderTimelineEntry(
+            title = title,
+            timestamp = timestamp,
+            isCompleted = isCompleted
+        )
+    }
+}
+
+private fun OrderRecord.buyerDetailText(): String {
+    val buyer = buyerName.ifBlank { "对方" }
+    val count = items.sumOf { it.quantity }.coerceAtLeast(items.size)
+    return "$buyer 点了 $count 道菜"
 }

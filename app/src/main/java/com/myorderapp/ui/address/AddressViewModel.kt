@@ -30,17 +30,23 @@ class AddressViewModel(
         }
     }
 
-    fun addSampleAddress() {
+    fun addAddress(
+        contactName: String,
+        contactPhone: String,
+        addressLine1: String,
+        addressLine2: String,
+        tag: String
+    ) {
         viewModelScope.launch {
             addressRepository.saveAddress(
                 Address(
                     id = UUID.randomUUID().toString(),
                     userId = sessionManager.currentUserId.ifBlank { "guest" },
-                    contactName = "阿达",
-                    contactPhone = "13800138000",
-                    addressLine1 = "橙子街 12 号",
-                    addressLine2 = "502 室",
-                    tag = "家",
+                    contactName = contactName.trim(),
+                    contactPhone = contactPhone.trim(),
+                    addressLine1 = addressLine1.trim(),
+                    addressLine2 = addressLine2.trim(),
+                    tag = tag.trim(),
                     isDefault = _uiState.value.addresses.isEmpty()
                 )
             )

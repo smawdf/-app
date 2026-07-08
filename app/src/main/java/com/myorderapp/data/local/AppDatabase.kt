@@ -9,12 +9,14 @@ import com.myorderapp.data.local.dao.DishDao
 import com.myorderapp.data.local.dao.MealDao
 import com.myorderapp.data.local.dao.AddressDao
 import com.myorderapp.data.local.dao.CartDao
+import com.myorderapp.data.local.dao.CandyCoinRecordDao
 import com.myorderapp.data.local.dao.MenuDishDao
 import com.myorderapp.data.local.dao.OrderDao
 import com.myorderapp.data.local.dao.ProfileDao
 import com.myorderapp.data.local.dao.WishlistDao
 import com.myorderapp.data.local.entity.AddressEntity
 import com.myorderapp.data.local.entity.CartItemEntity
+import com.myorderapp.data.local.entity.CandyCoinRecordEntity
 import com.myorderapp.data.local.entity.DishEntity
 import com.myorderapp.data.local.entity.MealEntity
 import com.myorderapp.data.local.entity.MealItemEntity
@@ -36,9 +38,10 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         CartItemEntity::class,
         AddressEntity::class,
         OrderEntity::class,
-        OrderItemEntity::class
+        OrderItemEntity::class,
+        CandyCoinRecordEntity::class
     ],
-    version = 6,
+    version = 9,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -50,6 +53,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun cartDao(): CartDao
     abstract fun addressDao(): AddressDao
     abstract fun orderDao(): OrderDao
+    abstract fun candyCoinRecordDao(): CandyCoinRecordDao
 
     companion object {
         @Volatile
@@ -189,6 +193,42 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_6_7 = object : Migration(6, 7) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `orders` ADD COLUMN `pairId` TEXT NOT NULL DEFAULT ''")
+                db.execSQL("ALTER TABLE `orders` ADD COLUMN `buyerName` TEXT NOT NULL DEFAULT ''")
+                db.execSQL("ALTER TABLE `orders` ADD COLUMN `buyerAvatarUrl` TEXT NOT NULL DEFAULT ''")
+                db.execSQL("ALTER TABLE `orders` ADD COLUMN `buyerRole` TEXT NOT NULL DEFAULT ''")
+            }
+        }
+
+        private val MIGRATION_7_8 = object : Migration(7, 8) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `profiles` ADD COLUMN `candyCoins` INTEGER NOT NULL DEFAULT 66")
+                db.execSQL("ALTER TABLE `orders` ADD COLUMN `candyCoinsSpent` INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
+        private val MIGRATION_8_9 = object : Migration(8, 9) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `candy_coin_records` (
+                        `id` TEXT NOT NULL,
+                        `type` TEXT NOT NULL,
+                        `amount` INTEGER NOT NULL,
+                        `balanceAfter` INTEGER NOT NULL,
+                        `actorRole` TEXT NOT NULL,
+                        `targetRole` TEXT NOT NULL,
+                        `note` TEXT NOT NULL,
+                        `createdAt` TEXT NOT NULL,
+                        PRIMARY KEY(`id`)
+                    )
+                    """.trimIndent()
+                )
+            }
+        }
+
         fun getInstance(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 INSTANCE ?: Room.databaseBuilder(
@@ -200,7 +240,10 @@ abstract class AppDatabase : RoomDatabase() {
                     MIGRATION_2_3,
                     MIGRATION_3_4,
                     MIGRATION_4_5,
-                    MIGRATION_5_6
+                    MIGRATION_5_6,
+                    MIGRATION_6_7,
+                    MIGRATION_7_8,
+                    MIGRATION_8_9
                 )
                     .build()
                     .also { INSTANCE = it }

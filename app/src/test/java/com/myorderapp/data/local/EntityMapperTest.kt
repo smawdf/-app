@@ -430,5 +430,7 @@ class EntityMapperTest {
         assertEquals(order.addressSnapshot, restored.addressSnapshot)
         assertEquals(1, restored.items.size)
         assertEquals("Orange Chicken", restored.items.first().menuItemName)
+        assertEquals("2026-06-30T11:00:00Z", restored.timeline.first().timestamp)
+        assertTrue("未完成进度不应填充虚假的创建时间", restored.timeline.drop(1).all { it.timestamp.isBlank() })
     }
 }

@@ -19,7 +19,8 @@ data class RecipeJsonDto(
     val texing: String = "",
     val tishi: String = "",
     val difficulty: Int = 1,
-    val cookTimeMin: Int = 0
+    val cookTimeMin: Int = 0,
+    val imageUrl: String? = null
 )
 
 
@@ -51,9 +52,9 @@ class RecipeAssetLoader(private val context: Context) {
             name = name,
             source = "builtin",
             externalId = id.toString(),
-            externalSource = "sample",
+            externalSource = "builtin_asset",
             category = category,
-            imageUrl = null,
+            imageUrl = imageUrl?.trim()?.takeIf { it.isNotBlank() },
             cookSteps = parseCookSteps(zuofa, tishi),
             ingredients = ingredients + seasonings,
             difficulty = difficulty,

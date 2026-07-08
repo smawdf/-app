@@ -1,12 +1,12 @@
 package com.myorderapp.ui.theme
 
 import android.app.Activity
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
@@ -19,6 +19,8 @@ private val LightColorScheme = lightColorScheme(
     secondary = Secondary,
     onSecondary = OnSecondary,
     secondaryContainer = SecondaryContainer,
+    tertiary = Tertiary,
+    tertiaryContainer = TertiaryContainer,
     background = Background,
     onBackground = OnBackground,
     surface = Surface,
@@ -40,9 +42,9 @@ private val DarkColorScheme = darkColorScheme(
     onSecondary = OnSecondary,
     secondaryContainer = SecondaryContainer,
     background = DarkBackground,
-    onBackground = OnBackground,
+    onBackground = Color(0xFFF6F0EA),
     surface = DarkSurface,
-    onSurface = OnSurface,
+    onSurface = Color(0xFFF6F0EA),
     surfaceVariant = DarkSurfaceVariant,
     onSurfaceVariant = OnSurfaceVariant,
     outline = Outline,
@@ -53,7 +55,7 @@ private val DarkColorScheme = darkColorScheme(
 
 @Composable
 fun OrderDiskTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
+    darkTheme: Boolean = false,
     content: @Composable () -> Unit
 ) {
     val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme

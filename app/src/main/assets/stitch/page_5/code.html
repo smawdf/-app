@@ -1,0 +1,317 @@
+<!DOCTYPE html><html lang="zh-CN" style=""><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>我的 - Our Kitchen</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;600;700&amp;family=Plus+Jakarta+Sans:wght@400;700&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "inverse-primary": "#ffb1c3",
+                        "secondary": "#78555e",
+                        "surface-tint": "#894c5c",
+                        "on-primary-container": "#733949",
+                        "on-tertiary-fixed": "#380d01",
+                        "on-tertiary-container": "#753c27",
+                        "secondary-container": "#ffd1dc",
+                        "on-primary": "#ffffff",
+                        "outline": "#847376",
+                        "on-surface-variant": "#524346",
+                        "on-error": "#ffffff",
+                        "surface-container-lowest": "#ffffff",
+                        "surface-container-highest": "#e7e2dc",
+                        "on-tertiary": "#ffffff",
+                        "inverse-surface": "#32302c",
+                        "error-container": "#ffdad6",
+                        "background": "#fef8f2",
+                        "outline-variant": "#d6c1c5",
+                        "on-secondary-fixed": "#2d141c",
+                        "tertiary": "#8b4e38",
+                        "surface-dim": "#dfd9d3",
+                        "tertiary-container": "#f8a98e",
+                        "surface-container-low": "#f8f3ed",
+                        "primary-fixed-dim": "#ffb1c3",
+                        "on-primary-fixed-variant": "#6e3545",
+                        "error": "#ba1a1a",
+                        "primary-fixed": "#ffd9e0",
+                        "secondary-fixed": "#ffd9e2",
+                        "primary": "#894c5c",
+                        "on-surface": "#1d1b18",
+                        "tertiary-fixed": "#ffdbcf",
+                        "surface-container": "#f3ede7",
+                        "surface": "#fef8f2",
+                        "on-secondary": "#ffffff",
+                        "tertiary-fixed-dim": "#ffb59c",
+                        "surface-variant": "#e7e2dc",
+                        "on-tertiary-fixed-variant": "#6f3723",
+                        "on-primary-fixed": "#380a1a",
+                        "on-background": "#1d1b18",
+                        "secondary-fixed-dim": "#e7bbc6",
+                        "inverse-on-surface": "#f6f0ea",
+                        "on-secondary-fixed-variant": "#5e3e47",
+                        "surface-container-high": "#ede7e1",
+                        "surface-bright": "#fef8f2",
+                        "on-error-container": "#93000a",
+                        "primary-container": "#f4a7b9",
+                        "on-secondary-container": "#7a5761"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px",
+                        "blob": "40% 60% 70% 30% / 40% 50% 60% 50%"
+                    },
+                    "spacing": {
+                        "lg": "24px",
+                        "md": "16px",
+                        "margin-desktop": "64px",
+                        "margin-mobile": "20px",
+                        "xl": "40px",
+                        "xs": "4px",
+                        "unit": "4px",
+                        "gutter": "16px",
+                        "sm": "8px"
+                    },
+                    "fontFamily": {
+                        "body-lg": ["Plus Jakarta Sans"],
+                        "headline-md": ["Be Vietnam Pro"],
+                        "headline-lg-mobile": ["Be Vietnam Pro"],
+                        "body-md": ["Plus Jakarta Sans"],
+                        "label-bold": ["Plus Jakarta Sans"],
+                        "headline-lg": ["Be Vietnam Pro"]
+                    },
+                    "fontSize": {
+                        "body-lg": ["18px", { "lineHeight": "28px", "fontWeight": "400" }],
+                        "headline-md": ["24px", { "lineHeight": "32px", "fontWeight": "600" }],
+                        "headline-lg-mobile": ["28px", { "lineHeight": "36px", "fontWeight": "700" }],
+                        "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "label-bold": ["14px", { "lineHeight": "20px", "fontWeight": "700" }],
+                        "headline-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body {
+            background-color: theme('colors.background');
+            color: theme('colors.on-background');
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        .hand-drawn-border {
+            border: 2px solid theme('colors.secondary');
+            border-radius: theme('borderRadius.xl');
+        }
+
+        .squishy-shadow {
+            box-shadow: 0 4px 0 0 theme('colors.secondary');
+            transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .squishy-shadow:active {
+            box-shadow: 0 0 0 0 theme('colors.secondary');
+            transform: translateY(4px) scale(0.98);
+        }
+        
+        .squishy-shadow-card {
+            box-shadow: 4px 4px 0 0 theme('colors.secondary-container');
+        }
+
+        .glass-modal {
+            background: rgba(255, 249, 243, 0.85);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        }
+        
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        
+        .icon-filled {
+            font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+
+        /* Hide scrollbar but keep functionality */
+        ::-webkit-scrollbar {
+            width: 0px;
+            background: transparent;
+        }
+
+        /* Animations */
+        @keyframes slideUpFade {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .animate-slide-up {
+            animation: slideUpFade 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        /* Heart shape for selected nav item */
+        .heart-bg {
+            position: relative;
+        }
+        .heart-bg::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background-color: theme('colors.primary-container');
+            border-radius: 50% 50% 0 0;
+            transform: rotate(-45deg) scale(1.1);
+            transform-origin: center calc(50% + 5px);
+            z-index: -1;
+            opacity: 0.8;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .heart-bg::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background-color: theme('colors.primary-container');
+            border-radius: 50% 50% 0 0;
+            transform: rotate(45deg) scale(1.1);
+            transform-origin: center calc(50% + 5px);
+            z-index: -1;
+            opacity: 0.8;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+</head>
+<body class="min-h-screen pb-32 font-body-md overflow-x-hidden">
+<!-- TopAppBar -->
+<header class="fixed top-0 w-full z-40 bg-background/80 backdrop-blur-md flex justify-between items-center px-margin-mobile py-sm">
+<button class="p-2 text-primary hover:opacity-80 scale-95 transition-transform rounded-full">
+<span class="material-symbols-outlined text-[28px]">favorite</span>
+</button>
+<h1 class="font-headline-md text-headline-md text-primary font-bold">个人中心</h1>
+<button class="p-2 text-primary hover:opacity-80 scale-95 transition-transform rounded-full">
+<span class="material-symbols-outlined text-[28px]">notifications</span>
+</button>
+</header>
+<!-- Main Content Canvas -->
+<main class="pt-24 px-margin-mobile max-w-[1200px] mx-auto flex flex-col gap-lg animate-slide-up">
+<!-- Profile Card -->
+<section class="hand-drawn-border bg-secondary-container squishy-shadow-card p-lg relative overflow-hidden flex flex-col items-center text-center">
+<!-- Decorative blobs -->
+<div class="absolute -top-10 -left-10 w-32 h-32 bg-white/40 rounded-blob"></div>
+<div class="absolute -bottom-10 -right-10 w-40 h-40 bg-white/30 rounded-full"></div>
+<div class="relative w-24 h-24 mb-md">
+<img alt="Avatar" class="w-full h-full object-cover rounded-full hand-drawn-border bg-white" data-alt="A cute, hand-drawn style illustration of a happy white fluffy puppy face, minimalist kawaii aesthetic, warm cream background, soft edges, pastel colors." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCorTKdRcfTFmDBPxJOkWvYeYyD221LmDyWGLHpz39ZsVPG15JykdMk46KKnG3C0Q_KlW2obEPgxQyRqiccijOsLNzN3Zw4hayXJtKI85gOJ5PUoVr_xcWzzzkrorKSiTPDrxzj8H625IpuYGzTU9tAws9LoOVsJuBHVzxtR0uMwybCsXNmc3Y6lvFAkBRiIbozuVwoh101RArkVvmimbsk6bKeUlQP81dhZRBnPS5-Ognf6wgAx3-D">
+<div class="absolute bottom-0 right-0 bg-primary text-on-primary rounded-full w-8 h-8 flex items-center justify-center hand-drawn-border">
+<span class="material-symbols-outlined text-[16px] icon-filled">edit</span>
+</div>
+</div>
+<h2 class="font-headline-md text-headline-md text-on-secondary-container mb-xs">糯米小狗</h2>
+<p class="font-body-md text-on-secondary-container opacity-80 mb-sm">ID: 8848291</p>
+<div class="inline-flex items-center gap-xs bg-white/60 px-md py-xs rounded-full hand-drawn-border">
+<span class="material-symbols-outlined text-[18px] text-primary">pets</span>
+<span class="font-label-bold text-label-bold text-on-secondary-container">当前身份：饲养员</span>
+</div>
+</section>
+<!-- Bento Grid for Features -->
+<section class="grid grid-cols-2 gap-md">
+<!-- My Shop -->
+<button class="hand-drawn-border bg-surface-container-low p-md flex flex-col items-center justify-center gap-sm squishy-shadow aspect-square group">
+<div class="w-12 h-12 rounded-full bg-primary-container text-primary flex items-center justify-center group-hover:bg-primary group-hover:text-white transition-colors">
+<span class="material-symbols-outlined text-[28px]">storefront</span>
+</div>
+<span class="font-label-bold text-label-bold text-on-surface">我的店铺</span>
+</button>
+<!-- Order History -->
+<button class="hand-drawn-border bg-surface-container-low p-md flex flex-col items-center justify-center gap-sm squishy-shadow aspect-square group">
+<div class="w-12 h-12 rounded-full bg-primary-container text-primary flex items-center justify-center group-hover:bg-primary group-hover:text-white transition-colors">
+<span class="material-symbols-outlined text-[28px]">receipt_long</span>
+</div>
+<span class="font-label-bold text-label-bold text-on-surface">订单记录</span>
+</button>
+<!-- Account Settings -->
+<div class="col-span-2 flex flex-col gap-md">
+    <button class="w-full h-[68px] px-md flex items-center gap-md bg-surface-container-low hand-drawn-border squishy-shadow group">
+        <div class="w-10 h-10 rounded-full bg-surface-variant text-on-surface-variant flex items-center justify-center group-hover:bg-secondary group-hover:text-white transition-colors">
+            <span class="material-symbols-outlined text-[24px]">settings</span>
+        </div>
+        <span class="flex-1 text-left font-label-bold text-[16px] text-on-surface">账号设置</span>
+        <span class="material-symbols-outlined text-on-surface-variant opacity-80">chevron_right</span>
+    </button>
+    <button class="w-full h-[68px] px-md flex items-center gap-md bg-surface-container-low hand-drawn-border squishy-shadow group">
+        <div class="w-10 h-10 rounded-full bg-surface-variant text-on-surface-variant flex items-center justify-center group-hover:bg-secondary group-hover:text-white transition-colors">
+            <span class="material-symbols-outlined text-[24px]">support_agent</span>
+        </div>
+        <span class="flex-1 text-left font-label-bold text-[16px] text-on-surface">帮助与客服</span>
+        <span class="material-symbols-outlined text-on-surface-variant opacity-80">chevron_right</span>
+    </button>
+</div>
+<!-- Help & Support -->
+
+</section>
+<!-- Logout Button -->
+<div class="pb-12 mt-lg">
+<button class="w-full py-md bg-error text-on-error font-headline-md text-headline-md rounded-full hand-drawn-border squishy-shadow flex items-center justify-center gap-sm" onclick="document.getElementById('logoutModal').classList.remove('hidden')">
+<span class="material-symbols-outlined">logout</span>
+                退出登录
+            </button>
+</div>
+</main>
+<!-- BottomNavBar (Liquid Glass - Heart Selected) -->
+<nav class="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 flex justify-around items-center w-[calc(100%-40px)] max-w-md h-[68px] rounded-full px-2 border border-white/30 shadow-[0_8px_32px_rgba(166,77,100,0.15)] transition-all duration-300 md:hidden" style="background: rgba(255, 255, 255, 0.55); backdrop-filter: blur(25px); bottom: 12px; width: calc(100% - 40px);">
+<a aria-label="首页" class="flex flex-col items-center justify-center p-2 flex-1 transition-all duration-300 active:scale-90 group" href="#">
+<span class="material-symbols-outlined mb-1 text-[24px] transition-colors duration-280" style="color: #8C8480; font-variation-settings: 'FILL' 0;">home</span>
+<span class="font-label-bold text-[10px] transition-colors duration-280" style="color: #8C8480;">首页</span>
+</a>
+<a aria-label="点餐" class="flex flex-col items-center justify-center p-2 flex-1 transition-all duration-300 active:scale-90 group" href="#">
+<span class="material-symbols-outlined mb-1 text-[24px] transition-colors duration-280" style="color: #8C8480; font-variation-settings: 'FILL' 0;">restaurant</span>
+<span class="font-label-bold text-[10px] transition-colors duration-280" style="color: #8C8480;">点餐</span>
+</a>
+<a aria-label="发现" class="flex flex-col items-center justify-center p-2 flex-1 transition-all duration-300 active:scale-90 group" href="#">
+<span class="material-symbols-outlined mb-1 text-[24px] transition-colors duration-280" style="color: #8C8480; font-variation-settings: 'FILL' 0;">explore</span>
+<span class="font-label-bold text-[10px] transition-colors duration-280" style="color: #8C8480;">发现</span>
+</a>
+<a aria-label="订单" class="flex flex-col items-center justify-center p-2 flex-1 transition-all duration-300 active:scale-90 group" href="#">
+<span class="material-symbols-outlined mb-1 text-[24px] transition-colors duration-280" style="color: #8C8480; font-variation-settings: 'FILL' 0;">receipt_long</span>
+<span class="font-label-bold text-[10px] transition-colors duration-280" style="color: #8C8480;">订单</span>
+</a>
+<a aria-label="我的" class="relative flex flex-col items-center justify-center p-2 flex-1 transition-all duration-300 active:scale-90 group" href="#"><div class="absolute inset-0 flex items-center justify-center -z-10"><div class="w-[64px] h-[64px] rounded-full flex items-center justify-center transition-all duration-300" style="background: rgba(244, 167, 185, 0.35); clip-path: path('M 32 54 L 28.6 50.91 C 16.533 39.98 8.667 32.84 8.667 23.333 C 8.667 15.773 14.616 9.833 22.167 9.833 C 26.437 9.833 30.543 11.817 32 14.983 C 33.457 11.817 37.563 9.833 41.833 9.833 C 49.384 9.833 55.333 15.773 55.333 23.333 C 55.333 32.84 47.467 39.98 35.4 50.91 L 32 54 Z');"></div></div><span class="material-symbols-outlined mb-1 text-[24px] transition-colors duration-280" style="color: rgb(166, 77, 100); font-variation-settings: &quot;FILL&quot; 1;">person</span><span class="font-label-bold text-[10px] transition-colors duration-280" style="color: rgb(166, 77, 100);">我的</span></a>
+</nav>
+<!-- Logout Confirmation Modal (Liquid Glass) -->
+<div class="hidden fixed inset-0 z-[100] flex items-center justify-center px-margin-mobile" id="logoutModal">
+<!-- Backdrop -->
+<div class="absolute inset-0 bg-on-background/20 backdrop-blur-sm" onclick="document.getElementById('logoutModal').classList.add('hidden')"></div>
+<!-- Modal Content -->
+<div class="relative glass-modal w-full max-w-sm rounded-3xl p-xl border border-white/50 shadow-2xl flex flex-col items-center text-center transform transition-all animate-slide-up">
+<div class="w-16 h-16 rounded-full bg-error-container text-error flex items-center justify-center mb-md hand-drawn-border">
+<span class="material-symbols-outlined text-[32px]">warning</span>
+</div>
+<h3 class="font-headline-md text-headline-md text-on-surface mb-sm">确认要离开吗？</h3>
+<p class="font-body-md text-on-surface-variant mb-lg">小狗会想念你的哦...</p>
+<div class="flex gap-md w-full">
+<button class="flex-1 py-sm bg-surface-container text-on-surface font-label-bold text-label-bold rounded-full hand-drawn-border squishy-shadow" onclick="document.getElementById('logoutModal').classList.add('hidden')">
+                    再留一会
+                </button>
+<button class="flex-1 py-sm bg-error text-on-error font-label-bold text-label-bold rounded-full hand-drawn-border squishy-shadow" onclick="document.getElementById('logoutModal').classList.add('hidden')">
+                    狠心退出
+                </button>
+</div>
+</div>
+</div>
+
+
+
+
+</body></html>

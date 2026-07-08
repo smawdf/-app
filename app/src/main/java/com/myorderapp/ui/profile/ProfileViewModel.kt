@@ -24,8 +24,6 @@ data class ProfileUiState(
     val pairCode: String = "",
     val joinPairCode: String = "",
     val isLoading: Boolean = true,
-    val customTags: List<String> = emptyList(),
-    val newTag: String = "",
     val saveMessage: String? = null
 )
 
@@ -57,9 +55,8 @@ class ProfileViewModel(
         viewModelScope.launch {
             profileRepository.loadProfile()
             profileRepository.getProfile().collect { profile ->
-                val tags = profile?.tastePrefs?.custom ?: emptyList()
                 _uiState.value = _uiState.value.copy(
-                    profile = profile, customTags = tags, isLoading = false
+                    profile = profile, isLoading = false
                 )
             }
         }
@@ -126,67 +123,31 @@ class ProfileViewModel(
         }
     }
 
-    fun onNewTagChanged(tag: String) {
-        _uiState.value = _uiState.value.copy(newTag = tag)
-    }
-
-    fun addTag() {
-        val tag = _uiState.value.newTag.trim()
-        if (tag.isBlank() || tag.length > 6) return
-        val tags = _uiState.value.customTags.toMutableList()
-        if (tags.contains(tag)) {
-            _uiState.value = _uiState.value.copy(newTag = "", saveMessage = "标签已存在")
-            return
-        }
-        tags.add(tag)
-        _uiState.value = _uiState.value.copy(customTags = tags, newTag = "", saveMessage = null)
-        saveTagsToCloud(tags)
-    }
-
-    fun removeTag(tag: String) {
-        val tags = _uiState.value.customTags.toMutableList()
-        tags.remove(tag)
-        _uiState.value = _uiState.value.copy(customTags = tags)
-        saveTagsToCloud(tags)
-    }
-
-    private fun saveTagsToCloud(tags: List<String>) {
-        val profile = _uiState.value.profile ?: return
-        val newTastePrefs = profile.tastePrefs.copy(custom = tags)
+    fun addCandyCoins(amount: Int) {
         viewModelScope.launch {
-            profileRepository.saveProfile(profile.copy(tastePrefs = newTastePrefs))
-            saveToCloud()
+            val success = profileRepository.addPartnerCandyCoins(amount)
+            val info = profileRepository.getPairInfo()
+            _uiState.value = _uiState.value.copy(
+                pairInfo = info,
+                saveMessage = if (success) {
+                    "已给吃货增加 $amount 枚糖糖币"
+                } else {
+                    "加糖失败，请确认已登录、已绑定，并已执行糖糖币数据库脚本"
+                }
+            )
         }
     }
 
     fun updateNickname(nickname: String) {
         val trimmed = nickname.trim()
-        if (trimmed.isBlank()) return
-        // 立即更新本地 UI
+        if (!validateNickname(trimmed)) return
         val current = _uiState.value.profile
-        if (current != null) {
-            _uiState.value = _uiState.value.copy(
-                profile = current.copy(nickname = trimmed),
-                saveMessage = "昵称已更新"
-            )
-        }
+        _uiState.value = _uiState.value.copy(
+            profile = (current ?: Profile()).copy(nickname = trimmed),
+            saveMessage = "昵称已更新"
+        )
         viewModelScope.launch {
             profileRepository.updateNickname(trimmed)
-            saveToCloud()
-        }
-    }
-
-    fun updateAvatar(avatarUrl: String) {
-        if (avatarUrl.isBlank()) return
-        val current = _uiState.value.profile
-        if (current != null) {
-            _uiState.value = _uiState.value.copy(
-                profile = current.copy(avatarUrl = avatarUrl),
-                saveMessage = "头像已更新"
-            )
-        }
-        viewModelScope.launch {
-            profileRepository.updateAvatar(avatarUrl)
             saveToCloud()
         }
     }
@@ -205,8 +166,9 @@ class ProfileViewModel(
                 }
                 val localPath = destFile.absolutePath
                 profileRepository.updateAvatar(localPath)
+                val current = _uiState.value.profile
                 _uiState.value = _uiState.value.copy(
-                    profile = _uiState.value.profile?.copy(avatarUrl = localPath),
+                    profile = (current ?: Profile()).copy(avatarUrl = localPath),
                     saveMessage = "头像已保存"
                 )
             } catch (_: Exception) {
@@ -215,8 +177,60 @@ class ProfileViewModel(
         }
     }
 
+    fun saveProfileEdits(context: Context, nickname: String, avatarUri: Uri?) {
+        val trimmed = nickname.trim()
+        if (!validateNickname(trimmed)) return
+        viewModelScope.launch {
+            try {
+                var avatarPath = _uiState.value.profile?.avatarUrl
+                if (avatarUri != null) {
+                    avatarPath = copyAvatarToPrivateStorage(context, avatarUri)
+                    profileRepository.updateAvatar(avatarPath)
+                }
+                profileRepository.updateNickname(trimmed)
+                val current = _uiState.value.profile ?: Profile()
+                _uiState.value = _uiState.value.copy(
+                    profile = current.copy(nickname = trimmed, avatarUrl = avatarPath),
+                    saveMessage = "资料已保存"
+                )
+                saveToCloud()
+            } catch (_: Exception) {
+                _uiState.value = _uiState.value.copy(saveMessage = "资料保存失败，请重新选择头像后再试")
+            }
+        }
+    }
+
     fun dismissMessage() {
         _uiState.value = _uiState.value.copy(saveMessage = null)
+    }
+
+    private fun validateNickname(nickname: String): Boolean {
+        return when {
+            nickname.isBlank() -> {
+                _uiState.value = _uiState.value.copy(saveMessage = "请输入昵称")
+                false
+            }
+            nickname.length > 12 -> {
+                _uiState.value = _uiState.value.copy(saveMessage = "昵称最多 12 个字")
+                false
+            }
+            else -> true
+        }
+    }
+
+    private fun copyAvatarToPrivateStorage(context: Context, uri: Uri): String {
+        val avatarsDir = File(context.filesDir, "avatars")
+        avatarsDir.mkdirs()
+        val fileName = "avatar_${UUID.randomUUID()}.jpg"
+        val destFile = File(avatarsDir, fileName)
+        val inputStream = context.contentResolver.openInputStream(uri)
+            ?: error("无法读取头像")
+        inputStream.use { input ->
+            FileOutputStream(destFile).use { output ->
+                input.copyTo(output)
+            }
+        }
+        return destFile.absolutePath
     }
 
     private suspend fun saveToCloud() {

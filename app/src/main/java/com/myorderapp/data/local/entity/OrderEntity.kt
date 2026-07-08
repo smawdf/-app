@@ -7,6 +7,10 @@ import androidx.room.PrimaryKey
 data class OrderEntity(
     @PrimaryKey val id: String,
     val userId: String,
+    val pairId: String,
+    val buyerName: String,
+    val buyerAvatarUrl: String,
+    val buyerRole: String,
     val shopId: String,
     val shopName: String,
     val shopCoverUrl: String,
@@ -16,5 +20,6 @@ data class OrderEntity(
     val subtotal: Double,
     val deliveryFee: Double,
     val totalPrice: Double,
+    val candyCoinsSpent: Int = 0,
     val createdAt: String
 )
