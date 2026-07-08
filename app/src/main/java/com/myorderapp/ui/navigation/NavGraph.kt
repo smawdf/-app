@@ -18,6 +18,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.myorderapp.ui.auth.AuthScreen
+import com.myorderapp.ui.auth.DeviceSwitchScreen
 import com.myorderapp.ui.auth.ResetPasswordScreen
 import com.myorderapp.ui.cart.CartScreen
 import com.myorderapp.ui.candy.CandyCoinsScreen
@@ -46,11 +47,13 @@ object Routes {
     const val CANDY_COINS = "candy_coins"
     const val AUTH = "auth"
     const val RESET_PASSWORD = "reset_password?deepLink={deepLink}"
+    const val DEVICE_SWITCH = "device_switch?deepLink={deepLink}"
     const val ONBOARDING = "onboarding"
     const val ANNIVERSARY = "anniversary"
 
     fun orderDetail(orderId: String) = "orders/$orderId"
     fun resetPassword(deepLink: String) = "reset_password?deepLink=${Uri.encode(deepLink)}"
+    fun deviceSwitch(deepLink: String) = "device_switch?deepLink=${Uri.encode(deepLink)}"
 }
 
 private const val ANIM_DURATION = 220
@@ -237,6 +240,31 @@ fun NavGraph(
             val deepLink = backStackEntry.arguments?.getString("deepLink").orEmpty()
             ResetPasswordScreen(
                 deepLink = deepLink,
+                onBackToLogin = {
+                    navController.navigate(Routes.AUTH) {
+                        popUpTo(0) { inclusive = true }
+                        launchSingleTop = true
+                    }
+                }
+            )
+        }
+
+        composable(
+            route = Routes.DEVICE_SWITCH,
+            arguments = listOf(navArgument("deepLink") {
+                type = NavType.StringType
+                defaultValue = resetPasswordDeepLink
+            })
+        ) { backStackEntry ->
+            val deepLink = backStackEntry.arguments?.getString("deepLink").orEmpty()
+            DeviceSwitchScreen(
+                deepLink = deepLink,
+                onSwitchComplete = {
+                    navController.navigate(Routes.HOME) {
+                        popUpTo(0) { inclusive = true }
+                        launchSingleTop = true
+                    }
+                },
                 onBackToLogin = {
                     navController.navigate(Routes.AUTH) {
                         popUpTo(0) { inclusive = true }

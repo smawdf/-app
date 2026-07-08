@@ -150,6 +150,7 @@ class OnboardingViewModel(
                 val userId = user?.id ?: signUpResult?.id.orEmpty()
                 if (token != null && userId.isNotBlank()) {
                     session.setSession(token, userId, "")
+                    profileRepo.claimCurrentDeviceSession()
                     session.saveEmail(state.email.trim())
                     _uiState.value = _uiState.value.copy(
                         step = 2,

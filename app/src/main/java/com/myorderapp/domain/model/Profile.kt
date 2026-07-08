@@ -17,8 +17,9 @@ data class Profile(
     @SerialName("created_at") @Json(name = "created_at") val createdAt: String = "",
     @SerialName("updated_at") @Json(name = "updated_at") val updatedAt: String = "",
     @SerialName("candy_coins") @Json(name = "candy_coins") val candyCoins: Int = 66,
-    @Transient @Json(ignore = true) val pairedAt: String = "",
-    @Transient @Json(ignore = true) val sessionId: String = ""
+    @SerialName("session_id") @Json(name = "session_id") val sessionId: String = "",
+    @SerialName("session_updated_at") @Json(name = "session_updated_at") val sessionUpdatedAt: String = "",
+    @Transient @Json(ignore = true) val pairedAt: String = ""
 )
 
 data class PairInfo(

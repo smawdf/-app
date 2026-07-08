@@ -25,6 +25,8 @@ data class AuthUiState(
     val isLoading: Boolean = false,
     val isResetEmailSent: Boolean = false,
     val isPasswordResetComplete: Boolean = false,
+    val canSwitchDeviceByEmail: Boolean = false,
+    val isDeviceSwitchComplete: Boolean = false,
     val errorMessage: String? = null,
     val mode: String = "login"
 )
@@ -102,17 +104,48 @@ class AuthViewModel(
                 val userId = user?.id ?: ""
                 if (token != null && userId.isNotBlank()) {
                     val profile = loadOrCreateProfile(userId)
-                    val pairId = profile?.pairId ?: ""
+                    if (profile == null) {
+                        try { client.auth.signOut() } catch (_: Exception) { }
+                        session.clear()
+                        _uiState.value = _uiState.value.copy(
+                            isLoading = false,
+                            errorMessage = "登录失败：无法读取账号设备状态，请稍后重试"
+                        )
+                        return@launch
+                    }
+                    val pairId = profile.pairId
                     session.setSession(token, userId, pairId)
+                    if (!profileRepo.canStartDeviceSession(profile)) {
+                        try { client.auth.signOut() } catch (_: Exception) { }
+                        session.clear()
+                        _uiState.value = _uiState.value.copy(
+                            isLoading = false,
+                            canSwitchDeviceByEmail = AccountIdentifier.isRealEmail(state.email),
+                            errorMessage = if (AccountIdentifier.isRealEmail(state.email)) {
+                                "账号已在其他设备登录。请先在原设备退出，或通过邮箱验证切换到当前设备。"
+                            } else {
+                                "账号已在其他设备登录，请先在原设备退出登录"
+                            }
+                        )
+                        return@launch
+                    }
+                    val claimedProfile = profileRepo.claimCurrentDeviceSession(profile)
+                    if (claimedProfile == null) {
+                        try { client.auth.signOut() } catch (_: Exception) { }
+                        session.clear()
+                        _uiState.value = _uiState.value.copy(
+                            isLoading = false,
+                            errorMessage = "登录失败：无法绑定当前设备，请稍后重试"
+                        )
+                        return@launch
+                    }
                     session.saveRememberedCredentials(
                         email = state.email.trim(),
                         password = state.password,
                         remember = state.rememberCredentials
                     )
-                    if (profile != null) {
-                        session.saveNickname(profile.nickname)
-                        session.saveAvatar(profile.avatarUrl ?: "")
-                    }
+                    session.saveNickname(claimedProfile.nickname)
+                    session.saveAvatar(claimedProfile.avatarUrl ?: "")
                     dishRepo.syncFromCloud()
                     profileRepo.loadFromCloud()
                     _uiState.value = _uiState.value.copy(isLoggedIn = true, isLoading = false)
@@ -176,6 +209,94 @@ class AuthViewModel(
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
                     errorMessage = "发送失败，请确认邮箱后重试"
+                )
+            }
+        }
+    }
+
+    fun sendDeviceSwitchEmail(email: String = _uiState.value.email) {
+        val normalizedEmail = email.trim()
+        if (normalizedEmail.isBlank() || !AccountIdentifier.isRealEmail(normalizedEmail)) {
+            _uiState.value = _uiState.value.copy(errorMessage = "请使用注册邮箱验证切换设备")
+            return
+        }
+
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null, isResetEmailSent = false)
+            try {
+                client.auth.resetPasswordForEmail(
+                    email = normalizedEmail,
+                    redirectUrl = DEVICE_SWITCH_REDIRECT_URL
+                )
+                session.saveEmail(normalizedEmail)
+                _uiState.value = _uiState.value.copy(
+                    email = normalizedEmail,
+                    isLoading = false,
+                    isResetEmailSent = true,
+                    canSwitchDeviceByEmail = true,
+                    errorMessage = "验证邮件已发送，请在当前设备打开邮件链接完成切换"
+                )
+            } catch (_: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    errorMessage = "发送失败，请确认邮箱后重试"
+                )
+            }
+        }
+    }
+
+    fun switchDeviceFromDeepLink(deepLink: String) {
+        if (deepLink.isBlank()) {
+            _uiState.value = _uiState.value.copy(errorMessage = "验证链接无效，请重新发送邮件")
+            return
+        }
+
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null, isDeviceSwitchComplete = false)
+            try {
+                val recoverySession = client.auth.parseSessionFromUrl(deepLink)
+                client.auth.importSession(recoverySession, autoRefresh = true)
+                val user = client.auth.currentUserOrNull()
+                val token = client.auth.currentAccessTokenOrNull()
+                val userId = user?.id.orEmpty()
+                if (token == null || userId.isBlank()) {
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        errorMessage = "验证失败，请重新发送邮件"
+                    )
+                    return@launch
+                }
+                val profile = loadOrCreateProfile(userId)
+                if (profile == null) {
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        errorMessage = "验证成功，但无法读取账号设备状态，请稍后重试"
+                    )
+                    return@launch
+                }
+                session.setSession(token, userId, profile.pairId)
+                val claimedProfile = profileRepo.claimCurrentDeviceSession(profile)
+                if (claimedProfile == null) {
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        errorMessage = "验证成功，但无法绑定当前设备，请稍后重试"
+                    )
+                    return@launch
+                }
+                session.saveNickname(claimedProfile.nickname)
+                session.saveAvatar(claimedProfile.avatarUrl ?: "")
+                dishRepo.syncFromCloud()
+                profileRepo.loadFromCloud()
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    isLoggedIn = true,
+                    isDeviceSwitchComplete = true,
+                    errorMessage = "设备切换成功"
+                )
+            } catch (_: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    errorMessage = "链接已失效，请重新发送验证邮件"
                 )
             }
         }
@@ -246,16 +367,13 @@ class AuthViewModel(
                 profile
             }
         } catch (_: Exception) {
-            Profile(
-                userId = userId,
-                nickname = session.getSavedNickname(),
-                avatarUrl = session.getSavedAvatar().ifBlank { null }
-            )
+            null
         }
     }
 
     fun logout(onLoggedOut: () -> Unit = {}) {
         viewModelScope.launch {
+            profileRepo.releaseCurrentDeviceSession()
             try { client.auth.signOut() } catch (_: Exception) { }
             session.clear()
             _uiState.value = AuthUiState()
@@ -265,5 +383,6 @@ class AuthViewModel(
 
     companion object {
         const val PASSWORD_RESET_REDIRECT_URL = "orderdisk://auth/reset-password"
+        const val DEVICE_SWITCH_REDIRECT_URL = "orderdisk://auth/switch-device"
     }
 }

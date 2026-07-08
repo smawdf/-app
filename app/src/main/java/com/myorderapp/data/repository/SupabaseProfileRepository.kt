@@ -29,6 +29,7 @@ class SupabaseProfileRepository(
     private companion object {
         const val KEY_PENDING_PAIR_CODE = "pending_pair_code"
         const val DEFAULT_PAIR_ID = "00000000-0000-0000-0000-000000000000"
+        val DEVICE_SESSION_TIMEOUT: Duration = Duration.ofDays(30)
     }
 
     private val client = SupabaseClientProvider.client
@@ -230,7 +231,10 @@ class SupabaseProfileRepository(
         if (session.isLoggedIn.value) {
             try {
                 client.from("profiles").update(
-                    mapOf("updated_at" to updated.updatedAt)
+                    mapOf(
+                        "updated_at" to updated.updatedAt,
+                        "session_updated_at" to updated.updatedAt
+                    )
                 ) {
                     filter { eq("user_id", session.currentUserId) }
                 }
@@ -258,14 +262,69 @@ class SupabaseProfileRepository(
 
     override fun isSynced(): Flow<Boolean> = _synced.asStateFlow()
 
+    fun canStartDeviceSession(profile: Profile?): Boolean {
+        val cloudSessionId = profile?.sessionId.orEmpty()
+        if (cloudSessionId.isBlank()) return true
+        return isDeviceSessionExpired(profile?.sessionUpdatedAt.orEmpty())
+    }
+
+    suspend fun claimCurrentDeviceSession(profile: Profile? = null): Profile? {
+        if (!session.isLoggedIn.value || session.currentUserId.isBlank() || session.currentSessionId.isBlank()) {
+            return null
+        }
+        val now = Instant.now().toString()
+        return try {
+            client.from("profiles").update(
+                mapOf(
+                    "session_id" to session.currentSessionId,
+                    "session_updated_at" to now,
+                    "updated_at" to now
+                )
+            ) {
+                filter { eq("user_id", session.currentUserId) }
+            }
+            val updated = (profile ?: _profile.value ?: loadLocalProfile()).copy(
+                sessionId = session.currentSessionId,
+                sessionUpdatedAt = now,
+                updatedAt = now
+            )
+            _profile.value = updated
+            saveLocalProfile(updated)
+            updated
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    suspend fun releaseCurrentDeviceSession() {
+        if (!session.isLoggedIn.value || session.currentUserId.isBlank()) return
+        try {
+            client.from("profiles").update(
+                mapOf(
+                    "session_id" to "",
+                    "session_updated_at" to "",
+                    "updated_at" to Instant.now().toString()
+                )
+            ) {
+                filter { eq("user_id", session.currentUserId) }
+            }
+        } catch (_: Exception) { }
+    }
+
     suspend fun checkSessionValid(): Boolean {
         if (!session.isLoggedIn.value) return true
         try {
             val profiles = client.from("profiles").select {
                 filter { eq("user_id", session.currentUserId) }
             }.decodeList<Profile>()
-            val cloudSessionId = profiles.firstOrNull()?.sessionId ?: ""
-            return cloudSessionId.isBlank() || cloudSessionId == session.currentSessionId
+            val profile = profiles.firstOrNull() ?: return true
+            val cloudSessionId = profile.sessionId
+            if (cloudSessionId.isBlank()) return true
+            if (isDeviceSessionExpired(profile.sessionUpdatedAt)) {
+                releaseCurrentDeviceSession()
+                return false
+            }
+            return cloudSessionId == session.currentSessionId
         } catch (_: Exception) {
             return true
         }
@@ -306,6 +365,8 @@ class SupabaseProfileRepository(
             .putString("paired_at", profile.pairedAt)
             .putString("created_at", profile.createdAt)
             .putString("updated_at", profile.updatedAt)
+            .putString("session_id", profile.sessionId)
+            .putString("session_updated_at", profile.sessionUpdatedAt)
             .putInt("candy_coins", profile.candyCoins)
             .apply()
     }
@@ -319,6 +380,8 @@ class SupabaseProfileRepository(
             tastePrefs = DietaryPreference(),
             createdAt = prefs.getString("created_at", "") ?: "",
             updatedAt = prefs.getString("updated_at", "") ?: "",
+            sessionId = prefs.getString("session_id", "") ?: "",
+            sessionUpdatedAt = prefs.getString("session_updated_at", "") ?: "",
             candyCoins = prefs.getInt("candy_coins", 66),
             pairedAt = prefs.getString("paired_at", "") ?: ""
         )
@@ -330,8 +393,15 @@ class SupabaseProfileRepository(
             pairId = profile.pairId.ifBlank {
                 session.currentPairId.ifBlank { DEFAULT_PAIR_ID }
             },
-            createdAt = profile.createdAt.ifBlank { Instant.now().toString() }
+            createdAt = profile.createdAt.ifBlank { Instant.now().toString() },
+            sessionId = profile.sessionId.ifBlank { _profile.value?.sessionId.orEmpty() },
+            sessionUpdatedAt = profile.sessionUpdatedAt.ifBlank { _profile.value?.sessionUpdatedAt.orEmpty() }
         )
+    }
+
+    private fun isDeviceSessionExpired(sessionUpdatedAt: String): Boolean {
+        val seenAt = runCatching { Instant.parse(sessionUpdatedAt) }.getOrNull() ?: return false
+        return Duration.between(seenAt, Instant.now()) > DEVICE_SESSION_TIMEOUT
     }
 
     private suspend fun persistCandyCoins(current: Profile, newBalance: Int): Boolean {

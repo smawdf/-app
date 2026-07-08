@@ -41,6 +41,7 @@ import androidx.compose.ui.graphics.Path
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import com.myorderapp.data.remote.supabase.SessionManager
+import com.myorderapp.data.repository.SupabaseProfileRepository
 import com.myorderapp.ui.components.CozyMainTopBar
 import com.myorderapp.ui.navigation.BottomNavItem
 import com.myorderapp.ui.navigation.NavGraph
@@ -72,6 +73,7 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun MainScreen(initialDeepLink: String? = null) {
     val sessionManager = getKoin().get<SessionManager>()
+    val profileRepository = getKoin().get<SupabaseProfileRepository>()
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
@@ -80,6 +82,8 @@ fun MainScreen(initialDeepLink: String? = null) {
     val startDestination = remember {
         if (initialDeepLink?.startsWith("orderdisk://auth/reset-password") == true) {
             Routes.resetPassword(initialDeepLink)
+        } else if (initialDeepLink?.startsWith("orderdisk://auth/switch-device") == true) {
+            Routes.deviceSwitch(initialDeepLink)
         } else if (sessionManager.isLoggedIn.value) {
             Routes.HOME
         } else {
@@ -89,6 +93,19 @@ fun MainScreen(initialDeepLink: String? = null) {
     val shellRoute = currentRoute ?: startDestination.takeIf { it in tabRoutes }
     val showMainShell = shellRoute in tabRoutes
     val mainTopBarHeight = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + 64.dp
+
+    LaunchedEffect(sessionManager.isLoggedIn.value, currentRoute) {
+        if (sessionManager.isLoggedIn.value && currentRoute !in setOf(Routes.AUTH, Routes.RESET_PASSWORD, Routes.DEVICE_SWITCH)) {
+            val valid = profileRepository.checkSessionValid()
+            if (!valid) {
+                sessionManager.clear()
+                navController.navigate(Routes.AUTH) {
+                    popUpTo(0) { inclusive = true }
+                    launchSingleTop = true
+                }
+            }
+        }
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         NavGraph(

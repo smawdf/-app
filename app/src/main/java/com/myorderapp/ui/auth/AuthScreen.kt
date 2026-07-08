@@ -171,6 +171,22 @@ fun AuthScreen(
                         enabled = !uiState.isLoading,
                         modifier = Modifier.fillMaxWidth()
                     )
+
+                    if (uiState.canSwitchDeviceByEmail) {
+                        Spacer(modifier = Modifier.height(10.dp))
+                        TextButton(
+                            onClick = viewModel::sendDeviceSwitchEmail,
+                            enabled = !uiState.isLoading,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = "邮箱验证切换到当前设备",
+                                color = AuthPrimaryEnd,
+                                style = MaterialTheme.typography.bodySmall,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
                 }
             }
 
