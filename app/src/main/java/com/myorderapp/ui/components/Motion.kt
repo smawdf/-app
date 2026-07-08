@@ -19,9 +19,16 @@ import kotlinx.coroutines.delay
 
 object CozyMotion {
     const val Quick = 120
+    const val Exit = 140
+    const val Toast = 160
     const val Standard = 220
     const val Reveal = 280
     const val Slow = 420
+    const val CartFly = 620
+
+    const val PressedScale = 0.96f
+    const val SoftPressedScale = 0.985f
+    const val ButtonPressedScale = 0.97f
 
     fun fadeUp(offset: Int = 18, durationMillis: Int = Reveal): EnterTransition =
         fadeIn(tween(durationMillis = durationMillis, easing = FastOutSlowInEasing)) +

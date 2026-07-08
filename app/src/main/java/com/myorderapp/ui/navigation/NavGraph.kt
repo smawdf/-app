@@ -20,6 +20,7 @@ import androidx.navigation.navArgument
 import com.myorderapp.ui.auth.AuthScreen
 import com.myorderapp.ui.auth.DeviceSwitchScreen
 import com.myorderapp.ui.auth.ResetPasswordScreen
+import com.myorderapp.ui.components.CozyMotion
 import com.myorderapp.ui.cart.CartScreen
 import com.myorderapp.ui.candy.CandyCoinsScreen
 import com.myorderapp.ui.checkout.CheckoutScreen
@@ -56,32 +57,29 @@ object Routes {
     fun deviceSwitch(deepLink: String) = "device_switch?deepLink=${Uri.encode(deepLink)}"
 }
 
-private const val ANIM_DURATION = 220
-private const val EXIT_ANIM_DURATION = 140
-
 private fun enterSlideFade(): EnterTransition =
     slideInHorizontally(
-        animationSpec = tween(ANIM_DURATION, easing = FastOutSlowInEasing),
+        animationSpec = tween(CozyMotion.Standard, easing = FastOutSlowInEasing),
         initialOffsetX = { it / 10 }
-    ) + fadeIn(tween(ANIM_DURATION, easing = FastOutSlowInEasing))
+    ) + fadeIn(tween(CozyMotion.Standard, easing = FastOutSlowInEasing))
 
 private fun exitSlideFade(): ExitTransition =
     slideOutHorizontally(
-        animationSpec = tween(EXIT_ANIM_DURATION, easing = FastOutSlowInEasing),
+        animationSpec = tween(CozyMotion.Exit, easing = FastOutSlowInEasing),
         targetOffsetX = { -it / 18 }
-    ) + fadeOut(tween(EXIT_ANIM_DURATION, easing = FastOutSlowInEasing))
+    ) + fadeOut(tween(CozyMotion.Exit, easing = FastOutSlowInEasing))
 
 private fun popEnterSlideFade(): EnterTransition =
     slideInHorizontally(
-        animationSpec = tween(ANIM_DURATION, easing = FastOutSlowInEasing),
+        animationSpec = tween(CozyMotion.Standard, easing = FastOutSlowInEasing),
         initialOffsetX = { -it / 10 }
-    ) + fadeIn(tween(ANIM_DURATION, easing = FastOutSlowInEasing))
+    ) + fadeIn(tween(CozyMotion.Standard, easing = FastOutSlowInEasing))
 
 private fun popExitSlideFade(): ExitTransition =
     slideOutHorizontally(
-        animationSpec = tween(EXIT_ANIM_DURATION, easing = FastOutSlowInEasing),
+        animationSpec = tween(CozyMotion.Exit, easing = FastOutSlowInEasing),
         targetOffsetX = { it / 18 }
-    ) + fadeOut(tween(EXIT_ANIM_DURATION, easing = FastOutSlowInEasing))
+    ) + fadeOut(tween(CozyMotion.Exit, easing = FastOutSlowInEasing))
 
 fun NavHostController.navigateAsTab(route: String) {
     navigate(route) {

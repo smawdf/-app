@@ -161,7 +161,7 @@ class OnboardingViewModel(
                 } else {
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
-                        errorMessage = "账号已创建，请先打开邮箱确认后登录"
+                        errorMessage = "账号已创建。如果你的邮箱需要验证，请先打开确认邮件；确认后再返回登录。"
                     )
                 }
             } catch (e: Exception) {
@@ -169,7 +169,7 @@ class OnboardingViewModel(
                 val errorMsg = when {
                     isAccountAlreadyExistsMessage(msg) ->
                         "账号已存在，请直接登录"
-                    else -> "请求失败，请稍后重试"
+                    else -> "请求失败，请检查网络或稍后重试"
                 }
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,

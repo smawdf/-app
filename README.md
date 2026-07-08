@@ -1,6 +1,6 @@
-# OrderDisk
+# 高糖小食
 
-OrderDisk 当前是一个 Android Compose 情侣点菜 App。主流程是：
+高糖小食当前是一个 Android Compose 情侣点菜 App。主流程是：
 
 ```text
 登录/注册 -> 情侣首页 -> 点菜 -> 购物车 -> 结算 -> 订单
@@ -62,9 +62,23 @@ rtk .\gradlew.bat assembleRelease
 
 旧 Jisu/Juhe 接入、旧 Realtime 餐次同步、云端 debug 日志表和重复 Stitch 资源目录已经移除。`bimissing_recipes.json` 中保留旧菜谱数据，但运行时会过滤 `hoto.cn/res.hoto.cn` 图片，缺图时进入当前图片兜底链路。
 
+## 登录与云端能力
+
+- 邮箱/账号/手机号都使用账号密码登录；手机号当前是兼容账号，不是短信验证码登录。
+- 邮箱注册后如果 Supabase 开启邮箱确认，需要先打开确认邮件再登录。
+- 单设备登录使用 `profiles.session_id` 和 `profiles.session_updated_at`。旧设备主动退出会释放设备占用；新设备可通过注册邮箱验证后接管。
+- 单设备会话超过 30 天未活跃会被视为过期。
+- 相关 Supabase SQL：`table/16_single_device_session.sql`。
+
+## UI 与动画
+
+- 主要页面使用暖色、明亮、低阴影的 Cozy/Stitch 风格。
+- 页面切换、提示、购物车飞入和按压反馈统一走 `CozyMotion` token，避免散落动画时长。
+- 当前主源码已扫描清理可见乱码文案和外卖平台化文案；旧图源过滤逻辑仍保留用于图片兜底。
+
 ## 开发约定
 
 - 以当前源码和 `AGENTS.md` 为准。
 - UI 继续贴近 Stitch 原型，整体偏明亮温暖，不乱加阴影。
-- 不把 `OrderDisk` 当成未确认的用户界面品牌文案。
+- UI 可见品牌以“高糖小食”为准；`OrderDisk` 仍可能作为历史项目名、包内主题名或文档上下文存在。
 - 不恢复旧多商家/外卖市场假设，除非先明确更新产品方向。

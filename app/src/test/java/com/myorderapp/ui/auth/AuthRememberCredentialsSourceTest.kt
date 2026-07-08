@@ -91,6 +91,7 @@ class AuthRememberCredentialsSourceTest {
             "创建你们的小饭桌",
             "一起记录每一次想吃什么",
             "账号/邮箱/手机号",
+            "邮箱注册后可能需要先确认邮件；手机号当前是账号密码登录，不会发送短信验证码。",
             "从相册选择头像",
             "开启甜蜜点菜之旅",
             "DashedAvatarPlaceholder",
@@ -122,6 +123,7 @@ class AuthRememberCredentialsSourceTest {
         assertTrue("账号创建应读取 signUp 返回值辅助判断", createAccountBody.contains("val signUpResult = client.auth.signUpWith(Email)"))
         assertTrue("账号创建应使用 signUpResult.id 作为兜底 userId", createAccountBody.contains("user?.id ?: signUpResult?.id.orEmpty()"))
         assertTrue("账号重复提示应发生在资料页之前", createAccountBody.contains("账号已存在，请直接登录"))
+        assertTrue("邮箱验证提示应明确说明确认邮件", createAccountBody.contains("如果你的邮箱需要验证，请先打开确认邮件"))
         assertTrue("无可用 token 的注册返回不应再提示注册失败", !createAccountBody.contains("注册失败：请稍后重试"))
         assertTrue("账号创建成功后才进入资料步骤", createAccountBody.contains("step = 2"))
         assertTrue("已创建账号返回第一步后不应重复注册", onboardingViewModel.contains("accountCreated"))
@@ -152,6 +154,7 @@ class AuthRememberCredentialsSourceTest {
             "resetPasswordFromDeepLink",
             "parseSessionFromUrl",
             "modifyUser",
+            "重置邮件已发送。请在当前设备打开邮件链接，再回到 App 修改密码。",
             "密码已修改，请重新登录"
         ).forEach { expected ->
             assertTrue("AuthViewModel 缺少邮箱重置密码能力：$expected", viewModel.contains(expected))

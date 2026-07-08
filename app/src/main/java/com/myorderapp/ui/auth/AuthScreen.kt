@@ -93,7 +93,16 @@ fun AuthScreen(
                         )
                     )
 
-                    Spacer(modifier = Modifier.height(20.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "邮箱账号可验证找回和切换设备；手机号当前按账号密码登录，不会发送短信验证码。",
+                        color = AuthMuted,
+                        style = MaterialTheme.typography.bodySmall,
+                        lineHeight = MaterialTheme.typography.bodySmall.lineHeight,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Spacer(modifier = Modifier.height(14.dp))
 
                     AuthInputField(
                         value = uiState.password,
@@ -180,7 +189,7 @@ fun AuthScreen(
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Text(
-                                text = "邮箱验证切换到当前设备",
+                                text = "发送邮箱验证，切换到当前设备",
                                 color = AuthPrimaryEnd,
                                 style = MaterialTheme.typography.bodySmall,
                                 fontWeight = FontWeight.Bold

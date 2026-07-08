@@ -174,6 +174,15 @@ private fun RegisterAccountScreen(
                         )
                     )
 
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "邮箱注册后可能需要先确认邮件；手机号当前是账号密码登录，不会发送短信验证码。",
+                        color = AuthMuted,
+                        style = MaterialTheme.typography.bodySmall,
+                        lineHeight = MaterialTheme.typography.bodySmall.lineHeight,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
                     Spacer(modifier = Modifier.height(12.dp))
 
                     AuthInputField(

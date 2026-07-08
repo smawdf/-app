@@ -122,9 +122,9 @@ class AuthViewModel(
                             isLoading = false,
                             canSwitchDeviceByEmail = AccountIdentifier.isRealEmail(state.email),
                             errorMessage = if (AccountIdentifier.isRealEmail(state.email)) {
-                                "账号已在其他设备登录。请先在原设备退出，或通过邮箱验证切换到当前设备。"
+                                "账号正在其他设备使用。可在原设备退出，或点击下方按钮，用注册邮箱验证后切换到当前设备。"
                             } else {
-                                "账号已在其他设备登录，请先在原设备退出登录"
+                                "账号正在其他设备使用。手机号/普通账号暂不支持邮箱接管，请先在原设备退出登录。"
                             }
                         )
                         return@launch
@@ -161,10 +161,10 @@ class AuthViewModel(
                     msg.contains("Invalid login credentials", ignoreCase = true) ||
                     msg.contains("User not found", ignoreCase = true) ||
                     msg.contains("invalid_grant", ignoreCase = true) ->
-                        "账号或密码不正确；如果刚注册，请先确认邮箱后再登录"
+                        "账号或密码不正确。如果刚用邮箱注册，请先打开验证邮件确认后再登录。"
                     msg.contains("Email not confirmed", ignoreCase = true) ||
                     msg.contains("email_not_confirmed", ignoreCase = true) ->
-                        "邮箱未验证，请检查邮件确认链接"
+                        "邮箱还未验证。请打开注册邮箱里的确认邮件，完成后再登录。"
                     msg.contains("Invalid password", ignoreCase = true) ||
                     msg.contains("wrong password", ignoreCase = true) ->
                         "密码错误，请重试"
@@ -187,7 +187,7 @@ class AuthViewModel(
             return
         }
         if (!AccountIdentifier.isRealEmail(normalizedEmail)) {
-            _uiState.value = _uiState.value.copy(errorMessage = "手机号或账号暂不支持邮箱找回，请使用注册密码登录")
+            _uiState.value = _uiState.value.copy(errorMessage = "手机号/普通账号目前是账号密码登录，暂不支持邮箱找回。")
             return
         }
 
@@ -203,7 +203,7 @@ class AuthViewModel(
                     email = normalizedEmail,
                     isLoading = false,
                     isResetEmailSent = true,
-                    errorMessage = "重置邮件已发送，请打开邮箱继续修改密码"
+                    errorMessage = "重置邮件已发送。请在当前设备打开邮件链接，再回到 App 修改密码。"
                 )
             } catch (_: Exception) {
                 _uiState.value = _uiState.value.copy(
@@ -217,7 +217,7 @@ class AuthViewModel(
     fun sendDeviceSwitchEmail(email: String = _uiState.value.email) {
         val normalizedEmail = email.trim()
         if (normalizedEmail.isBlank() || !AccountIdentifier.isRealEmail(normalizedEmail)) {
-            _uiState.value = _uiState.value.copy(errorMessage = "请使用注册邮箱验证切换设备")
+            _uiState.value = _uiState.value.copy(errorMessage = "只有邮箱账号支持验证切换设备。手机号/普通账号请先在原设备退出。")
             return
         }
 
@@ -234,7 +234,7 @@ class AuthViewModel(
                     isLoading = false,
                     isResetEmailSent = true,
                     canSwitchDeviceByEmail = true,
-                    errorMessage = "验证邮件已发送，请在当前设备打开邮件链接完成切换"
+                    errorMessage = "切换验证邮件已发送。请在当前设备打开邮件链接，验证后会自动接管登录。"
                 )
             } catch (_: Exception) {
                 _uiState.value = _uiState.value.copy(

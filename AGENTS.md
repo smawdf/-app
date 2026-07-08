@@ -4,9 +4,9 @@
 
 --- project-doc ---
 
-# OrderDisk 当前项目说明
+# 高糖小食 当前项目说明
 
-OrderDisk 当前是一个 Android 情侣点菜 App。当前源码的事实主线不是“多商家外卖市场”，而是“登录/注册 -> 情侣首页 -> 类美团点菜 -> 购物车 -> 结算 -> 订单”的点菜流程，并通过发现页搜索菜品，把结果加入“我的店铺”。
+高糖小食当前是一个 Android 情侣点菜 App。当前源码的事实主线不是“多商家外卖市场”，而是“登录/注册 -> 情侣首页 -> 类美团点菜 -> 购物车 -> 结算 -> 订单”的点菜流程，并通过发现页搜索菜品，把结果加入“我的店铺”。历史项目名仍可能以 `OrderDisk` 出现在包名、主题名、签名文件或旧文档上下文中。
 
 后续做 UI、Figma、代码或文档时，以当前源码为准，不要沿用旧文档中的“美团式多商家/附近商家/推荐商家流”假设，除非用户明确重新改变产品方向。
 
@@ -32,6 +32,7 @@ Debug APK 输出到 `app/build/outputs/apk/debug/`，Release APK 使用 `orderdi
 - 购物车/结算/订单：`CartScreen`、`CheckoutScreen`、`OrdersScreen`、`OrderDetailScreen`，本地优先保存，登录后可同步订单。
 - 辅助页：`AnniversaryScreen`。
 - 兼容模块：旧版菜品库、随机推荐、心愿单、餐次等能力仍在源码中，但不应作为新主流程或视觉设计的默认依据。
+- 登录限制：当前已接入单设备登录第一版。`profiles.session_id`/`session_updated_at` 记录设备占用；旧设备退出释放占用；邮箱账号可通过邮箱验证接管新设备；手机号当前只是账号密码兼容方案，不是短信验证码登录。
 
 ## 当前导航
 
@@ -74,18 +75,20 @@ di/      Koin 注入模块：AppModule.kt、NetworkModule.kt
 - `SupabaseOrderRepository` 负责订单仓储：本地 Room 保存为主，登录态下同步/读取 Supabase。
 - `HybridDishRepository` 合并 Room 本地菜品与 Supabase 云端菜品，主要服务旧版菜品库兼容能力。
 - `SupabaseProfileRepository`、`SupabaseOrderRepository`、`SupabaseDishRepository` 通过 `SupabaseClientProvider` 访问 Supabase；订单接收当前采用 App 端短轮询。
+- Supabase SQL 当前需包含 `15_pair_invite_role.sql` 和 `16_single_device_session.sql`，前者用于角色邀请预览，后者用于单设备登录。
 - 当前网络模块接入 Tian 菜谱 API，以及 Spoonacular、TheMealDB 图源；Jisu/Juhe 旧菜谱接入已移除，不要再新增或恢复这些旧入口。
 
 ## 设计与实现注意事项
 
-- 不要在未确认 App 名称前把 `OrderDisk` 作为用户界面主品牌文案。
+- UI 可见品牌以“高糖小食”为准，不要把历史项目名 `OrderDisk` 作为界面主品牌文案。
 - 视觉方向应围绕“两只小狗 + 情侣点菜 + 我的店铺 + 温暖点餐”，不要画成外卖平台、附近商家、骑手配送或商业店铺排行榜。
 - App 图标方向是用户指定的两只小狗：小金毛和马尔济斯，小金毛戴厨师帽。图标应简约、重点清晰。
 - 首页关系区应展示左侧“当前用户”头像位、中间爱心、右侧“伴侣/邀请对方”头像位；当前用户头像下方显示当前角色文本。未绑定伴侣时右侧使用空心加号，不在首页展示 App 图标。
 - 首页只能保留当前情侣首页的一套 Tab/内容结构，不允许旧首页 Tab 和新首页 Tab 同时出现。
 - “选择身份”不是直接跳转点菜页：必须先保存当前用户身份，并更新当前用户头像下方的角色文本。当前用户固定显示在左侧，不论选择“饲养员”还是“吃货”；右侧保留伴侣头像或邀请位。
 - 可从同类“熊家小灶”复用的方向包括下单通知、伴侣账号/绑定、趣味余额或熊熊币、店铺/餐品管理、美食记录；但要按当前情侣点菜 App 改造，不做传统后台管理系统。
-- 当前源码中仍有部分可见文案乱码，这是需要清理的技术债；新文档必须保持 UTF-8 中文。
+- 当前主源码已做可见乱码和外卖平台化文案扫描清理；新文档必须保持 UTF-8 中文。
+- 动画统一优先使用 `CozyMotion` token，避免新增散落的魔法时长或不一致按压缩放。
 - `local.properties` 注入 API Key，`orderdisk.jks` 和签名配置不能公开泄露。
 - `settings.gradle.kts` 使用阿里云 Maven 镜像；海外环境可能需要代理。
 - JDK 版本要求见 `gradle/gradle-daemon-jvm.properties`。

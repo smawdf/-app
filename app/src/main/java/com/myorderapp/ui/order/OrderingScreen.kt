@@ -39,8 +39,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Campaign
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.ShoppingBag
@@ -86,7 +84,6 @@ import com.myorderapp.ui.components.CozyCard
 import com.myorderapp.ui.components.CozyCherry
 import com.myorderapp.ui.components.CozyCocoa
 import com.myorderapp.ui.components.CozyIconBadge
-import com.myorderapp.ui.components.CozyMainTopBar
 import com.myorderapp.ui.components.CozyMuted
 import com.myorderapp.ui.components.CozyMotion
 import com.myorderapp.ui.components.CozyMotionVisibility
@@ -276,32 +273,6 @@ private fun OrderingSearchBar(
 }
 
 @Composable
-private fun OrderingHeader() {
-    CozyMainTopBar(title = "点菜 - 挑选今日美味")
-    return
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(64.dp)
-            .background(OrderingSurface.copy(alpha = 0.94f))
-            .padding(horizontal = 20.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(Icons.Filled.Favorite, contentDescription = null, tint = CozyRose, modifier = Modifier.size(24.dp))
-        Text(
-            text = "点菜 - 挑选今日美味",
-            color = CozyRose,
-            fontSize = 18.sp,
-            lineHeight = 24.sp,
-            fontWeight = FontWeight.Black,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.weight(1f)
-        )
-        Icon(Icons.Filled.Notifications, contentDescription = "通知", tint = CozyRose, modifier = Modifier.size(24.dp))
-    }
-}
-
-@Composable
 private fun ShopCard(shopName: String, bannerImageUrl: String, announcement: String, onClick: () -> Unit) {
     val displayShopName = shopName.trim().ifBlank { "我们的小饭桌" }
     val displayAnnouncement = announcement.trim().ifBlank { "今天也给你准备了好吃的" }
@@ -330,7 +301,7 @@ private fun ShopCard(shopName: String, bannerImageUrl: String, announcement: Str
     SquishyOrderSurface(
         modifier = Modifier
             .fillMaxWidth()
-            .heightIn(min = 88.dp)
+            .heightIn(min = 82.dp)
             .padding(horizontal = 20.dp, vertical = 4.dp),
         radius = 24,
         containerColor = Color(0xFFFFFCF8),
@@ -347,7 +318,7 @@ private fun ShopCard(shopName: String, bannerImageUrl: String, announcement: Str
                     .size(108.dp)
             ) {}
             Row(
-                modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
@@ -590,7 +561,7 @@ private fun SquishyCheckoutButton(text: String, onClick: () -> Unit) {
     Box(
         modifier = Modifier
             .height(54.dp)
-            .scale(if (pressed) 0.96f else 1f)
+            .scale(if (pressed) CozyMotion.PressedScale else 1f)
     ) {
         Surface(
             modifier = Modifier
@@ -656,17 +627,17 @@ private fun CartFlyToBasketAnimation(
     val jumpPeakX = start.x - with(density) { 30.dp.toPx() }
 
     LaunchedEffect(start, target) {
-        x.animateTo(jumpPeakX, animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing))
-        x.animateTo(target.x, animationSpec = tween(durationMillis = 620, easing = FastOutSlowInEasing))
+        x.animateTo(jumpPeakX, animationSpec = tween(durationMillis = CozyMotion.Standard, easing = FastOutSlowInEasing))
+        x.animateTo(target.x, animationSpec = tween(durationMillis = CozyMotion.CartFly, easing = FastOutSlowInEasing))
     }
     LaunchedEffect(start, target) {
-        y.animateTo(jumpPeakY, animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing))
-        y.animateTo(target.y, animationSpec = tween(durationMillis = 620, easing = FastOutSlowInEasing))
+        y.animateTo(jumpPeakY, animationSpec = tween(durationMillis = CozyMotion.Standard, easing = FastOutSlowInEasing))
+        y.animateTo(target.y, animationSpec = tween(durationMillis = CozyMotion.CartFly, easing = FastOutSlowInEasing))
         onFinished()
     }
     LaunchedEffect(start) {
-        scale.animateTo(1.1f, animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing))
-        scale.animateTo(0.72f, animationSpec = tween(durationMillis = 620, easing = FastOutSlowInEasing))
+        scale.animateTo(1.1f, animationSpec = tween(durationMillis = CozyMotion.Standard, easing = FastOutSlowInEasing))
+        scale.animateTo(0.72f, animationSpec = tween(durationMillis = CozyMotion.CartFly, easing = FastOutSlowInEasing))
     }
 
     Surface(
@@ -694,7 +665,7 @@ private fun AddDishButton(onClick: (Offset) -> Unit) {
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
     var centerInRoot by remember { mutableStateOf(Offset.Zero) }
-    Box(modifier = Modifier.size(36.dp).scale(if (pressed) 0.96f else 1f)) {
+    Box(modifier = Modifier.size(36.dp).scale(if (pressed) CozyMotion.PressedScale else 1f)) {
         Surface(
             modifier = Modifier
                 .matchParentSize()
@@ -729,7 +700,7 @@ private fun SquishyOrderSurface(
     val pressed by interaction.collectIsPressedAsState()
     Surface(
         modifier = modifier
-            .scale(if (pressed) 0.985f else 1f)
+            .scale(if (pressed) CozyMotion.SoftPressedScale else 1f)
             .clickable(interactionSource = interaction, indication = null, onClick = onClick),
         shape = RoundedCornerShape(radius.dp),
         color = containerColor,

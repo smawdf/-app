@@ -82,6 +82,7 @@ import com.myorderapp.ui.components.CozyCherry
 import com.myorderapp.ui.components.CozyCocoa
 import com.myorderapp.ui.components.CozyIconBadge
 import com.myorderapp.ui.components.CozyMainTopBar
+import com.myorderapp.ui.components.CozyMotion
 import com.myorderapp.ui.components.CozyMotionVisibility
 import com.myorderapp.ui.components.CozyMuted
 import com.myorderapp.ui.components.CozyPage
@@ -254,14 +255,14 @@ fun CoupleMenuScreen(
         AnimatedVisibility(
             visible = toastState != null,
             modifier = Modifier.fillMaxSize(),
-            enter = fadeIn(tween(160)),
-            exit = fadeOut(tween(160))
+            enter = fadeIn(tween(CozyMotion.Toast)),
+            exit = fadeOut(tween(CozyMotion.Toast))
         ) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 AnimatedVisibility(
                     visible = toastState != null,
-                    enter = fadeIn(tween(160)) + slideInVertically(tween(180)) { it / 8 },
-                    exit = fadeOut(tween(140)) + slideOutVertically(tween(140)) { it / 8 }
+                    enter = fadeIn(tween(CozyMotion.Toast)) + slideInVertically(tween(CozyMotion.Standard)) { it / 8 },
+                    exit = fadeOut(tween(CozyMotion.Exit)) + slideOutVertically(tween(CozyMotion.Exit)) { it / 8 }
                 ) {
                     toastState?.let { IdentitySwitchToast(role = it.role) }
                 }

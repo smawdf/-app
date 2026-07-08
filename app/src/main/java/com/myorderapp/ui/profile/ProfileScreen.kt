@@ -191,7 +191,7 @@ fun ProfileScreen(
                     .weight(1f)
                     .clipToBounds(),
                 contentPadding = PaddingValues(bottom = navigationBottomPadding + 132.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 item {
                     CozyMotionVisibility {
@@ -218,7 +218,7 @@ fun ProfileScreen(
                 }
                 item {
                     Column(
-                        verticalArrangement = Arrangement.spacedBy(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
                         modifier = Modifier.padding(horizontal = 20.dp)
                     ) {
                         ProfileActionRow(
@@ -275,7 +275,7 @@ private fun ImmersiveProfileHeader(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = 20.dp, end = 20.dp, bottom = 18.dp)
+            .padding(start = 20.dp, end = 20.dp, bottom = 8.dp)
     ) {
         Column(
             modifier = Modifier.fillMaxWidth(),
@@ -329,7 +329,7 @@ private fun ProfileHeader(
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .scale(if (pressed) 0.985f else 1f)
+            .scale(if (pressed) com.myorderapp.ui.components.CozyMotion.SoftPressedScale else 1f)
             .clickable(interactionSource = interaction, indication = null, onClick = onSettingsClick),
         shape = RoundedCornerShape(18.dp),
         color = Color(0xFFFFF8FA).copy(alpha = 0.72f),
@@ -593,7 +593,7 @@ private fun RechargeAmountButton(
         border = BorderStroke(1.dp, Color(0xFFD6C1C5)),
         modifier = modifier
             .height(58.dp)
-            .scale(if (pressed) 0.97f else 1f)
+            .scale(if (pressed) com.myorderapp.ui.components.CozyMotion.ButtonPressedScale else 1f)
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -689,7 +689,7 @@ private fun SquishySurface(
 ) {
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
-    Box(modifier = modifier.scale(if (pressed) 0.985f else 1f)) {
+    Box(modifier = modifier.scale(if (pressed) com.myorderapp.ui.components.CozyMotion.SoftPressedScale else 1f)) {
         Surface(
             modifier = Modifier
                 .matchParentSize()
@@ -712,7 +712,7 @@ private fun LogoutButton(
 ) {
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
-    Box(modifier = modifier.fillMaxWidth().height(58.dp).scale(if (pressed) 0.985f else 1f)) {
+    Box(modifier = modifier.fillMaxWidth().height(58.dp).scale(if (pressed) com.myorderapp.ui.components.CozyMotion.SoftPressedScale else 1f)) {
         Button(
             onClick = onClick,
             interactionSource = interaction,
