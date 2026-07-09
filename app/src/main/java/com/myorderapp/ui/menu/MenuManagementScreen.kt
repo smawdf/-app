@@ -137,7 +137,7 @@ fun MenuManagementScreen(
             } catch (_: SecurityException) {
                 // 有些相册不会授予持久权限，仍保留当前 URI 供本次使用。
             }
-            viewModel.onImageChange(uri.toString())
+            viewModel.onImagePicked(context, uri)
         }
     }
     val shopImagePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
@@ -147,7 +147,7 @@ fun MenuManagementScreen(
             } catch (_: SecurityException) {
                 // 有些相册不会授予持久权限，仍保留当前 URI 供本次使用。
             }
-            viewModel.updateShopImage(uri.toString())
+            viewModel.updateShopImage(context, uri)
         }
     }
 

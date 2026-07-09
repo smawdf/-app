@@ -19,7 +19,8 @@ data class UploadResult(
 }
 
 class SupabaseStorageUploader(
-    private val session: SessionManager
+    private val session: SessionManager,
+    private val cloudErrorLogger: CloudErrorLogger
 ) {
     private val client = SupabaseClientProvider.client
     private val bucket = "dish-images"
@@ -53,7 +54,34 @@ class SupabaseStorageUploader(
 
             upload(path, compressed)
         } catch (e: Exception) {
+            cloudErrorLogger.log("storage", "upload_menu_image", e, "dishId=$dishId")
             Log.e(tag, "上传异常: ${e.javaClass.simpleName}: ${e.message}", e)
+            UploadResult(error = "${e.javaClass.simpleName}: ${e.message}")
+        }
+    }
+
+    suspend fun compressAndUploadAvatar(
+        context: Context,
+        uri: Uri
+    ): UploadResult = withContext(Dispatchers.IO) {
+        try {
+            val inputStream = context.contentResolver.openInputStream(uri)
+                ?: return@withContext UploadResult(error = "无法读取头像文件")
+            val originalBytes = inputStream.readBytes()
+            inputStream.close()
+
+            if (originalBytes.isEmpty()) {
+                return@withContext UploadResult(error = "头像文件为空")
+            }
+
+            val compressed = compressImage(originalBytes) ?: originalBytes
+            val userFolder = session.currentUserId.ifBlank { "anonymous" }
+            val pairFolder = session.currentPairId.ifBlank { "avatars" }
+            val fileName = "${UUID.randomUUID().toString().take(8)}.jpg"
+            upload("$pairFolder/avatars/$userFolder/$fileName", compressed)
+        } catch (e: Exception) {
+            cloudErrorLogger.log("storage", "upload_avatar", e)
+            Log.e(tag, "头像上传异常: ${e.javaClass.simpleName}: ${e.message}", e)
             UploadResult(error = "${e.javaClass.simpleName}: ${e.message}")
         }
     }
@@ -89,6 +117,7 @@ class SupabaseStorageUploader(
             Log.d(tag, "上传成功: $publicUrl")
             UploadResult(publicUrl = publicUrl)
         } catch (e: Exception) {
+            cloudErrorLogger.log("storage", "upload_bytes", e, "path=$path size=${bytes.size}")
             Log.e(tag, "上传失败: ${e.message}")
             UploadResult(error = "上传失败: ${e.message}")
         }

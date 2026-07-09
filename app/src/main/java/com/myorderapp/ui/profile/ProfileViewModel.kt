@@ -5,6 +5,7 @@ import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.myorderapp.data.remote.supabase.SessionManager
+import com.myorderapp.data.remote.supabase.SupabaseStorageUploader
 import com.myorderapp.domain.model.PairInfo
 import com.myorderapp.domain.model.PairInvitePreview
 import com.myorderapp.domain.model.Profile
@@ -33,7 +34,8 @@ data class ProfileUiState(
 
 class ProfileViewModel(
     private val profileRepository: ProfileRepository,
-    private val sessionManager: SessionManager
+    private val sessionManager: SessionManager,
+    private val storageUploader: SupabaseStorageUploader
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ProfileUiState())
@@ -213,11 +215,13 @@ class ProfileViewModel(
                     }
                 }
                 val localPath = destFile.absolutePath
-                profileRepository.updateAvatar(localPath)
+                val cloudAvatarUrl = uploadAvatar(context, uri)
+                val avatarUrl = cloudAvatarUrl ?: localPath
+                cloudAvatarUrl?.let { profileRepository.updateAvatar(it) }
                 val current = _uiState.value.profile
                 _uiState.value = _uiState.value.copy(
-                    profile = (current ?: Profile()).copy(avatarUrl = localPath),
-                    saveMessage = "头像已保存"
+                    profile = (current ?: Profile()).copy(avatarUrl = avatarUrl),
+                    saveMessage = if (avatarUrl == localPath) "头像已保存到本机，云端上传失败" else "头像已同步"
                 )
             } catch (_: Exception) {
                 _uiState.value = _uiState.value.copy(saveMessage = "头像保存失败")
@@ -232,16 +236,21 @@ class ProfileViewModel(
             try {
                 var avatarPath = _uiState.value.profile?.avatarUrl
                 if (avatarUri != null) {
-                    avatarPath = copyAvatarToPrivateStorage(context, avatarUri)
-                    profileRepository.updateAvatar(avatarPath)
+                    val localAvatarPath = copyAvatarToPrivateStorage(context, avatarUri)
+                    val cloudAvatarUrl = uploadAvatar(context, avatarUri)
+                    avatarPath = cloudAvatarUrl ?: localAvatarPath
+                    cloudAvatarUrl?.let { profileRepository.updateAvatar(it) }
                 }
                 profileRepository.updateNickname(trimmed)
                 val current = _uiState.value.profile ?: Profile()
                 _uiState.value = _uiState.value.copy(
                     profile = current.copy(nickname = trimmed, avatarUrl = avatarPath),
-                    saveMessage = "资料已保存"
+                    saveMessage = if (avatarUri != null && avatarPath?.startsWith("http") == false) {
+                        "资料已保存，头像云端上传失败"
+                    } else {
+                        "资料已同步"
+                    }
                 )
-                saveToCloud()
             } catch (_: Exception) {
                 _uiState.value = _uiState.value.copy(saveMessage = "资料保存失败，请重新选择头像后再试")
             }
@@ -280,6 +289,13 @@ class ProfileViewModel(
         }
         return destFile.absolutePath
     }
+
+    private suspend fun uploadAvatar(context: Context, uri: Uri): String? {
+        if (!sessionManager.isLoggedIn.value) return null
+        return storageUploader.compressAndUploadAvatar(context, uri).publicUrl?.takeIf { it.isCloudAvatarUrl() }
+    }
+
+    private fun String.isCloudAvatarUrl(): Boolean = startsWith("http://") || startsWith("https://")
 
     private suspend fun saveToCloud() {
         if (_uiState.value.isSynced) {

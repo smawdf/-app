@@ -1,6 +1,7 @@
 package com.myorderapp.data.repository
 
 import android.content.Context
+import com.myorderapp.data.remote.supabase.CloudErrorLogger
 import com.myorderapp.data.remote.supabase.SessionManager
 import com.myorderapp.data.remote.supabase.SupabaseClientProvider
 import com.myorderapp.domain.model.CandyCoinRecord
@@ -23,7 +24,8 @@ import kotlinx.coroutines.flow.asStateFlow
 class SupabaseProfileRepository(
     private val session: SessionManager,
     context: Context,
-    private val candyCoinLedgerRepository: CandyCoinLedgerRepository
+    private val candyCoinLedgerRepository: CandyCoinLedgerRepository,
+    private val cloudErrorLogger: CloudErrorLogger? = null
 ) : ProfileRepository {
 
     private companion object {
@@ -41,16 +43,22 @@ class SupabaseProfileRepository(
     override fun getProfile(): Flow<Profile?> = _profile.asStateFlow()
 
     override suspend fun saveProfile(profile: Profile) {
-        val normalized = normalizeProfile(profile).copy(updatedAt = Instant.now().toString())
+        val normalized = normalizeProfile(profile).copy(
+            avatarUrl = profile.avatarUrl?.takeIfCloudAvatarUrl(),
+            updatedAt = Instant.now().toString()
+        )
         _profile.value = normalized
         saveLocalProfile(normalized)
         session.saveNickname(normalized.nickname)
         session.saveAvatar(normalized.avatarUrl ?: "")
         if (session.isLoggedIn.value) {
             try {
-                client.from("profiles").upsert(normalized) { select() }
+                client.from("profiles").upsert(normalized.toCloudUpsertMap()) { select() }
+                syncAnniversaryToCloud(normalized)
                 _synced.value = true
-            } catch (_: Exception) { }
+            } catch (e: Exception) {
+                cloudErrorLogger?.log("profile", "save_profile", e, "userId=${normalized.userId}")
+            }
         }
     }
 
@@ -61,18 +69,22 @@ class SupabaseProfileRepository(
         saveLocalProfile(updated)
         session.saveNickname(updated.nickname)
         if (session.isLoggedIn.value) {
-            try { client.from("profiles").upsert(updated) { select() }; _synced.value = true } catch (_: Exception) { }
+            try { client.from("profiles").upsert(updated.toCloudUpsertMap()) { select() }; _synced.value = true } catch (e: Exception) {
+                cloudErrorLogger?.log("profile", "update_nickname", e, "userId=${updated.userId}")
+            }
         }
     }
 
     override suspend fun updateAvatar(avatarUrl: String) {
         val current = _profile.value ?: loadLocalProfile()
-        val updated = current.copy(avatarUrl = avatarUrl, updatedAt = Instant.now().toString())
+        val updated = current.copy(avatarUrl = avatarUrl.takeIfCloudAvatarUrl(), updatedAt = Instant.now().toString())
         _profile.value = updated
         saveLocalProfile(updated)
         session.saveAvatar(updated.avatarUrl ?: "")
         if (session.isLoggedIn.value) {
-            try { client.from("profiles").upsert(updated) { select() }; _synced.value = true } catch (_: Exception) { }
+            try { client.from("profiles").upsert(updated.toCloudUpsertMap()) { select() }; _synced.value = true } catch (e: Exception) {
+                cloudErrorLogger?.log("profile", "update_avatar", e, "userId=${updated.userId}")
+            }
         }
     }
 
@@ -112,7 +124,8 @@ class SupabaseProfileRepository(
                 )
             )
             true
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            cloudErrorLogger?.log("profile", "add_partner_candy", e, "pairId=$pairId amount=$amount")
             false
         }
     }
@@ -133,15 +146,23 @@ class SupabaseProfileRepository(
     override suspend fun saveSelectedRole(role: String?) {
         val normalizedRole = role?.takeIf { it == ROLE_CARETAKER || it == ROLE_EATER }.orEmpty()
         prefs.edit().putString("selected_role", normalizedRole).apply()
+        val updatedProfile = (_profile.value ?: loadLocalProfile()).copy(
+            selectedRole = normalizedRole,
+            updatedAt = Instant.now().toString()
+        )
+        _profile.value = updatedProfile
+        saveLocalProfile(updatedProfile)
         if (!session.isLoggedIn.value) return
         try {
             client.from("profiles").update(
-                mapOf("selected_role" to normalizedRole, "updated_at" to Instant.now().toString())
+                mapOf("selected_role" to normalizedRole, "updated_at" to updatedProfile.updatedAt)
             ) {
                 filter { eq("user_id", session.currentUserId) }
             }
             _synced.value = true
-        } catch (_: Exception) { }
+        } catch (e: Exception) {
+            cloudErrorLogger?.log("profile", "save_selected_role", e, "role=$normalizedRole")
+        }
     }
 
     override suspend fun generatePairCode(inviterRole: String): String {
@@ -170,7 +191,8 @@ class SupabaseProfileRepository(
                 inviterName = inviter.nickname.ifBlank { "对方" },
                 inviterRole = inviterRole
             )
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            cloudErrorLogger?.log("profile", "preview_pair_invite", e, "code=$normalizedCode")
             null
         }
     }
@@ -205,7 +227,9 @@ class SupabaseProfileRepository(
                 partnerName = partner?.nickname ?: ""
                 partnerUpdatedAt = partner?.updatedAt ?: ""
                 partnerCandyCoins = partner?.candyCoins
-            } catch (_: Exception) { }
+            } catch (e: Exception) {
+                cloudErrorLogger?.log("profile", "get_pair_info", e, "pairId=$pairId")
+            }
         }
         if (!hasPartner) {
             return PairInfo(
@@ -239,7 +263,9 @@ class SupabaseProfileRepository(
                     filter { eq("user_id", session.currentUserId) }
                 }
                 _synced.value = true
-            } catch (_: Exception) { }
+            } catch (e: Exception) {
+                cloudErrorLogger?.log("profile", "touch_presence", e)
+            }
         }
     }
 
@@ -256,7 +282,9 @@ class SupabaseProfileRepository(
                 ) {
                     filter { eq("user_id", session.currentUserId) }
                 }
-            } catch (_: Exception) { }
+            } catch (e: Exception) {
+                cloudErrorLogger?.log("profile", "unpair", e)
+            }
         }
     }
 
@@ -265,6 +293,7 @@ class SupabaseProfileRepository(
     fun canStartDeviceSession(profile: Profile?): Boolean {
         val cloudSessionId = profile?.sessionId.orEmpty()
         if (cloudSessionId.isBlank()) return true
+        if (cloudSessionId == session.currentSessionId || cloudSessionId == session.currentStableDeviceSessionId) return true
         return isDeviceSessionExpired(profile?.sessionUpdatedAt.orEmpty())
     }
 
@@ -274,6 +303,7 @@ class SupabaseProfileRepository(
         }
         val now = Instant.now().toString()
         return try {
+            session.migrateToStableDeviceSession()
             client.from("profiles").update(
                 mapOf(
                     "session_id" to session.currentSessionId,
@@ -291,7 +321,8 @@ class SupabaseProfileRepository(
             _profile.value = updated
             saveLocalProfile(updated)
             updated
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            cloudErrorLogger?.log("profile", "claim_device_session", e)
             null
         }
     }
@@ -308,7 +339,9 @@ class SupabaseProfileRepository(
             ) {
                 filter { eq("user_id", session.currentUserId) }
             }
-        } catch (_: Exception) { }
+        } catch (e: Exception) {
+            cloudErrorLogger?.log("profile", "release_device_session", e)
+        }
     }
 
     suspend fun checkSessionValid(): Boolean {
@@ -324,8 +357,9 @@ class SupabaseProfileRepository(
                 releaseCurrentDeviceSession()
                 return false
             }
-            return cloudSessionId == session.currentSessionId
-        } catch (_: Exception) {
+            return cloudSessionId == session.currentSessionId || cloudSessionId == session.currentStableDeviceSessionId
+        } catch (e: Exception) {
+            cloudErrorLogger?.log("profile", "check_session_valid", e)
             return true
         }
     }
@@ -337,21 +371,41 @@ class SupabaseProfileRepository(
                 filter { eq("user_id", session.currentUserId) }
             }.decodeList<Profile>()
             if (profiles.isNotEmpty()) {
-                val p = profiles.first()
-                _profile.value = p
-                saveLocalProfile(p)
-                session.saveNickname(p.nickname)
-                session.saveAvatar(p.avatarUrl ?: "")
+                val cloud = profiles.first()
+                val local = loadLocalProfile()
+                val anniversary = loadAnniversaryFromCloud(cloud.pairId)
+                val merged = mergeCloudProfileWithLocalFallback(cloud, local)
+                    .copy(pairedAt = anniversary.ifBlank { local.pairedAt })
+                if (anniversary.isBlank() && merged.pairedAt.isNotBlank()) {
+                    syncAnniversaryToCloud(merged)
+                }
+                if (merged != cloud) {
+                    client.from("profiles").update(
+                        mapOf(
+                            "nickname" to merged.nickname,
+                    "avatar_url" to merged.avatarUrl?.takeIfCloudAvatarUrl(),
+                            "updated_at" to Instant.now().toString()
+                        )
+                    ) {
+                        filter { eq("user_id", session.currentUserId) }
+                    }
+                }
+                _profile.value = merged
+                saveLocalProfile(merged)
+                session.saveNickname(merged.nickname)
+                session.saveAvatar(merged.avatarUrl ?: "")
                 _synced.value = true
             } else {
                 val local = normalizeProfile(loadLocalProfile())
                 if (local.nickname.isNotBlank() || !local.avatarUrl.isNullOrBlank()) {
-                    client.from("profiles").insert(local) { select() }
+                    client.from("profiles").upsert(local.toCloudUpsertMap()) { select() }
                     _profile.value = local
                     _synced.value = true
                 }
             }
-        } catch (_: Exception) { }
+        } catch (e: Exception) {
+            cloudErrorLogger?.log("profile", "load_profile", e)
+        }
     }
 
     // ── 本地 SharedPreferences 持久化 ──
@@ -359,7 +413,7 @@ class SupabaseProfileRepository(
     private fun saveLocalProfile(profile: Profile) {
         prefs.edit()
             .putString("nickname", profile.nickname)
-            .putString("avatar_url", profile.avatarUrl ?: "")
+            .putString("avatar_url", profile.avatarUrl?.takeIfCloudAvatarUrl() ?: "")
             .putString("user_id", profile.userId.ifBlank { session.currentUserId })
             .putString("pair_id", profile.pairId.ifBlank { session.currentPairId })
             .putString("paired_at", profile.pairedAt)
@@ -367,21 +421,27 @@ class SupabaseProfileRepository(
             .putString("updated_at", profile.updatedAt)
             .putString("session_id", profile.sessionId)
             .putString("session_updated_at", profile.sessionUpdatedAt)
+            .putString("selected_role", profile.selectedRole)
             .putInt("candy_coins", profile.candyCoins)
             .apply()
     }
 
     private fun loadLocalProfile(): Profile {
+        val savedUserId = prefs.getString("user_id", "") ?: ""
+        if (session.currentUserId.isNotBlank() && savedUserId.isNotBlank() && savedUserId != session.currentUserId) {
+            return Profile(userId = session.currentUserId, pairId = session.currentPairId)
+        }
         return Profile(
-            userId = prefs.getString("user_id", "") ?: "",
+            userId = savedUserId,
             pairId = prefs.getString("pair_id", "") ?: "",
             nickname = prefs.getString("nickname", "") ?: "",
-            avatarUrl = prefs.getString("avatar_url", "")?.ifBlank { null },
+            avatarUrl = prefs.getString("avatar_url", "")?.ifBlank { null }?.takeIfCloudAvatarUrl(),
             tastePrefs = DietaryPreference(),
             createdAt = prefs.getString("created_at", "") ?: "",
             updatedAt = prefs.getString("updated_at", "") ?: "",
             sessionId = prefs.getString("session_id", "") ?: "",
             sessionUpdatedAt = prefs.getString("session_updated_at", "") ?: "",
+            selectedRole = prefs.getString("selected_role", "") ?: "",
             candyCoins = prefs.getInt("candy_coins", 66),
             pairedAt = prefs.getString("paired_at", "") ?: ""
         )
@@ -399,6 +459,53 @@ class SupabaseProfileRepository(
         )
     }
 
+    private fun mergeCloudProfileWithLocalFallback(cloud: Profile, local: Profile): Profile {
+        val sameUser = local.userId.isBlank() || local.userId == cloud.userId
+        if (!sameUser) return cloud
+        return cloud.copy(
+            nickname = cloud.nickname.ifBlank { local.nickname },
+            avatarUrl = cloud.avatarUrl?.takeIfCloudAvatarUrl() ?: local.avatarUrl?.takeIfCloudAvatarUrl()
+        )
+    }
+
+    private suspend fun loadAnniversaryFromCloud(pairId: String): String {
+        val normalizedPairId = pairId.takeIf { it.isNotBlank() && it != DEFAULT_PAIR_ID } ?: return ""
+        return try {
+            client.from("anniversaries").select {
+                filter { eq("pair_id", normalizedPairId) }
+            }.decodeList<RemoteAnniversary>().firstOrNull()?.pairedAt.orEmpty()
+        } catch (e: Exception) {
+            cloudErrorLogger?.log("profile", "load_anniversary", e, "pairId=$normalizedPairId")
+            ""
+        }
+    }
+
+    private suspend fun syncAnniversaryToCloud(profile: Profile) {
+        val pairId = profile.pairId.takeIf { it.isNotBlank() && it != DEFAULT_PAIR_ID } ?: return
+        if (profile.pairedAt.isBlank()) return
+        client.from("anniversaries").upsert(
+            RemoteAnniversary(
+                pairId = pairId,
+                pairedAt = profile.pairedAt,
+                updatedAt = Instant.now().toString()
+            )
+        ) { select() }
+    }
+
+    private fun Profile.toCloudUpsertMap(): Map<String, Any?> {
+        return mapOf(
+            "user_id" to userId.ifBlank { session.currentUserId },
+            "pair_id" to pairId.ifBlank { session.currentPairId.ifBlank { DEFAULT_PAIR_ID } },
+            "nickname" to nickname,
+            "avatar_url" to avatarUrl?.takeIfCloudAvatarUrl(),
+            "candy_coins" to candyCoins,
+            "session_id" to sessionId,
+            "session_updated_at" to sessionUpdatedAt,
+            "selected_role" to selectedRole,
+            "updated_at" to updatedAt.ifBlank { Instant.now().toString() }
+        )
+    }
+
     private fun isDeviceSessionExpired(sessionUpdatedAt: String): Boolean {
         val seenAt = runCatching { Instant.parse(sessionUpdatedAt) }.getOrNull() ?: return false
         return Duration.between(seenAt, Instant.now()) > DEVICE_SESSION_TIMEOUT
@@ -413,7 +520,8 @@ class SupabaseProfileRepository(
                 ) {
                     filter { eq("user_id", updated.userId) }
                 }
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                cloudErrorLogger?.log("profile", "persist_candy_coins", e, "userId=${updated.userId} balance=$newBalance")
                 return false
             }
         }
@@ -438,6 +546,10 @@ class SupabaseProfileRepository(
         val seenAt = runCatching { Instant.parse(this) }.getOrNull() ?: return false
         return Duration.between(seenAt, Instant.now()).abs() <= Duration.ofMinutes(5)
     }
+
+    private fun String.takeIfCloudAvatarUrl(): String? {
+        return trim().takeIf { it.startsWith("http://") || it.startsWith("https://") }
+    }
 }
 
 @kotlinx.serialization.Serializable
@@ -445,4 +557,11 @@ private data class PairInviteProfileRow(
     @kotlinx.serialization.SerialName("user_id") val userId: String = "",
     val nickname: String = "",
     @kotlinx.serialization.SerialName("selected_role") val selectedRole: String = ""
+)
+
+@kotlinx.serialization.Serializable
+private data class RemoteAnniversary(
+    @kotlinx.serialization.SerialName("pair_id") val pairId: String,
+    @kotlinx.serialization.SerialName("paired_at") val pairedAt: String = "",
+    @kotlinx.serialization.SerialName("updated_at") val updatedAt: String = ""
 )

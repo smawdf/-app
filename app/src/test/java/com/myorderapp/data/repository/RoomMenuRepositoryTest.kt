@@ -5,6 +5,7 @@ import com.myorderapp.data.local.entity.MenuDishEntity
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -75,6 +76,12 @@ class RoomMenuRepositoryTest {
         private val items = MutableStateFlow<List<MenuDishEntity>>(emptyList())
 
         override fun observeAll(): Flow<List<MenuDishEntity>> = items
+
+        override fun observeByPair(pairId: String): Flow<List<MenuDishEntity>> =
+            items.map { dishes -> dishes.filter { it.pairId == pairId } }
+
+        override suspend fun getAllByPair(pairId: String): List<MenuDishEntity> =
+            items.value.filter { it.pairId == pairId }
 
         override suspend fun getById(id: String): MenuDishEntity? =
             items.value.firstOrNull { it.id == id }

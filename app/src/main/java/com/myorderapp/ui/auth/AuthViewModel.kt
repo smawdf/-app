@@ -2,15 +2,22 @@ package com.myorderapp.ui.auth
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.myorderapp.data.remote.supabase.CloudErrorLogger
 import com.myorderapp.data.remote.supabase.SessionManager
 import com.myorderapp.data.remote.supabase.SupabaseClientProvider
 import com.myorderapp.data.repository.HybridDishRepository
+import com.myorderapp.data.repository.RoomMenuRepository
+import com.myorderapp.data.repository.SingleShopRepository
 import com.myorderapp.data.repository.SupabaseProfileRepository
+import com.myorderapp.data.repository.UserPreferencesRepository
 import com.myorderapp.domain.model.Profile
+import com.myorderapp.domain.repository.CandyCoinLedgerRepository
 import io.github.jan.supabase.gotrue.auth
 import io.github.jan.supabase.gotrue.parseSessionFromUrl
 import io.github.jan.supabase.gotrue.providers.builtin.Email
+import io.github.jan.supabase.gotrue.providers.builtin.OTP
 import io.github.jan.supabase.postgrest.from
+import java.time.Instant
 
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -34,7 +41,12 @@ data class AuthUiState(
 class AuthViewModel(
     private val session: SessionManager,
     private val dishRepo: HybridDishRepository,
-    private val profileRepo: SupabaseProfileRepository
+    private val profileRepo: SupabaseProfileRepository,
+    private val candyCoinLedgerRepository: CandyCoinLedgerRepository,
+    private val singleShopRepository: SingleShopRepository,
+    private val roomMenuRepository: RoomMenuRepository,
+    private val userPreferencesRepository: UserPreferencesRepository,
+    private val cloudErrorLogger: CloudErrorLogger
 ) : ViewModel() {
 
     private val client = SupabaseClientProvider.client
@@ -103,18 +115,20 @@ class AuthViewModel(
                 val token = client.auth.currentAccessTokenOrNull()
                 val userId = user?.id ?: ""
                 if (token != null && userId.isNotBlank()) {
-                    val profile = loadOrCreateProfile(userId)
-                    if (profile == null) {
+                    session.setSession(token, userId, "")
+                    val profile = try {
+                        loadOrCreateProfile(userId)
+                    } catch (profileError: Exception) {
                         try { client.auth.signOut() } catch (_: Exception) { }
                         session.clear()
                         _uiState.value = _uiState.value.copy(
                             isLoading = false,
-                            errorMessage = "登录失败：无法读取账号设备状态，请稍后重试"
+                            errorMessage = "登录失败：无法读取账号设备状态：${profileError.fullAuthErrorText().compactAuthErrorDetail()}"
                         )
                         return@launch
                     }
                     val pairId = profile.pairId
-                    session.setSession(token, userId, pairId)
+                    session.setPairId(pairId)
                     if (!profileRepo.canStartDeviceSession(profile)) {
                         try { client.auth.signOut() } catch (_: Exception) { }
                         session.clear()
@@ -124,7 +138,7 @@ class AuthViewModel(
                             errorMessage = if (AccountIdentifier.isRealEmail(state.email)) {
                                 "账号正在其他设备使用。可在原设备退出，或点击下方按钮，用注册邮箱验证后切换到当前设备。"
                             } else {
-                                "账号正在其他设备使用。手机号/普通账号暂不支持邮箱接管，请先在原设备退出登录。"
+                                "账号正在其他设备使用。普通账号暂不支持邮箱接管，请先在原设备退出登录。"
                             }
                         )
                         return@launch
@@ -145,9 +159,13 @@ class AuthViewModel(
                         remember = state.rememberCredentials
                     )
                     session.saveNickname(claimedProfile.nickname)
-                    session.saveAvatar(claimedProfile.avatarUrl ?: "")
+                    session.saveAvatar(claimedProfile.avatarUrl?.takeIfCloudAvatarUrl().orEmpty())
                     dishRepo.syncFromCloud()
                     profileRepo.loadFromCloud()
+                    candyCoinLedgerRepository.loadFromCloud()
+                    singleShopRepository.loadFromCloud()
+                    roomMenuRepository.loadFromCloud()
+                    userPreferencesRepository.loadFromCloud()
                     _uiState.value = _uiState.value.copy(isLoggedIn = true, isLoading = false)
                 } else {
                     _uiState.value = _uiState.value.copy(
@@ -156,21 +174,30 @@ class AuthViewModel(
                     )
                 }
             } catch (e: Exception) {
-                val msg = e.message ?: ""
+                cloudErrorLogger.log("auth", "submit", e, "mode=${state.mode}")
+                val msg = e.fullAuthErrorText()
                 val errorMsg = when {
                     msg.contains("Invalid login credentials", ignoreCase = true) ||
                     msg.contains("User not found", ignoreCase = true) ||
+                    msg.contains("AuthApiError", ignoreCase = true) && msg.contains("invalid", ignoreCase = true) ||
                     msg.contains("invalid_grant", ignoreCase = true) ->
                         "账号或密码不正确。如果刚用邮箱注册，请先打开验证邮件确认后再登录。"
                     msg.contains("Email not confirmed", ignoreCase = true) ||
+                    msg.contains("email confirmation", ignoreCase = true) ||
+                    msg.contains("not confirmed", ignoreCase = true) ||
                     msg.contains("email_not_confirmed", ignoreCase = true) ->
                         "邮箱还未验证。请打开注册邮箱里的确认邮件，完成后再登录。"
                     msg.contains("Invalid password", ignoreCase = true) ||
                     msg.contains("wrong password", ignoreCase = true) ->
                         "密码错误，请重试"
+                    msg.contains("timeout", ignoreCase = true) ||
+                    msg.contains("Unable to resolve host", ignoreCase = true) ||
+                    msg.contains("Failed to connect", ignoreCase = true) ||
+                    msg.contains("Network is unreachable", ignoreCase = true) ->
+                        "网络连接失败，请检查网络后重试。"
                     isAccountAlreadyExistsMessage(msg) ->
                         "账号已存在，请直接登录"
-                    else -> "请求失败，请稍后重试"
+                    else -> "请求失败：${msg.compactAuthErrorDetail()}"
                 }
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
@@ -187,7 +214,7 @@ class AuthViewModel(
             return
         }
         if (!AccountIdentifier.isRealEmail(normalizedEmail)) {
-            _uiState.value = _uiState.value.copy(errorMessage = "手机号/普通账号目前是账号密码登录，暂不支持邮箱找回。")
+            _uiState.value = _uiState.value.copy(errorMessage = "普通账号暂不支持邮箱找回，请使用注册密码登录。")
             return
         }
 
@@ -205,7 +232,8 @@ class AuthViewModel(
                     isResetEmailSent = true,
                     errorMessage = "重置邮件已发送。请在当前设备打开邮件链接，再回到 App 修改密码。"
                 )
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                cloudErrorLogger.log("auth", "send_password_reset", e, "email=$normalizedEmail")
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
                     errorMessage = "发送失败，请确认邮箱后重试"
@@ -217,17 +245,17 @@ class AuthViewModel(
     fun sendDeviceSwitchEmail(email: String = _uiState.value.email) {
         val normalizedEmail = email.trim()
         if (normalizedEmail.isBlank() || !AccountIdentifier.isRealEmail(normalizedEmail)) {
-            _uiState.value = _uiState.value.copy(errorMessage = "只有邮箱账号支持验证切换设备。手机号/普通账号请先在原设备退出。")
+            _uiState.value = _uiState.value.copy(errorMessage = "只有邮箱账号支持验证切换设备。普通账号请先在原设备退出。")
             return
         }
 
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null, isResetEmailSent = false)
             try {
-                client.auth.resetPasswordForEmail(
-                    email = normalizedEmail,
-                    redirectUrl = DEVICE_SWITCH_REDIRECT_URL
-                )
+                client.auth.signInWith(OTP, redirectUrl = DEVICE_SWITCH_REDIRECT_URL) {
+                    this.email = normalizedEmail
+                    this.createUser = false
+                }
                 session.saveEmail(normalizedEmail)
                 _uiState.value = _uiState.value.copy(
                     email = normalizedEmail,
@@ -236,7 +264,8 @@ class AuthViewModel(
                     canSwitchDeviceByEmail = true,
                     errorMessage = "切换验证邮件已发送。请在当前设备打开邮件链接，验证后会自动接管登录。"
                 )
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                cloudErrorLogger.log("auth", "send_device_switch_email", e, "email=$normalizedEmail")
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
                     errorMessage = "发送失败，请确认邮箱后重试"
@@ -266,11 +295,12 @@ class AuthViewModel(
                     )
                     return@launch
                 }
-                val profile = loadOrCreateProfile(userId)
-                if (profile == null) {
+                val profile = try {
+                    loadOrCreateProfile(userId)
+                } catch (profileError: Exception) {
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
-                        errorMessage = "验证成功，但无法读取账号设备状态，请稍后重试"
+                        errorMessage = "验证成功，但无法读取账号设备状态：${profileError.fullAuthErrorText().compactAuthErrorDetail()}"
                     )
                     return@launch
                 }
@@ -284,16 +314,21 @@ class AuthViewModel(
                     return@launch
                 }
                 session.saveNickname(claimedProfile.nickname)
-                session.saveAvatar(claimedProfile.avatarUrl ?: "")
+                session.saveAvatar(claimedProfile.avatarUrl?.takeIfCloudAvatarUrl().orEmpty())
                 dishRepo.syncFromCloud()
                 profileRepo.loadFromCloud()
+                candyCoinLedgerRepository.loadFromCloud()
+                singleShopRepository.loadFromCloud()
+                roomMenuRepository.loadFromCloud()
+                userPreferencesRepository.loadFromCloud()
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
                     isLoggedIn = true,
                     isDeviceSwitchComplete = true,
                     errorMessage = "设备切换成功"
                 )
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                cloudErrorLogger.log("auth", "switch_device_from_deep_link", e)
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
                     errorMessage = "链接已失效，请重新发送验证邮件"
@@ -327,7 +362,8 @@ class AuthViewModel(
                     isPasswordResetComplete = true,
                     errorMessage = "密码已修改，请重新登录"
                 )
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                cloudErrorLogger.log("auth", "reset_password_from_deep_link", e)
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
                     errorMessage = "链接已失效，请重新发送重置邮件"
@@ -349,25 +385,59 @@ class AuthViewModel(
         ).any { message.contains(it, ignoreCase = true) }
     }
 
-    private suspend fun loadOrCreateProfile(userId: String): Profile? {
-        return try {
-            val profiles = client.from("profiles").select {
-                filter { eq("user_id", userId) }
-            }.decodeList<Profile>()
-            profiles.firstOrNull() ?: run {
-                val localNick = session.getSavedNickname()
-                val localAvatar = session.getSavedAvatar()
-                val profile = Profile(
-                    userId = userId,
-                    pairId = "00000000-0000-0000-0000-000000000000",
-                    nickname = localNick,
-                    avatarUrl = localAvatar.ifBlank { null }
+    private fun Throwable.fullAuthErrorText(): String {
+        return sequenceOf(
+            message,
+            localizedMessage,
+            toString(),
+            cause?.message,
+            cause?.localizedMessage,
+            cause?.toString()
+        )
+            .filterNotNull()
+            .map { it.trim() }
+            .filter { it.isNotBlank() }
+            .distinct()
+            .joinToString(" | ")
+            .ifBlank { "未知错误" }
+    }
+
+    private fun String.compactAuthErrorDetail(): String {
+        return replace(Regex("\\s+"), " ")
+            .take(96)
+            .ifBlank { "请检查网络或稍后重试" }
+    }
+
+    private suspend fun loadOrCreateProfile(userId: String): Profile {
+        val profiles = client.from("profiles").select {
+            filter { eq("user_id", userId) }
+        }.decodeList<Profile>()
+        return profiles.firstOrNull() ?: run {
+            val localNick = session.getSavedNickname()
+            val localAvatar = session.getSavedAvatar().takeIfCloudAvatarUrl().orEmpty()
+            val defaultPairId = "00000000-0000-0000-0000-000000000000"
+            val now = Instant.now().toString()
+            client.from("profiles").insert(
+                mapOf(
+                    "user_id" to userId,
+                    "pair_id" to defaultPairId,
+                    "nickname" to localNick,
+                    "avatar_url" to localAvatar.ifBlank { null },
+                    "session_id" to session.currentSessionId,
+                    "session_updated_at" to now,
+                    "selected_role" to "",
+                    "updated_at" to now
                 )
-                client.from("profiles").insert(profile) { select() }
-                profile
-            }
-        } catch (_: Exception) {
-            null
+            ) { select() }
+            Profile(
+                userId = userId,
+                pairId = defaultPairId,
+                nickname = localNick,
+                avatarUrl = localAvatar.ifBlank { null },
+                sessionId = session.currentSessionId,
+                sessionUpdatedAt = now,
+                updatedAt = now
+            )
         }
     }
 
@@ -384,5 +454,9 @@ class AuthViewModel(
     companion object {
         const val PASSWORD_RESET_REDIRECT_URL = "orderdisk://auth/reset-password"
         const val DEVICE_SWITCH_REDIRECT_URL = "orderdisk://auth/switch-device"
+    }
+
+    private fun String.takeIfCloudAvatarUrl(): String? {
+        return trim().takeIf { it.startsWith("http://") || it.startsWith("https://") }
     }
 }

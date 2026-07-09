@@ -12,6 +12,12 @@ interface MenuDishDao {
     @Query("SELECT * FROM menu_dishes ORDER BY sortOrder ASC, updatedAt DESC")
     fun observeAll(): Flow<List<MenuDishEntity>>
 
+    @Query("SELECT * FROM menu_dishes WHERE pairId = :pairId ORDER BY sortOrder ASC, updatedAt DESC")
+    fun observeByPair(pairId: String): Flow<List<MenuDishEntity>>
+
+    @Query("SELECT * FROM menu_dishes WHERE pairId = :pairId ORDER BY sortOrder ASC, updatedAt DESC")
+    suspend fun getAllByPair(pairId: String): List<MenuDishEntity>
+
     @Query("SELECT * FROM menu_dishes WHERE id = :id LIMIT 1")
     suspend fun getById(id: String): MenuDishEntity?
 

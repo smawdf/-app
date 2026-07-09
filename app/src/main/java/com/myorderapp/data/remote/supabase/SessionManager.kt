@@ -1,6 +1,8 @@
 package com.myorderapp.data.remote.supabase
 
 import android.content.Context
+import android.provider.Settings
+import java.security.MessageDigest
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -8,6 +10,7 @@ import kotlinx.coroutines.flow.asStateFlow
 class SessionManager(context: Context) {
 
     private val prefs = context.getSharedPreferences("orderdisk_session", Context.MODE_PRIVATE)
+    private val stableDeviceSessionId: String = buildStableDeviceSessionId(context)
 
     private val _isLoggedIn = MutableStateFlow(false)
     val isLoggedIn: StateFlow<Boolean> = _isLoggedIn.asStateFlow()
@@ -28,7 +31,8 @@ class SessionManager(context: Context) {
         private set
 
     private var _sessionId: String = ""
-    val currentSessionId: String get() = _sessionId
+    val currentSessionId: String get() = _sessionId.ifBlank { stableDeviceSessionId }
+    val currentStableDeviceSessionId: String get() = stableDeviceSessionId
 
     init {
         restoreSession()
@@ -42,8 +46,8 @@ class SessionManager(context: Context) {
         _userId.value = userId
         _pairId.value = this.currentPairId
 
-        // 生成新 sessionId（用于单设备登录检测）
-        _sessionId = java.util.UUID.randomUUID().toString()
+        // 同一台设备使用稳定占用 ID，卸载重装后仍可识别为原设备。
+        _sessionId = stableDeviceSessionId
 
         prefs.edit()
             .putString("token", token)
@@ -121,6 +125,11 @@ class SessionManager(context: Context) {
         }
     }
 
+    fun migrateToStableDeviceSession() {
+        _sessionId = stableDeviceSessionId
+        prefs.edit().putString("session_id", _sessionId).apply()
+    }
+
     private fun restoreSession() {
         val token = prefs.getString("token", null)
         val uid = prefs.getString("user_id", null)
@@ -130,10 +139,22 @@ class SessionManager(context: Context) {
             accessToken = "Bearer $token"
             currentUserId = uid
             currentPairId = pid ?: "00000000-0000-0000-0000-000000000000"
-            _sessionId = sid ?: ""
+            _sessionId = sid ?: stableDeviceSessionId
             _isLoggedIn.value = true
             _userId.value = uid
             _pairId.value = this.currentPairId
         }
+    }
+
+    private fun buildStableDeviceSessionId(context: Context): String {
+        val androidId = Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID)
+            ?.takeIf { it.isNotBlank() && it != "9774d56d682e549c" }
+            ?: "unknown"
+        val raw = "${context.packageName}:$androidId"
+        val hash = MessageDigest.getInstance("SHA-256")
+            .digest(raw.toByteArray())
+            .take(16)
+            .joinToString("") { "%02x".format(it) }
+        return "device-$hash"
     }
 }

@@ -76,6 +76,7 @@ import com.myorderapp.domain.model.PairInfo
 import com.myorderapp.domain.model.Profile
 import com.myorderapp.domain.repository.OrderRepository
 import com.myorderapp.domain.repository.ProfileRepository
+import com.myorderapp.data.repository.UserPreferencesRepository
 import com.myorderapp.ui.components.CozyCard
 import com.myorderapp.ui.components.CozyBorder
 import com.myorderapp.ui.components.CozyCherry
@@ -135,6 +136,7 @@ private fun String?.toCoupleRole(): CoupleRole? = when (this) {
 fun CoupleMenuScreen(
     profileRepository: ProfileRepository = koinInject(),
     orderRepository: OrderRepository = koinInject(),
+    userPreferencesRepository: UserPreferencesRepository = koinInject(),
     onCustomizeMenuClick: () -> Unit = {},
     onGoOrderingClick: () -> Unit = {},
     onAnniversaryClick: () -> Unit = {},
@@ -148,6 +150,7 @@ fun CoupleMenuScreen(
     val context = LocalContext.current
     val prefs = remember(context) { context.getSharedPreferences(COUPLE_HOME_PREFS, Context.MODE_PRIVATE) }
     val profilePrefs = remember(context) { context.getSharedPreferences(PROFILE_PREFS, Context.MODE_PRIVATE) }
+    val orderNotificationsEnabled by userPreferencesRepository.orderNotificationsEnabled.collectAsState()
     var selectedRole by rememberSaveable {
         mutableStateOf(prefs.getString(KEY_SELECTED_ROLE, null).toCoupleRole())
     }
@@ -164,6 +167,14 @@ fun CoupleMenuScreen(
 
     LaunchedEffect(selectedRole?.storageKey) {
         selectedRole?.storageKey?.let { profileRepository.saveSelectedRole(it) }
+    }
+
+    LaunchedEffect(profile?.selectedRole) {
+        val cloudRole = profile?.selectedRole.toCoupleRole()
+        if (cloudRole != null && cloudRole != selectedRole) {
+            selectedRole = cloudRole
+            prefs.edit().putString(KEY_SELECTED_ROLE, cloudRole.storageKey).apply()
+        }
     }
 
     LaunchedEffect(profile?.pairId) {
@@ -183,7 +194,7 @@ fun CoupleMenuScreen(
     val activeOrder = orders.firstOrNull { it.status in activeOrderStatuses }
     LaunchedEffect(activeOrder?.id, activeOrder?.status, selectedRole) {
         val order = activeOrder ?: return@LaunchedEffect
-        val notificationsEnabled = profilePrefs.getBoolean(KEY_ORDER_NOTIFICATIONS_ENABLED, false)
+        val notificationsEnabled = orderNotificationsEnabled || profilePrefs.getBoolean(KEY_ORDER_NOTIFICATIONS_ENABLED, false)
         val notifiedKey = "${order.id}:${order.status}"
         if (notificationsEnabled && profilePrefs.getString(KEY_LAST_NOTIFIED_ORDER_ID, "") != notifiedKey) {
             notifyActiveOrderIfAllowed(

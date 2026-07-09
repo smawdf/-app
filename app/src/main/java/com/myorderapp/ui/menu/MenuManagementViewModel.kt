@@ -1,7 +1,11 @@
 package com.myorderapp.ui.menu
 
+import android.content.Context
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.myorderapp.data.remote.supabase.SessionManager
+import com.myorderapp.data.remote.supabase.SupabaseStorageUploader
 import com.myorderapp.data.local.entity.MenuDishEntity
 import com.myorderapp.data.repository.MenuDishDraft
 import com.myorderapp.data.repository.RoomMenuRepository
@@ -65,7 +69,9 @@ data class MenuManagementUiState(
 
 class MenuManagementViewModel(
     private val menuRepository: RoomMenuRepository,
-    private val singleShopRepository: SingleShopRepository
+    private val singleShopRepository: SingleShopRepository,
+    private val storageUploader: SupabaseStorageUploader,
+    private val sessionManager: SessionManager
 ) : ViewModel() {
 
     private var categoryLoadingJob: Job? = null
@@ -134,6 +140,17 @@ class MenuManagementViewModel(
     fun updateShopImage(imageUrl: String) {
         singleShopRepository.updateShopImageUrl(imageUrl)
         updateState { copy(shopImageUrl = imageUrl, message = "店铺图片已更新") }
+    }
+
+    fun updateShopImage(context: Context, uri: Uri) {
+        viewModelScope.launch {
+            val imageUrl = uploadMenuImage(context, uri, "shop")
+            if (imageUrl != null) {
+                updateShopImage(imageUrl)
+            } else {
+                updateState { copy(message = "搴楅摵鍥剧墖涓婁紶澶辫触锛岃绋嶅悗閲嶈瘯") }
+            }
+        }
     }
 
     fun selectCategory(category: String) {
@@ -298,6 +315,18 @@ class MenuManagementViewModel(
 
     fun onImageChange(value: String) = updateEditor { copy(imageUrl = value) }
 
+    fun onImagePicked(context: Context, uri: Uri) {
+        viewModelScope.launch {
+            val dishId = _uiState.value.editor.id ?: "draft"
+            val imageUrl = uploadMenuImage(context, uri, dishId)
+            if (imageUrl != null) {
+                onImageChange(imageUrl)
+            } else {
+                updateState { copy(message = "鑿滃搧鍥剧墖涓婁紶澶辫触锛岃绋嶅悗閲嶈瘯") }
+            }
+        }
+    }
+
     fun onCategoryChange(value: String) = updateEditor { copy(category = value) }
 
     fun onDescriptionChange(value: String) = updateEditor { copy(description = value) }
@@ -400,6 +429,13 @@ class MenuManagementViewModel(
     private fun updateState(block: MenuManagementUiState.() -> MenuManagementUiState) {
         _uiState.value = _uiState.value.block()
     }
+
+    private suspend fun uploadMenuImage(context: Context, uri: Uri, imageId: String): String? {
+        if (!sessionManager.isLoggedIn.value) return null
+        return storageUploader.compressAndUpload(context, uri, imageId).publicUrl?.takeIf { it.isCloudImageUrl() }
+    }
+
+    private fun String.isCloudImageUrl(): Boolean = startsWith("http://") || startsWith("https://")
 
     private fun MenuManagementUiState.withVisibleDishes(): MenuManagementUiState {
         val query = searchQuery.trim()

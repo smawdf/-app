@@ -19,8 +19,8 @@ class AuthRememberCredentialsSourceTest {
             "Checkbox",
             "uiState.rememberCredentials",
             "viewModel.onRememberCredentialsChanged",
-            "账号 / 邮箱 / 手机号",
-            "placeholder = \"账号 / 邮箱 / 手机号\"",
+            "账号 / 邮箱",
+            "placeholder = \"账号 / 邮箱\"",
             "placeholder = \"密码\"",
             "floatingLabel = false",
             "Spacer(modifier = Modifier.height(20.dp))",
@@ -72,6 +72,7 @@ class AuthRememberCredentialsSourceTest {
 
     @Test
     fun `register flow tells user when account already exists`() {
+        val authScreen = readMainSource("ui/auth/AuthScreen.kt")
         val authViewModel = readMainSource("ui/auth/AuthViewModel.kt")
         val onboardingViewModel = readMainSource("ui/onboarding/OnboardingViewModel.kt")
         val onboardingScreen = readMainSource("ui/onboarding/OnboardingScreen.kt")
@@ -90,8 +91,8 @@ class AuthRememberCredentialsSourceTest {
         listOf(
             "创建你们的小饭桌",
             "一起记录每一次想吃什么",
-            "账号/邮箱/手机号",
-            "邮箱注册后可能需要先确认邮件；手机号当前是账号密码登录，不会发送短信验证码。",
+            "账号/邮箱",
+            "邮箱注册后可能需要先确认邮件，再返回登录。",
             "从相册选择头像",
             "开启甜蜜点菜之旅",
             "DashedAvatarPlaceholder",
@@ -107,6 +108,8 @@ class AuthRememberCredentialsSourceTest {
 
         val registerBody = functionBody(onboardingScreen, "RegisterAccountScreen")
         val step2Body = functionBody(onboardingScreen, "Step2Profile")
+        val phoneAccountLabel = "\u624b\u673a\u53f7"
+        assertTrue("登录注册可见文案不应再出现 phone account wording", !authScreen.contains(phoneAccountLabel) && !onboardingScreen.contains(phoneAccountLabel))
         assertTrue("旧的步骤胶囊组件不应继续保留在认证视觉代码里", !authVisuals.contains("fun AuthStepPill"))
         assertTrue("注册第 1 步主按钮应放在玻璃表单卡内部", registerBody.indexOf("AuthPrimaryButton(") < registerBody.indexOf("AuthBottomLink("))
         assertTrue("注册第 1 步不应显示原型没有的步骤胶囊卡", !registerBody.contains("AuthStepPill"))
@@ -127,7 +130,7 @@ class AuthRememberCredentialsSourceTest {
         assertTrue("无可用 token 的注册返回不应再提示注册失败", !createAccountBody.contains("注册失败：请稍后重试"))
         assertTrue("账号创建成功后才进入资料步骤", createAccountBody.contains("step = 2"))
         assertTrue("已创建账号返回第一步后不应重复注册", onboardingViewModel.contains("accountCreated"))
-        assertTrue("资料步骤只应保存资料并完成注册", completeRegistrationBody.contains("saveProfileAndFinishRegistration()"))
+        assertTrue("资料步骤只应保存资料并完成注册", completeRegistrationBody.contains("saveProfileAndFinishRegistration(context, avatarUri)"))
         assertTrue("资料保存阶段不应再次创建账号", !functionBody(onboardingViewModel, "saveProfileAndFinishRegistration").contains("signUpWith"))
     }
 

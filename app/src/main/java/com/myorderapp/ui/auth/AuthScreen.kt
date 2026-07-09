@@ -83,8 +83,8 @@ fun AuthScreen(
                     AuthInputField(
                         value = uiState.email,
                         onValueChange = viewModel::onEmailChanged,
-                        label = "账号 / 邮箱 / 手机号",
-                        placeholder = "账号 / 邮箱 / 手机号",
+                        label = "账号 / 邮箱",
+                        placeholder = "账号 / 邮箱",
                         modifier = Modifier.fillMaxWidth(),
                         floatingLabel = false,
                         keyboardOptions = KeyboardOptions(
@@ -95,7 +95,7 @@ fun AuthScreen(
 
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "邮箱账号可验证找回和切换设备；手机号当前按账号密码登录，不会发送短信验证码。",
+                        text = "邮箱账号可用于找回密码和验证切换设备。",
                         color = AuthMuted,
                         style = MaterialTheme.typography.bodySmall,
                         lineHeight = MaterialTheme.typography.bodySmall.lineHeight,

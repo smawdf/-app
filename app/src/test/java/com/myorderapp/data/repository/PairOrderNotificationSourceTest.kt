@@ -25,10 +25,11 @@ class PairOrderNotificationSourceTest {
         assertTrue(repository.contains("filter { eq(\"pair_id\", pairId) }"))
         assertTrue(repository.contains("orderDao.upsertOrder(order.toEntity())"))
         assertTrue(repository.contains("profileRepository.getProfile().firstOrNull()"))
-        assertTrue(database.contains("version = 9"))
+        assertTrue(database.contains("version = 10"))
         assertTrue(database.contains("MIGRATION_6_7"))
         assertTrue(database.contains("MIGRATION_7_8"))
         assertTrue(database.contains("MIGRATION_8_9"))
+        assertTrue(database.contains("MIGRATION_9_10"))
         assertTrue(sql.contains("add column if not exists pair_id"))
         assertTrue(sql.contains("Users can read pair orders"))
     }

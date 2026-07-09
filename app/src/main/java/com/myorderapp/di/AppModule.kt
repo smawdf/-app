@@ -3,6 +3,7 @@ package com.myorderapp.di
 import com.myorderapp.data.local.AppDatabase
 import com.myorderapp.data.local.BimissingRecipeAssetSource
 import com.myorderapp.data.local.RecipeAssetLoader
+import com.myorderapp.data.remote.supabase.CloudErrorLogger
 import com.myorderapp.data.remote.supabase.SessionManager
 import com.myorderapp.data.remote.supabase.SupabaseStorageUploader
 import com.myorderapp.data.repository.HybridDishRepository
@@ -16,6 +17,7 @@ import com.myorderapp.data.repository.SingleShopRepository
 import com.myorderapp.data.repository.SupabaseDishRepository
 import com.myorderapp.data.repository.SupabaseOrderRepository
 import com.myorderapp.data.repository.SupabaseProfileRepository
+import com.myorderapp.data.repository.UserPreferencesRepository
 import com.myorderapp.domain.repository.AddressRepository
 import com.myorderapp.domain.repository.CartRepository
 import com.myorderapp.domain.repository.CandyCoinLedgerRepository
@@ -43,7 +45,8 @@ import org.koin.dsl.module
 
 val appModule = module {
     // Data sources
-    single { SupabaseStorageUploader(get()) }
+    single { CloudErrorLogger(get()) }
+    single { SupabaseStorageUploader(get(), get()) }
     // Database
     single { AppDatabase.getInstance(androidContext()) }
     single { get<AppDatabase>().dishDao() }
@@ -58,21 +61,22 @@ val appModule = module {
     single { RecipeAssetLoader(androidContext()) }
     single { BimissingRecipeAssetSource(androidContext()) }
     single { RoomDishRepository(get()) }
-    single { RoomMenuRepository(get()) }
-    single<SingleShopRepository> { SingleShopRepository(androidContext(), get()) }
+    single { RoomMenuRepository(get(), get(), get()) }
+    single<SingleShopRepository> { SingleShopRepository(androidContext(), get(), get(), get()) }
     single { SupabaseDishRepository(get(), androidContext().filesDir) }
     single { HybridDishRepository(get(), get(), get(), get()) }
     single<DishRepository> { get<HybridDishRepository>() }
     // Profile
     single { InMemoryProfileRepository() }
-    single<CandyCoinLedgerRepository> { RoomCandyCoinLedgerRepository(get()) }
-    single { SupabaseProfileRepository(get(), androidContext(), get()) }
+    single<CandyCoinLedgerRepository> { RoomCandyCoinLedgerRepository(get(), get(), get()) }
+    single { SupabaseProfileRepository(get(), androidContext(), get(), get()) }
+    single { UserPreferencesRepository(androidContext(), get(), get()) }
     single<ProfileRepository> { get<SupabaseProfileRepository>() }
     single<ShopRepository> { get<SingleShopRepository>() }
     single<MenuRepository> { get<SingleShopRepository>() }
     single<CartRepository> { RoomCartRepository(get()) }
     single<AddressRepository> { RoomAddressRepository(get()) }
-    single<OrderRepository> { SupabaseOrderRepository(get(), get(), get(), get()) }
+    single<OrderRepository> { SupabaseOrderRepository(get(), get(), get(), get(), get()) }
 
     // ViewModels
     viewModelOf(::OrderingViewModel)

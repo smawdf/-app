@@ -27,6 +27,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -165,8 +166,8 @@ private fun RegisterAccountScreen(
                     AuthInputField(
                         value = uiState.email,
                         onValueChange = viewModel::onEmailChanged,
-                        label = "账号/邮箱/手机号",
-                        placeholder = "账号/邮箱/手机号",
+                        label = "账号/邮箱",
+                        placeholder = "账号/邮箱",
                         modifier = Modifier.fillMaxWidth(),
                         keyboardOptions = KeyboardOptions(
                             keyboardType = KeyboardType.Email,
@@ -176,7 +177,7 @@ private fun RegisterAccountScreen(
 
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "邮箱注册后可能需要先确认邮件；手机号当前是账号密码登录，不会发送短信验证码。",
+                        text = "邮箱注册后可能需要先确认邮件，再返回登录。",
                         color = AuthMuted,
                         style = MaterialTheme.typography.bodySmall,
                         lineHeight = MaterialTheme.typography.bodySmall.lineHeight,
@@ -248,6 +249,7 @@ private fun RegisterAccountScreen(
 // ── Step 2: 个人资料 ──
 @Composable
 private fun Step2Profile(viewModel: OnboardingViewModel, uiState: OnboardingUiState) {
+    val context = LocalContext.current
     var avatarUri by remember { mutableStateOf<Uri?>(null) }
     var avatarLocalPath by remember { mutableStateOf(uiState.avatarUrl) }
 
@@ -314,7 +316,7 @@ private fun Step2Profile(viewModel: OnboardingViewModel, uiState: OnboardingUiSt
 
         AuthPrimaryButton(
             text = if (uiState.isLoading) "注册中..." else "开启甜蜜点菜之旅",
-            onClick = { viewModel.completeRegistration() },
+            onClick = { viewModel.completeRegistration(context, avatarUri) },
             enabled = !uiState.isLoading,
             modifier = Modifier.fillMaxWidth()
         )

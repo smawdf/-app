@@ -87,7 +87,9 @@ class ProfileReplicaSourceTest {
 
         assertFalse(source.contains("头像图片链接"))
         assertTrue(viewModel.contains("saveAvatarUri(context: Context, uri: Uri)"))
-        assertTrue(viewModel.contains("copy(avatarUrl = localPath)"))
+        assertTrue(viewModel.contains("uploadAvatar(context, uri)"))
+        assertTrue(viewModel.contains("cloudAvatarUrl?.let { profileRepository.updateAvatar(it) }"))
+        assertTrue(viewModel.contains("copy(avatarUrl = avatarUrl)"))
         assertTrue(viewModel.contains("saveProfileEdits(context: Context, nickname: String, avatarUri: Uri?)"))
         assertFalse(viewModel.contains("customTags"))
         assertFalse(viewModel.contains("newTag"))
@@ -98,7 +100,7 @@ class ProfileReplicaSourceTest {
         assertTrue(authViewModel.contains("session.clear()"))
         assertTrue(authViewModel.contains("onLoggedOut()"))
         assertTrue(supabaseRepository.contains("session.saveNickname(updated.nickname)"))
-        assertTrue(supabaseRepository.contains("session.saveAvatar(updated.avatarUrl ?: \"\")"))
+        assertTrue(supabaseRepository.contains("takeIfCloudAvatarUrl"))
     }
 
     @Test

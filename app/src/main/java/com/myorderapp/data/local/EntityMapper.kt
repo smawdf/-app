@@ -296,8 +296,9 @@ object EntityMapper {
         subtotal = subtotal
     )
 
-    fun CandyCoinRecord.toEntity() = CandyCoinRecordEntity(
+    fun CandyCoinRecord.toEntity(pairId: String = "") = CandyCoinRecordEntity(
         id = id,
+        pairId = pairId,
         type = type,
         amount = amount,
         balanceAfter = balanceAfter,

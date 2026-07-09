@@ -54,7 +54,8 @@ class OrderingScreenLayoutTest {
         val viewModel = readMainSource("ui/order/OrderingViewModel.kt")
 
         assertTrue(repository.contains("categoryState.value = getCategoryNames()"))
-        assertTrue(repository.contains("combine(categoryState.asStateFlow(), menuDishDao.observeAll())"))
+        assertTrue(repository.contains("combine(categoryState.asStateFlow(), menuDishDao.observeByPair(localPairId()))"))
+        assertTrue(repository.contains("\"user:\$it\""))
         assertTrue(viewModel.contains("menuRepository.getMenuCategories(SINGLE_SHOP_ID)"))
         assertTrue(viewModel.contains("menuRepository.getMenuItems(SINGLE_SHOP_ID)"))
         assertTrue(viewModel.contains("shopAnnouncement = shop?.announcement ?: singleShopRepository.getShopAnnouncement()"))

@@ -32,7 +32,7 @@ Debug APK 输出到 `app/build/outputs/apk/debug/`，Release APK 使用 `orderdi
 - 购物车/结算/订单：`CartScreen`、`CheckoutScreen`、`OrdersScreen`、`OrderDetailScreen`，本地优先保存，登录后可同步订单。
 - 辅助页：`AnniversaryScreen`。
 - 兼容模块：旧版菜品库、随机推荐、心愿单、餐次等能力仍在源码中，但不应作为新主流程或视觉设计的默认依据。
-- 登录限制：当前已接入单设备登录第一版。`profiles.session_id`/`session_updated_at` 记录设备占用；旧设备退出释放占用；邮箱账号可通过邮箱验证接管新设备；手机号当前只是账号密码兼容方案，不是短信验证码登录。
+- 登录限制：当前已接入单设备登录第一版。`profiles.session_id`/`session_updated_at` 记录设备占用；旧设备退出释放占用；邮箱账号可通过邮箱验证接管新设备；普通账号暂不支持邮箱接管。
 
 ## 当前导航
 

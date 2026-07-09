@@ -1,9 +1,13 @@
 package com.myorderapp.ui.onboarding
 
+import android.content.Context
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.myorderapp.data.remote.supabase.CloudErrorLogger
 import com.myorderapp.data.remote.supabase.SessionManager
 import com.myorderapp.data.remote.supabase.SupabaseClientProvider
+import com.myorderapp.data.remote.supabase.SupabaseStorageUploader
 import com.myorderapp.data.repository.HybridDishRepository
 import com.myorderapp.data.repository.SupabaseProfileRepository
 import com.myorderapp.domain.model.Profile
@@ -13,6 +17,7 @@ import com.myorderapp.ui.auth.AccountIdentifier
 import io.github.jan.supabase.gotrue.auth
 import io.github.jan.supabase.gotrue.providers.builtin.Email
 import io.github.jan.supabase.postgrest.from
+import java.time.Instant
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -38,7 +43,9 @@ class OnboardingViewModel(
     private val session: SessionManager,
     private val dishRepo: HybridDishRepository,
     private val profileRepo: SupabaseProfileRepository,
-    private val profileRepository: ProfileRepository
+    private val profileRepository: ProfileRepository,
+    private val storageUploader: SupabaseStorageUploader,
+    private val cloudErrorLogger: CloudErrorLogger
 ) : ViewModel() {
 
     private val client = SupabaseClientProvider.client
@@ -89,12 +96,12 @@ class OnboardingViewModel(
         _uiState.value = _uiState.value.copy(avatarUrl = url)
     }
 
-    fun completeRegistration() {
+    fun completeRegistration(context: Context? = null, avatarUri: Uri? = null) {
         if (_uiState.value.nickname.isBlank()) {
             _uiState.value = _uiState.value.copy(errorMessage = "请输入昵称")
             return
         }
-        saveProfileAndFinishRegistration()
+        saveProfileAndFinishRegistration(context, avatarUri)
     }
 
     fun goToStep3() = completeRegistration()
@@ -165,6 +172,7 @@ class OnboardingViewModel(
                     )
                 }
             } catch (e: Exception) {
+                cloudErrorLogger.log("onboarding", "create_account", e)
                 val msg = e.message ?: ""
                 val errorMsg = when {
                     isAccountAlreadyExistsMessage(msg) ->
@@ -179,7 +187,7 @@ class OnboardingViewModel(
         }
     }
 
-    private fun saveProfileAndFinishRegistration() {
+    private fun saveProfileAndFinishRegistration(context: Context?, avatarUri: Uri?) {
         val state = _uiState.value
         viewModelScope.launch {
             _uiState.value = state.copy(isLoading = true, errorMessage = null)
@@ -192,9 +200,14 @@ class OnboardingViewModel(
                 return@launch
             }
 
-            createProfileWithDetails(userId)
+            val cloudAvatarUrl = if (context != null && avatarUri != null) {
+                storageUploader.compressAndUploadAvatar(context, avatarUri).publicUrl?.takeIf { it.isCloudAvatarUrl() }.orEmpty()
+            } else {
+                state.avatarUrl.takeIf { it.isCloudAvatarUrl() }.orEmpty()
+            }
+            createProfileWithDetails(userId, cloudAvatarUrl)
             session.saveNickname(state.nickname)
-            session.saveAvatar(state.avatarUrl)
+            session.saveAvatar(cloudAvatarUrl)
             dishRepo.syncFromCloud()
             profileRepo.loadFromCloud()
             _uiState.value = _uiState.value.copy(
@@ -218,16 +231,23 @@ class OnboardingViewModel(
         ).any { message.contains(it, ignoreCase = true) }
     }
 
-    private suspend fun createProfileWithDetails(userId: String) {
+    private suspend fun createProfileWithDetails(userId: String, avatarUrl: String) {
         val state = _uiState.value
         try {
-            val profile = Profile(
-                userId = userId,
-                pairId = "00000000-0000-0000-0000-000000000000",
-                nickname = state.nickname,
-                avatarUrl = state.avatarUrl
-            )
-            client.from("profiles").insert(profile) { select() }
-        } catch (_: Exception) { }
+            client.from("profiles").upsert(
+                mapOf(
+                    "user_id" to userId,
+                    "pair_id" to "00000000-0000-0000-0000-000000000000",
+                    "nickname" to state.nickname,
+                    "avatar_url" to avatarUrl.ifBlank { null },
+                    "selected_role" to "",
+                    "updated_at" to Instant.now().toString()
+                )
+            ) { select() }
+        } catch (e: Exception) {
+            cloudErrorLogger.log("onboarding", "create_profile", e, "userId=$userId")
+        }
     }
+
+    private fun String.isCloudAvatarUrl(): Boolean = startsWith("http://") || startsWith("https://")
 }

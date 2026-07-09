@@ -119,7 +119,9 @@ fun ProfileScreen(
     val displayName = savedName ?: "糯米小狗"
     val context = LocalContext.current
     val rolePrefs = remember(context) { context.getSharedPreferences(COUPLE_HOME_PREFS, Context.MODE_PRIVATE) }
-    val selectedRoleKey = rolePrefs.getString(KEY_SELECTED_ROLE, null)
+    val selectedRoleKey = profile?.selectedRole
+        ?.takeIf { it == ROLE_CARETAKER || it == ROLE_EATER }
+        ?: rolePrefs.getString(KEY_SELECTED_ROLE, null)
     val selectedRoleText = when (selectedRoleKey) {
         "caretaker" -> "饲养员"
         "eater" -> "吃货"

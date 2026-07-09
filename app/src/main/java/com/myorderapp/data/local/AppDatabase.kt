@@ -41,7 +41,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         OrderItemEntity::class,
         CandyCoinRecordEntity::class
     ],
-    version = 9,
+    version = 10,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -229,6 +229,13 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_9_10 = object : Migration(9, 10) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `menu_dishes` ADD COLUMN `pairId` TEXT NOT NULL DEFAULT ''")
+                db.execSQL("ALTER TABLE `candy_coin_records` ADD COLUMN `pairId` TEXT NOT NULL DEFAULT ''")
+            }
+        }
+
         fun getInstance(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 INSTANCE ?: Room.databaseBuilder(
@@ -243,7 +250,8 @@ abstract class AppDatabase : RoomDatabase() {
                     MIGRATION_5_6,
                     MIGRATION_6_7,
                     MIGRATION_7_8,
-                    MIGRATION_8_9
+                    MIGRATION_8_9,
+                    MIGRATION_9_10
                 )
                     .build()
                     .also { INSTANCE = it }

@@ -3,6 +3,7 @@ package com.myorderapp.data.repository
 import com.myorderapp.data.local.EntityMapper.toDomain
 import com.myorderapp.data.local.EntityMapper.toEntity
 import com.myorderapp.data.local.dao.OrderDao
+import com.myorderapp.data.remote.supabase.CloudErrorLogger
 import com.myorderapp.data.remote.supabase.SessionManager
 import com.myorderapp.data.remote.supabase.SupabaseClientProvider
 import com.myorderapp.domain.model.Address
@@ -58,7 +59,8 @@ class SupabaseOrderRepository(
     private val sessionManager: SessionManager,
     private val orderDao: OrderDao,
     private val menuRepository: RoomMenuRepository,
-    private val profileRepository: ProfileRepository
+    private val profileRepository: ProfileRepository,
+    private val cloudErrorLogger: CloudErrorLogger? = null
 ) : OrderRepository {
 
     private val client = SupabaseClientProvider.client
@@ -132,7 +134,8 @@ class SupabaseOrderRepository(
             try {
                 client.from("orders").insert(order.toRemotePayload()) { select() }
                 client.from("order_items").insert(order.items.map { it.toRemotePayload() }) { select() }
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                cloudErrorLogger?.log("orders", "submit", e, "orderId=$orderId pairId=$pairId")
                 // Local snapshot remains the source of truth when remote write fails.
             }
         }
@@ -154,7 +157,8 @@ class SupabaseOrderRepository(
                 ) {
                     filter { eq("id", orderId) }
                 }
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                cloudErrorLogger?.log("orders", "update_status", e, "orderId=$orderId status=$normalizedStatus")
                 // Local status remains the source of truth when remote sync fails.
             }
         }
@@ -184,7 +188,8 @@ class SupabaseOrderRepository(
                 orderDao.upsertOrder(order.toEntity())
                 orderDao.upsertItems(order.items.map { it.toEntity() })
             }
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            cloudErrorLogger?.log("orders", "refresh", e, "pairId=$pairId")
             // Local orders remain usable if cloud fields have not been migrated yet.
         }
     }

@@ -19,6 +19,7 @@ data class Profile(
     @SerialName("candy_coins") @Json(name = "candy_coins") val candyCoins: Int = 66,
     @SerialName("session_id") @Json(name = "session_id") val sessionId: String = "",
     @SerialName("session_updated_at") @Json(name = "session_updated_at") val sessionUpdatedAt: String = "",
+    @SerialName("selected_role") @Json(name = "selected_role") val selectedRole: String = "",
     @Transient @Json(ignore = true) val pairedAt: String = ""
 )
 

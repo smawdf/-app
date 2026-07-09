@@ -6,6 +6,7 @@ import androidx.room.PrimaryKey
 @Entity(tableName = "candy_coin_records")
 data class CandyCoinRecordEntity(
     @PrimaryKey val id: String,
+    val pairId: String = "",
     val type: String,
     val amount: Int,
     val balanceAfter: Int,
