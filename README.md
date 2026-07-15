@@ -53,6 +53,14 @@ rtk .\gradlew.bat assembleRelease
 
 不要重复打包；只有明确需要 APK 时再执行 `assembleDebug`。
 
+## APK 与发布
+
+- Debug APK：`app/build/outputs/apk/debug/app-debug.apk`
+- Release APK：`app/build/outputs/apk/release/高糖小食-<versionName>.apk`
+- 当前正式包：`高糖小食-1.0.0.apk`
+- 正式版本通过 GitHub Releases 发布，Release 标签使用 `v<versionName>`，例如 `v1.0.0`。
+- Release APK 使用本地 `keystore.properties` 和签名文件构建；密钥、签名文件和 APK 不提交到 Git 仓库。
+
 ## 当前数据源
 
 - 中文菜谱本地库：`app/src/main/assets/bimissing_recipes.json`

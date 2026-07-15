@@ -15,6 +15,8 @@ class ReleaseHardeningSourceTest {
 
         assertTrue(gradle.contains("isMinifyEnabled = true"))
         assertTrue(gradle.contains("isShrinkResources = true"))
+        assertTrue(gradle.contains("output.outputFileName.set"))
+        assertTrue(gradle.contains("高糖小食-\$it.apk"))
         assertTrue(backup.contains("domain=\"sharedpref\" path=\".\""))
         assertTrue(backup.contains("domain=\"database\" path=\".\""))
         assertTrue(extraction.contains("<device-transfer>"))

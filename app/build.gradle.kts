@@ -83,6 +83,14 @@ android {
     }
 }
 
+androidComponents {
+    onVariants(selector().withBuildType("release")) { variant ->
+        variant.outputs.forEach { output ->
+            output.outputFileName.set(output.versionName.map { "高糖小食-$it.apk" })
+        }
+    }
+}
+
 ksp {
     arg("room.schemaLocation", "$projectDir/schemas")
 }
