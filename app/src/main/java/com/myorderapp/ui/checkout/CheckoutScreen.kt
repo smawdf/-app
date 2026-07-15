@@ -22,6 +22,8 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -30,8 +32,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -39,6 +41,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.myorderapp.domain.model.CartState
 import com.myorderapp.ui.components.CandyCoinIcon
@@ -58,7 +61,7 @@ fun CheckoutScreen(
     onBack: () -> Unit = {},
     onOrderSubmitted: (String) -> Unit = {}
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val cart = uiState.cartState
     var successOrderId by remember { mutableStateOf<String?>(null) }
 
@@ -152,6 +155,7 @@ fun CheckoutScreen(
                 cart = cart,
                 candyCoins = uiState.candyCoins,
                 isSubmitting = uiState.isSubmitting,
+                errorMessage = uiState.errorMessage,
                 onSubmit = viewModel::submitOrder
             )
         }
@@ -364,22 +368,41 @@ private fun CheckoutBottomAction(
     cart: CartState,
     candyCoins: Int,
     isSubmitting: Boolean,
+    errorMessage: String?,
     onSubmit: () -> Unit
 ) {
-    Box(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
             .background(Color(0xFFFEF8F2).copy(alpha = 0.96f))
             .navigationBarsPadding()
-            .padding(horizontal = 20.dp, vertical = 16.dp)
+            .padding(horizontal = 20.dp, vertical = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         val cost = candyCoinsCost(cart.totalPrice)
-        val enabled = !cart.isEmpty && !isSubmitting && candyCoins >= cost
-        Surface(
+        val enoughCandyCoins = candyCoins >= cost
+        val enabled = !cart.isEmpty && !isSubmitting
+        errorMessage?.let { message ->
+            Text(
+                text = message,
+                color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.bodySmall,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.fillMaxWidth(),
+                textAlign = TextAlign.Center
+            )
+        }
+        Button(
             onClick = onSubmit,
             enabled = enabled,
             shape = RoundedCornerShape(999.dp),
-            color = if (enabled) Color(0xFFFF9FB7) else Color(0xFFE7E2DC),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = if (enoughCandyCoins) Color(0xFFFF9FB7) else Color(0xFFFFDCE6),
+                contentColor = if (enoughCandyCoins) Color(0xFFFFFCF8) else CozyCocoa,
+                disabledContainerColor = Color(0xFFE7E2DC),
+                disabledContentColor = Color(0xFFFFFCF8)
+            ),
+            contentPadding = PaddingValues(0.dp),
             modifier = Modifier
                 .fillMaxWidth()
                 .height(54.dp)
@@ -389,8 +412,11 @@ private fun CheckoutBottomAction(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = if (isSubmitting) "提交中..." else "提交点菜 · 消耗 $cost 糖糖币",
-                    color = Color(0xFFFFFCF8),
+                    text = when {
+                        isSubmitting -> "提交中..."
+                        !enoughCandyCoins -> "糖糖币不足 · 需要 $cost 枚"
+                        else -> "提交点菜 · 消耗 $cost 糖糖币"
+                    },
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Black
                 )

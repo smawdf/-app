@@ -15,7 +15,8 @@ import com.myorderapp.ui.search.SearchableMenuItem
 import io.github.jan.supabase.postgrest.from
 import java.time.Instant
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -30,52 +31,69 @@ private const val KEY_SHOP_NAME = "shop_name"
 private const val KEY_SHOP_IMAGE_URL = "shop_image_url"
 private const val KEY_SHOP_ANNOUNCEMENT = "shop_announcement"
 private const val KEY_CATEGORIES = "categories"
+private const val KEY_UPDATED_AT = "updated_at"
+private const val KEY_OWNER_USER_ID = "owner_user_id"
+private const val KEY_OWNER_SCOPE = "owner_scope"
 
 class SingleShopRepository(
     private val context: Context,
     private val menuDishDao: MenuDishDao,
     private val session: SessionManager,
-    private val cloudErrorLogger: CloudErrorLogger
+    private val cloudErrorLogger: CloudErrorLogger,
+    private val applicationScope: CoroutineScope
 ) : ShopRepository, MenuRepository {
 
     private val client by lazy { SupabaseClientProvider.client }
     private val prefs = context.getSharedPreferences(SHOP_PREFS, Context.MODE_PRIVATE)
     private val shopState = MutableStateFlow(buildShop())
     private val categoryState = MutableStateFlow(getCategoryNames())
+    private var shopSyncJob: Job? = null
 
     fun observeShopName(): Flow<String> = observeSingleShop().map { it.name }
 
-    fun getShopName(): String = prefs.getString(KEY_SHOP_NAME, null)?.takeIf { it.isNotBlank() } ?: "我的小店"
+    fun getShopName(): String {
+        ensureLocalScope()
+        return prefs.getString(KEY_SHOP_NAME, null)?.takeIf { it.isNotBlank() } ?: "我的小店"
+    }
 
     fun updateShopName(name: String) {
-        prefs.edit().putString(KEY_SHOP_NAME, name.trim().ifBlank { "我的小店" }).apply()
+        ensureLocalScope()
+        prefs.edit().putString(KEY_SHOP_NAME, name.trim().ifBlank { "我的小店" }).putString(KEY_UPDATED_AT, Instant.now().toString()).apply()
         refreshShopState()
         syncShopSettingsToCloud()
     }
 
-    fun getShopImageUrl(): String = prefs.getString(KEY_SHOP_IMAGE_URL, null).orEmpty().takeIfCloudImageUrl().orEmpty()
+    fun getShopImageUrl(): String {
+        ensureLocalScope()
+        return prefs.getString(KEY_SHOP_IMAGE_URL, null).orEmpty().takeIfCloudImageUrl().orEmpty()
+    }
 
     fun updateShopImageUrl(imageUrl: String) {
-        prefs.edit().putString(KEY_SHOP_IMAGE_URL, imageUrl.takeIfCloudImageUrl().orEmpty()).apply()
+        ensureLocalScope()
+        prefs.edit().putString(KEY_SHOP_IMAGE_URL, imageUrl.takeIfCloudImageUrl().orEmpty()).putString(KEY_UPDATED_AT, Instant.now().toString()).apply()
         refreshShopState()
         syncShopSettingsToCloud()
     }
 
     fun getShopAnnouncement(): String {
+        ensureLocalScope()
         return prefs.getString(KEY_SHOP_ANNOUNCEMENT, null)
             ?.takeIf { it.isNotBlank() }
             ?: DEFAULT_SHOP_ANNOUNCEMENT
     }
 
     fun updateShopAnnouncement(announcement: String) {
+        ensureLocalScope()
         prefs.edit()
             .putString(KEY_SHOP_ANNOUNCEMENT, announcement.trim().ifBlank { DEFAULT_SHOP_ANNOUNCEMENT })
+            .putString(KEY_UPDATED_AT, Instant.now().toString())
             .apply()
         refreshShopState()
         syncShopSettingsToCloud()
     }
 
     fun getCategoryNames(): List<String> {
+        ensureLocalScope()
         val saved = prefs.getString(KEY_CATEGORIES, null)
         return saved
             ?.split("|")
@@ -85,29 +103,41 @@ class SingleShopRepository(
     }
 
     fun saveCategoryNames(categories: List<String>) {
+        ensureLocalScope()
         val normalized = categories.normalizedShopCategories()
-        prefs.edit().putString(KEY_CATEGORIES, normalized.ifEmpty { defaultCategories }.joinToString("|")).apply()
+        prefs.edit().putString(KEY_CATEGORIES, normalized.ifEmpty { defaultCategories }.joinToString("|")).putString(KEY_UPDATED_AT, Instant.now().toString()).apply()
         categoryState.value = getCategoryNames()
         syncShopSettingsToCloud()
     }
 
     suspend fun loadFromCloud() {
+        ensureLocalScope()
+        refreshShopState()
+        categoryState.value = getCategoryNames()
         val pairId = activePairId() ?: return
         try {
-            val remote = client.from("shop_settings").select {
-                filter { eq("pair_id", pairId) }
-            }.decodeList<RemoteShopSettings>().firstOrNull()
+            val localUpdatedAt = prefs.getString(KEY_UPDATED_AT, "").orEmpty()
+            var remote = fetchRemoteShopSettings(pairId)
+            if (localUpdatedAt.isBlank()) {
+                delay(SHOP_INITIAL_SYNC_RETRY_MS)
+                remote = fetchRemoteShopSettings(pairId) ?: remote
+            }
             if (remote != null) {
+                if (!remote.updatedAt.isCloudTimestampAfter(localUpdatedAt)) {
+                    pushShopSettingsToCloud(pairId)
+                    return
+                }
                 prefs.edit()
                     .putString(KEY_SHOP_NAME, remote.name)
                     .putString(KEY_SHOP_IMAGE_URL, remote.imageUrl.takeIfCloudImageUrl().orEmpty())
                     .putString(KEY_SHOP_ANNOUNCEMENT, remote.announcement)
                     .putString(KEY_CATEGORIES, remote.categories.normalizedShopCategories().joinToString("|"))
+                    .putString(KEY_UPDATED_AT, remote.updatedAt)
                     .apply()
                 refreshShopState()
                 categoryState.value = getCategoryNames()
-            } else {
-                syncShopSettingsToCloud()
+            } else if (localUpdatedAt.isNotBlank()) {
+                pushShopSettingsToCloud(pairId)
             }
         } catch (e: Exception) {
             cloudErrorLogger.log("shop", "load_settings", e, "pairId=$pairId")
@@ -115,7 +145,7 @@ class SingleShopRepository(
     }
 
     suspend fun removeBundledDemoMenu() {
-        menuDishDao.deleteByIds(bundledDemoDishIds)
+        menuDishDao.deleteByIds(bundledDemoDishIds, localPairId())
     }
 
     fun bundledDemoMenuIds(): Set<String> = bundledDemoDishIds.toSet()
@@ -196,22 +226,35 @@ class SingleShopRepository(
     }
 
     private fun syncShopSettingsToCloud() {
+        ensureLocalScope()
         val pairId = activePairId() ?: return
-        CoroutineScope(Dispatchers.IO).launch {
-            try {
-                client.from("shop_settings").upsert(
-                    RemoteShopSettings(
-                        pairId = pairId,
-                        name = getShopName(),
-                        imageUrl = getShopImageUrl(),
-                        announcement = getShopAnnouncement(),
-                        categories = getCategoryNames(),
-                        updatedAt = Instant.now().toString()
-                    )
-                ) { select() }
-            } catch (e: Exception) {
-                cloudErrorLogger.log("shop", "sync_settings", e, "pairId=$pairId")
-            }
+        shopSyncJob?.cancel()
+        shopSyncJob = applicationScope.launch {
+            delay(SHOP_SYNC_DEBOUNCE_MS)
+            pushShopSettingsToCloud(pairId)
+        }
+    }
+
+    private suspend fun fetchRemoteShopSettings(pairId: String): RemoteShopSettings? {
+        return client.from("shop_settings").select {
+            filter { eq("pair_id", pairId) }
+        }.decodeList<RemoteShopSettings>().firstOrNull()
+    }
+
+    private suspend fun pushShopSettingsToCloud(pairId: String) {
+        try {
+            client.from("shop_settings").upsert(
+                RemoteShopSettings(
+                    pairId = pairId,
+                    name = getShopName(),
+                    imageUrl = getShopImageUrl(),
+                    announcement = getShopAnnouncement(),
+                    categories = getCategoryNames(),
+                    updatedAt = prefs.getString(KEY_UPDATED_AT, "").orEmpty().ifBlank { Instant.EPOCH.toString() }
+                )
+            ) { select() }
+        } catch (e: Exception) {
+            cloudErrorLogger.log("shop", "sync_settings", e, "pairId=$pairId")
         }
     }
 
@@ -222,6 +265,32 @@ class SingleShopRepository(
     }
 
     private fun localPairId(): String = activePairId().orEmpty()
+
+    private fun ensureLocalScope() {
+        val currentUserId = session.currentUserId.ifBlank { "guest" }
+        val currentScope = activePairId() ?: "guest"
+        val ownerUserId = prefs.getString(KEY_OWNER_USER_ID, "").orEmpty()
+        val ownerScope = prefs.getString(KEY_OWNER_SCOPE, "").orEmpty()
+        when {
+            ownerUserId.isBlank() -> prefs.edit()
+                .putString(KEY_OWNER_USER_ID, currentUserId)
+                .putString(KEY_OWNER_SCOPE, currentScope)
+                .apply()
+            ownerUserId != currentUserId -> prefs.edit()
+                .clear()
+                .putString(KEY_OWNER_USER_ID, currentUserId)
+                .putString(KEY_OWNER_SCOPE, currentScope)
+                .apply()
+            ownerScope != currentScope -> {
+                shopSyncJob?.cancel()
+                prefs.edit()
+                    .clear()
+                    .putString(KEY_OWNER_USER_ID, currentUserId)
+                    .putString(KEY_OWNER_SCOPE, currentScope)
+                    .apply()
+            }
+        }
+    }
 
     private fun MenuDishEntity.toMenuItem(): MenuItem = MenuItem(
         id = id,
@@ -256,6 +325,8 @@ class SingleShopRepository(
 
     private companion object {
         const val DEFAULT_PAIR_ID = "00000000-0000-0000-0000-000000000000"
+        const val SHOP_SYNC_DEBOUNCE_MS = 350L
+        const val SHOP_INITIAL_SYNC_RETRY_MS = 800L
         const val DEFAULT_SHOP_ANNOUNCEMENT = "欢迎来到我们的温馨小店！今天有新鲜出炉的心形披萨哦~ 🐾"
         val defaultCategories = listOf("主食披萨", "甜点蛋糕", "特调饮品")
         val bundledDemoDishIds = listOf(

@@ -1,5 +1,6 @@
 package com.myorderapp
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -31,6 +32,7 @@ import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.*
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clip
@@ -38,10 +40,11 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.unit.IntOffset
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import com.myorderapp.data.remote.supabase.SessionManager
-import com.myorderapp.data.repository.SupabaseProfileRepository
+import com.myorderapp.data.sync.CloudSyncCoordinator
 import com.myorderapp.ui.components.CozyMainTopBar
 import com.myorderapp.ui.navigation.BottomNavItem
 import com.myorderapp.ui.navigation.NavGraph
@@ -55,57 +58,78 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.zIndex
+import kotlinx.coroutines.delay
 import org.koin.compose.getKoin
 
 class MainActivity : ComponentActivity() {
+    private var latestDeepLink by mutableStateOf<String?>(null)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        val initialDeepLink = intent?.data?.toString()
+        latestDeepLink = intent?.data?.toString()
         setContent {
             OrderDiskTheme {
-                MainScreen(initialDeepLink = initialDeepLink)
+                MainScreen(initialDeepLink = latestDeepLink)
             }
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        latestDeepLink = intent.data?.toString()
     }
 }
 
 @Composable
 fun MainScreen(initialDeepLink: String? = null) {
     val sessionManager = getKoin().get<SessionManager>()
-    val profileRepository = getKoin().get<SupabaseProfileRepository>()
+    val cloudSyncCoordinator = getKoin().get<CloudSyncCoordinator>()
+    val isLoggedIn by sessionManager.isLoggedIn.collectAsStateWithLifecycle()
+    val restoredSessionAtStartup = remember { isLoggedIn }
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
     val tabRoutes = BottomNavItem.items.map { it.route }.toSet()
 
-    val startDestination = remember {
+    val startDestination = remember(initialDeepLink) {
         if (initialDeepLink?.startsWith("orderdisk://auth/reset-password") == true) {
             Routes.resetPassword(initialDeepLink)
         } else if (initialDeepLink?.startsWith("orderdisk://auth/switch-device") == true) {
             Routes.deviceSwitch(initialDeepLink)
-        } else if (sessionManager.isLoggedIn.value) {
+        } else if (isLoggedIn) {
             Routes.HOME
         } else {
             Routes.AUTH
         }
     }
+    var handledDeepLink by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(restoredSessionAtStartup) {
+        if (restoredSessionAtStartup) cloudSyncCoordinator.syncInBackground()
+    }
+    LaunchedEffect(initialDeepLink, currentRoute) {
+        val link = initialDeepLink ?: return@LaunchedEffect
+        if (handledDeepLink == link || currentRoute == null) return@LaunchedEffect
+        val destination = when {
+            link.startsWith("orderdisk://auth/reset-password") ->
+                Routes.RESET_PASSWORD to Routes.resetPassword(link)
+            link.startsWith("orderdisk://auth/switch-device") ->
+                Routes.DEVICE_SWITCH to Routes.deviceSwitch(link)
+            else -> null
+        }
+        if (destination != null && currentRoute != destination.first) {
+            navController.navigate(destination.second) {
+                launchSingleTop = true
+            }
+        }
+        handledDeepLink = link
+    }
+
     val shellRoute = currentRoute ?: startDestination.takeIf { it in tabRoutes }
     val showMainShell = shellRoute in tabRoutes
     val mainTopBarHeight = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + 64.dp
 
-    LaunchedEffect(sessionManager.isLoggedIn.value, currentRoute) {
-        if (sessionManager.isLoggedIn.value && currentRoute !in setOf(Routes.AUTH, Routes.RESET_PASSWORD, Routes.DEVICE_SWITCH)) {
-            val valid = profileRepository.checkSessionValid()
-            if (!valid) {
-                sessionManager.clear()
-                navController.navigate(Routes.AUTH) {
-                    popUpTo(0) { inclusive = true }
-                    launchSingleTop = true
-                }
-            }
-        }
-    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         NavGraph(
@@ -134,6 +158,7 @@ fun MainScreen(initialDeepLink: String? = null) {
         }
     }
 }
+
 
 private fun String?.mainTabTopBarTitle(): String = when (this) {
     Routes.HOME -> "今天也要一起好好吃饭"
@@ -191,7 +216,7 @@ private fun FloatingLiquidBottomBar(
             LiquidGlassNavLayer(modifier = Modifier.matchParentSize())
             Box(
                 modifier = Modifier
-                    .offset(x = heartOffset)
+                    .offset { IntOffset(heartOffset.roundToPx(), 0) }
                     .size(width = 58.dp, height = 56.dp),
                 contentAlignment = Alignment.Center
             ) {

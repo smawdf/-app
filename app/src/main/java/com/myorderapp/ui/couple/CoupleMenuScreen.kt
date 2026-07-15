@@ -50,7 +50,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -99,6 +98,11 @@ import java.time.ZoneId
 import java.time.temporal.ChronoUnit
 import kotlinx.coroutines.delay
 import org.koin.compose.koinInject
+import org.koin.androidx.compose.koinViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.repeatOnLifecycle
 
 private enum class CoupleRole {
     Caretaker,
@@ -124,8 +128,6 @@ private const val KEY_SELECTED_ROLE = "selected_role"
 private const val PROFILE_PREFS = "profile_screen_prefs"
 private const val KEY_ORDER_NOTIFICATIONS_ENABLED = "order_notifications_enabled"
 private const val KEY_LAST_NOTIFIED_ORDER_ID = "last_notified_order_id"
-private const val ORDER_REFRESH_INTERVAL_MS = 15_000L
-
 private fun String?.toCoupleRole(): CoupleRole? = when (this) {
     CoupleRole.Caretaker.storageKey -> CoupleRole.Caretaker
     CoupleRole.Eater.storageKey -> CoupleRole.Eater
@@ -134,6 +136,7 @@ private fun String?.toCoupleRole(): CoupleRole? = when (this) {
 
 @Composable
 fun CoupleMenuScreen(
+    viewModel: CoupleMenuViewModel = koinViewModel(),
     profileRepository: ProfileRepository = koinInject(),
     orderRepository: OrderRepository = koinInject(),
     userPreferencesRepository: UserPreferencesRepository = koinInject(),
@@ -141,53 +144,58 @@ fun CoupleMenuScreen(
     onGoOrderingClick: () -> Unit = {},
     onAnniversaryClick: () -> Unit = {},
     onDiscoverClick: () -> Unit = {},
+    onOrderClick: (String) -> Unit = {},
     onOrdersClick: () -> Unit = {},
     onProfileClick: () -> Unit = {}
 ) {
-    val profile by profileRepository.getProfile().collectAsState(initial = null)
-    val orders by orderRepository.observeOrders().collectAsState(initial = emptyList())
-    var pairInfo by remember { mutableStateOf(PairInfo()) }
+    val profile by profileRepository.getProfile().collectAsStateWithLifecycle(initialValue = null)
+    val orders by orderRepository.observeOrders().collectAsStateWithLifecycle(initialValue = emptyList())
+    val pairInfo by viewModel.pairInfo.collectAsStateWithLifecycle()
+    val lifecycleOwner = LocalLifecycleOwner.current
     val context = LocalContext.current
     val prefs = remember(context) { context.getSharedPreferences(COUPLE_HOME_PREFS, Context.MODE_PRIVATE) }
     val profilePrefs = remember(context) { context.getSharedPreferences(PROFILE_PREFS, Context.MODE_PRIVATE) }
-    val orderNotificationsEnabled by userPreferencesRepository.orderNotificationsEnabled.collectAsState()
-    var selectedRole by rememberSaveable {
-        mutableStateOf(prefs.getString(KEY_SELECTED_ROLE, null).toCoupleRole())
+    val orderNotificationsEnabled by userPreferencesRepository.orderNotificationsEnabled.collectAsStateWithLifecycle()
+    val rolePreferenceKey = remember(profile?.userId) { "$KEY_SELECTED_ROLE:${profile?.userId.orEmpty()}" }
+    var selectedRole by rememberSaveable(profile?.userId) {
+        mutableStateOf(
+            profile?.selectedRole.toCoupleRole()
+                ?: profile?.userId?.takeIf { it.isNotBlank() }
+                    ?.let { prefs.getString(rolePreferenceKey, null).toCoupleRole() }
+        )
     }
     var toastState by remember { mutableStateOf<RoleToastState?>(null) }
+    var pairNotice by remember { mutableStateOf<String?>(null) }
     var toastId by remember { mutableIntStateOf(0) }
 
     fun selectRole(role: CoupleRole) {
         if (pairInfo.isPaired) return
         selectedRole = role
-        prefs.edit().putString(KEY_SELECTED_ROLE, role.storageKey).apply()
+        if (!profile?.userId.isNullOrBlank()) {
+            prefs.edit().putString(rolePreferenceKey, role.storageKey).apply()
+        }
         toastId += 1
         toastState = RoleToastState(toastId, role)
     }
 
-    LaunchedEffect(selectedRole?.storageKey) {
-        selectedRole?.storageKey?.let { profileRepository.saveSelectedRole(it) }
+    LaunchedEffect(selectedRole?.storageKey, profile?.userId) {
+        val role = selectedRole?.storageKey ?: return@LaunchedEffect
+        if (!profile?.userId.isNullOrBlank() && profile?.selectedRole != role) {
+            profileRepository.saveSelectedRole(role)
+        }
     }
 
     LaunchedEffect(profile?.selectedRole) {
         val cloudRole = profile?.selectedRole.toCoupleRole()
         if (cloudRole != null && cloudRole != selectedRole) {
             selectedRole = cloudRole
-            prefs.edit().putString(KEY_SELECTED_ROLE, cloudRole.storageKey).apply()
+            prefs.edit().putString(rolePreferenceKey, cloudRole.storageKey).apply()
         }
     }
 
-    LaunchedEffect(profile?.pairId) {
-        pairInfo = profileRepository.getPairInfo()
-        orderRepository.refreshOrders()
-    }
-
-    LaunchedEffect(profile?.userId, profile?.pairId) {
-        while (true) {
-            profileRepository.touchPresence()
-            pairInfo = profileRepository.getPairInfo()
-            orderRepository.refreshOrders()
-            delay(ORDER_REFRESH_INTERVAL_MS)
+    LaunchedEffect(lifecycleOwner, profile?.userId, profile?.pairId) {
+        lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            viewModel.refreshWhileActive()
         }
     }
 
@@ -210,6 +218,14 @@ fun CoupleMenuScreen(
         if (toastState != null) {
             delay(1600)
             toastState = null
+        }
+    }
+
+    LaunchedEffect(pairInfo.noticeId) {
+        if (pairInfo.noticeId.isNotBlank() && pairInfo.noticeMessage.isNotBlank()) {
+            pairNotice = pairInfo.noticeMessage
+            delay(2600)
+            pairNotice = null
         }
     }
 
@@ -238,26 +254,24 @@ fun CoupleMenuScreen(
                     )
                 }
                 CozyMotionVisibility(delayMillis = 40) {
+                    LatestOrderNudge(
+                        order = activeOrder,
+                        onClick = { activeOrder?.id?.let(onOrderClick) }
+                    )
+                }
+                CozyMotionVisibility(delayMillis = 80) {
                     QuickActionGrid(
                         onAnniversaryClick = onAnniversaryClick,
                         onCustomizeMenuClick = onCustomizeMenuClick,
                         onGoOrderingClick = onGoOrderingClick
                     )
                 }
-                CozyMotionVisibility(delayMillis = 80) {
+                CozyMotionVisibility(delayMillis = 120) {
                     RoleSwitcher(
                         selectedRole = selectedRole,
                         rolesLocked = pairInfo.isPaired && selectedRole != null,
                         onCaretakerClick = { selectRole(CoupleRole.Caretaker) },
                         onEaterClick = { selectRole(CoupleRole.Eater) }
-                    )
-                }
-                CozyMotionVisibility(delayMillis = 120) {
-                    LatestOrderNudge(
-                        order = activeOrder,
-                        selectedRole = selectedRole,
-                        currentUserId = profile?.userId.orEmpty(),
-                        onClick = onOrdersClick
                     )
                 }
             }
@@ -276,6 +290,27 @@ fun CoupleMenuScreen(
                     exit = fadeOut(tween(CozyMotion.Exit)) + slideOutVertically(tween(CozyMotion.Exit)) { it / 8 }
                 ) {
                     toastState?.let { IdentitySwitchToast(role = it.role) }
+                }
+            }
+        }
+        AnimatedVisibility(
+            visible = pairNotice != null,
+            modifier = Modifier.fillMaxSize(),
+            enter = fadeIn(tween(CozyMotion.Toast)),
+            exit = fadeOut(tween(CozyMotion.Toast))
+        ) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Surface(
+                    shape = RoundedCornerShape(18.dp),
+                    color = CozyCocoa.copy(alpha = 0.92f),
+                    shadowElevation = 0.dp
+                ) {
+                    Text(
+                        text = pairNotice.orEmpty(),
+                        color = Color.White,
+                        fontWeight = FontWeight.Black,
+                        modifier = Modifier.padding(horizontal = 22.dp, vertical = 14.dp)
+                    )
                 }
             }
         }
@@ -405,12 +440,19 @@ private fun RelationshipCard(
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    CurrentUserSlot(profile = profile, selectedRole = selectedRole)
+                    CurrentUserSlot(
+                        profile = profile,
+                        selectedRole = selectedRole,
+                        modifier = Modifier.weight(1f)
+                    )
                     HeartConnector()
-                    PartnerSlot(pairInfo = pairInfo, onClick = onPartnerClick)
+                    PartnerSlot(
+                        pairInfo = pairInfo,
+                        onClick = onPartnerClick,
+                        modifier = Modifier.weight(1f)
+                    )
                 }
                 Surface(
                     onClick = onAnniversaryClick,
@@ -433,9 +475,13 @@ private fun RelationshipCard(
 }
 
 @Composable
-private fun CurrentUserSlot(profile: Profile?, selectedRole: CoupleRole?) {
+private fun CurrentUserSlot(
+    profile: Profile?,
+    selectedRole: CoupleRole?,
+    modifier: Modifier = Modifier
+) {
     val name = profile?.nickname?.takeIf { it.isNotBlank() } ?: "我"
-    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(128.dp)) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = modifier) {
         AvatarBubble(
             avatarUrl = profile?.avatarUrl,
             fallback = name.take(1),
@@ -445,18 +491,22 @@ private fun CurrentUserSlot(profile: Profile?, selectedRole: CoupleRole?) {
             onClick = null
         )
         Spacer(modifier = Modifier.height(8.dp))
-        Text("我", color = CozyCocoa, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Black, maxLines = 1)
+        Text(name, color = CozyCocoa, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Black, maxLines = 1, overflow = TextOverflow.Ellipsis)
         Spacer(modifier = Modifier.height(6.dp))
         RoleLabelPill(text = "当前角色：${selectedRole?.label ?: "选择身份"}")
     }
 }
 
 @Composable
-private fun PartnerSlot(pairInfo: PairInfo, onClick: () -> Unit) {
+private fun PartnerSlot(
+    pairInfo: PairInfo,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
     val name = if (pairInfo.isPaired) pairInfo.partnerName.ifBlank { "对方" } else "邀请对方"
-    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(128.dp)) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = modifier) {
         AvatarBubble(
-            avatarUrl = null,
+            avatarUrl = pairInfo.partnerAvatarUrl,
             fallback = name.take(1),
             label = name,
             filled = pairInfo.isPaired,
@@ -795,42 +845,58 @@ private fun IdentitySwitchToast(role: CoupleRole) {
     }
 }
 
-private val activeOrderStatuses = setOf("submitted", "confirmed", "delivering")
+private val activeOrderStatuses = setOf("submitted", "confirmed", "preparing", "delivering")
 
 @Composable
 private fun LatestOrderNudge(
     order: OrderRecord?,
-    selectedRole: CoupleRole?,
-    currentUserId: String,
     onClick: () -> Unit
 ) {
     if (order == null) return
 
-    val isCaretaker = selectedRole == CoupleRole.Caretaker
-    val isMyOrder = currentUserId.isNotBlank() && order.userId == currentUserId
-    val dishCount = order.items.sumOf { it.quantity }.coerceAtLeast(order.items.size)
-    val buyerName = order.buyerName.ifBlank { if (isMyOrder) "你" else "对方" }
     val title = when (order.status) {
-        "submitted" -> if (isCaretaker && !isMyOrder) "$buyerName 点了 $dishCount 道菜，等你开做" else "点菜单已送达，等饲养员接单"
-        "confirmed" -> if (isMyOrder) "饲养员已接单，今天这顿稳了" else "你已接单，准备开做吧"
-        "delivering" -> if (isMyOrder) "饲养员正在准备，香味快来了" else "这份点菜单正在准备中"
+        "submitted", "confirmed" -> "待饲养员确认接单"
+        "preparing", "delivering" -> "订单正在准备中"
         else -> "订单有新进展"
     }
     val subtitle = order.items.take(2).joinToString("、") { "${it.menuItemName}×${it.quantity}" }
         .ifBlank { order.shopName.ifBlank { "我的小店" } }
     CozyCard(
-        modifier = Modifier.padding(horizontal = 20.dp, vertical = 2.dp),
+        modifier = Modifier
+            .padding(horizontal = 20.dp, vertical = 2.dp)
+            .height(104.dp),
         containerColor = Color(0xFFFFFCF8),
         borderColor = CozyBorder.copy(alpha = 0.72f),
+        contentPadding = PaddingValues(16.dp),
         onClick = onClick
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+        Row(
+            modifier = Modifier.fillMaxSize(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
             CozyIconBadge(Icons.Filled.Restaurant, background = Color(0xFFFFD1DC), tint = CozyRose)
-            Column(modifier = Modifier.weight(1f)) {
-                Text(title, color = CozyCocoa, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Black)
-                Text(subtitle, color = CozyMuted, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.Center
+            ) {
+                Text(
+                    text = title,
+                    color = CozyCocoa,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Black,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = subtitle,
+                    color = CozyMuted,
+                    style = MaterialTheme.typography.bodySmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
             }
-            CozyPill(text = if (isCaretaker && order.status == "submitted") "去接单" else "查看", color = CozyPink)
+            CozyPill(text = "查看", color = CozyPink)
         }
     }
 }

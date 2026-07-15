@@ -24,11 +24,18 @@ class InMemoryProfileRepository : ProfileRepository {
         )
     )
     private val _synced = MutableStateFlow(false)
+    private val _candyWalletBalance = MutableStateFlow(_profile.value?.candyCoins ?: 66)
     private var pendingPairCode: String = ""
     private var selectedRole: String = ""
     private var hasJoinedPair: Boolean = false
 
     override fun getProfile(): Flow<Profile?> = _profile
+
+    override fun observeCandyWalletBalance(): Flow<Int> = _candyWalletBalance
+
+    override suspend fun refreshCandyWalletBalance(): Int {
+        return (_profile.value?.candyCoins ?: 66).also { _candyWalletBalance.value = it }
+    }
 
     override suspend fun saveProfile(profile: Profile) {
         _profile.value = profile
@@ -48,6 +55,7 @@ class InMemoryProfileRepository : ProfileRepository {
         if (amount <= 0) return true
         val current = _profile.value ?: Profile()
         _profile.value = current.copy(candyCoins = (current.candyCoins + amount).coerceAtMost(9999))
+        _candyWalletBalance.value = _profile.value?.candyCoins ?: 66
         return true
     }
 
@@ -55,13 +63,16 @@ class InMemoryProfileRepository : ProfileRepository {
         return addCandyCoins(amount)
     }
 
-    override suspend fun spendCandyCoins(amount: Int): Boolean {
+    override suspend fun spendCandyCoins(amount: Int, transactionId: String): Boolean {
         if (amount <= 0) return true
         val current = _profile.value ?: Profile()
         if (current.candyCoins < amount) return false
         _profile.value = current.copy(candyCoins = current.candyCoins - amount)
+        _candyWalletBalance.value = _profile.value?.candyCoins ?: 66
         return true
     }
+
+    override suspend fun refundCandyCoins(amount: Int, transactionId: String): Boolean = addCandyCoins(amount)
 
     override suspend fun loadProfile() {
         // In-memory already has a default profile.
@@ -101,11 +112,12 @@ class InMemoryProfileRepository : ProfileRepository {
         return true
     }
 
-    override suspend fun unpair() {
-        val current = _profile.value ?: return
+    override suspend fun unpair(): Boolean {
+        val current = _profile.value ?: return false
         _profile.value = current.copy(pairId = "", pairedAt = "")
         pendingPairCode = ""
         hasJoinedPair = false
+        return true
     }
 
     override suspend fun getPairInfo(): PairInfo {
@@ -118,6 +130,8 @@ class InMemoryProfileRepository : ProfileRepository {
             pairCode = pairCode
         )
     }
+
+    override suspend fun acknowledgePairEvent(eventId: String) = Unit
 
     override suspend fun touchPresence() {
         val current = _profile.value ?: return

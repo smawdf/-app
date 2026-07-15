@@ -2,6 +2,7 @@ package com.myorderapp.data.repository
 
 import com.myorderapp.data.local.dao.MenuDishDao
 import com.myorderapp.data.local.entity.MenuDishEntity
+import com.myorderapp.data.local.entity.MenuDishDeletionEntity
 import com.myorderapp.data.remote.supabase.CloudErrorLogger
 import com.myorderapp.data.remote.supabase.SessionManager
 import com.myorderapp.data.remote.supabase.SupabaseClientProvider
@@ -76,18 +77,34 @@ class RoomMenuRepository(
 
     private fun observeLocalDishes(): Flow<List<MenuDishEntity>> = menuDishDao.observeByPair(localPairId())
 
-    suspend fun getDish(id: String): MenuDishEntity? = menuDishDao.getById(id)
+    suspend fun getDish(id: String): MenuDishEntity? = menuDishDao.getById(id, localPairId())
 
     suspend fun loadFromCloud() {
         val pairId = activePairId() ?: return
         try {
-            client.from("menu_dishes").select {
+            val deletions = menuDishDao.getDeletions(pairId)
+            deletions.forEach { deletion -> syncDeletionToCloud(deletion) }
+            val remoteById = client.from("menu_dishes").select {
                 filter { eq("pair_id", pairId) }
-            }.decodeList<RemoteMenuDish>().forEach { remote ->
-                menuDishDao.upsert(remote.toEntity())
-            }
-            menuDishDao.getAllByPair(pairId).forEach { local ->
-                client.from("menu_dishes").upsert(local.toRemote(pairId)) { select() }
+            }.decodeList<RemoteMenuDish>().associateBy { it.id }
+            remoteById.values
+                .filter { it.deletedAt != null }
+                .forEach { remote ->
+                    menuDishDao.deleteById(remote.id, pairId)
+                    menuDishDao.clearDeletion(remote.id, pairId)
+                }
+            val activeRemoteById = remoteById.filterValues { it.deletedAt == null }
+            val localById = menuDishDao.getAllByPair(pairId).associateBy { it.id }
+            (activeRemoteById.keys + localById.keys).forEach { id ->
+                val remote = activeRemoteById[id]
+                val local = localById[id]
+                when {
+                    remote == null && local != null -> client.from("menu_dishes").upsert(local.toRemote(pairId)) { select() }
+                    local == null && remote != null -> menuDishDao.upsert(remote.toEntity())
+                    remote != null && local != null && remote.updatedAt.isCloudTimestampAfter(local.updatedAt) -> menuDishDao.upsert(remote.toEntity())
+                    remote != null && local != null && local.updatedAt.isCloudTimestampAfter(remote.updatedAt) ->
+                        client.from("menu_dishes").upsert(local.toRemote(pairId)) { select() }
+                }
             }
         } catch (e: Exception) {
             cloudErrorLogger?.log("menu", "load_dishes", e, "pairId=$pairId")
@@ -96,10 +113,11 @@ class RoomMenuRepository(
 
     suspend fun saveDish(draft: MenuDishDraft): String {
         val id = draft.id?.takeIf { it.isNotBlank() } ?: UUID.randomUUID().toString()
-        val existing = menuDishDao.getById(id)
+        val pairId = localPairId()
+        val existing = menuDishDao.getById(id, pairId)
         val entity = MenuDishEntity(
             id = id,
-            pairId = localPairId(),
+            pairId = pairId,
             name = draft.name.trim(),
             price = draft.price,
             originPrice = draft.originPrice,
@@ -119,47 +137,79 @@ class RoomMenuRepository(
     }
 
     suspend fun deleteDish(id: String) {
-        menuDishDao.deleteById(id)
-        deleteMenuDishFromCloud(id)
+        val pairId = localPairId()
+        if (menuDishDao.getById(id, pairId) == null) return
+        val deletedAt = Instant.now().toString()
+        menuDishDao.markDeleted(MenuDishDeletionEntity(id, pairId, deletedAt))
+        menuDishDao.deleteById(id, pairId)
+        deleteMenuDishFromCloud(id, deletedAt)
     }
 
     suspend fun setAvailability(id: String, isAvailable: Boolean) {
-        menuDishDao.setAvailability(id, isAvailable, Instant.now().toString())
-        menuDishDao.getById(id)?.let { syncMenuDishToCloud(it) }
+        val pairId = localPairId()
+        menuDishDao.setAvailability(id, isAvailable, Instant.now().toString(), pairId)
+        menuDishDao.getById(id, pairId)?.let { syncMenuDishToCloud(it) }
+    }
+
+    suspend fun updateDishImage(id: String, imageUrl: String) {
+        val pairId = localPairId()
+        menuDishDao.updateImage(id, imageUrl.takeIfCloudImageUrl().orEmpty(), Instant.now().toString(), pairId)
+        menuDishDao.getById(id, pairId)?.let { syncMenuDishToCloud(it) }
     }
 
     suspend fun setAvailability(ids: List<String>, isAvailable: Boolean) {
         if (ids.isEmpty()) return
-        menuDishDao.setAvailability(ids, isAvailable, Instant.now().toString())
-        ids.forEach { id -> menuDishDao.getById(id)?.let { syncMenuDishToCloud(it) } }
+        val pairId = localPairId()
+        menuDishDao.setAvailability(ids, isAvailable, Instant.now().toString(), pairId)
+        ids.forEach { id -> menuDishDao.getById(id, pairId)?.let { syncMenuDishToCloud(it) } }
     }
 
     suspend fun moveToCategory(ids: List<String>, category: String) {
         val normalizedCategory = category.trim()
         if (ids.isEmpty() || normalizedCategory.isBlank()) return
-        menuDishDao.moveToCategory(ids, normalizedCategory, Instant.now().toString())
-        ids.forEach { id -> menuDishDao.getById(id)?.let { syncMenuDishToCloud(it) } }
+        val pairId = localPairId()
+        menuDishDao.moveToCategory(ids, normalizedCategory, Instant.now().toString(), pairId)
+        ids.forEach { id -> menuDishDao.getById(id, pairId)?.let { syncMenuDishToCloud(it) } }
     }
 
     suspend fun deleteDishes(ids: List<String>) {
-        if (ids.isEmpty()) return
-        menuDishDao.deleteByIds(ids)
-        ids.forEach { deleteMenuDishFromCloud(it) }
+        val uniqueIds = ids.asSequence()
+            .filter { it.isNotBlank() }
+            .distinct()
+            .toList()
+        if (uniqueIds.isEmpty()) return
+
+        val pairId = localPairId()
+        val scopedIds = menuDishDao.getAllByPair(pairId)
+            .asSequence()
+            .map { it.id }
+            .filter { it in uniqueIds }
+            .toList()
+        if (scopedIds.isEmpty()) return
+        val deletedAt = Instant.now().toString()
+        scopedIds.forEach { id ->
+            menuDishDao.markDeleted(MenuDishDeletionEntity(id, pairId, deletedAt))
+        }
+        menuDishDao.deleteByIds(scopedIds, pairId)
+        scopedIds.forEach { deleteMenuDishFromCloud(it, deletedAt) }
     }
 
     suspend fun saveSortOrder(ids: List<String>) {
+        val pairId = localPairId()
         val now = Instant.now().toString()
         ids.forEachIndexed { index, id ->
-            menuDishDao.updateSortOrder(id, index, now)
-            menuDishDao.getById(id)?.let { syncMenuDishToCloud(it) }
+            menuDishDao.updateSortOrder(id, index, now, pairId)
+            menuDishDao.getById(id, pairId)?.let { syncMenuDishToCloud(it) }
         }
     }
 
     suspend fun recordSales(items: Map<String, Int>) {
+        val pairId = localPairId()
         val now = Instant.now().toString()
         items.forEach { (id, quantity) ->
             if (id.isNotBlank() && quantity > 0) {
-                menuDishDao.incrementMonthlySales(id, quantity, now)
+                menuDishDao.incrementMonthlySales(id, quantity, now, pairId)
+                menuDishDao.getById(id, pairId)?.let { syncMenuDishToCloud(it) }
             }
         }
     }
@@ -169,11 +219,16 @@ class RoomMenuRepository(
         val normalizedNewName = newName.trim()
         if (normalizedOldName.isBlank() || normalizedNewName.isBlank() || normalizedOldName == normalizedNewName) return
 
+        val pairId = localPairId()
         menuDishDao.renameCategory(
             oldName = normalizedOldName,
             newName = normalizedNewName,
-            updatedAt = Instant.now().toString()
+            updatedAt = Instant.now().toString(),
+            pairId = pairId
         )
+        menuDishDao.getAllByPair(pairId)
+            .filter { it.category == normalizedNewName }
+            .forEach { syncMenuDishToCloud(it) }
     }
 
     private fun activePairId(): String? {
@@ -189,23 +244,34 @@ class RoomMenuRepository(
         val pairId = activePairId() ?: return
         try {
             client.from("menu_dishes").upsert(entity.toRemote(pairId)) { select() }
+            menuDishDao.clearDeletion(entity.id, pairId)
         } catch (e: Exception) {
             cloudErrorLogger?.log("menu", "sync_dish", e, "pairId=$pairId dishId=${entity.id}")
         }
     }
 
-    private suspend fun deleteMenuDishFromCloud(id: String) {
+    private suspend fun deleteMenuDishFromCloud(id: String, deletedAt: String) {
         val pairId = activePairId() ?: return
         try {
-            client.from("menu_dishes").delete {
-                filter {
-                    eq("id", id)
-                    eq("pair_id", pairId)
-                }
-            }
+            syncDeletionToCloud(MenuDishDeletionEntity(id, pairId, deletedAt))
         } catch (e: Exception) {
             cloudErrorLogger?.log("menu", "delete_dish", e, "pairId=$pairId dishId=$id")
         }
+    }
+
+    private suspend fun syncDeletionToCloud(deletion: MenuDishDeletionEntity) {
+        client.from("menu_dishes").update(
+            MenuDishDeletionUpdate(
+                deletedAt = deletion.deletedAt,
+                updatedAt = deletion.deletedAt
+            )
+        ) {
+            filter {
+                eq("id", deletion.id)
+                eq("pair_id", deletion.pairId)
+            }
+        }
+        menuDishDao.clearDeletion(deletion.id, deletion.pairId)
     }
 
     private fun MenuDishEntity.toMenuItem(): MenuItem = MenuItem(
@@ -243,7 +309,8 @@ private data class RemoteMenuDish(
     val stock: Int = 0,
     @SerialName("is_available") val isAvailable: Boolean = true,
     @SerialName("is_signature") val isSignature: Boolean = false,
-    @SerialName("updated_at") val updatedAt: String
+    @SerialName("updated_at") val updatedAt: String,
+    @SerialName("deleted_at") val deletedAt: String? = null
 ) {
     fun toEntity() = MenuDishEntity(
         id = id,
@@ -277,7 +344,14 @@ private fun MenuDishEntity.toRemote(pairId: String) = RemoteMenuDish(
     stock = stock,
     isAvailable = isAvailable,
     isSignature = isSignature,
-    updatedAt = updatedAt
+    updatedAt = updatedAt,
+    deletedAt = null
+)
+
+@Serializable
+private data class MenuDishDeletionUpdate(
+    @SerialName("deleted_at") val deletedAt: String,
+    @SerialName("updated_at") val updatedAt: String
 )
 
 private fun String.takeIfCloudImageUrl(): String? {

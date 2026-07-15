@@ -15,7 +15,9 @@ import com.myorderapp.ui.search.ExternalDishImageSource
 import com.myorderapp.ui.search.SearchableMenuItem
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -26,6 +28,8 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 private const val DISCOVER_SINGLE_SHOP_ID = "single_shop"
 private const val DISCOVER_RECOMMENDATION_FIRST_FRAME_DELAY_MS = 280L
@@ -78,6 +82,10 @@ class DiscoverViewModel(
 
     private val queryChanges = MutableStateFlow("")
     private val scope = searchScope ?: viewModelScope
+    private val searchCache = DiscoverSearchMemoryCache()
+    private val addToMenuMutex = Mutex()
+    private val imageRequestMutex = Mutex()
+    private val imageRequests = mutableMapOf<String, Deferred<String?>>()
 
     init {
         scope.launch {
@@ -127,56 +135,61 @@ class DiscoverViewModel(
         }
 
         scope.launch {
-            val normalizedName = item.name.normalizedMenuName()
-            val price = item.price.takeIf { it > 0.0 } ?: 12.0
-            val category = item.category.ifBlank { _uiState.value.categories.firstOrNull().orEmpty() }.ifBlank { "主食" }
-            val resolvedImageUrl = item.imageUrl?.takeIf { it.isNotBlank() && !it.isLegacyRecipeImageUrl() }
-                ?: findImageForDishName(item.name, excludedImageUrl = item.imageUrl)
-            val existing = roomMenuRepository.observeMenuDishes()
-                .first()
-                .any { it.name.normalizedMenuName() == normalizedName }
+            addToMenuMutex.withLock {
+                val normalizedName = item.name.normalizedMenuName()
+                val price = item.price.takeIf { it > 0.0 } ?: 12.0
+                val category = item.category
+                    .takeIf { it.isNotBlank() && !it.endsWith("推荐") }
+                    ?: _uiState.value.categories.firstOrNull().orEmpty().ifBlank { "主食" }
+                val resolvedImageUrl = item.imageUrl?.takeIf { it.isNotBlank() && !it.isLegacyRecipeImageUrl() }
+                    ?: findImageForDishName(item.name, excludedImageUrl = item.imageUrl)
+                val existing = roomMenuRepository.observeMenuDishes()
+                    .first()
+                    .any { it.name.normalizedMenuName() == normalizedName }
 
-            if (!existing) {
-                roomMenuRepository.saveDish(
-                    MenuDishDraft(
-                        name = item.name,
-                        price = price,
-                        imageUrl = resolvedImageUrl.orEmpty(),
-                        category = category,
-                        description = item.subtitle
+                if (!existing) {
+                    roomMenuRepository.saveDish(
+                        MenuDishDraft(
+                            name = item.name,
+                            price = price,
+                            imageUrl = resolvedImageUrl.orEmpty(),
+                            category = category,
+                            description = item.subtitle
+                        )
                     )
-                )
-            } else {
-                markResultAsAdded(item, resolvedImageUrl)
-                _uiState.update {
-                    it.copy(
-                        addedMenuItemNames = it.addedMenuItemNames + normalizedName,
-                        message = "已在我的小店：${item.name}",
+                } else {
+                    markResultAsAdded(item, resolvedImageUrl)
+                    _uiState.update {
+                        it.copy(
+                            addedMenuItemNames = it.addedMenuItemNames + normalizedName,
+                            message = "已在我的小店：${item.name}",
+                            errorMessage = null
+                        )
+                    }
+                    return@withLock
+                }
+
+                _uiState.update { state ->
+                    val addedIds = state.addedMenuItemIds + item.id
+                    val addedNames = state.addedMenuItemNames + normalizedName
+                    state.copy(
+                        addedMenuItemIds = addedIds,
+                        addedMenuItemNames = addedNames,
+                        results = state.results.map { result ->
+                            if (
+                                result.id == item.id ||
+                                result.name.trim().equals(item.name.trim(), ignoreCase = true)
+                            ) {
+                                result.copy(isAdded = true, imageUrl = resolvedImageUrl)
+                            } else {
+                                result
+                            }
+                        },
+                        recommendations = state.recommendations.markRecommendationAdded(item, resolvedImageUrl),
+                        message = "已加入我的小店：${item.name}",
                         errorMessage = null
                     )
                 }
-                return@launch
-            }
-
-            _uiState.update { state ->
-                val addedIds = state.addedMenuItemIds + item.id
-                val addedNames = state.addedMenuItemNames + normalizedName
-                state.copy(
-                    addedMenuItemIds = addedIds,
-                    addedMenuItemNames = addedNames,
-                    results = state.results.map { result ->
-                        if (
-                            result.id == item.id ||
-                            result.name.trim().equals(item.name.trim(), ignoreCase = true)
-                        ) {
-                            result.copy(isAdded = true, imageUrl = resolvedImageUrl)
-                        } else {
-                            result
-                        }
-                    },
-                    message = "已加入我的小店：${item.name}",
-                    errorMessage = null
-                )
             }
         }
     }
@@ -234,8 +247,18 @@ class DiscoverViewModel(
             subtitle = "轻一点，也很好吃",
             item = bimissingRecipeAssetSource.fatLossRecommendation()
         )
+        val addedNames = currentShopDishNames()
         _uiState.update { state ->
-            state.copy(recommendations = listOfNotNull(daily, fatLoss))
+            state.copy(
+                recommendations = listOfNotNull(daily, fatLoss).map { recommendation ->
+                    recommendation.copy(
+                        item = recommendation.item.copy(
+                            isAdded = addedNames.contains(recommendation.item.name.normalizedMenuName())
+                        )
+                    )
+                },
+                addedMenuItemNames = state.addedMenuItemNames + addedNames
+            )
         }
     }
 
@@ -293,8 +316,23 @@ class DiscoverViewModel(
                     } else {
                         result
                     }
-                }
+                },
+                recommendations = state.recommendations.markRecommendationAdded(item, resolvedImageUrl)
             )
+        }
+    }
+
+    private fun List<DiscoverRecommendationItem>.markRecommendationAdded(
+        item: DiscoverDishSearchItem,
+        resolvedImageUrl: String?
+    ): List<DiscoverRecommendationItem> = map { recommendation ->
+        if (
+            recommendation.item.id == item.id ||
+            recommendation.item.name.normalizedMenuName() == item.name.normalizedMenuName()
+        ) {
+            recommendation.copy(item = recommendation.item.copy(isAdded = true, imageUrl = resolvedImageUrl))
+        } else {
+            recommendation
         }
     }
 
@@ -334,6 +372,7 @@ class DiscoverViewModel(
     }
 
     private suspend fun performSearch(query: String) {
+        if (restoreCachedSearch(query)) return
         _uiState.update {
             it.copy(
                 isSearching = true,
@@ -586,6 +625,31 @@ class DiscoverViewModel(
                 errorMessage = if (partialNetworkUnavailable) "部分网络结果暂不可用" else null
             )
         }
+        searchCache.put(
+            query,
+            CachedDiscoverSearch(
+                results = results.map { it.copy(isAdded = false) },
+                partialNetworkUnavailable = partialNetworkUnavailable
+            )
+        )
+        return true
+    }
+
+    private suspend fun restoreCachedSearch(query: String): Boolean {
+        val cached = searchCache.get(query) ?: return false
+        val addedNames = _uiState.value.addedMenuItemNames + currentShopDishNames()
+        _uiState.update { state ->
+            state.copy(
+                isSearching = false,
+                results = cached.results.map { item ->
+                    item.copy(
+                        isAdded = state.addedMenuItemIds.contains(item.id) ||
+                            addedNames.contains(item.name.normalizedMenuName())
+                    )
+                },
+                errorMessage = if (cached.partialNetworkUnavailable) "部分网络结果暂不可用" else null
+            )
+        }
         return true
     }
 
@@ -675,6 +739,32 @@ class DiscoverViewModel(
     ): String? {
         val normalizedName = name.normalizedSearchText()
         if (normalizedName.isBlank()) return null
+
+        val requestKey = listOf(
+            normalizedName,
+            preferredQuery.orEmpty().normalizedSearchText(),
+            excludedImageUrl.orEmpty()
+        ).joinToString("|")
+        val deferred = imageRequestMutex.withLock {
+            imageRequests[requestKey] ?: scope.async {
+                fetchImageForDishName(name, excludedImageUrl, preferredQuery)
+            }.also { imageRequests[requestKey] = it }
+        }
+        return try {
+            deferred.await()
+        } finally {
+            imageRequestMutex.withLock {
+                if (imageRequests[requestKey] === deferred) imageRequests.remove(requestKey)
+            }
+        }
+    }
+
+    private suspend fun fetchImageForDishName(
+        name: String,
+        excludedImageUrl: String?,
+        preferredQuery: String?
+    ): String? {
+        val normalizedName = name.normalizedSearchText()
 
         val searchQueries = imageSearchQueriesForDishName(name, preferredQuery)
         for (query in searchQueries) {

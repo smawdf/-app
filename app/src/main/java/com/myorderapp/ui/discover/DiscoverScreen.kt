@@ -49,8 +49,8 @@ import androidx.compose.material3.SnackbarData
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -94,7 +94,7 @@ private const val DiscoverSearchPlaceholder = "搜索菜品、做法、食材"
 fun DiscoverScreen(
     viewModel: DiscoverViewModel = koinViewModel()
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     var detailItem by remember { mutableStateOf<DiscoverDishSearchItem?>(null) }
 
@@ -124,8 +124,7 @@ fun DiscoverScreen(
                     .fillMaxWidth()
                     .weight(1f),
                 contentPadding = PaddingValues(start = 20.dp, top = 24.dp, end = 20.dp, bottom = 172.dp),
-                verticalArrangement = Arrangement.spacedBy(24.dp),
-                userScrollEnabled = uiState.results.size > 2
+                verticalArrangement = Arrangement.spacedBy(24.dp)
             ) {
                 item {
                     Column(
@@ -159,11 +158,12 @@ fun DiscoverScreen(
                     }
                 }
 
-                if (uiState.recommendations.isNotEmpty()) {
+                if (uiState.query.isBlank() && uiState.recommendations.isNotEmpty()) {
                     item {
                         DiscoverRecommendationRow(
                             recommendations = uiState.recommendations,
                             onClick = { detailItem = it.item },
+                            onAddToMenu = viewModel::addToMenu,
                             onRecoverImage = viewModel::recoverRecommendationImageFor
                         )
                     }
@@ -247,6 +247,7 @@ fun DiscoverScreen(
 private fun DiscoverRecommendationRow(
     recommendations: List<DiscoverRecommendationItem>,
     onClick: (DiscoverRecommendationItem) -> Unit,
+    onAddToMenu: (DiscoverDishSearchItem) -> Unit,
     onRecoverImage: (DiscoverDishSearchItem) -> Unit
 ) {
     Row(
@@ -261,6 +262,7 @@ private fun DiscoverRecommendationRow(
                 DiscoverRecommendationCard(
                     recommendation = recommendation,
                     onClick = { onClick(recommendation) },
+                    onAddToMenu = onAddToMenu,
                     onRecoverImage = onRecoverImage
                 )
             }
@@ -275,6 +277,7 @@ private fun DiscoverRecommendationRow(
 private fun DiscoverRecommendationCard(
     recommendation: DiscoverRecommendationItem,
     onClick: () -> Unit,
+    onAddToMenu: (DiscoverDishSearchItem) -> Unit,
     onRecoverImage: (DiscoverDishSearchItem) -> Unit
 ) {
     val item = recommendation.item
@@ -290,7 +293,7 @@ private fun DiscoverRecommendationCard(
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .height(236.dp)
+            .height(292.dp)
             .scale(if (pressed) 0.98f else 1f)
             .clickable(
                 interactionSource = interaction,
@@ -345,6 +348,11 @@ private fun DiscoverRecommendationCard(
                 style = MaterialTheme.typography.labelSmall,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
+            )
+            SquishyDiscoverButton(
+                text = if (item.isAdded) "已在店铺" else "加入店铺",
+                enabled = !item.isAdded,
+                onClick = { onAddToMenu(item) }
             )
             RecommendationVideoLinks(query = item.name)
         }

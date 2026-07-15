@@ -1,9 +1,11 @@
 package com.myorderapp.ui.menu
 
+import android.app.Application
 import android.content.Context
 import android.net.Uri
-import androidx.lifecycle.ViewModel
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.myorderapp.core.worker.CloudImageUploadWorker
 import com.myorderapp.data.remote.supabase.SessionManager
 import com.myorderapp.data.remote.supabase.SupabaseStorageUploader
 import com.myorderapp.data.local.entity.MenuDishEntity
@@ -68,13 +70,15 @@ data class MenuManagementUiState(
 }
 
 class MenuManagementViewModel(
+    application: Application,
     private val menuRepository: RoomMenuRepository,
     private val singleShopRepository: SingleShopRepository,
     private val storageUploader: SupabaseStorageUploader,
     private val sessionManager: SessionManager
-) : ViewModel() {
+) : AndroidViewModel(application) {
 
     private var categoryLoadingJob: Job? = null
+    private var pendingDishImageUri: Uri? = null
 
     private val _uiState = MutableStateFlow(
         MenuManagementUiState(
@@ -102,6 +106,26 @@ class MenuManagementViewModel(
                     ).withVisibleDishes()
                 }
             }
+        }
+    }
+
+    suspend fun refreshShopAndMenuFromCloud() {
+        singleShopRepository.loadFromCloud()
+        menuRepository.loadFromCloud()
+        val syncedShopName = singleShopRepository.getShopName()
+        val syncedAnnouncement = singleShopRepository.getShopAnnouncement()
+        val dishes = _uiState.value.dishes
+        val categories = (singleShopRepository.getCategoryNames() + dishes.map { it.category }).normalizedMenuCategories()
+        updateState {
+            copy(
+                shopName = syncedShopName,
+                shopNameDraft = if (shopNameDraft == shopName) syncedShopName else shopNameDraft,
+                shopImageUrl = singleShopRepository.getShopImageUrl(),
+                shopAnnouncement = syncedAnnouncement,
+                shopAnnouncementDraft = if (shopAnnouncementDraft == shopAnnouncement) syncedAnnouncement else shopAnnouncementDraft,
+                categories = categories,
+                selectedCategory = selectedCategory.takeIf { it in categories } ?: categories.firstOrNull().orEmpty()
+            ).withVisibleDishes()
         }
     }
 
@@ -148,7 +172,15 @@ class MenuManagementViewModel(
             if (imageUrl != null) {
                 updateShopImage(imageUrl)
             } else {
-                updateState { copy(message = "搴楅摵鍥剧墖涓婁紶澶辫触锛岃绋嶅悗閲嶈瘯") }
+                CloudImageUploadWorker.enqueue(
+                    context,
+                    CloudImageUploadWorker.TARGET_SHOP,
+                    "shop",
+                    uri,
+                    sessionManager.currentUserId,
+                    sessionManager.currentSessionId
+                )
+                updateState { copy(message = "店铺图片已加入上传队列") }
             }
         }
     }
@@ -320,9 +352,11 @@ class MenuManagementViewModel(
             val dishId = _uiState.value.editor.id ?: "draft"
             val imageUrl = uploadMenuImage(context, uri, dishId)
             if (imageUrl != null) {
+                pendingDishImageUri = null
                 onImageChange(imageUrl)
             } else {
-                updateState { copy(message = "鑿滃搧鍥剧墖涓婁紶澶辫触锛岃绋嶅悗閲嶈瘯") }
+                pendingDishImageUri = uri
+                updateState { copy(message = "图片将在保存菜品后自动上传") }
             }
         }
     }
@@ -347,7 +381,7 @@ class MenuManagementViewModel(
         }
 
         viewModelScope.launch {
-            menuRepository.saveDish(
+            val savedDishId = menuRepository.saveDish(
                 MenuDishDraft(
                     id = editor.id,
                     name = editor.name,
@@ -361,6 +395,18 @@ class MenuManagementViewModel(
                     isSignature = editor.isSignature
                 )
             )
+            val pendingUri = pendingDishImageUri
+            if (pendingUri != null) {
+                CloudImageUploadWorker.enqueue(
+                    getApplication(),
+                    CloudImageUploadWorker.TARGET_MENU,
+                    savedDishId,
+                    pendingUri,
+                    sessionManager.currentUserId,
+                    sessionManager.currentSessionId
+                )
+                pendingDishImageUri = null
+            }
             updateState {
                 copy(
                     isEditing = false,

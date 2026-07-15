@@ -7,6 +7,7 @@ import com.myorderapp.domain.model.PairInfo
 import com.myorderapp.domain.model.Profile
 import com.myorderapp.domain.repository.CandyCoinLedgerRepository
 import com.myorderapp.domain.repository.ProfileRepository
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -16,6 +17,7 @@ data class CandyCoinsUiState(
     val profile: Profile? = null,
     val pairInfo: PairInfo = PairInfo(),
     val records: List<CandyCoinRecord> = emptyList(),
+    val walletBalance: Int = 66,
     val message: String? = null
 )
 
@@ -30,6 +32,17 @@ class CandyCoinsViewModel(
         viewModelScope.launch {
             profileRepository.getProfile().collect { profile ->
                 _uiState.value = _uiState.value.copy(profile = profile)
+            }
+        }
+        viewModelScope.launch {
+            profileRepository.observeCandyWalletBalance().collect { balance ->
+                _uiState.value = _uiState.value.copy(walletBalance = balance)
+            }
+        }
+        viewModelScope.launch {
+            while (true) {
+                profileRepository.refreshCandyWalletBalance()
+                delay(10_000)
             }
         }
         viewModelScope.launch {

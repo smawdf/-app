@@ -5,6 +5,13 @@ val localProps = Properties().apply {
     if (f.exists()) load(f.inputStream())
 }
 
+val keystoreProps = Properties().apply {
+    val file = rootProject.file("keystore.properties")
+    if (file.exists()) load(file.inputStream())
+}
+val hasReleaseSigning = listOf("storeFile", "storePassword", "keyAlias", "keyPassword")
+    .all { !keystoreProps.getProperty(it).isNullOrBlank() }
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
@@ -25,38 +32,41 @@ android {
         applicationId = "com.myorderapp"
         minSdk = 24
         targetSdk = 36
-        versionCode = 31
-        versionName = "1.4.8"
+        versionCode = 32
+        versionName = "1.4.9-syncfix"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         buildConfigField("String", "TIAN_API_KEY", "\"${localProps.getProperty("TIAN_API_KEY", "")}\"")
+        buildConfigField("String", "SPOONACULAR_API_KEY", "\"${localProps.getProperty("SPOONACULAR_API_KEY", "")}\"")
         buildConfigField("String", "SUPABASE_URL", "\"${localProps.getProperty("SUPABASE_URL", "")}\"")
         buildConfigField("String", "SUPABASE_ANON_KEY", "\"${localProps.getProperty("SUPABASE_ANON_KEY", "")}\"")
     }
 
     signingConfigs {
-        create("release") {
-            storeFile = file("../orderdisk.jks")
-            storePassword = "orderdisk123"
-            keyAlias = "orderdisk"
-            keyPassword = "orderdisk123"
+        if (hasReleaseSigning) {
+            create("release") {
+                storeFile = rootProject.file(keystoreProps.getProperty("storeFile"))
+                storePassword = keystoreProps.getProperty("storePassword")
+                keyAlias = keystoreProps.getProperty("keyAlias")
+                keyPassword = keystoreProps.getProperty("keyPassword")
+            }
         }
     }
 
     buildTypes {
         release {
-            signingConfig = signingConfigs.getByName("release")
-            isMinifyEnabled = false
-            isShrinkResources = false
+            if (hasReleaseSigning) {
+                signingConfig = signingConfigs.getByName("release")
+            }
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
         }
-        debug {
-            signingConfig = signingConfigs.getByName("release")
-        }
+        debug { }
     }
     compileOptions {
         isCoreLibraryDesugaringEnabled = true
@@ -67,6 +77,14 @@ android {
         compose = true
         buildConfig = true
     }
+
+    sourceSets {
+        getByName("androidTest").assets.directories.add("$projectDir/schemas")
+    }
+}
+
+ksp {
+    arg("room.schemaLocation", "$projectDir/schemas")
 }
 
 dependencies {
@@ -145,4 +163,5 @@ dependencies {
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(libs.androidx.junit)
+    androidTestImplementation(libs.room.testing)
 }

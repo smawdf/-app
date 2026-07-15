@@ -38,6 +38,7 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.LocalDining
 import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.PersonAdd
@@ -57,8 +58,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -78,6 +79,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
+import com.myorderapp.BuildConfig
 import com.myorderapp.ui.components.CandyCoinIcon
 import com.myorderapp.ui.auth.AuthViewModel
 import com.myorderapp.ui.components.CozyCherry
@@ -90,6 +92,7 @@ import com.myorderapp.ui.components.CozySurface
 import com.myorderapp.ui.components.cozyTextFieldColors
 import com.myorderapp.domain.model.ROLE_CARETAKER
 import com.myorderapp.domain.model.ROLE_EATER
+import com.myorderapp.data.sync.CloudSyncPhase
 import com.myorderapp.ui.theme.Error
 import com.myorderapp.ui.theme.OnSurface
 import com.myorderapp.ui.theme.OnSurfaceVariant
@@ -113,7 +116,7 @@ fun ProfileScreen(
     onOrdersClick: () -> Unit = {},
     onCandyCoinsClick: () -> Unit = {}
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val profile = uiState.profile
     val savedName = profile?.nickname?.takeIf { it.isNotBlank() }
     val displayName = savedName ?: "糯米小狗"
@@ -129,8 +132,10 @@ fun ProfileScreen(
     }
     var showProfileEditor by remember { mutableStateOf(false) }
     var showHelpDialog by remember { mutableStateOf(false) }
+    var showVersionDialog by remember { mutableStateOf(false) }
     var showLogoutConfirm by remember { mutableStateOf(false) }
     var showPairDialog by remember { mutableStateOf(false) }
+    var showUnpairConfirm by remember { mutableStateOf(false) }
 
     if (showProfileEditor) {
         ProfileEditDialog(
@@ -145,6 +150,10 @@ fun ProfileScreen(
 
     if (showHelpDialog) {
         HelpDialog(onDismiss = { showHelpDialog = false })
+    }
+
+    if (showVersionDialog) {
+        VersionInfoDialog(onDismiss = { showVersionDialog = false })
     }
 
     if (showPairDialog) {
@@ -167,9 +176,25 @@ fun ProfileScreen(
                 }
             },
             onUnpair = {
-                rolePrefs.edit().remove(KEY_SELECTED_ROLE).apply()
-                viewModel.unpair()
+                showUnpairConfirm = true
             }
+        )
+    }
+
+    if (showUnpairConfirm) {
+        AlertDialog(
+            onDismissRequest = { showUnpairConfirm = false },
+            title = { Text("确认解除绑定？", fontWeight = FontWeight.Black) },
+            text = { Text("解除后双方将停止共享情侣资料、店铺和订单。对方会收到解绑通知。") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showUnpairConfirm = false
+                    showPairDialog = false
+                    rolePrefs.edit().remove(KEY_SELECTED_ROLE).apply()
+                    viewModel.unpair()
+                }) { Text("确认解除", color = Error, fontWeight = FontWeight.Black) }
+            },
+            dismissButton = { TextButton(onClick = { showUnpairConfirm = false }) { Text("暂不解除") } }
         )
     }
 
@@ -202,6 +227,8 @@ fun ProfileScreen(
                             avatarUrl = profile?.avatarUrl,
                             userId = profile?.userId.orEmpty(),
                             isSynced = uiState.isSynced,
+                            syncPhase = uiState.cloudSyncState.phase,
+                            failedSyncSteps = uiState.cloudSyncState.failedSteps,
                             isPaired = uiState.pairInfo.isPaired,
                             selectedRoleText = selectedRoleText,
                             onSettingsClick = { showProfileEditor = true },
@@ -213,7 +240,7 @@ fun ProfileScreen(
                 item {
                     CozyMotionVisibility(delayMillis = 40) {
                         SimulatedCurrencyBalanceCard(
-                            balance = profile?.candyCoins ?: 66,
+                            balance = uiState.walletBalance,
                             modifier = Modifier.padding(horizontal = 20.dp)
                         )
                     }
@@ -232,14 +259,14 @@ fun ProfileScreen(
                             ProfileActionRow(
                                 icon = Icons.Filled.Pets,
                                 title = "糖糖币专属管理",
-                                trailingText = "吃货 ${uiState.pairInfo.partnerCandyCoins ?: 0} 枚",
+                                trailingText = "吃货 ${uiState.walletBalance} 枚",
                                 onClick = onCandyCoinsClick
                             )
                         } else {
                             ProfileActionRow(
                                 icon = Icons.Filled.Pets,
                                 title = "糖糖币明细",
-                                trailingText = "${profile?.candyCoins ?: 66} 枚",
+                                trailingText = "${uiState.walletBalance} 枚",
                                 onClick = onCandyCoinsClick
                             )
                         }
@@ -247,7 +274,16 @@ fun ProfileScreen(
                             icon = Icons.Filled.PersonAdd,
                             title = if (uiState.pairInfo.isPaired) "伴侣已绑定" else "邀请对方",
                             trailingText = uiState.pairInfo.partnerName.takeIf { it.isNotBlank() },
-                            onClick = { showPairDialog = true }
+                            onClick = {
+                                viewModel.refreshPairState()
+                                showPairDialog = true
+                            }
+                        )
+                        ProfileActionRow(
+                            icon = Icons.Filled.Info,
+                            title = "版本与更新",
+                            trailingText = BuildConfig.VERSION_NAME,
+                            onClick = { showVersionDialog = true }
                         )
                         ProfileActionRow(
                             icon = Icons.Outlined.SupportAgent,
@@ -268,6 +304,8 @@ private fun ImmersiveProfileHeader(
     avatarUrl: String?,
     userId: String,
     isSynced: Boolean,
+    syncPhase: CloudSyncPhase,
+    failedSyncSteps: List<String>,
     isPaired: Boolean,
     selectedRoleText: String,
     onSettingsClick: () -> Unit,
@@ -288,6 +326,8 @@ private fun ImmersiveProfileHeader(
                 avatarUrl = avatarUrl,
                 userId = userId,
                 isSynced = isSynced,
+                syncPhase = syncPhase,
+                failedSyncSteps = failedSyncSteps,
                 isPaired = isPaired,
                 selectedRoleText = selectedRoleText,
                 onSettingsClick = onSettingsClick
@@ -319,6 +359,8 @@ private fun ProfileHeader(
     avatarUrl: String?,
     userId: String,
     isSynced: Boolean,
+    syncPhase: CloudSyncPhase,
+    failedSyncSteps: List<String>,
     isPaired: Boolean,
     selectedRoleText: String,
     onSettingsClick: () -> Unit
@@ -385,6 +427,16 @@ private fun ProfileHeader(
                 color = OnSurfaceVariant,
                 style = MaterialTheme.typography.bodyMedium
             )
+            Text(
+                text = when (syncPhase) {
+                    CloudSyncPhase.SYNCING -> "正在同步云端数据"
+                    CloudSyncPhase.PARTIAL_FAILURE -> failedSyncSteps.toSyncFailureText()
+                    CloudSyncPhase.SUCCESS -> "云端数据已同步"
+                    CloudSyncPhase.IDLE -> if (isSynced) "资料已同步" else "等待云端同步"
+                },
+                color = if (syncPhase == CloudSyncPhase.PARTIAL_FAILURE) MaterialTheme.colorScheme.error else OnSurfaceVariant,
+                style = MaterialTheme.typography.labelSmall
+            )
             Spacer(modifier = Modifier.height(10.dp))
             Surface(
                 shape = RoundedCornerShape(999.dp),
@@ -408,6 +460,21 @@ private fun ProfileHeader(
             }
         }
     }
+}
+
+private fun List<String>.toSyncFailureText(): String {
+    val labels = mapOf(
+        "session" to "登录会话",
+        "profile" to "个人资料",
+        "shop" to "店铺",
+        "menu" to "菜单",
+        "orders" to "订单",
+        "candy_coins" to "糖糖币记录",
+        "preferences" to "偏好设置",
+        "dishes" to "菜品库"
+    )
+    val failed = distinct().map { labels[it] ?: it }
+    return if (failed.isEmpty()) "部分数据同步失败" else "${failed.joinToString("、")}同步失败"
 }
 
 @Composable
@@ -762,7 +829,7 @@ private fun PairManagementDialog(
             Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 Text(
                     text = if (uiState.pairInfo.isPaired) {
-                        "你们已经绑定，可以一起同步点菜和订单。绑定后身份会锁定，如需更改请先解除绑定。"
+                        "已和 ${uiState.pairInfo.partnerName.ifBlank { "对方" }} 绑定。你们正在共享情侣资料、店铺、菜单和订单。"
                     } else {
                         "请先在首页选择身份。饲养员邀请对方去点餐；吃货邀请对方去做饭，确认后才会绑定。"
                     },
@@ -897,6 +964,37 @@ private fun copyPairCode(context: Context, code: String) {
 }
 
 @Composable
+private fun VersionInfoDialog(onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        shape = RoundedCornerShape(28.dp),
+        containerColor = CozySurface.copy(alpha = 0.96f),
+        title = {
+            Text(
+                text = "高糖小食 ${BuildConfig.VERSION_NAME}",
+                color = CozyCocoa,
+                fontWeight = FontWeight.Black,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth()
+            )
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text("本次更新", color = CozyCocoa, fontWeight = FontWeight.Black)
+                Text("• 修正个人资料同步失败的错误判定", color = CozyMuted)
+                Text("• 完善伴侣昵称、头像与绑定状态同步", color = CozyMuted)
+                Text("• 增加个人页面同步异常保护", color = CozyMuted)
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("知道了", color = CozyRose, fontWeight = FontWeight.Black)
+            }
+        }
+    )
+}
+
+@Composable
 private fun HelpDialog(onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -913,7 +1011,7 @@ private fun HelpDialog(onDismiss: () -> Unit) {
         },
         text = {
             Text(
-                text = "遇到账号、绑定或点菜问题，可以先检查网络和登录状态。后续会在这里接入反馈入口。",
+                text = "请联系最帅的管理员。",
                 color = CozyMuted,
                 textAlign = TextAlign.Center
             )

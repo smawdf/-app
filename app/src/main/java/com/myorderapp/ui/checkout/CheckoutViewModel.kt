@@ -4,9 +4,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.myorderapp.domain.model.Address
 import com.myorderapp.domain.model.CartState
+import com.myorderapp.domain.model.ROLE_EATER
 import com.myorderapp.domain.repository.CartRepository
 import com.myorderapp.domain.repository.OrderRepository
 import com.myorderapp.domain.repository.ProfileRepository
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
@@ -20,6 +22,7 @@ data class CheckoutUiState(
     val addressLine2: String = "",
     val buyerNote: String = "",
     val candyCoins: Int = 66,
+    val isEater: Boolean = false,
     val orderSubmittedId: String? = null,
     val isSubmitting: Boolean = false,
     val errorMessage: String? = null
@@ -42,7 +45,18 @@ class CheckoutViewModel(
         }
         viewModelScope.launch {
             profileRepository.getProfile().collect { profile ->
-                _uiState.value = _uiState.value.copy(candyCoins = profile?.candyCoins ?: 66)
+                _uiState.value = _uiState.value.copy(isEater = profile?.selectedRole == ROLE_EATER)
+            }
+        }
+        viewModelScope.launch {
+            profileRepository.observeCandyWalletBalance().collect { balance ->
+                _uiState.value = _uiState.value.copy(candyCoins = balance)
+            }
+        }
+        viewModelScope.launch {
+            while (true) {
+                profileRepository.refreshCandyWalletBalance()
+                delay(10_000)
             }
         }
     }
@@ -70,8 +84,17 @@ class CheckoutViewModel(
     fun submitOrder() {
         val state = _uiState.value
         if (state.isSubmitting) return
+        if (!state.isEater) {
+            _uiState.value = state.copy(errorMessage = "只有吃货可以提交点菜，饲养员负责管理小店和接单")
+            return
+        }
         if (state.cartState.isEmpty) {
             _uiState.value = state.copy(errorMessage = "购物篮还是空的，先去点菜吧")
+            return
+        }
+        val candyCost = candyCoinsCost(state.cartState.totalPrice)
+        if (state.candyCoins < candyCost) {
+            _uiState.value = state.copy(errorMessage = "糖糖币不够啦，找饲养员撒点糖再点菜")
             return
         }
 
@@ -104,10 +127,10 @@ class CheckoutViewModel(
                     errorMessage = null
                 )
             }.onFailure {
-                val message = if (it.message == "NOT_ENOUGH_CANDY_COINS") {
-                    "糖糖币不够啦，找饲养员撒点糖再点菜"
-                } else {
-                    "提交失败，请稍后再试"
+                val message = when (it.message) {
+                    "NOT_ENOUGH_CANDY_COINS" -> "糖糖币不够啦，找饲养员撒点糖再点菜"
+                    "EATER_ROLE_REQUIRED" -> "只有吃货可以提交点菜，饲养员负责管理小店和接单"
+                    else -> "提交失败，请稍后再试"
                 }
                 _uiState.value = _uiState.value.copy(
                     isSubmitting = false,

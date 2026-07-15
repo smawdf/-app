@@ -22,8 +22,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -39,9 +39,9 @@ fun AuthScreen(
     viewModel: AuthViewModel = koinViewModel(),
     onLoggedIn: () -> Unit = {},
     onRegisterClick: () -> Unit = {},
-    onForgotPasswordClick: () -> Unit = { viewModel.sendPasswordResetEmail() }
+    onForgotPasswordClick: (String) -> Unit = { email -> viewModel.sendPasswordResetEmail(email) }
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     LaunchedEffect(uiState.isLoggedIn) {
         if (uiState.isLoggedIn) onLoggedIn()
@@ -95,7 +95,7 @@ fun AuthScreen(
 
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "邮箱账号可用于找回密码和验证切换设备。",
+                        text = "可在多台设备登录，同步你们的小店和订单。",
                         color = AuthMuted,
                         style = MaterialTheme.typography.bodySmall,
                         lineHeight = MaterialTheme.typography.bodySmall.lineHeight,
@@ -149,7 +149,7 @@ fun AuthScreen(
                             )
                         }
                         TextButton(
-                            onClick = onForgotPasswordClick,
+                            onClick = { onForgotPasswordClick(uiState.email) },
                             enabled = !uiState.isLoading
                         ) {
                             Text(
@@ -181,21 +181,7 @@ fun AuthScreen(
                         modifier = Modifier.fillMaxWidth()
                     )
 
-                    if (uiState.canSwitchDeviceByEmail) {
-                        Spacer(modifier = Modifier.height(10.dp))
-                        TextButton(
-                            onClick = viewModel::sendDeviceSwitchEmail,
-                            enabled = !uiState.isLoading,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(
-                                text = "发送邮箱验证，切换到当前设备",
-                                color = AuthPrimaryEnd,
-                                style = MaterialTheme.typography.bodySmall,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
+
                 }
             }
 

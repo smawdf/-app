@@ -30,7 +30,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -51,12 +51,19 @@ import org.koin.androidx.compose.koinViewModel
 @Composable
 fun ResetPasswordScreen(
     deepLink: String,
+    initialEmail: String = "",
     viewModel: AuthViewModel = koinViewModel(),
     onBackToLogin: () -> Unit = {}
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
+
+    LaunchedEffect(initialEmail) {
+        if (initialEmail.isNotBlank()) {
+            viewModel.onEmailChanged(initialEmail)
+        }
+    }
 
     LaunchedEffect(uiState.isPasswordResetComplete) {
         if (uiState.isPasswordResetComplete) {

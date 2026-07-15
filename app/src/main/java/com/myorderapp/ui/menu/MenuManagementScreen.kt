@@ -62,7 +62,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -107,6 +107,7 @@ private val PageBackground = Color(0xFFFEF8F2)
 private val CardBackground = Color(0xFFFFFCF8)
 private val HoverBackground = Color(0xFFFFD1DC)
 private val BorderColor = Color(0xFFD6C1C5)
+private const val SHOP_MENU_REFRESH_INTERVAL_MS = 10_000L
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -114,14 +115,22 @@ fun MenuManagementScreen(
     viewModel: MenuManagementViewModel = koinViewModel(),
     onBack: () -> Unit = {}
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val isCompact = LocalConfiguration.current.screenWidthDp < 720
     var showCategoryDialog by remember { mutableStateOf(false) }
     var showCategoryManagerDialog by remember { mutableStateOf(false) }
+    var showShopNameDialog by remember { mutableStateOf(false) }
     var showAnnouncementDialog by remember { mutableStateOf(false) }
     var categoryDeleteTarget by remember { mutableStateOf<String?>(null) }
     var dishDeleteTarget by remember { mutableStateOf<MenuDishEntity?>(null) }
+
+    LaunchedEffect(viewModel) {
+        while (true) {
+            viewModel.refreshShopAndMenuFromCloud()
+            delay(SHOP_MENU_REFRESH_INTERVAL_MS)
+        }
+    }
 
     LaunchedEffect(uiState.message) {
         if (uiState.message == "已新增菜品") {
@@ -205,6 +214,21 @@ fun MenuManagementScreen(
         )
     }
 
+    if (showShopNameDialog) {
+        ShopNameDialog(
+            value = uiState.shopNameDraft,
+            onValueChange = viewModel::onShopNameChange,
+            onDismiss = {
+                viewModel.resetShopNameDraft()
+                showShopNameDialog = false
+            },
+            onSave = {
+                viewModel.saveShopName()
+                showShopNameDialog = false
+            }
+        )
+    }
+
     if (showAnnouncementDialog) {
         ShopAnnouncementDialog(
             value = uiState.shopAnnouncementDraft,
@@ -240,6 +264,7 @@ fun MenuManagementScreen(
                         shopName = uiState.shopName,
                         shopImageUrl = uiState.shopImageUrl,
                         announcement = uiState.shopAnnouncement,
+                        onEditShopName = { showShopNameDialog = true },
                         onEditAnnouncement = { showAnnouncementDialog = true },
                         onEditShopImage = { shopImagePicker.launch(arrayOf("image/*")) }
                     )
@@ -322,6 +347,7 @@ private fun ShopSettingsStrip(
     shopName: String,
     shopImageUrl: String,
     announcement: String,
+    onEditShopName: () -> Unit,
     onEditAnnouncement: () -> Unit,
     onEditShopImage: () -> Unit
 ) {
@@ -371,6 +397,32 @@ private fun ShopSettingsStrip(
                     ) {
                         Icon(Icons.Outlined.Edit, contentDescription = null, tint = PrimaryBlue, modifier = Modifier.size(16.dp))
                         Text("编辑封面", color = PrimaryBlue, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+            Surface(
+                color = CardBackground,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 18.dp, vertical = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    Icon(Icons.Outlined.Restaurant, contentDescription = null, tint = PrimaryBlue, modifier = Modifier.size(24.dp))
+                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text("店铺名称", color = TextSecondary, fontSize = 12.sp)
+                        Text(
+                            text = shopName.ifBlank { "我的小店" },
+                            color = TextPrimary,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                    IconButton(onClick = onEditShopName, modifier = Modifier.size(40.dp)) {
+                        Icon(Icons.Outlined.Edit, contentDescription = "编辑店铺名称", tint = PrimaryBlue, modifier = Modifier.size(24.dp))
                     }
                 }
             }
@@ -937,6 +989,45 @@ private fun DishActionArea(
             }
         }
     }
+}
+
+@Composable
+private fun ShopNameDialog(
+    value: String,
+    onValueChange: (String) -> Unit,
+    onDismiss: () -> Unit,
+    onSave: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        shape = RoundedCornerShape(18.dp),
+        containerColor = CardBackground,
+        title = { Text("编辑店铺名称", color = TextPrimary, fontWeight = FontWeight.Bold) },
+        text = {
+            OutlinedTextField(
+                value = value,
+                onValueChange = onValueChange,
+                label = { Text("店铺名称") },
+                singleLine = true,
+                shape = RoundedCornerShape(12.dp),
+                colors = editorTextFieldColors(),
+                modifier = Modifier.fillMaxWidth()
+            )
+        },
+        confirmButton = {
+            Button(
+                onClick = onSave,
+                enabled = value.trim().isNotBlank(),
+                shape = RoundedCornerShape(10.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = PrimaryBlue, contentColor = Color(0xFFFAFCFF))
+            ) {
+                Text("保存")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("取消", color = TextSecondary) }
+        }
+    )
 }
 
 @Composable

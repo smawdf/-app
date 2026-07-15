@@ -40,7 +40,7 @@ class MainFlowSourceGuardTest {
             "BottomNavItem.items",
             "navigateAsTab(route)",
             "Routes.resetPassword(initialDeepLink)",
-            "sessionManager.isLoggedIn.value"
+            "sessionManager.isLoggedIn.collectAsStateWithLifecycle()"
         ).forEach { expected ->
             assertTrue("Native shell missing: $expected", main.contains(expected))
         }

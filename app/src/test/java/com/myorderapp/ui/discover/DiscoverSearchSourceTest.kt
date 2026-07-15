@@ -28,6 +28,9 @@ class DiscoverSearchSourceTest {
         assertTrue(screen.contains("去抖音看看"))
         assertTrue(screen.contains("去哔站看看"))
         assertTrue(viewModel.contains("fun addToMenu"))
+        assertTrue(viewModel.contains("DiscoverSearchMemoryCache"))
+        assertTrue(viewModel.contains("restoreCachedSearch(query)"))
+        assertTrue(viewModel.contains("imageRequests[requestKey]"))
         assertTrue(viewModel.contains("currentShopDishNames()"))
         assertTrue(viewModel.contains("normalizedMenuName()"))
         assertTrue(viewModel.contains("markResultAsAdded(item"))
@@ -36,10 +39,32 @@ class DiscoverSearchSourceTest {
     }
 
     @Test
+    fun `recommended dishes can be added to the single shop`() {
+        val screen = readMainSource("ui/discover/DiscoverScreen.kt")
+        val viewModel = readMainSource("ui/discover/DiscoverViewModel.kt")
+
+        assertTrue(screen.contains("onAddToMenu = viewModel::addToMenu"))
+        assertTrue(screen.contains("text = if (item.isAdded) \"已在店铺\" else \"加入店铺\""))
+        assertTrue(screen.contains("onClick = { onAddToMenu(item) }"))
+        assertTrue(viewModel.contains("markRecommendationAdded(item, resolvedImageUrl)"))
+        assertTrue(viewModel.contains("isAdded = addedNames.contains"))
+        assertTrue(viewModel.contains("!it.endsWith(\"推荐\")"))
+    }
+
+    @Test
     fun `discover results prefer image-backed recipes`() {
         val viewModel = readMainSource("ui/discover/DiscoverViewModel.kt")
         assertTrue(viewModel.contains(".sortedByDescending { !it.imageUrl.isNullOrBlank() && !it.imageUrl.isLegacyRecipeImageUrl() }"))
         assertFalse(viewModel.contains("DEFAULT_DISH_IMAGE_URLS"))
+    }
+
+    @Test
+    fun `discover hides recommendations while searching and keeps results scrollable`() {
+        val screen = readMainSource("ui/discover/DiscoverScreen.kt")
+
+        assertTrue(screen.contains("uiState.query.isBlank()"))
+        assertTrue(screen.contains("uiState.recommendations.isNotEmpty()"))
+        assertFalse(screen.contains("userScrollEnabled = uiState.results.size > 2"))
     }
 
     @Test

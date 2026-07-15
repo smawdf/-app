@@ -21,6 +21,7 @@ import com.myorderapp.data.local.entity.DishEntity
 import com.myorderapp.data.local.entity.MealEntity
 import com.myorderapp.data.local.entity.MealItemEntity
 import com.myorderapp.data.local.entity.MenuDishEntity
+import com.myorderapp.data.local.entity.MenuDishDeletionEntity
 import com.myorderapp.data.local.entity.OrderEntity
 import com.myorderapp.data.local.entity.OrderItemEntity
 import com.myorderapp.data.local.entity.ProfileEntity
@@ -35,14 +36,15 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         ProfileEntity::class,
         WishlistEntity::class,
         MenuDishEntity::class,
+        MenuDishDeletionEntity::class,
         CartItemEntity::class,
         AddressEntity::class,
         OrderEntity::class,
         OrderItemEntity::class,
         CandyCoinRecordEntity::class
     ],
-    version = 10,
-    exportSchema = false
+    version = 12,
+    exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun dishDao(): DishDao
@@ -236,6 +238,27 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        internal val MIGRATION_10_11 = object : Migration(10, 11) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `menu_dish_deletions` (
+                        `id` TEXT NOT NULL,
+                        `pairId` TEXT NOT NULL,
+                        `deletedAt` TEXT NOT NULL,
+                        PRIMARY KEY(`id`)
+                    )
+                    """.trimIndent()
+                )
+            }
+        }
+
+        internal val MIGRATION_11_12 = object : Migration(11, 12) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `orders` ADD COLUMN `syncState` TEXT NOT NULL DEFAULT 'synced'")
+            }
+        }
+
         fun getInstance(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 INSTANCE ?: Room.databaseBuilder(
@@ -251,7 +274,9 @@ abstract class AppDatabase : RoomDatabase() {
                     MIGRATION_6_7,
                     MIGRATION_7_8,
                     MIGRATION_8_9,
-                    MIGRATION_9_10
+                    MIGRATION_9_10,
+                    MIGRATION_10_11,
+                    MIGRATION_11_12
                 )
                     .build()
                     .also { INSTANCE = it }

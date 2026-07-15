@@ -1,6 +1,5 @@
 package com.myorderapp.ui.orders
 
-import android.content.Context
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -32,12 +31,11 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.myorderapp.domain.model.OrderRecord
@@ -51,28 +49,21 @@ import com.myorderapp.ui.components.CozyRose
 import com.myorderapp.ui.util.yuanText
 import org.koin.androidx.compose.koinViewModel
 
-private const val COUPLE_HOME_PREFS = "couple_home_prefs"
-private const val KEY_SELECTED_ROLE = "selected_role"
-private const val ROLE_CARETAKER = "caretaker"
-
 @Composable
 fun OrderDetailScreen(
     orderId: String,
     onBack: () -> Unit = {},
     viewModel: OrderDetailViewModel = koinViewModel()
 ) {
-    val uiState by viewModel.uiState.collectAsState()
-    val context = LocalContext.current
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     LaunchedEffect(orderId) {
         viewModel.load(orderId)
     }
 
     val order = uiState.order
-    val nextActionText = order?.status?.nextActionText()
-    val selectedRole = context.getSharedPreferences(COUPLE_HOME_PREFS, Context.MODE_PRIVATE)
-        .getString(KEY_SELECTED_ROLE, null)
-    val canAdvanceOrder = selectedRole == ROLE_CARETAKER
+    val canAdvanceOrder = uiState.isCaretaker
+    val nextActionText = order?.status?.nextActionText()?.takeIf { canAdvanceOrder }
 
     Box(
         modifier = Modifier
@@ -122,7 +113,7 @@ fun OrderDetailScreen(
                 } else {
                     item { OrderSummaryCard(order = order) }
 
-                    if (nextActionText != null && !canAdvanceOrder) {
+                    if (!canAdvanceOrder && order.status in setOf("submitted", "confirmed")) {
                         item { CaretakerOnlyCard() }
                     }
 
@@ -130,9 +121,8 @@ fun OrderDetailScreen(
                         item {
                             OrderActionRow(
                                 nextActionText = nextActionText,
-                                canAdvanceOrder = canAdvanceOrder,
                                 canCancel = order.status !in setOf("completed", "cancelled"),
-                                onAdvance = { viewModel.advanceStatus(canAdvance = canAdvanceOrder) },
+                                onAdvance = viewModel::advanceStatus,
                                 onCancel = viewModel::cancelOrder
                             )
                         }
@@ -228,8 +218,8 @@ private fun CaretakerOnlyCard() {
         color = Color(0xFFFFD1DC).copy(alpha = 0.52f)
     ) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text("只有饲养员可以更新订单进度", color = CozyCocoa, fontWeight = FontWeight.Black)
-            Text("请先在首页切换为饲养员，再处理这份点菜单。", color = CozyMuted, style = MaterialTheme.typography.bodySmall)
+            Text("待饲养员确认", color = CozyCocoa, fontWeight = FontWeight.Black)
+            Text("订单已送达，只有饲养员可以确认接单并开始准备。", color = CozyMuted, style = MaterialTheme.typography.bodySmall)
         }
     }
 }
@@ -237,7 +227,6 @@ private fun CaretakerOnlyCard() {
 @Composable
 private fun OrderActionRow(
     nextActionText: String?,
-    canAdvanceOrder: Boolean,
     canCancel: Boolean,
     onAdvance: () -> Unit,
     onCancel: () -> Unit
@@ -246,7 +235,6 @@ private fun OrderActionRow(
         nextActionText?.let { actionText ->
             GradientOrderActionButton(
                 text = actionText,
-                enabled = canAdvanceOrder,
                 onClick = onAdvance,
                 modifier = Modifier.weight(1f)
             )
@@ -267,15 +255,13 @@ private fun OrderActionRow(
 @Composable
 private fun GradientOrderActionButton(
     text: String,
-    enabled: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Surface(
         onClick = onClick,
-        enabled = enabled,
         shape = RoundedCornerShape(999.dp),
-        color = if (enabled) Color(0xFF894C5C) else Color(0xFFE7E2DC),
+        color = Color(0xFF894C5C),
         modifier = modifier
             .height(52.dp)
     ) {
@@ -357,36 +343,38 @@ private fun OrderItemsCard(order: OrderRecord) {
 }
 
 private fun String.toOrderStatusText(): String = when (this) {
-    "submitted" -> "已提交"
-    "confirmed" -> "饲养员已接单"
-    "delivering" -> "准备中"
+    "submitted", "confirmed" -> "待饲养员确认"
+    "preparing", "delivering" -> "准备中"
     "completed" -> "已完成"
     "cancelled" -> "已取消"
     else -> this
 }
 
 private fun String.nextActionText(): String? = when (this) {
-    "submitted" -> "饲养员接单"
-    "confirmed" -> "开始准备"
-    "delivering" -> "完成这顿饭"
+    "submitted", "confirmed" -> "确认接单"
+    "preparing", "delivering" -> "完成这顿饭"
     else -> null
 }
 
 private val orderProgressSteps = listOf(
-    "submitted" to "已提交",
-    "confirmed" to "饲养员已确认",
-    "delivering" to "准备中",
+    "submitted" to "待饲养员确认",
+    "preparing" to "准备中",
     "completed" to "已完成"
 )
 
 private fun OrderRecord.progressTimelineEntries(): List<OrderTimelineEntry> {
     if (status == "cancelled") {
         return listOf(
-            OrderTimelineEntry(title = "已提交", timestamp = createdAt, isCompleted = true),
+            OrderTimelineEntry(title = "待饲养员确认", timestamp = createdAt, isCompleted = true),
             OrderTimelineEntry(title = "已取消", timestamp = "", isCompleted = true)
         )
     }
-    val currentIndex = orderProgressSteps.indexOfFirst { it.first == status }.coerceAtLeast(0)
+    val normalizedStatus = when (status) {
+        "confirmed" -> "submitted"
+        "delivering" -> "preparing"
+        else -> status
+    }
+    val currentIndex = orderProgressSteps.indexOfFirst { it.first == normalizedStatus }.coerceAtLeast(0)
     return orderProgressSteps.mapIndexed { index, (step, title) ->
         val isCompleted = index <= currentIndex
         val matchingEntry = timeline.firstOrNull { it.title == title || it.title == step.toOrderStatusText() }

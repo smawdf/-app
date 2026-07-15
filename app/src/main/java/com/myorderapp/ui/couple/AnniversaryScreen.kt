@@ -44,8 +44,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -97,8 +97,8 @@ fun AnniversaryScreen(
     orderRepository: OrderRepository = koinInject(),
     onBack: () -> Unit
 ) {
-    val profile by profileRepository.getProfile().collectAsState(initial = null)
-    val orders by orderRepository.observeOrders().collectAsState(initial = emptyList())
+    val profile by profileRepository.getProfile().collectAsStateWithLifecycle(initialValue = null)
+    val orders by orderRepository.observeOrders().collectAsStateWithLifecycle(initialValue = emptyList())
     val scope = rememberCoroutineScope()
     val state = remember(profile) { anniversaryState(profile) }
     val sweetMomentOrders = remember(orders) {

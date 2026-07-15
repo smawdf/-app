@@ -30,7 +30,15 @@ class RoomCandyCoinLedgerRepository(
         if (!session.isLoggedIn.value) return
         val pairId = session.currentPairId.takeIf { it.isNotBlank() && it != DEFAULT_PAIR_ID } ?: return
         try {
-            client.from("candy_coin_records").upsert(record.toRemotePayload(pairId, session.currentUserId)) { select() }
+            val alreadyStored = client.from("candy_coin_records").select {
+                filter {
+                    eq("id", record.id)
+                    eq("pair_id", pairId)
+                }
+            }.decodeList<RemoteCandyCoinRecord>().isNotEmpty()
+            if (!alreadyStored) {
+                client.from("candy_coin_records").upsert(record.toRemotePayload(pairId, session.currentUserId)) { select() }
+            }
         } catch (e: Exception) {
             cloudErrorLogger?.log("candy_coin", "sync_record", e, "pairId=$pairId recordId=${record.id}")
         }
@@ -43,10 +51,15 @@ class RoomCandyCoinLedgerRepository(
             val records = client.from("candy_coin_records").select {
                 filter { eq("pair_id", pairId) }
             }.decodeList<RemoteCandyCoinRecord>()
+            val remoteIds = records.mapTo(mutableSetOf()) { it.id }
             records.forEach { dao.insert(it.toDomain().toEntity(pairId)) }
-            dao.getAll(pairId).forEach { local ->
-                client.from("candy_coin_records").upsert(local.toDomain().toRemotePayload(pairId, session.currentUserId)) { select() }
-            }
+            dao.getAll(pairId)
+                .filterNot { it.id in remoteIds }
+                .forEach { local ->
+                    client.from("candy_coin_records").upsert(
+                        local.toDomain().toRemotePayload(pairId, session.currentUserId)
+                    ) { select() }
+                }
         } catch (e: Exception) {
             cloudErrorLogger?.log("candy_coin", "load_records", e, "pairId=$pairId")
         }

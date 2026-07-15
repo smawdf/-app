@@ -19,7 +19,7 @@ class MerchantFlowDiTest {
         assertTrue(source.contains("viewModelOf(::MenuManagementViewModel)"))
         assertTrue(source.contains("viewModelOf(::CartViewModel)"))
         assertTrue(source.contains("viewModelOf(::CheckoutViewModel)"))
-        assertTrue(source.contains("viewModel { OrdersViewModel(get()) }"))
+        assertTrue(source.contains("viewModel { OrdersViewModel(get(), get()) }"))
         assertFalse(source.contains("SampleShopRepository"))
         assertFalse(source.contains("SampleMenuRepository"))
         assertFalse(source.contains("MerchantViewModel"))

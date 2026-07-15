@@ -4,8 +4,11 @@ import android.content.Context
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.myorderapp.core.worker.CloudImageUploadWorker
 import com.myorderapp.data.remote.supabase.SessionManager
 import com.myorderapp.data.remote.supabase.SupabaseStorageUploader
+import com.myorderapp.data.sync.CloudSyncCoordinator
+import com.myorderapp.data.sync.CloudSyncState
 import com.myorderapp.domain.model.PairInfo
 import com.myorderapp.domain.model.PairInvitePreview
 import com.myorderapp.domain.model.Profile
@@ -25,6 +28,8 @@ data class ProfileUiState(
     val pairInfo: PairInfo = PairInfo(),
     val isLoggedIn: Boolean = false,
     val isSynced: Boolean = false,
+    val cloudSyncState: CloudSyncState = CloudSyncState(),
+    val walletBalance: Int = 66,
     val pairCode: String = "",
     val joinPairCode: String = "",
     val invitePreview: PairInvitePreview? = null,
@@ -35,7 +40,8 @@ data class ProfileUiState(
 class ProfileViewModel(
     private val profileRepository: ProfileRepository,
     private val sessionManager: SessionManager,
-    private val storageUploader: SupabaseStorageUploader
+    private val storageUploader: SupabaseStorageUploader,
+    private val cloudSyncCoordinator: CloudSyncCoordinator
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ProfileUiState())
@@ -60,6 +66,7 @@ class ProfileViewModel(
         }
         viewModelScope.launch {
             profileRepository.loadProfile()
+            refreshPairInfo()
             profileRepository.getProfile().collect { profile ->
                 _uiState.value = _uiState.value.copy(
                     profile = profile, isLoading = false
@@ -67,13 +74,35 @@ class ProfileViewModel(
             }
         }
         viewModelScope.launch {
-            val info = profileRepository.getPairInfo()
-            _uiState.value = _uiState.value.copy(pairInfo = info)
+            profileRepository.observeCandyWalletBalance().collect { balance ->
+                _uiState.value = _uiState.value.copy(walletBalance = balance)
+            }
+        }
+        viewModelScope.launch {
+            runCatching { profileRepository.refreshCandyWalletBalance() }
         }
         viewModelScope.launch {
             profileRepository.isSynced().collect { synced ->
                 _uiState.value = _uiState.value.copy(isSynced = synced)
             }
+        }
+        viewModelScope.launch {
+            cloudSyncCoordinator.state.collect { syncState ->
+                _uiState.value = _uiState.value.copy(cloudSyncState = syncState)
+            }
+        }
+    }
+
+    fun retryCloudSync() {
+        viewModelScope.launch { cloudSyncCoordinator.syncAll() }
+    }
+
+    fun refreshPairState() {
+        _uiState.value = _uiState.value.copy(saveMessage = null)
+        viewModelScope.launch {
+            profileRepository.loadProfile()
+            refreshPairInfo()
+            runCatching { profileRepository.refreshCandyWalletBalance() }
         }
     }
 
@@ -90,6 +119,17 @@ class ProfileViewModel(
             return
         }
         viewModelScope.launch {
+            profileRepository.loadProfile()
+            val currentInfo = profileRepository.getPairInfo()
+            if (currentInfo.isPaired) {
+                _uiState.value = _uiState.value.copy(
+                    pairInfo = currentInfo,
+                    pairCode = "",
+                    invitePreview = null,
+                    saveMessage = "你们已经绑定，无需再次生成邀请码"
+                )
+                return@launch
+            }
             profileRepository.saveSelectedRole(inviterRole)
             val code = profileRepository.generatePairCode(inviterRole)
             val info = profileRepository.getPairInfo()
@@ -98,7 +138,11 @@ class ProfileViewModel(
                 pairCode = code,
                 joinPairCode = "",
                 invitePreview = null,
-                saveMessage = "邀请码已生成，可以发给对方"
+                saveMessage = when {
+                    info.isPaired -> "你们已经绑定，无需再次生成邀请码"
+                    code.isNotBlank() -> "邀请码已生成，可以发给对方"
+                    else -> "邀请码生成失败，请检查网络后重试"
+                }
             )
         }
     }
@@ -142,11 +186,13 @@ class ProfileViewModel(
             return
         }
         viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(saveMessage = null)
             val success = profileRepository.joinPair(code)
             if (success) {
                 profileRepository.saveSelectedRole(roleToSave)
                 onSuccess(roleToSave)
                 val info = profileRepository.getPairInfo()
+                runCatching { profileRepository.refreshCandyWalletBalance() }
                 _uiState.value = _uiState.value.copy(
                     pairInfo = info,
                     joinPairCode = "",
@@ -155,15 +201,37 @@ class ProfileViewModel(
                     saveMessage = "配对成功！"
                 )
             } else {
-                _uiState.value = _uiState.value.copy(saveMessage = "配对失败，请重试")
+                val info = profileRepository.getPairInfo()
+                if (info.isPaired) runCatching { profileRepository.refreshCandyWalletBalance() }
+                _uiState.value = if (info.isPaired) {
+                    onSuccess(roleToSave)
+                    _uiState.value.copy(
+                        pairInfo = info,
+                        joinPairCode = "",
+                        pairCode = "",
+                        invitePreview = null,
+                        saveMessage = "绑定成功"
+                    )
+                } else {
+                    _uiState.value.copy(
+                        pairInfo = info,
+                        invitePreview = null,
+                        saveMessage = "绑定失败，邀请码可能已失效，请重新生成后再试"
+                    )
+                }
             }
         }
     }
 
     fun unpair() {
         viewModelScope.launch {
-            profileRepository.unpair()
+            val success = profileRepository.unpair()
+            if (!success) {
+                _uiState.value = _uiState.value.copy(saveMessage = "解除绑定失败，请检查网络后重试")
+                return@launch
+            }
             val info = profileRepository.getPairInfo()
+            runCatching { profileRepository.refreshCandyWalletBalance() }
             _uiState.value = _uiState.value.copy(
                 pairInfo = info,
                 pairCode = "",
@@ -218,6 +286,16 @@ class ProfileViewModel(
                 val cloudAvatarUrl = uploadAvatar(context, uri)
                 val avatarUrl = cloudAvatarUrl ?: localPath
                 cloudAvatarUrl?.let { profileRepository.updateAvatar(it) }
+                if (cloudAvatarUrl == null && sessionManager.isLoggedIn.value) {
+                    CloudImageUploadWorker.enqueue(
+                        context,
+                        CloudImageUploadWorker.TARGET_AVATAR,
+                        sessionManager.currentUserId,
+                        Uri.fromFile(destFile),
+                        sessionManager.currentUserId,
+                        sessionManager.currentSessionId
+                    )
+                }
                 val current = _uiState.value.profile
                 _uiState.value = _uiState.value.copy(
                     profile = (current ?: Profile()).copy(avatarUrl = avatarUrl),
@@ -240,6 +318,16 @@ class ProfileViewModel(
                     val cloudAvatarUrl = uploadAvatar(context, avatarUri)
                     avatarPath = cloudAvatarUrl ?: localAvatarPath
                     cloudAvatarUrl?.let { profileRepository.updateAvatar(it) }
+                    if (cloudAvatarUrl == null && sessionManager.isLoggedIn.value) {
+                        CloudImageUploadWorker.enqueue(
+                            context,
+                            CloudImageUploadWorker.TARGET_AVATAR,
+                            sessionManager.currentUserId,
+                            Uri.fromFile(File(localAvatarPath)),
+                            sessionManager.currentUserId,
+                            sessionManager.currentSessionId
+                        )
+                    }
                 }
                 profileRepository.updateNickname(trimmed)
                 val current = _uiState.value.profile ?: Profile()
@@ -259,6 +347,22 @@ class ProfileViewModel(
 
     fun dismissMessage() {
         _uiState.value = _uiState.value.copy(saveMessage = null)
+    }
+
+    private suspend fun refreshPairInfo() {
+        runCatching { profileRepository.getPairInfo() }
+            .onSuccess { info ->
+                _uiState.value = _uiState.value.copy(
+                    pairInfo = info,
+                    pairCode = if (info.isPaired) "" else _uiState.value.pairCode,
+                    invitePreview = if (info.isPaired) null else _uiState.value.invitePreview
+                )
+            }
+            .onFailure {
+                _uiState.value = _uiState.value.copy(
+                    saveMessage = "绑定资料同步失败，请稍后重试"
+                )
+            }
     }
 
     private fun validateNickname(nickname: String): Boolean {

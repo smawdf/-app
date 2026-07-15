@@ -249,7 +249,8 @@ object EntityMapper {
         deliveryFee = deliveryFee,
         totalPrice = totalPrice,
         candyCoinsSpent = candyCoinsSpent,
-        createdAt = createdAt
+        createdAt = createdAt,
+        syncState = "synced"
     )
 
     fun OrderEntity.toDomain(items: List<OrderItem>) = OrderRecord(

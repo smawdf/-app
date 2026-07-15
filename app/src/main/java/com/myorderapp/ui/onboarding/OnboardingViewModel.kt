@@ -4,20 +4,23 @@ import android.content.Context
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.myorderapp.core.worker.CloudImageUploadWorker
 import com.myorderapp.data.remote.supabase.CloudErrorLogger
 import com.myorderapp.data.remote.supabase.SessionManager
 import com.myorderapp.data.remote.supabase.SupabaseClientProvider
 import com.myorderapp.data.remote.supabase.SupabaseStorageUploader
-import com.myorderapp.data.repository.HybridDishRepository
 import com.myorderapp.data.repository.SupabaseProfileRepository
+import com.myorderapp.data.sync.CloudSyncCoordinator
 import com.myorderapp.domain.model.Profile
 import com.myorderapp.domain.model.ROLE_CARETAKER
 import com.myorderapp.domain.repository.ProfileRepository
 import com.myorderapp.ui.auth.AccountIdentifier
 import io.github.jan.supabase.gotrue.auth
 import io.github.jan.supabase.gotrue.providers.builtin.Email
-import io.github.jan.supabase.postgrest.from
+import java.io.File
+import java.io.FileOutputStream
 import java.time.Instant
+import java.util.UUID
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -36,15 +39,16 @@ data class OnboardingUiState(
     val accountCreated: Boolean = false,
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
-    val registrationComplete: Boolean = false
+    val registrationComplete: Boolean = false,
+    val requiresLoginAfterRegistration: Boolean = false
 )
 
 class OnboardingViewModel(
     private val session: SessionManager,
-    private val dishRepo: HybridDishRepository,
     private val profileRepo: SupabaseProfileRepository,
     private val profileRepository: ProfileRepository,
     private val storageUploader: SupabaseStorageUploader,
+    private val cloudSyncCoordinator: CloudSyncCoordinator,
     private val cloudErrorLogger: CloudErrorLogger
 ) : ViewModel() {
 
@@ -157,7 +161,6 @@ class OnboardingViewModel(
                 val userId = user?.id ?: signUpResult?.id.orEmpty()
                 if (token != null && userId.isNotBlank()) {
                     session.setSession(token, userId, "")
-                    profileRepo.claimCurrentDeviceSession()
                     session.saveEmail(state.email.trim())
                     _uiState.value = _uiState.value.copy(
                         step = 2,
@@ -168,7 +171,7 @@ class OnboardingViewModel(
                 } else {
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
-                        errorMessage = "账号已创建。如果你的邮箱需要验证，请先打开确认邮件；确认后再返回登录。"
+                        errorMessage = "注册未完成：Supabase 仍要求邮箱验证，请先关闭 Confirm email 后重试"
                     )
                 }
             } catch (e: Exception) {
@@ -193,23 +196,60 @@ class OnboardingViewModel(
             _uiState.value = state.copy(isLoading = true, errorMessage = null)
             val userId = client.auth.currentUserOrNull()?.id.orEmpty()
             if (userId.isBlank()) {
+                val appContext = context?.applicationContext
+                val localAvatarFile = if (appContext != null && avatarUri != null) {
+                    runCatching { copyAvatarToPrivateStorage(appContext, avatarUri) }.getOrNull()
+                } else null
+                session.savePendingRegistration(
+                    email = state.email,
+                    nickname = state.nickname,
+                    avatarPath = localAvatarFile?.absolutePath.orEmpty()
+                )
                 _uiState.value = state.copy(
                     isLoading = false,
-                    errorMessage = "登录状态已失效，请返回上一步重新注册"
+                    errorMessage = null,
+                    registrationComplete = true,
+                    requiresLoginAfterRegistration = true
                 )
                 return@launch
             }
 
-            val cloudAvatarUrl = if (context != null && avatarUri != null) {
-                storageUploader.compressAndUploadAvatar(context, avatarUri).publicUrl?.takeIf { it.isCloudAvatarUrl() }.orEmpty()
+            val appContext = context?.applicationContext
+            val localAvatarFile = if (appContext != null && avatarUri != null) {
+                runCatching { copyAvatarToPrivateStorage(appContext, avatarUri) }
+                    .onFailure { cloudErrorLogger.log("onboarding", "copy_avatar", it, "userId=$userId") }
+                    .getOrNull()
+            } else {
+                null
+            }
+            val cloudAvatarUrl = if (appContext != null && avatarUri != null) {
+                storageUploader.compressAndUploadAvatar(appContext, avatarUri)
+                    .publicUrl
+                    ?.takeIf { it.isCloudAvatarUrl() }
+                    .orEmpty()
             } else {
                 state.avatarUrl.takeIf { it.isCloudAvatarUrl() }.orEmpty()
             }
-            createProfileWithDetails(userId, cloudAvatarUrl)
-            session.saveNickname(state.nickname)
-            session.saveAvatar(cloudAvatarUrl)
-            dishRepo.syncFromCloud()
-            profileRepo.loadFromCloud()
+            profileRepository.saveProfile(
+                Profile(
+                    userId = userId,
+                    pairId = DEFAULT_PAIR_ID,
+                    nickname = state.nickname.trim(),
+                    avatarUrl = cloudAvatarUrl.ifBlank { null },
+                    createdAt = Instant.now().toString()
+                )
+            )
+            if (cloudAvatarUrl.isBlank() && localAvatarFile != null && appContext != null && session.isLoggedIn.value) {
+                CloudImageUploadWorker.enqueue(
+                    appContext,
+                    CloudImageUploadWorker.TARGET_AVATAR,
+                    userId,
+                    Uri.fromFile(localAvatarFile),
+                    session.currentUserId,
+                    session.currentSessionId
+                )
+            }
+            cloudSyncCoordinator.syncInBackground()
             _uiState.value = _uiState.value.copy(
                 isLoading = false,
                 errorMessage = null,
@@ -231,23 +271,20 @@ class OnboardingViewModel(
         ).any { message.contains(it, ignoreCase = true) }
     }
 
-    private suspend fun createProfileWithDetails(userId: String, avatarUrl: String) {
-        val state = _uiState.value
-        try {
-            client.from("profiles").upsert(
-                mapOf(
-                    "user_id" to userId,
-                    "pair_id" to "00000000-0000-0000-0000-000000000000",
-                    "nickname" to state.nickname,
-                    "avatar_url" to avatarUrl.ifBlank { null },
-                    "selected_role" to "",
-                    "updated_at" to Instant.now().toString()
-                )
-            ) { select() }
-        } catch (e: Exception) {
-            cloudErrorLogger.log("onboarding", "create_profile", e, "userId=$userId")
+    private fun copyAvatarToPrivateStorage(context: Context, uri: Uri): File {
+        val avatarsDir = File(context.filesDir, "avatars").apply { mkdirs() }
+        val destination = File(avatarsDir, "avatar_${UUID.randomUUID()}.jpg")
+        val inputStream = context.contentResolver.openInputStream(uri)
+            ?: error("Unable to read selected avatar")
+        inputStream.use { input ->
+            FileOutputStream(destination).use(input::copyTo)
         }
+        return destination
     }
 
     private fun String.isCloudAvatarUrl(): Boolean = startsWith("http://") || startsWith("https://")
+
+    private companion object {
+        const val DEFAULT_PAIR_ID = "00000000-0000-0000-0000-000000000000"
+    }
 }

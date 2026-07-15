@@ -39,6 +39,15 @@ class OrderingScreenLayoutTest {
     }
 
     @Test
+    fun `caretaker ordering view hides menu descriptions`() {
+        val source = readMainSource("ui/order/OrderingScreen.kt")
+
+        assertTrue(source.contains("showDescription = uiState.isEater"))
+        assertTrue(source.contains("if (showDescription)"))
+        assertTrue(source.contains("showDescription: Boolean"))
+    }
+
+    @Test
     fun `cart sheet uses only modal drag handle and clear checkout copy`() {
         val source = readMainSource("ui/shop/components/CartSheet.kt")
 

@@ -1,6 +1,7 @@
 package com.myorderapp.data.remote.supabase
 
 import android.content.Context
+import android.annotation.SuppressLint
 import android.provider.Settings
 import java.security.MessageDigest
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -9,7 +10,10 @@ import kotlinx.coroutines.flow.asStateFlow
 
 class SessionManager(context: Context) {
 
+    data class PendingRegistration(val email: String, val nickname: String, val avatarPath: String)
+
     private val prefs = context.getSharedPreferences("orderdisk_session", Context.MODE_PRIVATE)
+    private val cipher = KeystoreStringCipher()
     private val stableDeviceSessionId: String = buildStableDeviceSessionId(context)
 
     private val _isLoggedIn = MutableStateFlow(false)
@@ -50,7 +54,8 @@ class SessionManager(context: Context) {
         _sessionId = stableDeviceSessionId
 
         prefs.edit()
-            .putString("token", token)
+            .putString("token_encrypted", cipher.encrypt(token))
+            .remove("token")
             .putString("user_id", userId)
             .putString("pair_id", this.currentPairId)
             .putString("session_id", _sessionId)
@@ -76,7 +81,13 @@ class SessionManager(context: Context) {
             .putString("saved_email", email)
             .putBoolean("remember_credentials", remember)
             .apply {
-                if (remember) putString("saved_password", password) else remove("saved_password")
+                if (remember) {
+                    putString("saved_password_encrypted", cipher.encrypt(password))
+                    remove("saved_password")
+                } else {
+                    remove("saved_password")
+                    remove("saved_password_encrypted")
+                }
             }
             .apply()
     }
@@ -86,7 +97,12 @@ class SessionManager(context: Context) {
     }
 
     fun getSavedPassword(): String {
-        return if (isRememberCredentialsEnabled()) prefs.getString("saved_password", "") ?: "" else ""
+        if (!isRememberCredentialsEnabled()) return ""
+        val encrypted = prefs.getString("saved_password_encrypted", "").orEmpty()
+        if (encrypted.isNotBlank()) return cipher.decrypt(encrypted).orEmpty()
+        return prefs.getString("saved_password", "").orEmpty().also { legacy ->
+            if (legacy.isNotBlank()) saveRememberedCredentials(getSavedEmail(), legacy, true)
+        }
     }
 
     fun saveNickname(nickname: String) {
@@ -105,9 +121,38 @@ class SessionManager(context: Context) {
         return prefs.getString("saved_avatar", "") ?: ""
     }
 
+    fun savePendingRegistration(email: String, nickname: String, avatarPath: String) {
+        prefs.edit()
+            .putString("pending_registration_email", email.trim().lowercase())
+            .putString("pending_registration_nickname", nickname.trim())
+            .putString("pending_registration_avatar_path", avatarPath)
+            .apply()
+    }
+
+    fun getPendingRegistration(email: String): PendingRegistration? {
+        val normalizedEmail = email.trim().lowercase()
+        val pendingEmail = prefs.getString("pending_registration_email", "").orEmpty()
+        if (pendingEmail.isBlank() || pendingEmail != normalizedEmail) return null
+        return PendingRegistration(
+            email = pendingEmail,
+            nickname = prefs.getString("pending_registration_nickname", "").orEmpty(),
+            avatarPath = prefs.getString("pending_registration_avatar_path", "").orEmpty()
+        )
+    }
+
+    fun clearPendingRegistration() {
+        prefs.edit()
+            .remove("pending_registration_email")
+            .remove("pending_registration_nickname")
+            .remove("pending_registration_avatar_path")
+            .apply()
+    }
+
     fun clear() {
+        val pendingEmail = prefs.getString("pending_registration_email", "").orEmpty()
+        val pendingRegistration = getPendingRegistration(pendingEmail)
         val savedEmail = getSavedEmail()
-        val savedPassword = prefs.getString("saved_password", "") ?: ""
+        val savedPassword = getSavedPassword()
         val rememberCredentials = isRememberCredentialsEnabled()
 
         accessToken = ""
@@ -118,6 +163,7 @@ class SessionManager(context: Context) {
         _userId.value = ""
         _pairId.value = ""
         prefs.edit().clear().apply()
+        pendingRegistration?.let { savePendingRegistration(it.email, it.nickname, it.avatarPath) }
         if (rememberCredentials) {
             saveRememberedCredentials(savedEmail, savedPassword, true)
         } else if (savedEmail.isNotBlank()) {
@@ -131,7 +177,14 @@ class SessionManager(context: Context) {
     }
 
     private fun restoreSession() {
-        val token = prefs.getString("token", null)
+        val encryptedToken = prefs.getString("token_encrypted", "").orEmpty()
+        val token = cipher.decrypt(encryptedToken)
+            ?: prefs.getString("token", null)?.also { legacyToken ->
+                prefs.edit()
+                    .putString("token_encrypted", cipher.encrypt(legacyToken))
+                    .remove("token")
+                    .apply()
+            }
         val uid = prefs.getString("user_id", null)
         val pid = prefs.getString("pair_id", null)
         val sid = prefs.getString("session_id", null)
@@ -146,6 +199,7 @@ class SessionManager(context: Context) {
         }
     }
 
+    @SuppressLint("HardwareIds")
     private fun buildStableDeviceSessionId(context: Context): String {
         val androidId = Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID)
             ?.takeIf { it.isNotBlank() && it != "9774d56d682e549c" }

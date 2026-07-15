@@ -33,7 +33,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -82,7 +82,7 @@ fun OrdersScreen(
     onOrderClick: (String) -> Unit = {},
     onGoOrderingClick: () -> Unit = {}
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var selectedFilter by remember { mutableStateOf(OrderFilter.ALL) }
     val visibleOrders = remember(uiState.orders, selectedFilter) {
         when (selectedFilter) {
@@ -100,7 +100,7 @@ fun OrdersScreen(
                     .fillMaxWidth()
                     .weight(1f),
                 contentPadding = PaddingValues(start = 20.dp, top = 20.dp, end = 20.dp, bottom = 172.dp),
-                verticalArrangement = Arrangement.spacedBy(18.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
                 userScrollEnabled = visibleOrders.size > 3
             ) {
                 item {
@@ -109,6 +109,24 @@ fun OrdersScreen(
                             selected = selectedFilter,
                             onSelected = { selectedFilter = it }
                         )
+                    }
+                }
+
+                uiState.message?.let { message ->
+                    item {
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(10.dp),
+                            color = SecondaryContainer.copy(alpha = 0.72f)
+                        ) {
+                            Text(
+                                text = message,
+                                color = Secondary,
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)
+                            )
+                        }
                     }
                 }
 
@@ -124,7 +142,13 @@ fun OrdersScreen(
                 } else {
                     items(visibleOrders, key = { it.id }) { order ->
                         CozyMotionVisibility(delayMillis = (visibleOrders.indexOf(order).coerceAtMost(4)) * 28) {
-                            StitchOrderCard(order = order, onClick = { onOrderClick(order.id) })
+                            StitchOrderCard(
+                                order = order,
+                                isCaretaker = uiState.isCaretaker,
+                                isUpdating = uiState.updatingOrderId == order.id,
+                                onClick = { onOrderClick(order.id) },
+                                onAdvance = { viewModel.advanceOrder(order) }
+                            )
                         }
                     }
                 }
@@ -249,26 +273,27 @@ private fun EmptyOrdersState(
 @Composable
 private fun StitchOrderCard(
     order: OrderRecord,
-    onClick: () -> Unit
+    isCaretaker: Boolean,
+    isUpdating: Boolean,
+    onClick: () -> Unit,
+    onAdvance: () -> Unit
 ) {
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
     val completed = order.status == "completed"
     val cancelled = order.status == "cancelled"
     val cardColor = if (completed) SurfaceContainerLow.copy(alpha = 0.92f) else SecondaryContainer.copy(alpha = 0.42f)
-    val badge = order.status.toOrderBadgeText(order.buyerRole)
-    val message = order.status.toOrderMessage(order.buyerName)
-    val dishSummary = order.items
-        .take(3)
-        .joinToString("、") { it.menuItemName }
+    val badge = order.status.toOrderBadgeText()
+    val message = order.status.toOrderMessage()
+    val displayName = if (isCaretaker) order.buyerName.ifBlank { "吃货" } else order.shopName.ifBlank { "我的店铺" }
+    val displayLabel = if (isCaretaker) "点餐人" else "店铺"
+    val dishSummary = order.items.take(2).joinToString("、") { it.menuItemName }
         .ifBlank { order.buyerNote.ifBlank { "还没有菜品明细" } }
 
     Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .scale(if (pressed) 0.985f else 1f)
+        modifier = Modifier.fillMaxWidth().scale(if (pressed) 0.985f else 1f)
             .clickable(interactionSource = interaction, indication = null, onClick = onClick),
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(14.dp),
         color = cardColor,
         border = BorderStroke(1.dp, Secondary.copy(alpha = 0.58f)),
         shadowElevation = 0.dp
@@ -276,107 +301,83 @@ private fun StitchOrderCard(
         Box {
             Surface(
                 modifier = Modifier.align(Alignment.TopEnd),
-                shape = RoundedCornerShape(bottomStart = 14.dp),
+                shape = RoundedCornerShape(bottomStart = 12.dp),
                 color = when {
-                    cancelled -> SurfaceVariant
-                    completed -> SurfaceVariant
-                    order.buyerRole.isEaterRole() -> TertiaryContainer
+                    cancelled || completed -> SurfaceVariant
+                    order.status in setOf("submitted", "confirmed") -> TertiaryContainer
                     else -> Secondary
                 }
             ) {
                 Text(
                     text = badge,
-                    color = when {
-                        cancelled || completed -> OnSurfaceVariant
-                        order.buyerRole.isEaterRole() -> Color(0xFF753C27)
-                        else -> Color.White
-                    },
+                    color = if (cancelled || completed) OnSurfaceVariant else if (order.status in setOf("submitted", "confirmed")) Color(0xFF753C27) else Color.White,
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Black,
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp)
+                    modifier = Modifier.padding(horizontal = 11.dp, vertical = 4.dp)
                 )
             }
 
             Column(
-                modifier = Modifier
-                    .padding(start = 24.dp, top = 24.dp, end = 24.dp, bottom = 20.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
+                modifier = Modifier.padding(start = 16.dp, top = 14.dp, end = 16.dp, bottom = 13.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Row(
+                    modifier = Modifier.padding(end = 96.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(14.dp)
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    OrderAvatar(order = order)
-                    Column(modifier = Modifier.weight(1f)) {
+                    OrderAvatar(order = order, showBuyer = isCaretaker, displayName = displayName)
+                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
                         Text(
-                            text = order.buyerName.ifBlank { if (order.buyerRole == "keeper") "饲养员" else "吃货小宝" },
+                            text = "$displayLabel：$displayName",
                             color = Secondary,
                             style = MaterialTheme.typography.labelLarge,
-                            fontWeight = FontWeight.Black
-                        )
-                        Text(
-                            text = order.createdAt.toFriendlyOrderTime(),
-                            color = OnSurfaceVariant,
-                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Black,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
+                        Text(order.createdAt.toFriendlyOrderTime(), color = OnSurfaceVariant, style = MaterialTheme.typography.bodySmall, maxLines = 1)
                     }
                 }
 
-                Surface(
+                Text(message, color = OnSurface, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+
+                Row(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    color = Color.White.copy(alpha = if (completed) 0.42f else 0.62f),
-                    border = BorderStroke(1.dp, if (completed) OutlineVariant else Secondary.copy(alpha = 0.42f))
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    Column(
-                        modifier = Modifier.padding(14.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        Text(
-                            text = message,
-                            color = OnSurface,
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Icon(
-                                imageVector = if (completed) Icons.AutoMirrored.Filled.ReceiptLong else Icons.Outlined.Restaurant,
-                                contentDescription = null,
-                                tint = if (completed) Secondary else Primary,
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Text(
-                                text = dishSummary,
-                                color = if (completed) Secondary else Primary,
-                                style = MaterialTheme.typography.labelLarge,
-                                fontWeight = FontWeight.Black,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.weight(1f)
-                            )
-                        }
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
-                            CandyCoinIcon(modifier = Modifier.size(18.dp))
-                            Text(
-                                text = if (cancelled) "糖糖币已返还 ${order.candyCoinsSpent} 枚" else "消耗糖糖币 ${order.candyCoinsSpent} 枚",
-                                color = OnSurfaceVariant,
-                                style = MaterialTheme.typography.bodySmall
-                            )
-                        }
-                    }
+                    Icon(
+                        imageVector = if (completed) Icons.AutoMirrored.Filled.ReceiptLong else Icons.Outlined.Restaurant,
+                        contentDescription = null,
+                        tint = if (completed) Secondary else Primary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Text(
+                        text = dishSummary,
+                        color = if (completed) Secondary else Primary,
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Black,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f)
+                    )
+                    CandyCoinIcon(modifier = Modifier.size(16.dp))
+                    Text(
+                        text = if (cancelled) "已返 ${order.candyCoinsSpent}" else "${order.candyCoinsSpent} 枚",
+                        color = OnSurfaceVariant,
+                        style = MaterialTheme.typography.bodySmall,
+                        maxLines = 1
+                    )
                 }
 
-                if (!cancelled) {
-                    val actionText = if (order.buyerRole.isEaterRole()) "去准备" else "呼叫饲养员"
+                order.status.caretakerActionText().takeIf { isCaretaker }?.let { actionText ->
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                        SquishyOrderActionButton(text = actionText, onClick = onClick)
+                        SquishyOrderActionButton(
+                            text = if (isUpdating) "更新中..." else actionText,
+                            enabled = !isUpdating,
+                            onClick = onAdvance
+                        )
                     }
                 }
             }
@@ -387,66 +388,66 @@ private fun StitchOrderCard(
 @Composable
 private fun SquishyOrderActionButton(
     text: String,
+    enabled: Boolean,
     onClick: () -> Unit
 ) {
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
     Box(modifier = Modifier.scale(if (pressed) 0.96f else 1f)) {
         Surface(
-            modifier = Modifier.clickable(
-                interactionSource = interaction,
-                indication = null,
-                onClick = onClick
-            ),
+            onClick = onClick,
+            enabled = enabled,
+            interactionSource = interaction,
             shape = RoundedCornerShape(999.dp),
-            color = Primary,
+            color = if (enabled) Primary else SurfaceVariant,
             border = BorderStroke(1.dp, Secondary.copy(alpha = 0.58f))
         ) {
             Text(
                 text = text,
-                color = Color.White,
+                color = if (enabled) Color.White else OnSurfaceVariant,
                 style = MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.Black,
-                modifier = Modifier.padding(horizontal = 24.dp, vertical = 10.dp)
+                modifier = Modifier.padding(horizontal = 18.dp, vertical = 7.dp)
             )
         }
     }
 }
 
 @Composable
-private fun OrderAvatar(order: OrderRecord) {
+private fun OrderAvatar(
+    order: OrderRecord,
+    showBuyer: Boolean,
+    displayName: String
+) {
     Surface(
         shape = CircleShape,
         color = Color.White,
         border = BorderStroke(1.dp, Secondary.copy(alpha = 0.58f)),
-        modifier = Modifier.size(52.dp)
+        modifier = Modifier.size(44.dp)
     ) {
         Box(contentAlignment = Alignment.Center) {
-            if (order.buyerAvatarUrl.isNotBlank()) {
+            if (showBuyer && order.buyerAvatarUrl.isNotBlank()) {
                 AsyncImage(
                     model = order.buyerAvatarUrl,
-                    contentDescription = order.buyerName.ifBlank { "点菜人头像" },
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .clip(CircleShape),
+                    contentDescription = "$displayName 的头像",
+                    modifier = Modifier.fillMaxSize().clip(CircleShape),
                     contentScale = ContentScale.Crop
                 )
             } else {
                 Icon(
-                    imageVector = if (order.status == "completed") Icons.Filled.Favorite else Icons.Outlined.Person,
+                    imageVector = if (showBuyer) Icons.Outlined.Person else Icons.Outlined.Restaurant,
                     contentDescription = null,
-                    tint = if (order.status == "completed") Primary else Tertiary,
-                    modifier = Modifier.size(24.dp)
+                    tint = if (showBuyer) Tertiary else Primary,
+                    modifier = Modifier.size(22.dp)
                 )
             }
         }
     }
 }
 
-private fun String.toOrderBadgeText(role: String): String = when (this) {
-    "submitted" -> if (role.isEaterRole()) "呼叫饲养员" else "等你来投喂"
-    "confirmed" -> "正在准备"
-    "delivering" -> "准备中"
+private fun String.toOrderBadgeText(): String = when (this) {
+    "submitted", "confirmed" -> "待饲养员确认"
+    "preparing", "delivering" -> "准备中"
     "completed" -> "已送达胃里"
     "cancelled" -> "已取消"
     else -> "待确认"
@@ -454,12 +455,18 @@ private fun String.toOrderBadgeText(role: String): String = when (this) {
 
 private fun String.isEaterRole(): Boolean = this == "eater" || this == "foodie"
 
-private fun String.toOrderMessage(buyerName: String): String = when (this) {
-    "submitted" -> "\"${buyerName.ifBlank { "对方" }}想吃这些，快去看看吧！\""
-    "confirmed", "delivering" -> "\"这顿饭正在安排中，香味马上到。\""
+private fun String.toOrderMessage(): String = when (this) {
+    "submitted", "confirmed" -> "\"订单已提交，等待饲养员确认接单。\""
+    "preparing", "delivering" -> "\"饲养员已经接单，正在认真准备。\""
     "completed" -> "\"这顿安排上啦。\""
     "cancelled" -> "\"这单已经取消，下一顿再约。\""
     else -> "\"对方的小愿望已经送到厨房啦。\""
+}
+
+private fun String.caretakerActionText(): String? = when (this) {
+    "submitted", "confirmed" -> "确认接单"
+    "preparing", "delivering" -> "完成这顿饭"
+    else -> null
 }
 
 private fun String.toFriendlyOrderTime(): String {

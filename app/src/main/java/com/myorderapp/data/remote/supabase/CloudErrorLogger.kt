@@ -9,6 +9,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import java.util.concurrent.atomic.AtomicLong
+import java.util.concurrent.ConcurrentHashMap
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -17,6 +19,12 @@ class CloudErrorLogger(
 ) {
     private val client by lazy { SupabaseClientProvider.client }
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val errorSequence = AtomicLong(0)
+    private val areaErrorSequences = ConcurrentHashMap<String, AtomicLong>()
+
+    val currentErrorSequence: Long get() = errorSequence.get()
+
+    fun currentErrorSequence(area: String): Long = areaErrorSequences[area]?.get() ?: 0L
 
     fun log(
         area: String,
@@ -24,6 +32,8 @@ class CloudErrorLogger(
         throwable: Throwable,
         detail: String = ""
     ) {
+        errorSequence.incrementAndGet()
+        areaErrorSequences.getOrPut(area) { AtomicLong(0) }.incrementAndGet()
         val userId = session.currentUserId.ifBlank { return }
         val entry = ClientErrorLog(
             id = UUID.randomUUID().toString(),

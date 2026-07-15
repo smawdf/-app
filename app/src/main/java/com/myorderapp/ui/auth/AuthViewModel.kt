@@ -1,21 +1,20 @@
 package com.myorderapp.ui.auth
 
+import android.net.Uri
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.myorderapp.data.remote.supabase.CloudErrorLogger
 import com.myorderapp.data.remote.supabase.SessionManager
 import com.myorderapp.data.remote.supabase.SupabaseClientProvider
-import com.myorderapp.data.repository.HybridDishRepository
-import com.myorderapp.data.repository.RoomMenuRepository
-import com.myorderapp.data.repository.SingleShopRepository
 import com.myorderapp.data.repository.SupabaseProfileRepository
-import com.myorderapp.data.repository.UserPreferencesRepository
+import com.myorderapp.data.sync.CloudSyncCoordinator
 import com.myorderapp.domain.model.Profile
-import com.myorderapp.domain.repository.CandyCoinLedgerRepository
 import io.github.jan.supabase.gotrue.auth
 import io.github.jan.supabase.gotrue.parseSessionFromUrl
 import io.github.jan.supabase.gotrue.providers.builtin.Email
 import io.github.jan.supabase.gotrue.providers.builtin.OTP
+import io.github.jan.supabase.gotrue.user.UserSession
 import io.github.jan.supabase.postgrest.from
 import java.time.Instant
 
@@ -40,12 +39,8 @@ data class AuthUiState(
 
 class AuthViewModel(
     private val session: SessionManager,
-    private val dishRepo: HybridDishRepository,
     private val profileRepo: SupabaseProfileRepository,
-    private val candyCoinLedgerRepository: CandyCoinLedgerRepository,
-    private val singleShopRepository: SingleShopRepository,
-    private val roomMenuRepository: RoomMenuRepository,
-    private val userPreferencesRepository: UserPreferencesRepository,
+    private val cloudSyncCoordinator: CloudSyncCoordinator,
     private val cloudErrorLogger: CloudErrorLogger
 ) : ViewModel() {
 
@@ -123,50 +118,22 @@ class AuthViewModel(
                         session.clear()
                         _uiState.value = _uiState.value.copy(
                             isLoading = false,
-                            errorMessage = "登录失败：无法读取账号设备状态：${profileError.fullAuthErrorText().compactAuthErrorDetail()}"
+                            errorMessage = "登录失败：无法读取账号资料：${profileError.fullAuthErrorText().compactAuthErrorDetail()}"
                         )
                         return@launch
                     }
                     val pairId = profile.pairId
                     session.setPairId(pairId)
-                    if (!profileRepo.canStartDeviceSession(profile)) {
-                        try { client.auth.signOut() } catch (_: Exception) { }
-                        session.clear()
-                        _uiState.value = _uiState.value.copy(
-                            isLoading = false,
-                            canSwitchDeviceByEmail = AccountIdentifier.isRealEmail(state.email),
-                            errorMessage = if (AccountIdentifier.isRealEmail(state.email)) {
-                                "账号正在其他设备使用。可在原设备退出，或点击下方按钮，用注册邮箱验证后切换到当前设备。"
-                            } else {
-                                "账号正在其他设备使用。普通账号暂不支持邮箱接管，请先在原设备退出登录。"
-                            }
-                        )
-                        return@launch
-                    }
-                    val claimedProfile = profileRepo.claimCurrentDeviceSession(profile)
-                    if (claimedProfile == null) {
-                        try { client.auth.signOut() } catch (_: Exception) { }
-                        session.clear()
-                        _uiState.value = _uiState.value.copy(
-                            isLoading = false,
-                            errorMessage = "登录失败：无法绑定当前设备，请稍后重试"
-                        )
-                        return@launch
-                    }
+                    val completedProfile = profileRepo.applyPendingRegistration(state.email, profile)
                     session.saveRememberedCredentials(
                         email = state.email.trim(),
                         password = state.password,
                         remember = state.rememberCredentials
                     )
-                    session.saveNickname(claimedProfile.nickname)
-                    session.saveAvatar(claimedProfile.avatarUrl?.takeIfCloudAvatarUrl().orEmpty())
-                    dishRepo.syncFromCloud()
-                    profileRepo.loadFromCloud()
-                    candyCoinLedgerRepository.loadFromCloud()
-                    singleShopRepository.loadFromCloud()
-                    roomMenuRepository.loadFromCloud()
-                    userPreferencesRepository.loadFromCloud()
+                    session.saveNickname(completedProfile.nickname)
+                    session.saveAvatar(completedProfile.avatarUrl?.takeIfCloudAvatarUrl().orEmpty())
                     _uiState.value = _uiState.value.copy(isLoggedIn = true, isLoading = false)
+                    cloudSyncCoordinator.syncInBackground()
                 } else {
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
@@ -181,12 +148,12 @@ class AuthViewModel(
                     msg.contains("User not found", ignoreCase = true) ||
                     msg.contains("AuthApiError", ignoreCase = true) && msg.contains("invalid", ignoreCase = true) ||
                     msg.contains("invalid_grant", ignoreCase = true) ->
-                        "账号或密码不正确。如果刚用邮箱注册，请先打开验证邮件确认后再登录。"
+                        "账号或密码不正确，请检查后重试。"
                     msg.contains("Email not confirmed", ignoreCase = true) ||
                     msg.contains("email confirmation", ignoreCase = true) ||
                     msg.contains("not confirmed", ignoreCase = true) ||
                     msg.contains("email_not_confirmed", ignoreCase = true) ->
-                        "邮箱还未验证。请打开注册邮箱里的确认邮件，完成后再登录。"
+                        "该账号未完成注册。当前不使用邮箱验证，请联系管理员关闭 Supabase Confirm email。"
                     msg.contains("Invalid password", ignoreCase = true) ||
                     msg.contains("wrong password", ignoreCase = true) ->
                         "密码错误，请重试"
@@ -265,10 +232,17 @@ class AuthViewModel(
                     errorMessage = "切换验证邮件已发送。请在当前设备打开邮件链接，验证后会自动接管登录。"
                 )
             } catch (e: Exception) {
-                cloudErrorLogger.log("auth", "send_device_switch_email", e, "email=$normalizedEmail")
+                val errorText = e.fullAuthErrorText()
+                Log.e("OrderDiskAuth", "send_device_switch_email failed: $errorText", e)
+                cloudErrorLogger.log(
+                    "auth",
+                    "send_device_switch_email",
+                    e,
+                    "emailDomain=${normalizedEmail.substringAfterLast('@', missingDelimiterValue = "unknown")}"
+                )
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
-                    errorMessage = "发送失败，请确认邮箱后重试"
+                    errorMessage = deviceSwitchEmailErrorMessage(errorText)
                 )
             }
         }
@@ -283,12 +257,16 @@ class AuthViewModel(
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null, isDeviceSwitchComplete = false)
             try {
-                val recoverySession = client.auth.parseSessionFromUrl(deepLink)
-                client.auth.importSession(recoverySession, autoRefresh = true)
-                val user = client.auth.currentUserOrNull()
-                val token = client.auth.currentAccessTokenOrNull()
-                val userId = user?.id.orEmpty()
-                if (token == null || userId.isBlank()) {
+                val recoverySession = restoreSessionFromDeepLink(deepLink)
+                val token = recoverySession.accessToken
+                val userId = recoverySession.user?.id.orEmpty()
+                if (token.isBlank() || userId.isBlank()) {
+                    cloudErrorLogger.log(
+                        "auth",
+                        "switch_device_missing_session",
+                        IllegalStateException("Email callback did not contain a usable session"),
+                        deepLink.safeAuthCallbackMetadata()
+                    )
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
                         errorMessage = "验证失败，请重新发送邮件"
@@ -300,33 +278,20 @@ class AuthViewModel(
                 } catch (profileError: Exception) {
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
-                        errorMessage = "验证成功，但无法读取账号设备状态：${profileError.fullAuthErrorText().compactAuthErrorDetail()}"
+                        errorMessage = "验证成功，但无法读取账号资料：${profileError.fullAuthErrorText().compactAuthErrorDetail()}"
                     )
                     return@launch
                 }
                 session.setSession(token, userId, profile.pairId)
-                val claimedProfile = profileRepo.claimCurrentDeviceSession(profile)
-                if (claimedProfile == null) {
-                    _uiState.value = _uiState.value.copy(
-                        isLoading = false,
-                        errorMessage = "验证成功，但无法绑定当前设备，请稍后重试"
-                    )
-                    return@launch
-                }
-                session.saveNickname(claimedProfile.nickname)
-                session.saveAvatar(claimedProfile.avatarUrl?.takeIfCloudAvatarUrl().orEmpty())
-                dishRepo.syncFromCloud()
-                profileRepo.loadFromCloud()
-                candyCoinLedgerRepository.loadFromCloud()
-                singleShopRepository.loadFromCloud()
-                roomMenuRepository.loadFromCloud()
-                userPreferencesRepository.loadFromCloud()
+                session.saveNickname(profile.nickname)
+                session.saveAvatar(profile.avatarUrl?.takeIfCloudAvatarUrl().orEmpty())
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
                     isLoggedIn = true,
                     isDeviceSwitchComplete = true,
                     errorMessage = "设备切换成功"
                 )
+                cloudSyncCoordinator.syncInBackground()
             } catch (e: Exception) {
                 cloudErrorLogger.log("auth", "switch_device_from_deep_link", e)
                 _uiState.value = _uiState.value.copy(
@@ -351,8 +316,7 @@ class AuthViewModel(
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null, isPasswordResetComplete = false)
             try {
-                val recoverySession = client.auth.parseSessionFromUrl(deepLink)
-                client.auth.importSession(recoverySession, autoRefresh = true)
+                restoreSessionFromDeepLink(deepLink)
                 client.auth.modifyUser {
                     this.password = password
                 }
@@ -369,6 +333,44 @@ class AuthViewModel(
                     errorMessage = "链接已失效，请重新发送重置邮件"
                 )
             }
+        }
+    }
+
+    private suspend fun restoreSessionFromDeepLink(deepLink: String): UserSession {
+        val uri = Uri.parse(deepLink)
+        val code = uri.getQueryParameter("code")?.takeIf { it.isNotBlank() }
+        return if (code != null) {
+            client.auth.exchangeCodeForSession(code)
+        } else {
+            client.auth.parseSessionFromUrl(deepLink).also { parsedSession ->
+                client.auth.importSession(parsedSession, autoRefresh = true)
+            }
+        }
+    }
+
+    private fun String.safeAuthCallbackMetadata(): String {
+        val uri = Uri.parse(this)
+        val hasCode = !uri.getQueryParameter("code").isNullOrBlank()
+        val hasFragment = !uri.fragment.isNullOrBlank()
+        return "scheme=${uri.scheme},host=${uri.host},path=${uri.path}," +
+            "hasCode=$hasCode,hasFragment=$hasFragment"
+    }
+
+    private fun deviceSwitchEmailErrorMessage(errorText: String): String {
+        return when {
+            listOf("rate limit", "too many", "429", "email rate").any {
+                errorText.contains(it, ignoreCase = true)
+            } -> "发送太频繁，请等待几分钟后再试"
+            listOf("redirect", "redirect_to", "not allowed").any {
+                errorText.contains(it, ignoreCase = true)
+            } -> "验证链接配置异常，请检查 Supabase Redirect URLs"
+            listOf("user not found", "invalid login", "signup is disabled").any {
+                errorText.contains(it, ignoreCase = true)
+            } -> "没有找到这个邮箱账号，请确认注册邮箱"
+            listOf("unknownhost", "timeout", "network", "connect").any {
+                errorText.contains(it, ignoreCase = true)
+            } -> "网络连接失败，请检查网络后重试"
+            else -> "发送失败：${errorText.compactAuthErrorDetail()}"
         }
     }
 
@@ -423,8 +425,6 @@ class AuthViewModel(
                     "pair_id" to defaultPairId,
                     "nickname" to localNick,
                     "avatar_url" to localAvatar.ifBlank { null },
-                    "session_id" to session.currentSessionId,
-                    "session_updated_at" to now,
                     "selected_role" to "",
                     "updated_at" to now
                 )
@@ -434,8 +434,6 @@ class AuthViewModel(
                 pairId = defaultPairId,
                 nickname = localNick,
                 avatarUrl = localAvatar.ifBlank { null },
-                sessionId = session.currentSessionId,
-                sessionUpdatedAt = now,
                 updatedAt = now
             )
         }
@@ -443,7 +441,6 @@ class AuthViewModel(
 
     fun logout(onLoggedOut: () -> Unit = {}) {
         viewModelScope.launch {
-            profileRepo.releaseCurrentDeviceSession()
             try { client.auth.signOut() } catch (_: Exception) { }
             session.clear()
             _uiState.value = AuthUiState()

@@ -149,11 +149,13 @@ class ProfileReplicaSourceTest {
         assertTrue(supabaseRepository.contains("selected_role"))
         assertTrue(supabaseRepository.contains("override suspend fun previewPairInvite(code: String): PairInvitePreview?"))
         assertTrue(inMemoryRepository.contains("pendingPairCode = code"))
-        assertTrue(supabaseGeneratePairCode.contains("copy(pairId = code"))
+        assertTrue(supabaseGeneratePairCode.contains("create_pair_invite"))
+        assertTrue(supabaseGeneratePairCode.contains("copy("))
+        assertTrue(supabaseGeneratePairCode.contains("pairId = DEFAULT_PAIR_ID"))
         assertTrue(inMemoryGeneratePairCode.contains("copy(pairId = code"))
-        assertTrue(supabaseGeneratePairCode.contains("saveSelectedRole(normalizedRole)"))
-        assertTrue(supabaseGeneratePairCode.contains("setPairId(code"))
-        assertTrue(supabaseRepository.contains("copy(pairId = normalizedCode"))
+        assertTrue(supabaseGeneratePairCode.contains("setPairId(DEFAULT_PAIR_ID"))
+        assertTrue(supabaseRepository.contains("join_pair_invite"))
+        assertTrue(supabaseRepository.contains("pairId = result.pairCode"))
         assertTrue(inMemoryRepository.contains("copy(pairId = code.uppercase()"))
     }
 
@@ -173,6 +175,11 @@ class ProfileReplicaSourceTest {
             }
         }
         error("Function body not closed: $functionName")
+    }
+
+    @Test
+    fun `help dialog points to the administrator`() {
+        assertTrue(readMainSource("ui/profile/ProfileScreen.kt").contains("请联系最帅的管理员。"))
     }
 
     private fun readMainSource(relativePath: String): String {

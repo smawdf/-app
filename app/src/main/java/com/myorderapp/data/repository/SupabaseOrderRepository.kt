@@ -1,5 +1,7 @@
 package com.myorderapp.data.repository
 
+import android.content.Context
+import com.myorderapp.core.worker.OrderSyncWorker
 import com.myorderapp.data.local.EntityMapper.toDomain
 import com.myorderapp.data.local.EntityMapper.toEntity
 import com.myorderapp.data.local.dao.OrderDao
@@ -10,12 +12,18 @@ import com.myorderapp.domain.model.Address
 import com.myorderapp.domain.model.CartState
 import com.myorderapp.domain.model.OrderItem
 import com.myorderapp.domain.model.OrderRecord
+import com.myorderapp.domain.model.ROLE_CARETAKER
+import com.myorderapp.domain.model.ROLE_EATER
 import com.myorderapp.domain.repository.OrderRepository
 import com.myorderapp.domain.repository.ProfileRepository
 import io.github.jan.supabase.postgrest.from
+import io.github.jan.supabase.postgrest.postgrest
+import io.github.jan.supabase.postgrest.rpc
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import java.time.Instant
@@ -55,7 +63,14 @@ private data class RemoteOrderItemPayload(
     val subtotal: Double
 )
 
+@Serializable
+private data class CancelOrderResult(
+    @SerialName("order_status") val orderStatus: String,
+    @SerialName("refunded_coins") val refundedCoins: Int
+)
+
 class SupabaseOrderRepository(
+    private val context: Context,
     private val sessionManager: SessionManager,
     private val orderDao: OrderDao,
     private val menuRepository: RoomMenuRepository,
@@ -64,9 +79,12 @@ class SupabaseOrderRepository(
 ) : OrderRepository {
 
     private val client = SupabaseClientProvider.client
+    private val submitMutex = Mutex()
 
     override fun observeOrders(): Flow<List<OrderRecord>> {
-        return orderDao.observeOrders().map { entities ->
+        val source = activePairId()?.let(orderDao::observeOrdersByPair)
+            ?: orderDao.observeOrdersByUser(activeUserId())
+        return source.map { entities ->
             entities.map { order ->
                 val items = orderDao.getOrderItems(order.id).map { it.toDomain() }
                 order.toDomain(items)
@@ -76,21 +94,30 @@ class SupabaseOrderRepository(
 
     override suspend fun getOrderById(orderId: String): OrderRecord? {
         syncRemoteOrders()
-        val entity = orderDao.getOrderById(orderId) ?: return null
+        val entity = scopedOrder(orderId) ?: return null
         val items = orderDao.getOrderItems(orderId).map { it.toDomain() }
         return entity.toDomain(items)
     }
 
     override suspend fun submitOrder(cart: CartState, address: Address, note: String): String {
+        return submitMutex.withLock {
+            submitOrderLocked(cart, address, note)
+        }
+    }
+
+    private suspend fun submitOrderLocked(cart: CartState, address: Address, note: String): String {
         val orderId = UUID.randomUUID().toString()
         val createdAt = Instant.now().toString()
         val userId = sessionManager.currentUserId.ifBlank { "guest" }
         val profile = profileRepository.getProfile().firstOrNull()
+        if (profile?.selectedRole != ROLE_EATER) {
+            throw IllegalStateException("EATER_ROLE_REQUIRED")
+        }
         val pairId = profile?.pairId?.ifBlank { sessionManager.currentPairId }.orEmpty()
         val buyerName = profile?.nickname?.ifBlank { "我" } ?: "我"
         val buyerAvatarUrl = profile?.avatarUrl.orEmpty()
         val candyCost = cart.totalPrice.toCandyCoinCost()
-        if (!profileRepository.spendCandyCoins(candyCost)) {
+        if (!profileRepository.spendCandyCoins(candyCost, orderId)) {
             throw IllegalStateException("NOT_ENOUGH_CANDY_COINS")
         }
         val addressSnapshot = "${address.contactName} ${address.contactPhone} ${address.addressLine1} ${address.addressLine2}".trim()
@@ -126,17 +153,29 @@ class SupabaseOrderRepository(
             }
         )
 
-        orderDao.upsertOrder(order.toEntity())
-        orderDao.upsertItems(order.items.map { it.toEntity() })
-        menuRepository.recordSales(order.items.groupingBy { it.menuItemId }.fold(0) { total, item -> total + item.quantity })
+        try {
+            orderDao.upsertOrderWithItems(
+                order.toEntity().copy(syncState = if (sessionManager.isLoggedIn.value) SYNC_PENDING_CREATE else SYNC_LOCAL_ONLY),
+                order.items.map { it.toEntity() }
+            )
+        } catch (error: Exception) {
+            profileRepository.refundCandyCoins(candyCost, orderId)
+            throw error
+        }
+        runCatching {
+            menuRepository.recordSales(order.items.groupingBy { it.menuItemId }.fold(0) { total, item -> total + item.quantity })
+        }.onFailure { error ->
+            cloudErrorLogger?.log("orders", "record_sales", error, "orderId=$orderId")
+        }
 
         if (sessionManager.isLoggedIn.value) {
             try {
-                client.from("orders").insert(order.toRemotePayload()) { select() }
-                client.from("order_items").insert(order.items.map { it.toRemotePayload() }) { select() }
+                client.from("orders").upsert(order.toRemotePayload()) { select() }
+                client.from("order_items").upsert(order.items.map { it.toRemotePayload() }) { select() }
+                orderDao.updateSyncState(orderId, userId, SYNC_SYNCED)
             } catch (e: Exception) {
                 cloudErrorLogger?.log("orders", "submit", e, "orderId=$orderId pairId=$pairId")
-                // Local snapshot remains the source of truth when remote write fails.
+                enqueueSync()
             }
         }
 
@@ -145,27 +184,73 @@ class SupabaseOrderRepository(
 
     override suspend fun updateOrderStatus(orderId: String, status: String) {
         val normalizedStatus = status.takeIf { it in ORDER_STATUSES } ?: return
-        val previousOrder = orderDao.getOrderById(orderId)
-        orderDao.updateOrderStatus(orderId, normalizedStatus)
-        if (normalizedStatus == "cancelled" && previousOrder != null && previousOrder.status != "cancelled") {
-            profileRepository.addCandyCoins(previousOrder.candyCoinsSpent)
-        }
-        if (sessionManager.isLoggedIn.value) {
-            try {
-                client.from("orders").update(
-                    mapOf("status" to normalizedStatus)
-                ) {
-                    filter { eq("id", orderId) }
-                }
-            } catch (e: Exception) {
-                cloudErrorLogger?.log("orders", "update_status", e, "orderId=$orderId status=$normalizedStatus")
-                // Local status remains the source of truth when remote sync fails.
+        if (normalizedStatus != "cancelled") {
+            val selectedRole = profileRepository.getProfile().firstOrNull()?.selectedRole
+            if (selectedRole != ROLE_CARETAKER) {
+                throw IllegalStateException("CARETAKER_ROLE_REQUIRED")
             }
         }
+        val previousOrder = scopedOrder(orderId)
+        if (previousOrder == null || previousOrder.status == normalizedStatus) return
+        if (sessionManager.isLoggedIn.value) {
+            try {
+                if (normalizedStatus == "cancelled") {
+                    client.postgrest.rpc(
+                        function = "cancel_order_and_refund",
+                        parameters = mapOf("target_order_id" to orderId)
+                    ).decodeSingle<CancelOrderResult>()
+                    profileRepository.refreshCandyWalletBalance()
+                } else {
+                    client.postgrest.rpc(
+                        function = "transition_order_status",
+                        parameters = mapOf("target_order_id" to orderId, "new_status" to normalizedStatus)
+                    ).decodeAs<String>()
+                }
+                updateLocalStatus(orderId, normalizedStatus, SYNC_SYNCED)
+                return
+            } catch (e: Exception) {
+                cloudErrorLogger?.log("orders", "update_status", e, "orderId=$orderId status=$normalizedStatus")
+            }
+        }
+        updateLocalStatus(orderId, normalizedStatus, SYNC_PENDING_STATUS)
+        enqueueSync()
     }
 
     override suspend fun refreshOrders() {
+        runCatching { syncPendingOrders() }
         syncRemoteOrders()
+    }
+
+    suspend fun syncPendingOrders() {
+        if (!sessionManager.isLoggedIn.value) return
+        val userId = activeUserId()
+        orderDao.getPendingOrders(userId).forEach { entity ->
+            runCatching {
+                val items = orderDao.getOrderItems(entity.id).map { it.toDomain() }
+                val order = entity.toDomain(items)
+                if (entity.syncState == SYNC_PENDING_CREATE) {
+                    val initialOrder = if (order.status == "cancelled") order.copy(status = "submitted") else order
+                    client.from("orders").upsert(initialOrder.toRemotePayload()) { select() }
+                    client.from("order_items").upsert(order.items.map { it.toRemotePayload() }) { select() }
+                }
+                if (order.status == "cancelled") {
+                    client.postgrest.rpc(
+                        function = "cancel_order_and_refund",
+                        parameters = mapOf("target_order_id" to order.id)
+                    ).decodeSingle<CancelOrderResult>()
+                    profileRepository.refreshCandyWalletBalance()
+                } else if (entity.syncState == SYNC_PENDING_STATUS) {
+                    client.postgrest.rpc(
+                        function = "transition_order_status",
+                        parameters = mapOf("target_order_id" to order.id, "new_status" to order.status)
+                    ).decodeAs<String>()
+                }
+                orderDao.updateSyncState(order.id, userId, SYNC_SYNCED)
+            }.onFailure { error ->
+                cloudErrorLogger?.log("orders", "retry_sync", error, "orderId=${entity.id}")
+                throw error
+            }
+        }
     }
 
     private suspend fun syncRemoteOrders() {
@@ -173,14 +258,19 @@ class SupabaseOrderRepository(
         val pairId = profileRepository.getProfile().firstOrNull()?.pairId
             ?.takeIf { it.isNotBlank() && it != DEFAULT_PAIR_ID }
             ?: sessionManager.currentPairId.takeIf { it.isNotBlank() && it != DEFAULT_PAIR_ID }
-            ?: return
 
         try {
             val remoteOrders = client.from("orders").select {
-                filter { eq("pair_id", pairId) }
+                filter {
+                    if (pairId != null) eq("pair_id", pairId)
+                    else eq("user_id", activeUserId())
+                }
             }.decodeList<RemoteOrderPayload>()
 
             remoteOrders.forEach { payload ->
+                if (orderDao.getOrderById(payload.id)?.syncState?.startsWith("pending_") == true) {
+                    return@forEach
+                }
                 val orderItems = client.from("order_items").select {
                     filter { eq("order_id", payload.id) }
                 }.decodeList<RemoteOrderItemPayload>().map { it.toDomain() }
@@ -189,8 +279,33 @@ class SupabaseOrderRepository(
                 orderDao.upsertItems(order.items.map { it.toEntity() })
             }
         } catch (e: Exception) {
-            cloudErrorLogger?.log("orders", "refresh", e, "pairId=$pairId")
+            cloudErrorLogger?.log("orders", "refresh", e, "pairId=${pairId.orEmpty()} userId=${activeUserId()}")
             // Local orders remain usable if cloud fields have not been migrated yet.
+        }
+    }
+
+    private suspend fun scopedOrder(orderId: String) = activePairId()?.let { pairId ->
+        orderDao.getOrderByIdForPair(orderId, pairId)
+    } ?: orderDao.getOrderByIdForUser(orderId, activeUserId())
+
+    private fun activePairId(): String? {
+        return sessionManager.currentPairId
+            .takeIf { it.isNotBlank() && it != DEFAULT_PAIR_ID }
+    }
+
+    private fun activeUserId(): String = sessionManager.currentUserId.ifBlank { "guest" }
+
+    private suspend fun updateLocalStatus(orderId: String, status: String, syncState: String) {
+        activePairId()?.let { pairId ->
+            orderDao.updateStatusAndSyncStateForPair(orderId, pairId, status, syncState)
+        } ?: orderDao.updateStatusAndSyncStateForUser(orderId, activeUserId(), status, syncState)
+    }
+
+    private fun enqueueSync() {
+        val userId = sessionManager.currentUserId
+        val sessionId = sessionManager.currentSessionId
+        if (userId.isNotBlank() && sessionId.isNotBlank()) {
+            OrderSyncWorker.enqueue(context, userId, sessionId)
         }
     }
 
@@ -259,7 +374,11 @@ class SupabaseOrderRepository(
 
     private companion object {
         const val DEFAULT_PAIR_ID = "00000000-0000-0000-0000-000000000000"
-        val ORDER_STATUSES = setOf("submitted", "confirmed", "delivering", "completed", "cancelled")
+        val ORDER_STATUSES = setOf("submitted", "confirmed", "preparing", "delivering", "completed", "cancelled")
+        const val SYNC_SYNCED = "synced"
+        const val SYNC_LOCAL_ONLY = "local_only"
+        const val SYNC_PENDING_CREATE = "pending_create"
+        const val SYNC_PENDING_STATUS = "pending_status"
     }
 }
 

@@ -25,10 +25,13 @@ data class Profile(
 
 data class PairInfo(
     val partnerName: String = "",
+    val partnerAvatarUrl: String? = null,
     val isPaired: Boolean = false,
     val isOnline: Boolean = false,
     val pairCode: String = "",
-    val partnerCandyCoins: Int? = null
+    val partnerCandyCoins: Int? = null,
+    val noticeId: String = "",
+    val noticeMessage: String = ""
 )
 
 data class PairInvitePreview(

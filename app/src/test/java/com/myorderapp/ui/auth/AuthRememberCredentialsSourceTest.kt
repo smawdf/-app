@@ -92,7 +92,6 @@ class AuthRememberCredentialsSourceTest {
             "创建你们的小饭桌",
             "一起记录每一次想吃什么",
             "账号/邮箱",
-            "邮箱注册后可能需要先确认邮件，再返回登录。",
             "从相册选择头像",
             "开启甜蜜点菜之旅",
             "DashedAvatarPlaceholder",
@@ -126,7 +125,7 @@ class AuthRememberCredentialsSourceTest {
         assertTrue("账号创建应读取 signUp 返回值辅助判断", createAccountBody.contains("val signUpResult = client.auth.signUpWith(Email)"))
         assertTrue("账号创建应使用 signUpResult.id 作为兜底 userId", createAccountBody.contains("user?.id ?: signUpResult?.id.orEmpty()"))
         assertTrue("账号重复提示应发生在资料页之前", createAccountBody.contains("账号已存在，请直接登录"))
-        assertTrue("邮箱验证提示应明确说明确认邮件", createAccountBody.contains("如果你的邮箱需要验证，请先打开确认邮件"))
+        assertTrue("后台仍要求邮箱确认时应阻止进入资料步骤", createAccountBody.contains("Supabase 仍要求邮箱验证"))
         assertTrue("无可用 token 的注册返回不应再提示注册失败", !createAccountBody.contains("注册失败：请稍后重试"))
         assertTrue("账号创建成功后才进入资料步骤", createAccountBody.contains("step = 2"))
         assertTrue("已创建账号返回第一步后不应重复注册", onboardingViewModel.contains("accountCreated"))
@@ -145,7 +144,7 @@ class AuthRememberCredentialsSourceTest {
         listOf(
             "忘记密码？",
             "onForgotPasswordClick",
-            "onClick = onForgotPasswordClick"
+            "onClick = { onForgotPasswordClick(uiState.email) }"
         ).forEach { expected ->
             assertTrue("登录页缺少忘记密码入口：$expected", screen.contains(expected))
         }
@@ -187,8 +186,9 @@ class AuthRememberCredentialsSourceTest {
         assertTrue("重置密码页底部应只保留返回登录", resetScreen.contains("prefix = \"\""))
 
         assertTrue("导航缺少重置密码路由", navGraph.contains("RESET_PASSWORD"))
-        assertTrue("导航缺少 resetPassword deep link route builder", navGraph.contains("fun resetPassword(deepLink: String)"))
-        assertTrue("登录页忘记密码应进入重置密码页", navGraph.contains("onForgotPasswordClick = {\n                    navController.navigate(Routes.resetPassword(\"\"))"))
+        assertTrue("导航缺少 resetPassword route builder", navGraph.contains("fun resetPassword(deepLink: String, email: String = \"\")"))
+        assertTrue("登录页忘记密码应传递当前输入邮箱", navGraph.contains("onForgotPasswordClick = { email ->\n                    navController.navigate(Routes.resetPassword(\"\", email))"))
+        assertTrue("重置页应接收当前输入邮箱", navGraph.contains("initialEmail = initialEmail"))
         assertTrue("Manifest 缺少重置密码 Deep Link scheme", manifest.contains("android:scheme=\"orderdisk\""))
         assertTrue("Manifest 缺少重置密码 Deep Link host", manifest.contains("android:host=\"auth\""))
         assertTrue("Manifest 缺少重置密码 Deep Link path", manifest.contains("android:path=\"/reset-password\""))

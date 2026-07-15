@@ -2,14 +2,17 @@ package com.myorderapp.ui.order
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.myorderapp.data.repository.RoomMenuRepository
 import com.myorderapp.data.repository.SINGLE_SHOP_ID
 import com.myorderapp.data.repository.SingleShopRepository
 import com.myorderapp.domain.model.CartItem
 import com.myorderapp.domain.model.CartState
 import com.myorderapp.domain.model.MenuCategory
 import com.myorderapp.domain.model.MenuItem
+import com.myorderapp.domain.model.ROLE_EATER
 import com.myorderapp.domain.repository.CartRepository
 import com.myorderapp.domain.repository.MenuRepository
+import com.myorderapp.domain.repository.ProfileRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
@@ -33,7 +36,8 @@ data class OrderingUiState(
     val selectedCategory: String = "",
     val searchQuery: String = "",
     val menuItems: List<MenuItem> = emptyList(),
-    val cartState: CartState = CartState()
+    val cartState: CartState = CartState(),
+    val isEater: Boolean = false
 ) {
     val orderingCategories: List<MenuCategory>
         get() = if (categories.isEmpty() && menuItems.isEmpty()) {
@@ -70,8 +74,10 @@ data class OrderingUiState(
 
 class OrderingViewModel(
     private val singleShopRepository: SingleShopRepository,
+    private val roomMenuRepository: RoomMenuRepository,
     private val menuRepository: MenuRepository,
-    private val cartRepository: CartRepository
+    private val cartRepository: CartRepository,
+    private val profileRepository: ProfileRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(OrderingUiState())
@@ -85,8 +91,9 @@ class OrderingViewModel(
                 singleShopRepository.getShopById(SINGLE_SHOP_ID),
                 menuRepository.getMenuCategories(SINGLE_SHOP_ID),
                 menuRepository.getMenuItems(SINGLE_SHOP_ID),
-                cartRepository.observeCart()
-            ) { shop, categories, items, cart ->
+                cartRepository.observeCart(),
+                profileRepository.getProfile()
+            ) { shop, categories, items, cart, profile ->
                 val previous = _uiState.value.selectedCategory
                 val hotCategoryId = categories.firstOrNull { it.isOrderingHotCategory() }?.id ?: ORDERING_HOT_CATEGORY_ID
                 val selected = when {
@@ -103,12 +110,18 @@ class OrderingViewModel(
                     selectedCategory = selected,
                     searchQuery = _uiState.value.searchQuery,
                     menuItems = items,
-                    cartState = cart
+                    cartState = cart,
+                    isEater = profile?.selectedRole == ROLE_EATER
                 )
             }.collect { state ->
                 _uiState.value = state
             }
         }
+    }
+
+    suspend fun refreshShopAndMenuFromCloud() {
+        singleShopRepository.loadFromCloud()
+        roomMenuRepository.loadFromCloud()
     }
 
     private suspend fun removeBundledDemoCartItems() {
@@ -130,7 +143,8 @@ class OrderingViewModel(
         _uiState.value = _uiState.value.copy(searchQuery = query)
     }
 
-    fun addToCart(item: MenuItem) {
+    fun addToCart(item: MenuItem): Boolean {
+        if (!_uiState.value.isEater) return false
         viewModelScope.launch {
             cartRepository.addItem(
                 CartItem(
@@ -148,9 +162,11 @@ class OrderingViewModel(
                 )
             )
         }
+        return true
     }
 
     fun increase(menuItemId: String) {
+        if (!_uiState.value.isEater) return
         val item = _uiState.value.cartState.items.firstOrNull { it.menuItemId == menuItemId } ?: return
         viewModelScope.launch {
             cartRepository.addItem(item.copy(quantity = 1))

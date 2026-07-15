@@ -21,7 +21,9 @@ class OrdersReplicaSourceTest {
             "HandDrawnTab",
             "StitchOrderCard",
             "SquishyOrderActionButton",
-            "去准备",
+            "确认接单",
+            "完成这顿饭",
+            "takeIf { isCaretaker }",
             "暂无订单哦~",
             "暂时没有待确认订单",
             "还没有完成的点菜记录",
@@ -44,6 +46,7 @@ class OrdersReplicaSourceTest {
         assertFalse("page_4 原型不包含厨房/日记切换", source.contains("MiniModeChip"))
         assertFalse("订单页不应包含小程序三点胶囊", source.contains("•••"))
         assertFalse("订单页不应包含 MiniProgramHeader", source.contains("MiniProgramHeader"))
+        assertFalse("吃货端不应再出现去准备按钮", source.contains("去准备"))
     }
 
     @Test
@@ -51,7 +54,7 @@ class OrdersReplicaSourceTest {
         val ordersSource = readMainSource("ui/orders/OrdersScreen.kt")
         val cartSheetSource = readMainSource("ui/shop/components/CartSheet.kt")
 
-        assertTrue("订单准备状态应显示为准备中", ordersSource.contains("\"delivering\" -> \"准备中\""))
+        assertTrue("订单准备状态应显示为准备中", ordersSource.contains("\"preparing\", \"delivering\" -> \"准备中\""))
         assertFalse("订单页不应显示外卖配送状态", ordersSource.contains("配送中"))
         assertFalse("购物车浮层不应显示平台化服务费", cartSheetSource.contains("服务费"))
         assertFalse("购物车不应显示外卖配送费", cartSheetSource.contains("配送费"))

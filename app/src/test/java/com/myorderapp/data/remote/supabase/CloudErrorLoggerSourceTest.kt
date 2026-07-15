@@ -32,7 +32,7 @@ class CloudErrorLoggerSourceTest {
             "single { CloudErrorLogger(get()) }",
             "SupabaseStorageUploader(get(), get())",
             "SupabaseProfileRepository(get(), androidContext(), get(), get())",
-            "SupabaseOrderRepository(get(), get(), get(), get(), get())"
+            "SupabaseOrderRepository(androidContext(), get(), get(), get(), get(), get())"
         ).forEach { expected ->
             assertTrue("DI missing cloud logger wiring: $expected", appModule.contains(expected))
         }

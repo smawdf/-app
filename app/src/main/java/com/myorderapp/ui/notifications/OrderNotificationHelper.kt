@@ -29,9 +29,8 @@ fun notifyActiveOrderIfAllowed(
     val manager = NotificationManagerCompat.from(context)
     ensureOrderNotificationChannel(context)
     val title = when (order.status) {
-        "submitted" -> if (isCaretaker) "有新的点菜单等你接单" else "订单已提交"
-        "confirmed" -> "饲养员已接单"
-        "delivering" -> "这顿饭正在准备中"
+        "submitted", "confirmed" -> if (isCaretaker) "有新的点菜单等你确认" else "等待饲养员确认接单"
+        "preparing", "delivering" -> "这顿饭正在准备中"
         else -> "订单有新进展"
     }
     val content = order.items.take(2).joinToString("、") { it.menuItemName }

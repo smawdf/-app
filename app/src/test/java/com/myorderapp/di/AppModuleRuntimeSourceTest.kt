@@ -7,12 +7,12 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class AppModuleRuntimeSourceTest {
-
     @Test
     fun `runtime graph follows couple ordering main flow without legacy meal bindings`() {
         val appModule = readMainSource("di/AppModule.kt")
         val authViewModel = readMainSource("ui/auth/AuthViewModel.kt")
         val onboardingViewModel = readMainSource("ui/onboarding/OnboardingViewModel.kt")
+        val cloudSyncCoordinator = readMainSource("data/sync/CloudSyncCoordinator.kt")
 
         listOf(
             "single<ShopRepository>",
@@ -20,12 +20,13 @@ class AppModuleRuntimeSourceTest {
             "single<CartRepository>",
             "single<AddressRepository>",
             "single<OrderRepository>",
+            "single { CloudSyncCoordinator(",
             "viewModelOf(::OrderingViewModel)",
             "viewModelOf(::MenuManagementViewModel)",
-            "viewModel { OrdersViewModel(get()) }",
-            "viewModel { OrderDetailViewModel(get()) }"
+            "viewModel { OrdersViewModel(get(), get()) }",
+            "viewModel { OrderDetailViewModel(get(), get()) }"
         ).forEach { expected ->
-            assertTrue("主流程运行时依赖缺失：$expected", appModule.contains(expected))
+            assertTrue("Missing runtime dependency: $expected", appModule.contains(expected))
         }
 
         listOf(
@@ -35,15 +36,15 @@ class AppModuleRuntimeSourceTest {
             "MealRepository",
             "wishlistDao()"
         ).forEach { legacy ->
-            assertFalse("运行时 DI 不应再注入旧兼容模块：$legacy", appModule.contains(legacy))
+            assertFalse("Legacy runtime dependency remains: $legacy", appModule.contains(legacy))
         }
 
-        assertFalse("登录后不应再同步旧餐次模块", authViewModel.contains("mealRepo"))
-        assertFalse("注册后不应再同步旧餐次模块", onboardingViewModel.contains("mealRepo"))
-        assertTrue("登录仍需同步当前菜品数据", authViewModel.contains("dishRepo.syncFromCloud()"))
-        assertTrue("注册仍需同步当前菜品数据", onboardingViewModel.contains("dishRepo.syncFromCloud()"))
-        assertTrue("登录仍需加载用户资料", authViewModel.contains("profileRepo.loadFromCloud()"))
-        assertTrue("注册仍需加载用户资料", onboardingViewModel.contains("profileRepo.loadFromCloud()"))
+        assertFalse(authViewModel.contains("mealRepo"))
+        assertFalse(onboardingViewModel.contains("mealRepo"))
+        assertTrue(authViewModel.contains("cloudSyncCoordinator.syncInBackground()"))
+        assertTrue(onboardingViewModel.contains("cloudSyncCoordinator.syncInBackground()"))
+        assertTrue(cloudSyncCoordinator.contains("dishRepository.syncFromCloud()"))
+        assertTrue(cloudSyncCoordinator.contains("profileRepository.loadFromCloud()"))
     }
 
     private fun readMainSource(relativePath: String): String {

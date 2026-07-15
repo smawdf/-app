@@ -47,13 +47,14 @@ object Routes {
     const val PROFILE = "profile"
     const val CANDY_COINS = "candy_coins"
     const val AUTH = "auth"
-    const val RESET_PASSWORD = "reset_password?deepLink={deepLink}"
+    const val RESET_PASSWORD = "reset_password?deepLink={deepLink}&email={email}"
     const val DEVICE_SWITCH = "device_switch?deepLink={deepLink}"
     const val ONBOARDING = "onboarding"
     const val ANNIVERSARY = "anniversary"
 
     fun orderDetail(orderId: String) = "orders/$orderId"
-    fun resetPassword(deepLink: String) = "reset_password?deepLink=${Uri.encode(deepLink)}"
+    fun resetPassword(deepLink: String, email: String = "") =
+        "reset_password?deepLink=${Uri.encode(deepLink)}&email=${Uri.encode(email)}"
     fun deviceSwitch(deepLink: String) = "device_switch?deepLink=${Uri.encode(deepLink)}"
 }
 
@@ -112,6 +113,7 @@ fun NavGraph(
                 onCustomizeMenuClick = { navController.navigate(Routes.SHOP_SETTINGS) },
                 onGoOrderingClick = { navController.navigateAsTab(Routes.ORDERING) },
                 onAnniversaryClick = { navController.navigate(Routes.ANNIVERSARY) },
+                onOrderClick = { orderId -> navController.navigate(Routes.orderDetail(orderId)) },
                 onOrdersClick = { navController.navigateAsTab(Routes.ORDERS) },
                 onProfileClick = { navController.navigateAsTab(Routes.PROFILE) }
             )
@@ -222,22 +224,30 @@ fun NavGraph(
                         popUpTo(Routes.AUTH) { inclusive = true }
                     }
                 },
-                onForgotPasswordClick = {
-                    navController.navigate(Routes.resetPassword(""))
+                onForgotPasswordClick = { email ->
+                    navController.navigate(Routes.resetPassword("", email))
                 }
             )
         }
 
         composable(
             route = Routes.RESET_PASSWORD,
-            arguments = listOf(navArgument("deepLink") {
-                type = NavType.StringType
-                defaultValue = resetPasswordDeepLink
-            })
+            arguments = listOf(
+                navArgument("deepLink") {
+                    type = NavType.StringType
+                    defaultValue = resetPasswordDeepLink
+                },
+                navArgument("email") {
+                    type = NavType.StringType
+                    defaultValue = ""
+                }
+            )
         ) { backStackEntry ->
             val deepLink = backStackEntry.arguments?.getString("deepLink").orEmpty()
+            val initialEmail = backStackEntry.arguments?.getString("email").orEmpty()
             ResetPasswordScreen(
                 deepLink = deepLink,
+                initialEmail = initialEmail,
                 onBackToLogin = {
                     navController.navigate(Routes.AUTH) {
                         popUpTo(0) { inclusive = true }

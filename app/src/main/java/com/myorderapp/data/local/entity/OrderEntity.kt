@@ -21,5 +21,6 @@ data class OrderEntity(
     val deliveryFee: Double,
     val totalPrice: Double,
     val candyCoinsSpent: Int = 0,
-    val createdAt: String
+    val createdAt: String,
+    val syncState: String = "synced"
 )

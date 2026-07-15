@@ -18,6 +18,7 @@ import com.myorderapp.data.repository.SupabaseDishRepository
 import com.myorderapp.data.repository.SupabaseOrderRepository
 import com.myorderapp.data.repository.SupabaseProfileRepository
 import com.myorderapp.data.repository.UserPreferencesRepository
+import com.myorderapp.data.sync.CloudSyncCoordinator
 import com.myorderapp.domain.repository.AddressRepository
 import com.myorderapp.domain.repository.CartRepository
 import com.myorderapp.domain.repository.CandyCoinLedgerRepository
@@ -31,6 +32,7 @@ import com.myorderapp.ui.auth.AuthViewModel
 import com.myorderapp.ui.cart.CartViewModel
 import com.myorderapp.ui.checkout.CheckoutViewModel
 import com.myorderapp.ui.candy.CandyCoinsViewModel
+import com.myorderapp.ui.couple.CoupleMenuViewModel
 import com.myorderapp.ui.discover.DiscoverViewModel
 import com.myorderapp.ui.menu.MenuManagementViewModel
 import com.myorderapp.ui.onboarding.OnboardingViewModel
@@ -41,9 +43,14 @@ import com.myorderapp.ui.profile.ProfileViewModel
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.module.dsl.viewModel
 import org.koin.core.module.dsl.viewModelOf
+import org.koin.core.qualifier.named
 import org.koin.dsl.module
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 
 val appModule = module {
+    single(named("applicationScope")) { CoroutineScope(SupervisorJob() + Dispatchers.IO) }
     // Data sources
     single { CloudErrorLogger(get()) }
     single { SupabaseStorageUploader(get(), get()) }
@@ -62,7 +69,9 @@ val appModule = module {
     single { BimissingRecipeAssetSource(androidContext()) }
     single { RoomDishRepository(get()) }
     single { RoomMenuRepository(get(), get(), get()) }
-    single<SingleShopRepository> { SingleShopRepository(androidContext(), get(), get(), get()) }
+    single<SingleShopRepository> {
+        SingleShopRepository(androidContext(), get(), get(), get(), get(named("applicationScope")))
+    }
     single { SupabaseDishRepository(get(), androidContext().filesDir) }
     single { HybridDishRepository(get(), get(), get(), get()) }
     single<DishRepository> { get<HybridDishRepository>() }
@@ -75,11 +84,14 @@ val appModule = module {
     single<ShopRepository> { get<SingleShopRepository>() }
     single<MenuRepository> { get<SingleShopRepository>() }
     single<CartRepository> { RoomCartRepository(get()) }
-    single<AddressRepository> { RoomAddressRepository(get()) }
-    single<OrderRepository> { SupabaseOrderRepository(get(), get(), get(), get(), get()) }
+    single<AddressRepository> { RoomAddressRepository(get(), get()) }
+    single { SupabaseOrderRepository(androidContext(), get(), get(), get(), get(), get()) }
+    single<OrderRepository> { get<SupabaseOrderRepository>() }
+    single { CloudSyncCoordinator(get(), get(), get(), get(), get(), get(), get(), get(), get(named("applicationScope"))) }
 
     // ViewModels
     viewModelOf(::OrderingViewModel)
+    viewModelOf(::CoupleMenuViewModel)
     viewModelOf(::MenuManagementViewModel)
     viewModelOf(::CartViewModel)
     viewModel { DiscoverViewModel(
@@ -98,6 +110,6 @@ val appModule = module {
     viewModelOf(::CheckoutViewModel)
     viewModelOf(::CandyCoinsViewModel)
     viewModel { AddressViewModel(get(), get()) }
-    viewModel { OrdersViewModel(get()) }
-    viewModel { OrderDetailViewModel(get()) }
+    viewModel { OrdersViewModel(get(), get()) }
+    viewModel { OrderDetailViewModel(get(), get()) }
 }

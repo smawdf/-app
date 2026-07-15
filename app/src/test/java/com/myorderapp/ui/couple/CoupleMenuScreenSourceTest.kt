@@ -38,8 +38,8 @@ class CoupleMenuScreenSourceTest {
             "去点菜",
             "当前：",
             "切换为",
-            "点了 \$dishCount 道菜，等你开做",
-            "点菜单已送达，等饲养员接单"
+            "待饲养员确认接单",
+            "订单正在准备中"
         ).forEach { expected ->
             assertTrue("Missing native couple home marker: $expected", source.contains(expected))
         }
@@ -51,8 +51,9 @@ class CoupleMenuScreenSourceTest {
         assertTrue(mainSource.contains("Routes.HOME -> \"今天也要一起好好吃饭\""))
         assertTrue(mainSource.contains("padding(top = if (showMainShell) mainTopBarHeight else 0.dp)"))
         assertTrue(source.contains("getSharedPreferences(COUPLE_HOME_PREFS"))
-        assertTrue(source.contains("putString(KEY_SELECTED_ROLE, role.storageKey)"))
-        assertTrue(source.contains("prefs.getString(KEY_SELECTED_ROLE, null).toCoupleRole()"))
+        assertTrue(source.contains("rolePreferenceKey"))
+        assertTrue(source.contains("putString(rolePreferenceKey, role.storageKey)"))
+        assertTrue(source.contains("prefs.getString(rolePreferenceKey, null).toCoupleRole()"))
         assertTrue(source.contains("if (pairInfo.isPaired) return"))
         assertTrue(source.contains("rolesLocked = pairInfo.isPaired && selectedRole != null"))
         assertTrue(source.contains("if (!locked) onClick()"))
@@ -62,18 +63,24 @@ class CoupleMenuScreenSourceTest {
         assertTrue(source.contains("selectRole(CoupleRole.Eater)"))
         assertTrue(source.contains("IdentitySwitchToast"))
         assertTrue(source.contains("shadowElevation = 0.dp"))
-        assertTrue("当前用户槽位应足够展示 当前角色：饲养员", source.contains("Modifier.width(128.dp)"))
+        assertTrue("关系区左右头像槽必须等宽", source.contains("modifier = Modifier.weight(1f)"))
+        assertFalse("关系区不应再使用超出容器的固定头像槽", source.contains("Modifier.width(128.dp)"))
         assertTrue("饲养员/吃货角色切换卡片应为正方形，避免文字被遮挡", source.contains("modifier.aspectRatio(1f)"))
         assertTrue("首页顶部标题应和全局顶部栏一样使用主色加粗", source.contains("color = CozyRose") && source.contains("fontWeight = FontWeight.Black"))
         assertTrue(source.contains("RoleToastState"))
-        assertTrue(source.contains("profileRepository.getProfile().collectAsState"))
-        assertTrue(source.contains("profileRepository.getPairInfo()"))
-        assertTrue(source.contains("orderRepository.observeOrders().collectAsState"))
-        assertTrue(source.contains("orderRepository.refreshOrders()"))
+        assertTrue(source.contains("profileRepository.getProfile().collectAsStateWithLifecycle"))
+        assertTrue(source.contains("orderRepository.observeOrders().collectAsStateWithLifecycle"))
+        assertTrue(source.contains("repeatOnLifecycle(Lifecycle.State.STARTED)"))
+        val viewModelSource = readMainSource("ui/couple/CoupleMenuViewModel.kt")
+        assertTrue(viewModelSource.contains("profileRepository.getPairInfo()"))
+        assertTrue(viewModelSource.contains("orderRepository.refreshOrders()"))
+        assertTrue(viewModelSource.contains("refreshWhileActive()"))
         assertTrue(source.contains("activeOrderStatuses"))
-        assertTrue(source.contains("currentUserId = profile?.userId.orEmpty()"))
-        assertTrue(source.contains("val isMyOrder = currentUserId.isNotBlank() && order.userId == currentUserId"))
-        assertTrue(source.contains("onClick = onOrdersClick"))
+        assertTrue(source.contains(".height(104.dp)"))
+        assertTrue(source.contains("contentPadding = PaddingValues(16.dp)"))
+        assertTrue(source.contains("CozyPill(text = \"查看\", color = CozyPink)"))
+        assertTrue(source.contains("onClick = { activeOrder?.id?.let(onOrderClick) }"))
+        assertTrue(source.contains("\"preparing\", \"delivering\""))
         assertTrue(source.contains("PairInfo"))
         assertTrue(source.contains("PartnerSlot"))
         assertTrue(source.contains("pairInfo.isPaired"))
@@ -95,7 +102,7 @@ class CoupleMenuScreenSourceTest {
         assertFalse(source.contains("WebView"))
         assertFalse(source.contains("StitchScreen"))
         assertFalse(source.contains("VIP"))
-        assertFalse(source.contains("TA"))
+        assertFalse(source.contains("Text(\"TA\""))
     }
 
     private fun readMainSource(relativePath: String): String {

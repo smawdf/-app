@@ -43,6 +43,7 @@ import com.myorderapp.ui.auth.AuthInk
 import com.myorderapp.ui.auth.AuthMuted
 import com.myorderapp.ui.auth.AuthPrimaryButton
 import com.myorderapp.ui.auth.AuthPrimaryEnd
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.koin.androidx.compose.koinViewModel
 
 @Composable
@@ -51,10 +52,12 @@ fun OnboardingScreen(
     onRegisterComplete: () -> Unit = {},
     onLoginClick: () -> Unit = {}
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     if (uiState.registrationComplete) {
-        LaunchedEffect(Unit) { onRegisterComplete() }
+        LaunchedEffect(uiState.requiresLoginAfterRegistration) {
+            if (uiState.requiresLoginAfterRegistration) onLoginClick() else onRegisterComplete()
+        }
         return
     }
 
@@ -173,15 +176,6 @@ private fun RegisterAccountScreen(
                             keyboardType = KeyboardType.Email,
                             imeAction = ImeAction.Next
                         )
-                    )
-
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "邮箱注册后可能需要先确认邮件，再返回登录。",
-                        color = AuthMuted,
-                        style = MaterialTheme.typography.bodySmall,
-                        lineHeight = MaterialTheme.typography.bodySmall.lineHeight,
-                        modifier = Modifier.fillMaxWidth()
                     )
 
                     Spacer(modifier = Modifier.height(12.dp))

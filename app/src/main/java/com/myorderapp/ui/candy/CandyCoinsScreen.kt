@@ -38,7 +38,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -83,15 +83,18 @@ fun CandyCoinsScreen(
     viewModel: CandyCoinsViewModel = koinViewModel(),
     onBack: () -> Unit
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val rolePrefs = remember(context) { context.getSharedPreferences(COUPLE_HOME_PREFS, Context.MODE_PRIVATE) }
-    val isCaretaker = rolePrefs.getString(KEY_SELECTED_ROLE, null) == "caretaker"
+    val selectedRole = uiState.profile?.selectedRole
+        ?.takeIf { it == "caretaker" || it == "eater" }
+        ?: rolePrefs.getString(KEY_SELECTED_ROLE, null)
+    val isCaretaker = selectedRole == "caretaker"
     var chartMode by remember { mutableStateOf(ChartMode.Bar) }
     var period by remember { mutableStateOf(ChartPeriod.Week) }
     var pendingRecharge by remember { mutableStateOf<Int?>(null) }
     var customAmount by remember { mutableStateOf("") }
-    val balance = if (isCaretaker) uiState.pairInfo.partnerCandyCoins ?: 0 else uiState.profile?.candyCoins ?: 66
+    val balance = uiState.walletBalance
     val visibleRecords = remember(uiState.records, isCaretaker) {
         uiState.records.filter { if (isCaretaker) it.type == "recharge" else it.type != "recharge" }
     }

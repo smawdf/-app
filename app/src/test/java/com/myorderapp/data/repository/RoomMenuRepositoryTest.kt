@@ -2,6 +2,7 @@ package com.myorderapp.data.repository
 
 import com.myorderapp.data.local.dao.MenuDishDao
 import com.myorderapp.data.local.entity.MenuDishEntity
+import com.myorderapp.data.local.entity.MenuDishDeletionEntity
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
@@ -72,8 +73,22 @@ class RoomMenuRepositoryTest {
         assertEquals(3, repository.getDish(dishId)?.monthlySales)
     }
 
+    @Test
+    fun `batch delete records tombstones for a later cloud sync`() = runBlocking {
+        val dao = FakeMenuDishDao()
+        val repository = RoomMenuRepository(dao)
+        val firstId = repository.saveDish(MenuDishDraft(name = "菜品一", price = 18.0, category = "主食"))
+        val secondId = repository.saveDish(MenuDishDraft(name = "菜品二", price = 22.0, category = "主食"))
+
+        repository.deleteDishes(listOf(firstId, secondId, firstId, ""))
+
+        assertEquals(emptyList<MenuDishEntity>(), dao.observeAll().first())
+        assertEquals(setOf(firstId, secondId), dao.getDeletions("").map { it.id }.toSet())
+    }
+
     private class FakeMenuDishDao : MenuDishDao {
         private val items = MutableStateFlow<List<MenuDishEntity>>(emptyList())
+        private val deletions = mutableListOf<MenuDishDeletionEntity>()
 
         override fun observeAll(): Flow<List<MenuDishEntity>> = items
 
@@ -83,55 +98,74 @@ class RoomMenuRepositoryTest {
         override suspend fun getAllByPair(pairId: String): List<MenuDishEntity> =
             items.value.filter { it.pairId == pairId }
 
-        override suspend fun getById(id: String): MenuDishEntity? =
-            items.value.firstOrNull { it.id == id }
+        override suspend fun getById(id: String, pairId: String): MenuDishEntity? =
+            items.value.firstOrNull { it.id == id && it.pairId == pairId }
 
         override suspend fun upsert(dish: MenuDishEntity) {
             items.value = items.value.filterNot { it.id == dish.id } + dish
         }
 
-        override suspend fun renameCategory(oldName: String, newName: String, updatedAt: String) {
+        override suspend fun renameCategory(oldName: String, newName: String, updatedAt: String, pairId: String) {
             items.value = items.value.map { dish ->
-                if (dish.category == oldName) dish.copy(category = newName, updatedAt = updatedAt) else dish
+                if (dish.category == oldName && dish.pairId == pairId) dish.copy(category = newName, updatedAt = updatedAt) else dish
             }
         }
 
-        override suspend fun setAvailability(id: String, isAvailable: Boolean, updatedAt: String) {
+        override suspend fun setAvailability(id: String, isAvailable: Boolean, updatedAt: String, pairId: String) {
             items.value = items.value.map { dish ->
-                if (dish.id == id) dish.copy(isAvailable = isAvailable, updatedAt = updatedAt) else dish
+                if (dish.id == id && dish.pairId == pairId) dish.copy(isAvailable = isAvailable, updatedAt = updatedAt) else dish
             }
         }
 
-        override suspend fun setAvailability(ids: List<String>, isAvailable: Boolean, updatedAt: String) {
+        override suspend fun setAvailability(ids: List<String>, isAvailable: Boolean, updatedAt: String, pairId: String) {
             items.value = items.value.map { dish ->
-                if (dish.id in ids) dish.copy(isAvailable = isAvailable, updatedAt = updatedAt) else dish
+                if (dish.id in ids && dish.pairId == pairId) dish.copy(isAvailable = isAvailable, updatedAt = updatedAt) else dish
             }
         }
 
-        override suspend fun moveToCategory(ids: List<String>, category: String, updatedAt: String) {
+        override suspend fun moveToCategory(ids: List<String>, category: String, updatedAt: String, pairId: String) {
             items.value = items.value.map { dish ->
-                if (dish.id in ids) dish.copy(category = category, updatedAt = updatedAt) else dish
+                if (dish.id in ids && dish.pairId == pairId) dish.copy(category = category, updatedAt = updatedAt) else dish
             }
         }
 
-        override suspend fun updateSortOrder(id: String, sortOrder: Int, updatedAt: String) {
+        override suspend fun updateSortOrder(id: String, sortOrder: Int, updatedAt: String, pairId: String) {
             items.value = items.value.map { dish ->
-                if (dish.id == id) dish.copy(sortOrder = sortOrder, updatedAt = updatedAt) else dish
+                if (dish.id == id && dish.pairId == pairId) dish.copy(sortOrder = sortOrder, updatedAt = updatedAt) else dish
             }
         }
 
-        override suspend fun incrementMonthlySales(id: String, quantity: Int, updatedAt: String) {
+        override suspend fun incrementMonthlySales(id: String, quantity: Int, updatedAt: String, pairId: String) {
             items.value = items.value.map { dish ->
-                if (dish.id == id) dish.copy(monthlySales = dish.monthlySales + quantity, updatedAt = updatedAt) else dish
+                if (dish.id == id && dish.pairId == pairId) dish.copy(monthlySales = dish.monthlySales + quantity, updatedAt = updatedAt) else dish
             }
         }
 
-        override suspend fun deleteById(id: String) {
-            items.value = items.value.filterNot { it.id == id }
+        override suspend fun updateImage(id: String, imageUrl: String, updatedAt: String, pairId: String) {
+            items.value = items.value.map { dish ->
+                if (dish.id == id && dish.pairId == pairId) dish.copy(imageUrl = imageUrl, updatedAt = updatedAt) else dish
+            }
         }
 
-        override suspend fun deleteByIds(ids: List<String>) {
-            items.value = items.value.filterNot { it.id in ids }
+        override suspend fun markDeleted(deletion: MenuDishDeletionEntity) {
+            deletions.removeAll { it.id == deletion.id }
+            deletions += deletion
+        }
+
+        override suspend fun getDeletions(pairId: String): List<MenuDishDeletionEntity> {
+            return deletions.filter { it.pairId == pairId }
+        }
+
+        override suspend fun clearDeletion(id: String, pairId: String) {
+            deletions.removeAll { it.id == id && it.pairId == pairId }
+        }
+
+        override suspend fun deleteById(id: String, pairId: String) {
+            items.value = items.value.filterNot { it.id == id && it.pairId == pairId }
+        }
+
+        override suspend fun deleteByIds(ids: List<String>, pairId: String) {
+            items.value = items.value.filterNot { it.id in ids && it.pairId == pairId }
         }
     }
 }

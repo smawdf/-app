@@ -36,6 +36,20 @@ class MenuReplicaSourceTest {
     }
 
     @Test
+    fun `caretaker can edit and sync the shop name`() {
+        val source = readMainSource("ui/menu/MenuManagementScreen.kt")
+        val viewModel = readMainSource("ui/menu/MenuManagementViewModel.kt")
+        val repository = readMainSource("data/repository/SingleShopRepository.kt")
+
+        assertTrue(source.contains("ShopNameDialog("))
+        assertTrue(source.contains("onEditShopName = { showShopNameDialog = true }"))
+        assertTrue(source.contains("contentDescription = \"编辑店铺名称\""))
+        assertTrue(source.contains("viewModel.saveShopName()"))
+        assertTrue(viewModel.contains("singleShopRepository.updateShopName(name)"))
+        assertTrue(repository.contains("syncShopSettingsToCloud()"))
+    }
+
+    @Test
     fun `category and dish management use prototype controls`() {
         val source = readMainSource("ui/menu/MenuManagementScreen.kt")
 

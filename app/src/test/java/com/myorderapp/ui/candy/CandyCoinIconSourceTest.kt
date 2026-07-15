@@ -8,6 +8,15 @@ import org.junit.Test
 class CandyCoinIconSourceTest {
 
     @Test
+    fun `candy management prefers the current profile role over stale local role`() {
+        val candy = readMainSource("ui/candy/CandyCoinsScreen.kt")
+
+        assertTrue(candy.contains("uiState.profile?.selectedRole"))
+        assertTrue(candy.contains("takeIf { it == \"caretaker\" || it == \"eater\" }"))
+        assertTrue(candy.contains("rolePrefs.getString(KEY_SELECTED_ROLE, null)"))
+    }
+
+    @Test
     fun `candy coin icon asset is used in candy related screens`() {
         assertTrue(
             Files.exists(Paths.get("app/src/main/res/drawable-nodpi/candy_coin.png")) ||

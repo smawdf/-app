@@ -20,7 +20,7 @@ class OrderNotificationSourceTest {
             "notifyActiveOrderIfAllowed",
             "KEY_ORDER_NOTIFICATIONS_ENABLED",
             "KEY_LAST_NOTIFIED_ORDER_ID",
-            "有新的点菜单等你接单",
+            "有新的点菜单等你确认",
             "这顿饭正在准备中"
         ).forEach { expected ->
             assertTrue("缺少订单通知能力：$expected", (manifest + helper + home).contains(expected))
