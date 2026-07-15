@@ -46,7 +46,15 @@ class AnniversaryReplicaSourceTest {
             "农历",
             "甜蜜时刻",
             "还没有记录",
-            "完成点菜后，可以在这里沉淀你们自己的甜蜜时刻。",
+            "完成一顿饭后，会默认显示菜品图片，也可以换成你们自己的照片。",
+            "SweetMomentImageDialog",
+            "ImageSourcePickerDialog",
+            "选择甜蜜时刻图片",
+            "使用菜品图片",
+            "使用自己的图片",
+            "从相册选择或拍照上传",
+            "order.momentImageUrl.ifBlank",
+            "orderRepository.updateMomentImage",
             "支持文字输入，也可以在日历里选择日期。",
             "保存纪念日"
         ).forEach { expected ->

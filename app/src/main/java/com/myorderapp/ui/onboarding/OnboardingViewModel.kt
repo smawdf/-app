@@ -194,67 +194,79 @@ class OnboardingViewModel(
         val state = _uiState.value
         viewModelScope.launch {
             _uiState.value = state.copy(isLoading = true, errorMessage = null)
-            val userId = client.auth.currentUserOrNull()?.id.orEmpty()
-            if (userId.isBlank()) {
+            try {
+                val userId = client.auth.currentUserOrNull()?.id.orEmpty()
+                if (userId.isBlank()) {
+                    val appContext = context?.applicationContext
+                    val localAvatarFile = if (appContext != null && avatarUri != null) {
+                        runCatching { copyAvatarToPrivateStorage(appContext, avatarUri) }.getOrNull()
+                    } else null
+                    session.savePendingRegistration(
+                        email = state.email,
+                        nickname = state.nickname,
+                        avatarPath = localAvatarFile?.absolutePath.orEmpty()
+                    )
+                    _uiState.value = state.copy(
+                        isLoading = false,
+                        errorMessage = null,
+                        registrationComplete = true,
+                        requiresLoginAfterRegistration = true
+                    )
+                    return@launch
+                }
+
                 val appContext = context?.applicationContext
                 val localAvatarFile = if (appContext != null && avatarUri != null) {
-                    runCatching { copyAvatarToPrivateStorage(appContext, avatarUri) }.getOrNull()
-                } else null
-                session.savePendingRegistration(
-                    email = state.email,
-                    nickname = state.nickname,
-                    avatarPath = localAvatarFile?.absolutePath.orEmpty()
+                    runCatching { copyAvatarToPrivateStorage(appContext, avatarUri) }
+                        .onFailure { cloudErrorLogger.log("onboarding", "copy_avatar", it, "userId=$userId") }
+                        .getOrNull()
+                } else {
+                    null
+                }
+                val cloudAvatarUrl = if (appContext != null && avatarUri != null) {
+                    storageUploader.compressAndUploadAvatar(appContext, avatarUri)
+                        .publicUrl
+                        ?.takeIf { it.isCloudAvatarUrl() }
+                        .orEmpty()
+                } else {
+                    state.avatarUrl.takeIf { it.isCloudAvatarUrl() }.orEmpty()
+                }
+                profileRepository.saveProfile(
+                    Profile(
+                        userId = userId,
+                        pairId = DEFAULT_PAIR_ID,
+                        nickname = state.nickname.trim(),
+                        avatarUrl = cloudAvatarUrl.ifBlank { null },
+                        createdAt = Instant.now().toString()
+                    )
                 )
-                _uiState.value = state.copy(
+                if (!profileRepo.loadFromCloud()) {
+                    throw IllegalStateException("profile cloud verification failed")
+                }
+                if (cloudAvatarUrl.isBlank() && localAvatarFile != null && appContext != null && session.isLoggedIn.value) {
+                    CloudImageUploadWorker.enqueue(
+                        appContext,
+                        CloudImageUploadWorker.TARGET_AVATAR,
+                        userId,
+                        Uri.fromFile(localAvatarFile),
+                        session.currentUserId,
+                        session.currentSessionId
+                    )
+                }
+                cloudSyncCoordinator.syncInBackground()
+                _uiState.value = _uiState.value.copy(
                     isLoading = false,
                     errorMessage = null,
-                    registrationComplete = true,
-                    requiresLoginAfterRegistration = true
+                    registrationComplete = true
                 )
-                return@launch
-            }
-
-            val appContext = context?.applicationContext
-            val localAvatarFile = if (appContext != null && avatarUri != null) {
-                runCatching { copyAvatarToPrivateStorage(appContext, avatarUri) }
-                    .onFailure { cloudErrorLogger.log("onboarding", "copy_avatar", it, "userId=$userId") }
-                    .getOrNull()
-            } else {
-                null
-            }
-            val cloudAvatarUrl = if (appContext != null && avatarUri != null) {
-                storageUploader.compressAndUploadAvatar(appContext, avatarUri)
-                    .publicUrl
-                    ?.takeIf { it.isCloudAvatarUrl() }
-                    .orEmpty()
-            } else {
-                state.avatarUrl.takeIf { it.isCloudAvatarUrl() }.orEmpty()
-            }
-            profileRepository.saveProfile(
-                Profile(
-                    userId = userId,
-                    pairId = DEFAULT_PAIR_ID,
-                    nickname = state.nickname.trim(),
-                    avatarUrl = cloudAvatarUrl.ifBlank { null },
-                    createdAt = Instant.now().toString()
-                )
-            )
-            if (cloudAvatarUrl.isBlank() && localAvatarFile != null && appContext != null && session.isLoggedIn.value) {
-                CloudImageUploadWorker.enqueue(
-                    appContext,
-                    CloudImageUploadWorker.TARGET_AVATAR,
-                    userId,
-                    Uri.fromFile(localAvatarFile),
-                    session.currentUserId,
-                    session.currentSessionId
+            } catch (error: Exception) {
+                cloudErrorLogger.log("onboarding", "save_profile", error)
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    registrationComplete = false,
+                    errorMessage = "资料保存失败，请检查网络后重试"
                 )
             }
-            cloudSyncCoordinator.syncInBackground()
-            _uiState.value = _uiState.value.copy(
-                isLoading = false,
-                errorMessage = null,
-                registrationComplete = true
-            )
         }
     }
 

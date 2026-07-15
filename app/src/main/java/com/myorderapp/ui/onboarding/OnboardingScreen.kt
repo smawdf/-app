@@ -1,8 +1,6 @@
 package com.myorderapp.ui.onboarding
 
 import android.net.Uri
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -43,6 +41,7 @@ import com.myorderapp.ui.auth.AuthInk
 import com.myorderapp.ui.auth.AuthMuted
 import com.myorderapp.ui.auth.AuthPrimaryButton
 import com.myorderapp.ui.auth.AuthPrimaryEnd
+import com.myorderapp.ui.components.ImageSourcePickerDialog
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.koin.androidx.compose.koinViewModel
 
@@ -128,7 +127,7 @@ private fun RegisterAccountScreen(
             .background(Color(0xFFFFFCF8))
     ) {
         Image(
-            painter = painterResource(R.drawable.ic_launcher_orderdisk_dogs_cropped),
+            painter = painterResource(R.drawable.auth_dogs_artwork),
             contentDescription = null,
             modifier = Modifier
                 .align(Alignment.TopEnd)
@@ -246,16 +245,18 @@ private fun Step2Profile(viewModel: OnboardingViewModel, uiState: OnboardingUiSt
     val context = LocalContext.current
     var avatarUri by remember { mutableStateOf<Uri?>(null) }
     var avatarLocalPath by remember { mutableStateOf(uiState.avatarUrl) }
+    var showImageSourcePicker by remember { mutableStateOf(false) }
 
-    val galleryLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
-    ) { uri: Uri? ->
-        uri?.let {
+    ImageSourcePickerDialog(
+        visible = showImageSourcePicker,
+        title = "选择头像",
+        onDismiss = { showImageSourcePicker = false },
+        onImageSelected = {
             avatarUri = it
             avatarLocalPath = it.toString()
             viewModel.onAvatarUrlChanged(it.toString())
         }
-    }
+    )
 
     Column(
         modifier = Modifier
@@ -268,7 +269,7 @@ private fun Step2Profile(viewModel: OnboardingViewModel, uiState: OnboardingUiSt
                 .size(128.dp)
                 .clip(CircleShape)
                 .background(AuthPrimaryEnd.copy(alpha = 0.06f))
-                .clickable { galleryLauncher.launch("image/*") },
+                .clickable { showImageSourcePicker = true },
             contentAlignment = Alignment.Center
         ) {
             if (avatarLocalPath.isNotBlank()) {
@@ -283,11 +284,11 @@ private fun Step2Profile(viewModel: OnboardingViewModel, uiState: OnboardingUiSt
             }
         }
         Text(
-            "从相册选择头像",
+            "选择头像照片",
             color = AuthPrimaryEnd,
             style = MaterialTheme.typography.titleSmall,
             fontWeight = FontWeight.Black,
-            modifier = Modifier.clickable { galleryLauncher.launch("image/*") }
+            modifier = Modifier.clickable { showImageSourcePicker = true }
         )
 
         AuthInputField(

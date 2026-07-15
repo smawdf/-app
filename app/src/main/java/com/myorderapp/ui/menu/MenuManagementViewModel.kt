@@ -137,28 +137,35 @@ class MenuManagementViewModel(
         updateState { copy(shopNameDraft = value, message = null) }
     }
 
-    fun saveShopName() {
-        val name = _uiState.value.shopNameDraft.trim().ifBlank { "我的小店" }
-        singleShopRepository.updateShopName(name)
-        updateState { copy(shopName = name, shopNameDraft = name, message = "店名已保存") }
-    }
-
-    fun resetShopNameDraft() {
-        updateState { copy(shopNameDraft = shopName, message = null) }
-    }
-
     fun onShopAnnouncementChange(value: String) {
         updateState { copy(shopAnnouncementDraft = value, message = null) }
     }
 
-    fun saveShopAnnouncement() {
-        val announcement = _uiState.value.shopAnnouncementDraft.trim().ifBlank { DefaultShopAnnouncement }
-        singleShopRepository.updateShopAnnouncement(announcement)
-        updateState { copy(shopAnnouncement = announcement, shopAnnouncementDraft = announcement, message = "公告已保存") }
+    fun resetShopSettingsDrafts() {
+        updateState {
+            copy(
+                shopNameDraft = shopName,
+                shopAnnouncementDraft = shopAnnouncement,
+                message = null
+            )
+        }
     }
 
-    fun resetShopAnnouncementDraft() {
-        updateState { copy(shopAnnouncementDraft = shopAnnouncement, message = null) }
+    fun saveShopSettings() {
+        val state = _uiState.value
+        val name = state.shopNameDraft.trim().ifBlank { "我的小店" }
+        val announcement = state.shopAnnouncementDraft.trim().ifBlank { DefaultShopAnnouncement }
+        singleShopRepository.updateShopName(name)
+        singleShopRepository.updateShopAnnouncement(announcement)
+        updateState {
+            copy(
+                shopName = name,
+                shopNameDraft = name,
+                shopAnnouncement = announcement,
+                shopAnnouncementDraft = announcement,
+                message = "店铺资料已保存"
+            )
+        }
     }
 
     fun updateShopImage(imageUrl: String) {
@@ -371,13 +378,50 @@ class MenuManagementViewModel(
 
     fun onEditorSignatureChange(value: Boolean) = updateEditor { copy(isSignature = value) }
 
-    fun saveDish() {
-        val editor = _uiState.value.editor
+    fun saveDish() = saveDishInternal(createMissingCategory = false)
+
+    fun saveDishWithCategoryCreation(category: String) {
+        val normalizedCategory = category.trim()
+        if (normalizedCategory.isBlank()) {
+            updateState { copy(message = "请填写分类名称") }
+            return
+        }
+        updateEditor { copy(category = normalizedCategory) }
+        saveDishInternal(createMissingCategory = true)
+    }
+
+    private fun saveDishInternal(createMissingCategory: Boolean) {
+        val currentState = _uiState.value
+        val enteredCategory = currentState.editor.category.trim()
+        val existingCategory = currentState.categories.firstOrNull {
+            it.trim().equals(enteredCategory, ignoreCase = true)
+        }
+        val normalizedCategory = existingCategory ?: enteredCategory
+        val editor = currentState.editor.copy(category = normalizedCategory)
         val isNewDish = editor.id == null
         val price = editor.price.toDoubleOrNull()
-        if (editor.name.isBlank() || price == null || price <= 0.0) {
-            updateState { copy(message = "请填写菜名和有效价格") }
+        if (editor.name.isBlank() || price == null || price <= 0.0 || normalizedCategory.isBlank()) {
+            updateState { copy(message = "请填写菜名、有效价格和分类") }
             return
+        }
+        if (existingCategory == null && !createMissingCategory) {
+            updateState { copy(message = "请确认是否创建新分类") }
+            return
+        }
+
+        if (existingCategory == null) {
+            val nextCategories = (currentState.categories + normalizedCategory).normalizedMenuCategories()
+            singleShopRepository.saveCategoryNames(nextCategories)
+            updateState {
+                copy(
+                    categories = nextCategories,
+                    selectedCategory = normalizedCategory,
+                    editor = editor,
+                    message = null
+                ).withVisibleDishes()
+            }
+        } else if (editor.category != currentState.editor.category) {
+            updateState { copy(editor = editor, message = null) }
         }
 
         viewModelScope.launch {

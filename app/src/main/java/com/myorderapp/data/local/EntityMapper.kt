@@ -249,6 +249,7 @@ object EntityMapper {
         deliveryFee = deliveryFee,
         totalPrice = totalPrice,
         candyCoinsSpent = candyCoinsSpent,
+        momentImageUrl = momentImageUrl,
         createdAt = createdAt,
         syncState = "synced"
     )
@@ -270,6 +271,7 @@ object EntityMapper {
         deliveryFee = deliveryFee,
         totalPrice = totalPrice,
         candyCoinsSpent = candyCoinsSpent,
+        momentImageUrl = momentImageUrl,
         createdAt = createdAt,
         items = items,
         timeline = buildTimeline(status, createdAt)

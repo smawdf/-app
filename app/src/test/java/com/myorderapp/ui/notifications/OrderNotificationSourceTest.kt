@@ -12,6 +12,7 @@ class OrderNotificationSourceTest {
         val manifest = readSource("app/src/main/AndroidManifest.xml", "src/main/AndroidManifest.xml")
         val helper = readMainSource("ui/notifications/OrderNotificationHelper.kt")
         val home = readMainSource("ui/couple/CoupleMenuScreen.kt")
+        val main = readMainSource("MainActivity.kt")
 
         listOf(
             "android.permission.POST_NOTIFICATIONS",
@@ -32,6 +33,14 @@ class OrderNotificationSourceTest {
             "PackageManager.PERMISSION_GRANTED"
         ).forEach { expected ->
             assertTrue("通知 helper 缺少系统权限门禁：$expected", helper.contains(expected))
+        }
+
+        listOf(
+            "ActivityResultContracts.RequestPermission()",
+            "notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)",
+            "Build.VERSION_CODES.TIRAMISU"
+        ).forEach { expected ->
+            assertTrue("主流程缺少通知权限申请：$expected", main.contains(expected))
         }
     }
 

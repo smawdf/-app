@@ -1,4 +1,4 @@
-# OrderDisk 当前项目画像
+# 高糖小食当前项目画像
 
 这份文档用于统一后续 Figma、UI 改造、代码实现和任务计划的事实基础。当前项目已经不是旧的“二人随机选菜工具”，也不是完整的“多商家外卖平台”，而是一个情侣点菜 App。
 
@@ -77,7 +77,7 @@ MainActivity
 - `MyOrderApp.kt`：初始化 Koin 和 Coil 3 ImageLoader。
 - `AppModule.kt`：Koin 业务注入模块。
 - `NetworkModule.kt`：Retrofit、Moshi、SessionManager、外部图源和菜谱 API 注入模块。
-- `AppDatabase.kt`：Room 数据库，当前版本 9。
+- `AppDatabase.kt`：Room 数据库，当前版本 13。
 
 ## 数据层事实
 

@@ -2,6 +2,7 @@ package com.myorderapp
 
 import java.nio.file.Files
 import java.nio.file.Paths
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -17,6 +18,17 @@ class ReleaseHardeningSourceTest {
         assertTrue(backup.contains("domain=\"sharedpref\" path=\".\""))
         assertTrue(backup.contains("domain=\"database\" path=\".\""))
         assertTrue(extraction.contains("<device-transfer>"))
+    }
+
+    @Test
+    fun privateReleaseUsesScopedUploadsAndOnlyRequiredPermissions() {
+        val manifest = read("app/src/main/AndroidManifest.xml", "src/main/AndroidManifest.xml")
+        val storage = read("table/36_private_storage_scope.sql", "../table/36_private_storage_scope.sql")
+
+        assertFalse(manifest.contains("android.permission.CAMERA"))
+        assertTrue(storage.contains("Users can upload to their private scope"))
+        assertTrue(storage.contains("'user:' || auth.uid()::text"))
+        assertTrue(storage.contains("drop policy if exists \"Authenticated users can upload images\""))
     }
 
     private fun read(vararg candidates: String): String {

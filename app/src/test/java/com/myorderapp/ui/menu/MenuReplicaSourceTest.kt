@@ -9,6 +9,20 @@ import org.junit.Test
 class MenuReplicaSourceTest {
 
     @Test
+    fun `dish editor confirms and creates missing category before saving`() {
+        val screen = readMainSource("ui/menu/MenuManagementScreen.kt")
+        val viewModel = readMainSource("ui/menu/MenuManagementViewModel.kt")
+
+        assertTrue(screen.contains("pendingCategoryCreation"))
+        assertTrue(screen.contains("创建新分类？"))
+        assertTrue(screen.contains("创建并保存"))
+        assertTrue(screen.contains("onCreateCategoryAndSave = viewModel::saveDishWithCategoryCreation"))
+        assertTrue(viewModel.contains("fun saveDishWithCategoryCreation(category: String)"))
+        assertTrue(viewModel.contains("singleShopRepository.saveCategoryNames(nextCategories)"))
+        assertTrue(viewModel.contains("请填写菜名、有效价格和分类"))
+    }
+
+    @Test
     fun `my shop follows Stitch sections and scrolls as one page`() {
         val source = readMainSource("ui/menu/MenuManagementScreen.kt")
 
@@ -36,16 +50,19 @@ class MenuReplicaSourceTest {
     }
 
     @Test
-    fun `caretaker can edit and sync the shop name`() {
+    fun `caretaker edits and syncs shop details from one dialog`() {
         val source = readMainSource("ui/menu/MenuManagementScreen.kt")
         val viewModel = readMainSource("ui/menu/MenuManagementViewModel.kt")
         val repository = readMainSource("data/repository/SingleShopRepository.kt")
 
-        assertTrue(source.contains("ShopNameDialog("))
-        assertTrue(source.contains("onEditShopName = { showShopNameDialog = true }"))
-        assertTrue(source.contains("contentDescription = \"编辑店铺名称\""))
-        assertTrue(source.contains("viewModel.saveShopName()"))
+        assertTrue(source.contains("ShopSettingsDialog("))
+        assertTrue(source.contains("showShopSettingsDialog = true"))
+        assertTrue(source.contains("Text(\"编辑店铺\""))
+        assertTrue(source.contains("viewModel.saveShopSettings()"))
+        assertFalse(source.contains("ShopNameDialog("))
+        assertFalse(source.contains("ShopAnnouncementDialog("))
         assertTrue(viewModel.contains("singleShopRepository.updateShopName(name)"))
+        assertTrue(viewModel.contains("singleShopRepository.updateShopAnnouncement(announcement)"))
         assertTrue(repository.contains("syncShopSettingsToCloud()"))
     }
 
@@ -92,7 +109,7 @@ class MenuReplicaSourceTest {
             "DishEditorDialog",
             "新增菜品",
             "给你们的小饭桌添一道新菜",
-            "从相册选择菜品图",
+            "选择或拍摄菜品图",
             "名称",
             "售价 (¥)",
             "原价 (可选)",

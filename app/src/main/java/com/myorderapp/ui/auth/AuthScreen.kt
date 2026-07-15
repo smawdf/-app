@@ -19,7 +19,6 @@ import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -38,8 +37,7 @@ import org.koin.androidx.compose.koinViewModel
 fun AuthScreen(
     viewModel: AuthViewModel = koinViewModel(),
     onLoggedIn: () -> Unit = {},
-    onRegisterClick: () -> Unit = {},
-    onForgotPasswordClick: (String) -> Unit = { email -> viewModel.sendPasswordResetEmail(email) }
+    onRegisterClick: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
@@ -146,17 +144,6 @@ fun AuthScreen(
                                 color = AuthInk,
                                 style = MaterialTheme.typography.bodySmall,
                                 fontWeight = FontWeight.SemiBold
-                            )
-                        }
-                        TextButton(
-                            onClick = { onForgotPasswordClick(uiState.email) },
-                            enabled = !uiState.isLoading
-                        ) {
-                            Text(
-                                text = "忘记密码？",
-                                color = AuthPrimaryEnd,
-                                style = MaterialTheme.typography.bodySmall,
-                                fontWeight = FontWeight.Bold
                             )
                         }
                     }

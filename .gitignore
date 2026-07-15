@@ -37,3 +37,8 @@ scripts/check-jisu-recipe-images.ps1
 scripts/run-jisu-recipe-image-smoke.ps1
 CLAUDE.md
 CLAUDE_EN.md
+/.playwright-cli/
+/output/
+/findings.md
+/progress.md
+/task_plan.md

@@ -5,8 +5,6 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.net.Uri
 import android.widget.Toast
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -22,6 +20,7 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -30,9 +29,11 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.Logout
@@ -89,6 +90,7 @@ import com.myorderapp.ui.components.CozyMuted
 import com.myorderapp.ui.components.CozyPage
 import com.myorderapp.ui.components.CozyRose
 import com.myorderapp.ui.components.CozySurface
+import com.myorderapp.ui.components.ImageSourcePickerDialog
 import com.myorderapp.ui.components.cozyTextFieldColors
 import com.myorderapp.domain.model.ROLE_CARETAKER
 import com.myorderapp.domain.model.ROLE_EATER
@@ -815,7 +817,7 @@ private fun PairManagementDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         shape = RoundedCornerShape(28.dp),
-        containerColor = CozySurface.copy(alpha = 0.94f),
+        containerColor = CozySurface,
         title = {
             Text(
                 text = if (uiState.pairInfo.isPaired) "伴侣已绑定" else "邀请对方",
@@ -826,7 +828,10 @@ private fun PairManagementDialog(
             )
         },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            Column(
+                modifier = Modifier.heightIn(max = 520.dp).verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
                 Text(
                     text = if (uiState.pairInfo.isPaired) {
                         "已和 ${uiState.pairInfo.partnerName.ifBlank { "对方" }} 绑定。你们正在共享情侣资料、店铺、菜单和订单。"
@@ -968,7 +973,7 @@ private fun VersionInfoDialog(onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
         shape = RoundedCornerShape(28.dp),
-        containerColor = CozySurface.copy(alpha = 0.96f),
+        containerColor = CozySurface,
         title = {
             Text(
                 text = "高糖小食 ${BuildConfig.VERSION_NAME}",
@@ -980,10 +985,11 @@ private fun VersionInfoDialog(onDismiss: () -> Unit) {
         },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text("本次更新", color = CozyCocoa, fontWeight = FontWeight.Black)
-                Text("• 修正个人资料同步失败的错误判定", color = CozyMuted)
-                Text("• 完善伴侣昵称、头像与绑定状态同步", color = CozyMuted)
-                Text("• 增加个人页面同步异常保护", color = CozyMuted)
+                Text("第一版正式发布", color = CozyCocoa, fontWeight = FontWeight.Black)
+                Text("• 情侣绑定与饲养员、吃货角色分工", color = CozyMuted)
+                Text("• 我的店铺、点菜、购物车与订单流程", color = CozyMuted)
+                Text("• 中文搜菜、云端同步与糖糖币记录", color = CozyMuted)
+                Text("• 纪念日和可更换照片的甜蜜时刻", color = CozyMuted)
             }
         },
         confirmButton = {
@@ -999,7 +1005,7 @@ private fun HelpDialog(onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
         shape = RoundedCornerShape(28.dp),
-        containerColor = CozySurface.copy(alpha = 0.94f),
+        containerColor = CozySurface,
         title = {
             Text(
                 text = "帮助与客服",
@@ -1029,7 +1035,7 @@ private fun LogoutConfirmDialog(onDismiss: () -> Unit, onConfirm: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
         shape = RoundedCornerShape(28.dp),
-        containerColor = CozySurface.copy(alpha = 0.92f),
+        containerColor = CozySurface,
         icon = {
             Surface(
                 shape = CircleShape,
@@ -1065,27 +1071,78 @@ private fun ProfileEditDialog(
     var nameDraft by remember(name) { mutableStateOf(name) }
     var previewAvatar by remember(avatarUrl) { mutableStateOf(avatarUrl) }
     var selectedAvatarUri by remember { mutableStateOf<Uri?>(null) }
+    var showImageSourcePicker by remember { mutableStateOf(false) }
     val trimmedName = nameDraft.trim()
     val nameError = when {
         trimmedName.isBlank() -> "请输入昵称"
         trimmedName.length > 12 -> "昵称最多 12 个字"
         else -> null
     }
-    val avatarPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-        uri?.let {
+    ImageSourcePickerDialog(
+        visible = showImageSourcePicker,
+        title = "选择头像",
+        onDismiss = { showImageSourcePicker = false },
+        onImageSelected = {
             previewAvatar = it.toString()
             selectedAvatarUri = it
             onDismissMessage()
         }
-    }
+    )
 
-    AlertDialog(
-        onDismissRequest = { onDismissMessage(); onDismiss() },
-        shape = RoundedCornerShape(28.dp),
-        containerColor = CozySurface,
-        title = { Text("设置头像和昵称", color = CozyCocoa, fontWeight = FontWeight.Black) },
+    if (!showImageSourcePicker) {
+        AlertDialog(
+            onDismissRequest = { onDismissMessage(); onDismiss() },
+            shape = RoundedCornerShape(28.dp),
+            containerColor = CozySurface,
+        title = {
+            Text(
+                "编辑个人资料",
+                color = CozyCocoa,
+                fontWeight = FontWeight.Black,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth()
+            )
+        },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Box(modifier = Modifier.size(104.dp)) {
+                    Surface(
+                        modifier = Modifier.fillMaxSize(),
+                        shape = CircleShape,
+                        color = CozyCherry,
+                        border = BorderStroke(2.dp, CozyRose.copy(alpha = 0.26f))
+                    ) {
+                        if (previewAvatar.isNotBlank()) {
+                            AsyncImage(
+                                model = previewAvatar,
+                                contentDescription = "头像预览",
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.clip(CircleShape)
+                            )
+                        } else {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(Icons.Filled.LocalDining, contentDescription = null, tint = CozyRose, modifier = Modifier.size(42.dp))
+                            }
+                        }
+                    }
+                    Surface(
+                        onClick = { showImageSourcePicker = true },
+                        shape = CircleShape,
+                        color = CozyRose,
+                        border = BorderStroke(3.dp, CozySurface),
+                        modifier = Modifier.align(Alignment.BottomEnd).size(38.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(Icons.Filled.Edit, contentDescription = "更换头像", tint = Color.White, modifier = Modifier.size(18.dp))
+                        }
+                    }
+                }
+                TextButton(onClick = { showImageSourcePicker = true }) {
+                    Text("更换头像", color = CozyRose, fontWeight = FontWeight.Black)
+                }
                 OutlinedTextField(
                     value = nameDraft,
                     onValueChange = {
@@ -1101,28 +1158,15 @@ private fun ProfileEditDialog(
                     colors = cozyTextFieldColors(),
                     modifier = Modifier.fillMaxWidth()
                 )
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                    Surface(modifier = Modifier.size(62.dp), shape = CircleShape, color = CozyCherry) {
-                        if (previewAvatar.isNotBlank()) {
-                            AsyncImage(model = previewAvatar, contentDescription = "头像预览", contentScale = ContentScale.Crop, modifier = Modifier.clip(CircleShape))
-                        } else {
-                            Box(contentAlignment = Alignment.Center) {
-                                Icon(Icons.Filled.LocalDining, contentDescription = null, tint = CozyRose, modifier = Modifier.size(30.dp))
-                            }
-                        }
-                    }
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text("头像从本地相册选择", color = CozyCocoa, fontWeight = FontWeight.Bold)
-                        Text(if (selectedAvatarUri == null) "选择后先预览，保存资料后生效" else "已选择新头像，保存资料后生效", color = CozyMuted, fontSize = 13.sp)
-                    }
+                message?.let {
+                    Text(
+                        it,
+                        color = if (it.contains("失败") || it.contains("请输入")) Error else CozyRose,
+                        style = MaterialTheme.typography.bodySmall,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    )
                 }
-                Button(
-                    onClick = { avatarPicker.launch("image/*") },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(999.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = CozyCherry, contentColor = CozyCocoa)
-                ) { Text("从相册选择头像", fontWeight = FontWeight.Bold) }
-                message?.let { Text(it, color = if (it.contains("失败") || it.contains("请输入")) Color(0xFFBA1A1A) else CozyRose) }
             }
         },
         confirmButton = {
@@ -1130,6 +1174,7 @@ private fun ProfileEditDialog(
                 Text("保存资料")
             }
         },
-        dismissButton = { TextButton(onClick = { onDismissMessage(); onDismiss() }) { Text("取消", color = CozyMuted) } }
-    )
+            dismissButton = { TextButton(onClick = { onDismissMessage(); onDismiss() }) { Text("取消", color = CozyMuted) } }
+        )
+    }
 }

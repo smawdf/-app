@@ -19,6 +19,9 @@ class OnboardingProfileSyncSourceTest {
         assertTrue(source.contains("CloudImageUploadWorker.enqueue("))
         assertTrue(source.contains("CloudImageUploadWorker.TARGET_AVATAR"))
         assertTrue(source.contains("Uri.fromFile(localAvatarFile)"))
+        assertTrue(source.contains("if (!profileRepo.loadFromCloud())"))
+        assertTrue(source.contains("资料保存失败，请检查网络后重试"))
+        assertTrue(source.contains("cloudErrorLogger.log(\"onboarding\", \"save_profile\""))
         assertFalse(source.contains("createProfileWithDetails"))
     }
 

@@ -64,4 +64,7 @@ interface OrderDao {
 
     @Query("UPDATE orders SET status = :status, syncState = :syncState WHERE id = :orderId AND pairId = :pairId")
     suspend fun updateStatusAndSyncStateForPair(orderId: String, pairId: String, status: String, syncState: String)
+
+    @Query("UPDATE orders SET momentImageUrl = :imageUrl WHERE id = :orderId")
+    suspend fun updateMomentImage(orderId: String, imageUrl: String)
 }

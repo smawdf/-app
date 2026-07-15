@@ -32,7 +32,7 @@ class ProfileReplicaSourceTest {
             "我的店铺",
             "订单记录",
             "onOrdersClick",
-            "设置头像和昵称",
+            "编辑个人资料",
             "ProfileEditDialog",
             "saveProfileEdits"
         ).forEach { expected ->
@@ -61,16 +61,15 @@ class ProfileReplicaSourceTest {
     }
 
     @Test
-    fun `profile screen supports gallery avatar picker and visible logout action`() {
+    fun `profile screen supports avatar source picker and visible logout action`() {
         val source = readMainSource("ui/profile/ProfileScreen.kt")
         val viewModel = readMainSource("ui/profile/ProfileViewModel.kt")
 
         listOf(
-            "ActivityResultContracts.GetContent()",
-            "avatarPicker.launch(\"image/*\")",
-            "从相册选择头像",
-            "头像从本地相册选择",
-            "选择后先预览，保存资料后生效",
+            "ImageSourcePickerDialog",
+            "showImageSourcePicker = true",
+            "更换头像",
+            "if (!showImageSourcePicker)",
             "保存资料",
             "LogoutButton",
             "LogoutConfirmDialog",
@@ -79,7 +78,7 @@ class ProfileReplicaSourceTest {
             "再留一会",
             "狠心退出",
             "退出登录",
-            "Color(0xFFBA1A1A)",
+            "else CozyRose",
             "authViewModel.logout(onLoggedOut = onLoginClick)"
         ).forEach { expected ->
             assertTrue("Profile page missing gallery avatar or logout ability: $expected", source.contains(expected))

@@ -216,11 +216,11 @@ private fun ResetPasswordLogo() {
         modifier = Modifier.size(112.dp),
         shape = CircleShape,
         color = Color(0xFFFFFCF8),
-        border = BorderStroke(3.dp, AuthPrimaryEnd.copy(alpha = 0.72f))
+        border = BorderStroke(2.dp, AuthPrimaryEnd.copy(alpha = 0.62f))
     ) {
-        Box(modifier = Modifier.padding(8.dp), contentAlignment = Alignment.Center) {
+        Box(modifier = Modifier.padding(5.dp), contentAlignment = Alignment.Center) {
             Image(
-                painter = painterResource(R.drawable.ic_launcher_orderdisk_dogs_cropped),
+                painter = painterResource(R.drawable.auth_dogs_artwork),
                 contentDescription = "应用图标",
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop

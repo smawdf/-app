@@ -59,6 +59,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -229,52 +230,65 @@ fun CoupleMenuScreen(
         }
     }
 
+    val hasNoticeOverlay = toastState != null || pairNotice != null
     CozyPage(decorative = false) {
-        HomeDecorativeBubbles()
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
+                .blur(if (hasNoticeOverlay) 8.dp else 0.dp)
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f)
-                    .verticalScroll(rememberScrollState())
-                    .padding(bottom = 188.dp)
-            ) {
-                Spacer(modifier = Modifier.height(8.dp))
-                CozyMotionVisibility {
-                    RelationshipCard(
-                        days = daysEatingTogether(profile),
-                        selectedRole = selectedRole,
-                        profile = profile,
-                        pairInfo = pairInfo,
-                        onPartnerClick = onProfileClick,
-                        onAnniversaryClick = onAnniversaryClick
-                    )
-                }
-                CozyMotionVisibility(delayMillis = 40) {
-                    LatestOrderNudge(
-                        order = activeOrder,
-                        onClick = { activeOrder?.id?.let(onOrderClick) }
-                    )
-                }
-                CozyMotionVisibility(delayMillis = 80) {
-                    QuickActionGrid(
-                        onAnniversaryClick = onAnniversaryClick,
-                        onCustomizeMenuClick = onCustomizeMenuClick,
-                        onGoOrderingClick = onGoOrderingClick
-                    )
-                }
-                CozyMotionVisibility(delayMillis = 120) {
-                    RoleSwitcher(
-                        selectedRole = selectedRole,
-                        rolesLocked = pairInfo.isPaired && selectedRole != null,
-                        onCaretakerClick = { selectRole(CoupleRole.Caretaker) },
-                        onEaterClick = { selectRole(CoupleRole.Eater) }
-                    )
+            HomeDecorativeBubbles()
+            Column(modifier = Modifier.fillMaxSize()) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .verticalScroll(rememberScrollState())
+                        .padding(bottom = 188.dp)
+                ) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    CozyMotionVisibility {
+                        RelationshipCard(
+                            days = daysEatingTogether(profile),
+                            selectedRole = selectedRole,
+                            profile = profile,
+                            pairInfo = pairInfo,
+                            onPartnerClick = onProfileClick,
+                            onAnniversaryClick = onAnniversaryClick
+                        )
+                    }
+                    CozyMotionVisibility(delayMillis = 40) {
+                        LatestOrderNudge(
+                            order = activeOrder,
+                            onClick = { activeOrder?.id?.let(onOrderClick) }
+                        )
+                    }
+                    CozyMotionVisibility(delayMillis = 80) {
+                        QuickActionGrid(
+                            onAnniversaryClick = onAnniversaryClick,
+                            onCustomizeMenuClick = onCustomizeMenuClick,
+                            onGoOrderingClick = onGoOrderingClick
+                        )
+                    }
+                    CozyMotionVisibility(delayMillis = 120) {
+                        RoleSwitcher(
+                            selectedRole = selectedRole,
+                            rolesLocked = pairInfo.isPaired && selectedRole != null,
+                            onCaretakerClick = { selectRole(CoupleRole.Caretaker) },
+                            onEaterClick = { selectRole(CoupleRole.Eater) }
+                        )
+                    }
                 }
             }
+        }
+
+        AnimatedVisibility(
+            visible = hasNoticeOverlay,
+            modifier = Modifier.fillMaxSize(),
+            enter = fadeIn(tween(CozyMotion.Toast)),
+            exit = fadeOut(tween(CozyMotion.Exit))
+        ) {
+            Box(modifier = Modifier.fillMaxSize().background(CozyCocoa.copy(alpha = 0.08f)))
         }
 
         AnimatedVisibility(
@@ -301,15 +315,17 @@ fun CoupleMenuScreen(
         ) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Surface(
-                    shape = RoundedCornerShape(18.dp),
-                    color = CozyCocoa.copy(alpha = 0.92f),
+                    shape = RoundedCornerShape(24.dp),
+                    color = CozySurface.copy(alpha = 0.96f),
+                    border = BorderStroke(1.dp, CozyBorder.copy(alpha = 0.72f)),
                     shadowElevation = 0.dp
                 ) {
                     Text(
                         text = pairNotice.orEmpty(),
-                        color = Color.White,
+                        color = CozyCocoa,
                         fontWeight = FontWeight.Black,
-                        modifier = Modifier.padding(horizontal = 22.dp, vertical = 14.dp)
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp)
                     )
                 }
             }
@@ -810,23 +826,23 @@ private fun RoleCard(
 @Composable
 private fun IdentitySwitchToast(role: CoupleRole) {
     Surface(
-        modifier = Modifier.size(188.dp),
-        shape = RoundedCornerShape(26.dp),
-        color = Color.White.copy(alpha = 0.48f),
-        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.72f)),
+        modifier = Modifier.width(224.dp),
+        shape = RoundedCornerShape(28.dp),
+        color = CozySurface.copy(alpha = 0.96f),
+        border = BorderStroke(1.dp, CozyBorder.copy(alpha = 0.72f)),
         shadowElevation = 0.dp
     ) {
         Column(
             modifier = Modifier
-                .fillMaxSize()
-                .background(CozyPink.copy(alpha = 0.16f))
-                .padding(18.dp),
+                .fillMaxWidth()
+                .background(CozyPink.copy(alpha = 0.10f))
+                .padding(horizontal = 22.dp, vertical = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
             CozyIconBadge(
                 icon = if (role == CoupleRole.Caretaker) Icons.Filled.CheckCircle else Icons.Filled.Favorite,
-                background = Color.White.copy(alpha = 0.58f),
+                background = CozyRose.copy(alpha = 0.13f),
                 tint = CozyRose,
                 modifier = Modifier.size(56.dp)
             )

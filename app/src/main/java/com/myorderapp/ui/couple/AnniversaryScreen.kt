@@ -1,5 +1,6 @@
 package com.myorderapp.ui.couple
 
+import android.content.Context
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
@@ -29,6 +30,8 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft 
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Cake
+import androidx.compose.material.icons.filled.AddPhotoAlternate
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.HistoryEdu
 import androidx.compose.material3.AlertDialog
@@ -60,16 +63,19 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
+import com.myorderapp.data.remote.supabase.SupabaseStorageUploader
 import com.myorderapp.domain.model.OrderRecord
 import com.myorderapp.domain.model.Profile
 import com.myorderapp.domain.repository.OrderRepository
 import com.myorderapp.domain.repository.ProfileRepository
+import com.myorderapp.ui.components.ImageSourcePickerDialog
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -95,11 +101,13 @@ private val completedMomentStatuses = setOf("completed", "delivered", "finished"
 fun AnniversaryScreen(
     profileRepository: ProfileRepository = koinInject(),
     orderRepository: OrderRepository = koinInject(),
+    storageUploader: SupabaseStorageUploader = koinInject(),
     onBack: () -> Unit
 ) {
     val profile by profileRepository.getProfile().collectAsStateWithLifecycle(initialValue = null)
     val orders by orderRepository.observeOrders().collectAsStateWithLifecycle(initialValue = emptyList())
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
     val state = remember(profile) { anniversaryState(profile) }
     val sweetMomentOrders = remember(orders) {
         orders
@@ -108,6 +116,65 @@ fun AnniversaryScreen(
             .take(5)
     }
     var showEditor by remember { mutableStateOf(false) }
+    var selectedMomentOrder by remember { mutableStateOf<OrderRecord?>(null) }
+    var showMomentImagePicker by remember { mutableStateOf(false) }
+    var momentImageMessage by remember { mutableStateOf<String?>(null) }
+    var isMomentImageSaving by remember { mutableStateOf(false) }
+
+    ImageSourcePickerDialog(
+        visible = showMomentImagePicker,
+        title = "选择甜蜜时刻图片",
+        onDismiss = { showMomentImagePicker = false },
+        onImageSelected = { uri ->
+            val order = selectedMomentOrder
+            if (order != null) {
+                scope.launch {
+                    isMomentImageSaving = true
+                    momentImageMessage = null
+                    val upload = storageUploader.compressAndUpload(context, uri, "moments/${order.id}")
+                    val imageUrl = upload.publicUrl
+                    if (imageUrl == null) {
+                        momentImageMessage = upload.error ?: "图片上传失败"
+                    } else {
+                        runCatching { orderRepository.updateMomentImage(order.id, imageUrl) }
+                            .onSuccess {
+                                momentImageMessage = "已经换成你们自己的照片"
+                                selectedMomentOrder = null
+                            }
+                            .onFailure { momentImageMessage = "图片保存失败，请确认云端迁移已执行" }
+                    }
+                    isMomentImageSaving = false
+                }
+            }
+        }
+    )
+
+    selectedMomentOrder?.takeIf { !showMomentImagePicker }?.let { order ->
+        SweetMomentImageDialog(
+            isSaving = isMomentImageSaving,
+            message = momentImageMessage,
+            onUseDishImage = {
+                scope.launch {
+                    isMomentImageSaving = true
+                    momentImageMessage = null
+                    runCatching { orderRepository.updateMomentImage(order.id, "") }
+                        .onSuccess { selectedMomentOrder = null }
+                        .onFailure { momentImageMessage = "恢复菜品图片失败，请确认云端迁移已执行" }
+                    isMomentImageSaving = false
+                }
+            },
+            onUseOwnImage = {
+                momentImageMessage = null
+                showMomentImagePicker = true
+            },
+            onDismiss = {
+                if (!isMomentImageSaving) {
+                    momentImageMessage = null
+                    selectedMomentOrder = null
+                }
+            }
+        )
+    }
 
     if (showEditor) {
         AnniversaryEditorDialog(
@@ -141,7 +208,13 @@ fun AnniversaryScreen(
                 Spacer(modifier = Modifier.height(24.dp))
                 AnniversaryHeroCard(state = state)
                 NextAnniversaryCard(state = state, onClick = { showEditor = true })
-                SweetMomentsTimeline(orders = sweetMomentOrders)
+                SweetMomentsTimeline(
+                    orders = sweetMomentOrders,
+                    onEditImage = {
+                        momentImageMessage = null
+                        selectedMomentOrder = it
+                    }
+                )
                 Spacer(modifier = Modifier.height(60.dp))
             }
         }
@@ -526,7 +599,10 @@ private fun CalendarDayCell(
 }
 
 @Composable
-private fun SweetMomentsTimeline(orders: List<OrderRecord>) {
+private fun SweetMomentsTimeline(
+    orders: List<OrderRecord>,
+    onEditImage: (OrderRecord) -> Unit
+) {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Icon(Icons.Filled.HistoryEdu, contentDescription = null, tint = AnniversaryPrimary, modifier = Modifier.size(28.dp))
@@ -543,7 +619,7 @@ private fun SweetMomentsTimeline(orders: List<OrderRecord>) {
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("还没有记录", color = AnniversaryInk, fontSize = 18.sp, lineHeight = 26.sp, fontWeight = FontWeight.Bold)
-                    Text("完成点菜后，可以在这里沉淀你们自己的甜蜜时刻。", color = AnniversaryMuted, fontSize = 16.sp, lineHeight = 24.sp)
+                    Text("完成一顿饭后，会默认显示菜品图片，也可以换成你们自己的照片。", color = AnniversaryMuted, fontSize = 16.sp, lineHeight = 24.sp)
                 }
             }
         } else {
@@ -553,8 +629,11 @@ private fun SweetMomentsTimeline(orders: List<OrderRecord>) {
                     dotBorder = AnniversaryPrimary.copy(alpha = 0.46f),
                     date = order.createdAt.toMomentDateText(),
                     text = order.toSweetMomentText(),
-                    imageUrl = order.items.firstOrNull { it.menuItemImageUrl.isNotBlank() }?.menuItemImageUrl,
-                    icon = Icons.Filled.Cake
+                    imageUrl = order.momentImageUrl.ifBlank {
+                        order.items.firstOrNull { it.menuItemImageUrl.isNotBlank() }?.menuItemImageUrl.orEmpty()
+                    },
+                    icon = Icons.Filled.Cake,
+                    onImageClick = { onEditImage(order) }
                 )
             }
         }
@@ -565,7 +644,7 @@ private fun OrderRecord.toSweetMomentText(): String {
     val dishNames = items.take(2).joinToString("、") { it.menuItemName }.ifBlank { "一顿小饭" }
     val suffix = if (items.size > 2) "等 ${items.size} 道菜" else ""
     val buyer = buyerName.ifBlank { if (buyerRole == "caretaker" || buyerRole == "keeper") "饲养员" else "吃货" }
-    return "$buyer 点了 $dishNames$suffix，一起完成了一次开饭记录。"
+    return "$buyer 点了 $dishNames$suffix，今天也一起好好吃饭。"
 }
 
 private fun String.toMomentDateText(): String {
@@ -579,7 +658,8 @@ private fun SweetMomentItem(
     date: String,
     text: String,
     imageUrl: String? = null,
-    icon: ImageVector? = null
+    icon: ImageVector? = null,
+    onImageClick: () -> Unit
 ) {
     Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
         Surface(
@@ -599,13 +679,14 @@ private fun SweetMomentItem(
         ) {
             Row(horizontalArrangement = Arrangement.spacedBy(18.dp), verticalAlignment = Alignment.CenterVertically) {
                 Surface(
+                    onClick = onImageClick,
                     shape = RoundedCornerShape(10.dp),
                     color = AnniversaryPink,
                     modifier = Modifier.size(82.dp)
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         when {
-                            imageUrl != null -> AsyncImage(
+                            !imageUrl.isNullOrBlank() -> AsyncImage(
                                 model = imageUrl,
                                 contentDescription = date,
                                 modifier = Modifier.fillMaxSize(),
@@ -613,12 +694,108 @@ private fun SweetMomentItem(
                             )
                             icon != null -> Icon(icon, contentDescription = null, tint = AnniversaryPrimary, modifier = Modifier.size(32.dp))
                         }
+                        Surface(
+                            shape = CircleShape,
+                            color = AnniversaryCard.copy(alpha = 0.94f),
+                            border = BorderStroke(1.dp, AnniversaryBorder),
+                            modifier = Modifier.align(Alignment.BottomEnd).padding(6.dp).size(28.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(Icons.Filled.Edit, contentDescription = "设置甜蜜时刻图片", tint = AnniversaryPrimary, modifier = Modifier.size(15.dp))
+                            }
+                        }
                     }
                 }
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.weight(1f)) {
                     Text(date, color = AnniversaryInk, fontSize = 18.sp, lineHeight = 26.sp, fontWeight = FontWeight.Normal)
                     Text(text, color = AnniversaryInk, fontSize = 17.sp, lineHeight = 28.sp)
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SweetMomentImageDialog(
+    isSaving: Boolean,
+    message: String?,
+    onUseDishImage: () -> Unit,
+    onUseOwnImage: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        shape = RoundedCornerShape(26.dp),
+        containerColor = AnniversaryCard,
+        title = {
+            Text(
+                "设置甜蜜时刻图片",
+                color = AnniversaryInk,
+                fontWeight = FontWeight.Black,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth()
+            )
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                MomentImageOption(
+                    icon = Icons.Filled.Cake,
+                    title = "使用菜品图片",
+                    subtitle = "自动显示这顿饭的第一张菜品图",
+                    enabled = !isSaving,
+                    onClick = onUseDishImage
+                )
+                MomentImageOption(
+                    icon = Icons.Filled.AddPhotoAlternate,
+                    title = "使用自己的图片",
+                    subtitle = "从相册选择或拍照上传",
+                    enabled = !isSaving,
+                    onClick = onUseOwnImage
+                )
+                message?.let {
+                    Text(
+                        it,
+                        color = if (it.contains("失败")) MaterialTheme.colorScheme.error else AnniversaryPrimary,
+                        style = MaterialTheme.typography.bodySmall,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss, enabled = !isSaving) {
+                Text(if (isSaving) "保存中..." else "取消", color = AnniversaryPrimary)
+            }
+        }
+    )
+}
+
+@Composable
+private fun MomentImageOption(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    enabled: Boolean,
+    onClick: () -> Unit
+) {
+    Surface(
+        onClick = onClick,
+        enabled = enabled,
+        shape = RoundedCornerShape(16.dp),
+        color = AnniversaryPink.copy(alpha = 0.24f),
+        border = BorderStroke(1.dp, AnniversaryBorder.copy(alpha = 0.72f)),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 13.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Icon(icon, contentDescription = null, tint = AnniversaryPrimary, modifier = Modifier.size(24.dp))
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(title, color = AnniversaryInk, fontWeight = FontWeight.Bold)
+                Text(subtitle, color = AnniversaryMuted, style = MaterialTheme.typography.bodySmall)
             }
         }
     }

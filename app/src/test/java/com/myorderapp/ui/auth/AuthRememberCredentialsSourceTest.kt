@@ -2,6 +2,7 @@ package com.myorderapp.ui.auth
 
 import java.nio.file.Files
 import java.nio.file.Paths
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -26,12 +27,12 @@ class AuthRememberCredentialsSourceTest {
             "Spacer(modifier = Modifier.height(20.dp))",
             "Spacer(modifier = Modifier.height(18.dp))",
             "AuthPrimaryButton(",
-            "忘记密码？",
             "还没有账号？",
             "去注册"
         ).forEach { expected ->
             assertTrue("登录页缺少记住账号密码入口：$expected", screen.contains(expected))
         }
+        assertFalse("私人版不应展示不可用的忘记密码入口", screen.contains("忘记密码？"))
 
         listOf(
             "AuthGlassCard",
@@ -44,7 +45,7 @@ class AuthRememberCredentialsSourceTest {
             "Icons.Outlined.VisibilityOff",
             "floatingLabel: Boolean = true",
             "label = if (floatingLabel)",
-            "ic_launcher_orderdisk_dogs_cropped"
+            "auth_dogs_artwork"
         ).forEach { expected ->
             assertTrue("登录注册页缺少 Stitch 认证视觉：$expected", authVisuals.contains(expected))
         }
@@ -92,7 +93,7 @@ class AuthRememberCredentialsSourceTest {
             "创建你们的小饭桌",
             "一起记录每一次想吃什么",
             "账号/邮箱",
-            "从相册选择头像",
+            "选择头像照片",
             "开启甜蜜点菜之旅",
             "DashedAvatarPlaceholder",
             "PathEffect.dashPathEffect",
@@ -112,7 +113,7 @@ class AuthRememberCredentialsSourceTest {
         assertTrue("旧的步骤胶囊组件不应继续保留在认证视觉代码里", !authVisuals.contains("fun AuthStepPill"))
         assertTrue("注册第 1 步主按钮应放在玻璃表单卡内部", registerBody.indexOf("AuthPrimaryButton(") < registerBody.indexOf("AuthBottomLink("))
         assertTrue("注册第 1 步不应显示原型没有的步骤胶囊卡", !registerBody.contains("AuthStepPill"))
-        assertTrue("注册第 1 步应保留原型右上角淡狗狗插画", registerBody.contains("ic_launcher_orderdisk_dogs_cropped"))
+        assertTrue("注册第 1 步应保留原型右上角淡狗狗插画", registerBody.contains("auth_dogs_artwork"))
         assertTrue("注册第 2 步应保持 page_9 的无卡片任务流", !step2Body.contains("AuthGlassCard"))
         assertTrue("注册第 2 步应保留 page_9 的淡心形装饰", onboardingScreen.contains("Icons.Outlined.FavoriteBorder"))
         assertTrue("注册第 2 步不应再叠加额外 32dp 内边距", !step2Body.contains(".padding(32.dp)"))
@@ -134,20 +135,15 @@ class AuthRememberCredentialsSourceTest {
     }
 
     @Test
-    fun `forgot password flow sends reset email and opens reset page by deep link`() {
+    fun `private release hides password reset entry but retains deep link recovery support`() {
         val screen = readMainSource("ui/auth/AuthScreen.kt")
         val viewModel = readMainSource("ui/auth/AuthViewModel.kt")
         val resetScreen = readMainSource("ui/auth/ResetPasswordScreen.kt")
         val navGraph = readMainSource("ui/navigation/NavGraph.kt")
         val manifest = readMainResource("AndroidManifest.xml")
 
-        listOf(
-            "忘记密码？",
-            "onForgotPasswordClick",
-            "onClick = { onForgotPasswordClick(uiState.email) }"
-        ).forEach { expected ->
-            assertTrue("登录页缺少忘记密码入口：$expected", screen.contains(expected))
-        }
+        assertFalse("私人版不应展示不可用的忘记密码入口", screen.contains("忘记密码？"))
+        assertFalse("私人版登录页不应触发邮件重置", screen.contains("onForgotPasswordClick"))
 
         listOf(
             "resetPasswordForEmail",
@@ -187,7 +183,7 @@ class AuthRememberCredentialsSourceTest {
 
         assertTrue("导航缺少重置密码路由", navGraph.contains("RESET_PASSWORD"))
         assertTrue("导航缺少 resetPassword route builder", navGraph.contains("fun resetPassword(deepLink: String, email: String = \"\")"))
-        assertTrue("登录页忘记密码应传递当前输入邮箱", navGraph.contains("onForgotPasswordClick = { email ->\n                    navController.navigate(Routes.resetPassword(\"\", email))"))
+        assertFalse("登录导航不应暴露邮件重置入口", navGraph.contains("onForgotPasswordClick ="))
         assertTrue("重置页应接收当前输入邮箱", navGraph.contains("initialEmail = initialEmail"))
         assertTrue("Manifest 缺少重置密码 Deep Link scheme", manifest.contains("android:scheme=\"orderdisk\""))
         assertTrue("Manifest 缺少重置密码 Deep Link host", manifest.contains("android:host=\"auth\""))

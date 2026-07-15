@@ -13,6 +13,7 @@ import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -30,6 +31,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -39,6 +41,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Campaign
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.ShoppingBag
@@ -194,41 +197,66 @@ fun OrderingScreen(
                 shopName = uiState.shopName.ifBlank { "我们的小饭桌" },
                 bannerImageUrl = uiState.shopCoverUrl,
                 announcement = uiState.shopAnnouncement.ifBlank { "今天也给你准备了好吃的 ✨" },
-                showDescription = uiState.isEater,
-                onClick = onShopNameClick
+                canManageShop = !uiState.isEater,
+                onManageShopClick = onShopNameClick
             )
-            if (!uiState.isEater) CaretakerBrowseNotice()
-            OrderingSearchBar(
-                value = uiState.searchQuery,
-                onValueChange = viewModel::onSearchQueryChange,
-                modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp)
-            )
-            Row(
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(),
+                contentAlignment = Alignment.Center
+            ) {
+                OrderingSearchBar(
+                    value = uiState.searchQuery,
+                    onValueChange = viewModel::onSearchQueryChange,
+                    modifier = Modifier
+                        .widthIn(max = 840.dp)
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 8.dp)
+                )
+            }
+            BoxWithConstraints(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .weight(1f)
-                    .padding(horizontal = 20.dp)
+                    .weight(1f),
+                contentAlignment = Alignment.TopCenter
             ) {
-                CategoryRail(
-                    categories = uiState.orderingCategories,
-                    selectedCategory = uiState.selectedCategory,
-                    bottomClearance = bottomClearance,
-                    onSelect = viewModel::selectCategory
-                )
-                DishList(
-                    items = uiState.visibleItems,
-                    canOrder = uiState.isEater,
-                    showDescription = uiState.isEater,
-                    onAdd = { item, start ->
-                        if (viewModel.addToCart(item)) {
-                            cartFlyStart = start - pageRootOffset
-                        }
-                    },
-                    onDishClick = { detailItem = it },
-                    onManageMenuClick = onManageMenuClick,
-                    bottomClearance = bottomClearance,
-                    modifier = Modifier.weight(1f)
-                )
+                val menuMaxWidth = if (maxWidth >= 600.dp) 760.dp else maxWidth
+                Row(
+                    modifier = Modifier
+                        .widthIn(max = menuMaxWidth)
+                        .fillMaxSize()
+                        .padding(horizontal = 20.dp)
+                ) {
+                    CategoryRail(
+                        categories = uiState.orderingCategories,
+                        selectedCategory = uiState.selectedCategory,
+                        bottomClearance = bottomClearance,
+                        onSelect = viewModel::selectCategory
+                    )
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight(),
+                        contentAlignment = Alignment.TopCenter
+                    ) {
+                        DishList(
+                            items = uiState.visibleItems,
+                            canOrder = uiState.isEater,
+                            showDescription = uiState.isEater,
+                            onAdd = { item, start ->
+                                if (viewModel.addToCart(item)) {
+                                    cartFlyStart = start - pageRootOffset
+                                }
+                            },
+                            onDishClick = { detailItem = it },
+                            onManageMenuClick = onManageMenuClick,
+                            bottomClearance = bottomClearance,
+                            modifier = Modifier
+                                .widthIn(max = 440.dp)
+                                .fillMaxHeight()
+                        )
+                    }
+                }
             }
         }
 
@@ -259,24 +287,6 @@ fun OrderingScreen(
                 onFinished = { cartFlyStart = null }
             )
         }
-    }
-}
-
-@Composable
-private fun CaretakerBrowseNotice() {
-    Surface(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp),
-        shape = RoundedCornerShape(14.dp),
-        color = Color(0xFFFFE8EE),
-        border = BorderStroke(1.dp, CozyRose.copy(alpha = 0.24f)),
-        shadowElevation = 0.dp
-    ) {
-        Text(
-            text = "饲养员可以浏览菜单，点菜和结算由吃货完成",
-            color = CozyCocoa,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)
-        )
     }
 }
 
@@ -314,101 +324,115 @@ private fun ShopCard(
     shopName: String,
     bannerImageUrl: String,
     announcement: String,
-    showDescription: Boolean,
-    onClick: () -> Unit
+    canManageShop: Boolean,
+    onManageShopClick: () -> Unit
 ) {
     val displayShopName = shopName.trim().ifBlank { "我们的小饭桌" }
     val displayAnnouncement = announcement.trim().ifBlank { "今天也给你准备了好吃的" }
-    val titleFontSize = when {
-        displayShopName.length > 18 -> 16.sp
-        displayShopName.length > 12 -> 17.sp
-        else -> 20.sp
-    }
-    val titleLineHeight = when {
-        displayShopName.length > 18 -> 22.sp
-        displayShopName.length > 12 -> 24.sp
-        else -> 28.sp
-    }
-    val announcementFontSize = when {
-        displayAnnouncement.length > 46 -> 12.sp
-        displayAnnouncement.length > 28 -> 13.sp
-        else -> 15.sp
-    }
-    val announcementLineHeight = when {
-        displayAnnouncement.length > 46 -> 18.sp
-        displayAnnouncement.length > 28 -> 20.sp
-        else -> 22.sp
-    }
-    val announcementMaxLines = if (displayAnnouncement.length > 46) 3 else 2
-
-    SquishyOrderSurface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .heightIn(min = 82.dp)
-            .padding(horizontal = 20.dp, vertical = 4.dp),
-        radius = 24,
-        containerColor = Color(0xFFFFFCF8),
-        borderColor = OrderingHandDrawnBorder.copy(alpha = 0.48f),
-        onClick = onClick
+    BoxWithConstraints(
+        modifier = Modifier.fillMaxWidth(),
+        contentAlignment = Alignment.Center
     ) {
-        Box(modifier = Modifier.fillMaxWidth()) {
-            Surface(
-                shape = CircleShape,
-                color = Color.White.copy(alpha = 0.24f),
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .offset(x = 38.dp, y = (-38).dp)
-                    .size(108.dp)
-            ) {}
+        val expanded = maxWidth >= 600.dp
+        val coverWidth = if (expanded) 96.dp else 68.dp
+        val coverHeight = if (expanded) 72.dp else 62.dp
+        SquishyOrderSurface(
+            modifier = Modifier
+                .widthIn(max = 840.dp)
+                .fillMaxWidth()
+                .heightIn(min = if (expanded) 96.dp else 86.dp)
+                .padding(horizontal = 20.dp, vertical = 4.dp),
+            radius = 18,
+            containerColor = Color(0xFFFFFCF8),
+            borderColor = OrderingHandDrawnBorder.copy(alpha = 0.48f),
+            onClick = null
+        ) {
             Row(
-                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                horizontalArrangement = Arrangement.spacedBy(11.dp)
             ) {
                 Surface(
-                    shape = CircleShape,
-                    color = Color.White,
-                    border = BorderStroke(2.dp, OrderingHandDrawnBorder),
-                    modifier = Modifier.size(54.dp)
+                    shape = RoundedCornerShape(12.dp),
+                    color = CozyCherry.copy(alpha = 0.56f),
+                    border = BorderStroke(1.dp, OrderingHandDrawnBorder.copy(alpha = 0.36f)),
+                    modifier = Modifier.size(width = coverWidth, height = coverHeight)
                 ) {
                     AsyncImage(
-                        model = bannerImageUrl.takeIf { it.isNotBlank() } ?: R.drawable.ic_launcher_orderdisk_dogs_cropped,
+                        model = bannerImageUrl.takeIf { it.isNotBlank() } ?: R.drawable.shop_banner_stitch,
                         contentDescription = displayShopName,
                         contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize().clip(CircleShape)
+                        modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(12.dp))
                     )
                 }
                 Column(
                     modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                    verticalArrangement = Arrangement.spacedBy(3.dp)
                 ) {
-                    Text(
-                        text = displayShopName,
-                        color = CozyCocoa,
-                        fontSize = titleFontSize,
-                        lineHeight = titleLineHeight,
-                        fontWeight = FontWeight.Black,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    if (showDescription) {
-                        Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                            Icon(
-                                Icons.Filled.Campaign,
-                                contentDescription = null,
-                                tint = CozyRose,
-                                modifier = Modifier.padding(top = 1.dp).size(15.dp)
-                            )
-                            Text(
-                                text = displayAnnouncement,
-                                color = OrderingHandDrawnBorder,
-                                fontSize = announcementFontSize,
-                                lineHeight = announcementLineHeight,
-                                maxLines = announcementMaxLines,
-                                overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.weight(1f)
-                            )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = displayShopName,
+                            color = CozyCocoa,
+                            style = androidx.compose.material3.MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Black,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f)
+                        )
+                        if (canManageShop) {
+                            Surface(
+                                shape = RoundedCornerShape(999.dp),
+                                color = CozyCherry.copy(alpha = 0.72f)
+                            ) {
+                                Text(
+                                    text = "浏览模式",
+                                    color = CozyRose,
+                                    style = androidx.compose.material3.MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                                )
+                            }
                         }
+                    }
+                    Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                        Icon(
+                            Icons.Filled.Campaign,
+                            contentDescription = null,
+                            tint = CozyRose,
+                            modifier = Modifier.padding(top = 1.dp).size(15.dp)
+                        )
+                        Text(
+                            text = displayAnnouncement,
+                            color = OrderingHandDrawnBorder,
+                            style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                    if (canManageShop) {
+                        Text(
+                            text = "点菜和结算由吃货完成",
+                            color = CozyMuted,
+                            style = androidx.compose.material3.MaterialTheme.typography.labelSmall,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+                if (canManageShop) {
+                    IconButton(
+                        onClick = onManageShopClick,
+                        modifier = Modifier.size(48.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Edit,
+                            contentDescription = "管理店铺",
+                            tint = CozyRose,
+                            modifier = Modifier.size(22.dp)
+                        )
                     }
                 }
             }
@@ -757,15 +781,21 @@ private fun SquishyOrderSurface(
     radius: Int,
     containerColor: Color,
     borderColor: Color,
-    onClick: () -> Unit,
+    onClick: (() -> Unit)?,
     content: @Composable () -> Unit
 ) {
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
     Surface(
         modifier = modifier
-            .scale(if (pressed) CozyMotion.SoftPressedScale else 1f)
-            .clickable(interactionSource = interaction, indication = null, onClick = onClick),
+            .scale(if (pressed && onClick != null) CozyMotion.SoftPressedScale else 1f)
+            .then(
+                if (onClick != null) {
+                    Modifier.clickable(interactionSource = interaction, indication = null, onClick = onClick)
+                } else {
+                    Modifier
+                }
+            ),
         shape = RoundedCornerShape(radius.dp),
         color = containerColor,
         border = BorderStroke(1.dp, borderColor)

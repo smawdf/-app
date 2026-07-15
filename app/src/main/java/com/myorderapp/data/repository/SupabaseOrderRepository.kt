@@ -48,6 +48,28 @@ private data class RemoteOrderPayload(
     @SerialName("delivery_fee") val deliveryFee: Double,
     @SerialName("total_price") val totalPrice: Double,
     @SerialName("candy_coins_spent") val candyCoinsSpent: Int = 0,
+    @SerialName("moment_image_url") val momentImageUrl: String = "",
+    @SerialName("created_at") val createdAt: String
+)
+
+@Serializable
+private data class RemoteOrderWritePayload(
+    val id: String,
+    @SerialName("user_id") val userId: String,
+    @SerialName("pair_id") val pairId: String = "",
+    @SerialName("buyer_name") val buyerName: String = "",
+    @SerialName("buyer_avatar_url") val buyerAvatarUrl: String = "",
+    @SerialName("buyer_role") val buyerRole: String = "",
+    @SerialName("shop_id") val shopId: String,
+    @SerialName("shop_name") val shopName: String,
+    @SerialName("shop_cover_url") val shopCoverUrl: String,
+    val status: String,
+    @SerialName("address_snapshot") val addressSnapshot: String,
+    @SerialName("buyer_note") val buyerNote: String,
+    val subtotal: Double,
+    @SerialName("delivery_fee") val deliveryFee: Double,
+    @SerialName("total_price") val totalPrice: Double,
+    @SerialName("candy_coins_spent") val candyCoinsSpent: Int = 0,
     @SerialName("created_at") val createdAt: String
 )
 
@@ -216,6 +238,24 @@ class SupabaseOrderRepository(
         enqueueSync()
     }
 
+    override suspend fun updateMomentImage(orderId: String, imageUrl: String) {
+        val order = scopedOrder(orderId) ?: return
+        val normalizedUrl = imageUrl.trim().takeIf { it.isBlank() || it.startsWith("https://") || it.startsWith("http://") }
+            ?: throw IllegalArgumentException("INVALID_MOMENT_IMAGE_URL")
+        if (sessionManager.isLoggedIn.value) {
+            try {
+                client.postgrest.rpc(
+                    function = "update_order_moment_image",
+                    parameters = mapOf("target_order_id" to orderId, "new_image_url" to normalizedUrl)
+                ).decodeAs<String>()
+            } catch (e: Exception) {
+                cloudErrorLogger?.log("orders", "update_moment_image", e, "orderId=$orderId")
+                throw e
+            }
+        }
+        orderDao.updateMomentImage(orderId, normalizedUrl)
+    }
+
     override suspend fun refreshOrders() {
         runCatching { syncPendingOrders() }
         syncRemoteOrders()
@@ -309,7 +349,7 @@ class SupabaseOrderRepository(
         }
     }
 
-    private fun OrderRecord.toRemotePayload() = RemoteOrderPayload(
+    private fun OrderRecord.toRemotePayload() = RemoteOrderWritePayload(
         id = id,
         userId = userId,
         pairId = pairId,
@@ -346,6 +386,7 @@ class SupabaseOrderRepository(
         deliveryFee = deliveryFee,
         totalPrice = totalPrice,
         candyCoinsSpent = candyCoinsSpent,
+        momentImageUrl = momentImageUrl,
         createdAt = createdAt,
         items = items
     )

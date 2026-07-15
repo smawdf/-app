@@ -23,7 +23,7 @@ class UserPreferencesRepository(
     val orderNotificationsEnabled: StateFlow<Boolean> = _orderNotificationsEnabled.asStateFlow()
 
     suspend fun loadFromCloud() {
-        if (ensureLocalOwner()) _orderNotificationsEnabled.value = false
+        if (ensureLocalOwner()) _orderNotificationsEnabled.value = true
         if (!session.isLoggedIn.value || session.currentUserId.isBlank()) return
         try {
             val remote = client.from("user_preferences").select {
@@ -76,7 +76,7 @@ class UserPreferencesRepository(
 
     private fun loadLocalPreference(): Boolean {
         ensureLocalOwner()
-        return prefs.getBoolean(KEY_ORDER_NOTIFICATIONS_ENABLED, false)
+        return prefs.getBoolean(KEY_ORDER_NOTIFICATIONS_ENABLED, true)
     }
 
     private fun ensureLocalOwner(): Boolean {
@@ -99,7 +99,7 @@ class UserPreferencesRepository(
 @Serializable
 private data class RemoteUserPreferences(
     @SerialName("user_id") val userId: String,
-    @SerialName("order_notifications_enabled") val orderNotificationsEnabled: Boolean = false,
+    @SerialName("order_notifications_enabled") val orderNotificationsEnabled: Boolean = true,
     @SerialName("updated_at") val updatedAt: String = ""
 )
 

@@ -223,9 +223,6 @@ fun NavGraph(
                     navController.navigate(Routes.ONBOARDING) {
                         popUpTo(Routes.AUTH) { inclusive = true }
                     }
-                },
-                onForgotPasswordClick = { email ->
-                    navController.navigate(Routes.resetPassword("", email))
                 }
             )
         }

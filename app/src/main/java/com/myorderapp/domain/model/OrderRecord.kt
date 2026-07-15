@@ -34,6 +34,7 @@ data class OrderRecord(
     val deliveryFee: Double,
     val totalPrice: Double,
     val candyCoinsSpent: Int = 0,
+    val momentImageUrl: String = "",
     val createdAt: String,
     val items: List<OrderItem> = emptyList(),
     val timeline: List<OrderTimelineEntry> = emptyList()

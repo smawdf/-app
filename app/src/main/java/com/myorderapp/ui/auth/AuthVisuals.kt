@@ -4,6 +4,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -50,6 +51,7 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -148,18 +150,21 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawHeart(
 
 @Composable
 fun AuthLogo(modifier: Modifier = Modifier) {
+    val outerShape = RoundedCornerShape(36.dp)
     Box(
         modifier = modifier
-            .size(128.dp)
-            .background(Color.White.copy(alpha = 0.92f), RoundedCornerShape(40.dp))
-            .padding(4.dp)
-            .clip(RoundedCornerShape(36.dp)),
+            .size(132.dp)
+            .background(Color(0xFFFFFAF6), outerShape)
+            .border(1.dp, AuthFieldStroke.copy(alpha = 0.72f), outerShape)
+            .padding(6.dp)
+            .clip(RoundedCornerShape(30.dp)),
         contentAlignment = Alignment.Center
     ) {
         Image(
-            painter = painterResource(R.drawable.ic_launcher_orderdisk_dogs_cropped),
+            painter = painterResource(R.drawable.auth_dogs_artwork),
             contentDescription = "应用图标",
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Crop
         )
     }
 }

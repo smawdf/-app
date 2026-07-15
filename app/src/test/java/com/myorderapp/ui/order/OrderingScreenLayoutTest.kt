@@ -21,7 +21,7 @@ class OrderingScreenLayoutTest {
             "CartFloatingBar",
             "AddDishButton",
             "announcement = uiState.shopAnnouncement",
-            "R.drawable.ic_launcher_orderdisk_dogs_cropped"
+            "R.drawable.shop_banner_stitch"
         ).forEach { expected ->
             assertTrue("Ordering screen missing marker: $expected", source.contains(expected))
         }
@@ -35,7 +35,10 @@ class OrderingScreenLayoutTest {
         assertTrue("购物车应按系统导航栏计算并贴在底部导航上方", source.contains("WindowInsets.navigationBars") && source.contains("bottomOffset = cartBottomOffset"))
         assertTrue("点菜页购物车按钮文案应明确为去结算", source.contains("SquishyCheckoutButton(text = \"去结算\""))
         assertTrue("菜品列表应通过 contentPadding 预留浮动导航空间", source.contains("bottom = bottomClearance + 14.dp"))
-        assertTrue("店铺卡容器必须由内容撑开，不能被 matchParentSize 压成 0 高度", source.contains("modifier = modifier\n            .scale(if (pressed) CozyMotion.SoftPressedScale else 1f)"))
+        assertTrue(
+            "店铺卡容器必须由内容撑开，不能被 matchParentSize 压成 0 高度",
+            source.contains("modifier = modifier\n            .scale(if (pressed && onClick != null) CozyMotion.SoftPressedScale else 1f)")
+        )
     }
 
     @Test
@@ -45,6 +48,22 @@ class OrderingScreenLayoutTest {
         assertTrue(source.contains("showDescription = uiState.isEater"))
         assertTrue(source.contains("if (showDescription)"))
         assertTrue(source.contains("showDescription: Boolean"))
+        assertTrue(source.contains("canManageShop = !uiState.isEater"))
+        assertTrue(source.contains("text = displayAnnouncement"))
+        assertFalse(source.contains("if (showDescription) {\n                        Row(verticalAlignment = Alignment.Top"))
+        assertFalse(source.contains("CaretakerBrowseNotice()"))
+    }
+
+    @Test
+    fun `shop information stays compact and constrained on large screens`() {
+        val source = readMainSource("ui/order/OrderingScreen.kt")
+
+        assertTrue(source.contains("BoxWithConstraints("))
+        assertTrue(source.contains("widthIn(max = 840.dp)"))
+        assertTrue(source.contains("widthIn(max = 440.dp)"))
+        assertTrue(source.contains("modifier = Modifier.size(width = coverWidth, height = coverHeight)"))
+        assertTrue(source.contains("contentDescription = \"管理店铺\""))
+        assertFalse(source.contains("displayShopName.length >"))
     }
 
     @Test

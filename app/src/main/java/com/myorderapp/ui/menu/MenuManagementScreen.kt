@@ -1,8 +1,5 @@
 package com.myorderapp.ui.menu
 
-import android.content.Intent
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -26,9 +23,11 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Campaign
 import androidx.compose.material.icons.filled.CheckCircle
@@ -92,6 +91,7 @@ import coil3.compose.AsyncImage
 import com.myorderapp.R
 import com.myorderapp.data.local.entity.MenuDishEntity
 import com.myorderapp.ui.components.CozyMainTopBar
+import com.myorderapp.ui.components.ImageSourcePickerDialog
 import com.myorderapp.ui.components.OrderGuidanceEmptyState
 import com.myorderapp.ui.util.yuanText
 import kotlinx.coroutines.delay
@@ -120,8 +120,10 @@ fun MenuManagementScreen(
     val isCompact = LocalConfiguration.current.screenWidthDp < 720
     var showCategoryDialog by remember { mutableStateOf(false) }
     var showCategoryManagerDialog by remember { mutableStateOf(false) }
-    var showShopNameDialog by remember { mutableStateOf(false) }
-    var showAnnouncementDialog by remember { mutableStateOf(false) }
+    var showShopSettingsDialog by remember { mutableStateOf(false) }
+    var showDishImageSourcePicker by remember { mutableStateOf(false) }
+    var showShopImageSourcePicker by remember { mutableStateOf(false) }
+    var shopImagePreview by remember { mutableStateOf<String?>(null) }
     var categoryDeleteTarget by remember { mutableStateOf<String?>(null) }
     var dishDeleteTarget by remember { mutableStateOf<MenuDishEntity?>(null) }
 
@@ -139,26 +141,21 @@ fun MenuManagementScreen(
         }
     }
 
-    val imagePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        if (uri != null) {
-            try {
-                context.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            } catch (_: SecurityException) {
-                // 有些相册不会授予持久权限，仍保留当前 URI 供本次使用。
-            }
-            viewModel.onImagePicked(context, uri)
+    ImageSourcePickerDialog(
+        visible = showDishImageSourcePicker,
+        title = "选择菜品图片",
+        onDismiss = { showDishImageSourcePicker = false },
+        onImageSelected = { viewModel.onImagePicked(context, it) }
+    )
+    ImageSourcePickerDialog(
+        visible = showShopImageSourcePicker,
+        title = "选择店铺封面",
+        onDismiss = { showShopImageSourcePicker = false },
+        onImageSelected = {
+            shopImagePreview = it.toString()
+            viewModel.updateShopImage(context, it)
         }
-    }
-    val shopImagePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        if (uri != null) {
-            try {
-                context.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            } catch (_: SecurityException) {
-                // 有些相册不会授予持久权限，仍保留当前 URI 供本次使用。
-            }
-            viewModel.updateShopImage(context, uri)
-        }
-    }
+    )
 
     if (uiState.isEditing) {
         DishEditorDialog(
@@ -174,9 +171,10 @@ fun MenuManagementScreen(
             onStockChange = viewModel::onStockChange,
             onAvailabilityChange = viewModel::onEditorAvailabilityChange,
             onSignatureChange = viewModel::onEditorSignatureChange,
-            onPickImage = { imagePicker.launch(arrayOf("image/*")) },
+            onPickImage = { showDishImageSourcePicker = true },
             onDismiss = viewModel::closeEditor,
-            onSave = viewModel::saveDish
+            onSave = viewModel::saveDish,
+            onCreateCategoryAndSave = viewModel::saveDishWithCategoryCreation
         )
     }
 
@@ -214,32 +212,23 @@ fun MenuManagementScreen(
         )
     }
 
-    if (showShopNameDialog) {
-        ShopNameDialog(
-            value = uiState.shopNameDraft,
-            onValueChange = viewModel::onShopNameChange,
+    if (showShopSettingsDialog && !showShopImageSourcePicker) {
+        ShopSettingsDialog(
+            shopName = uiState.shopNameDraft,
+            shopImageUrl = shopImagePreview ?: uiState.shopImageUrl,
+            announcement = uiState.shopAnnouncementDraft,
+            onShopNameChange = viewModel::onShopNameChange,
+            onAnnouncementChange = viewModel::onShopAnnouncementChange,
+            onPickImage = { showShopImageSourcePicker = true },
             onDismiss = {
-                viewModel.resetShopNameDraft()
-                showShopNameDialog = false
+                viewModel.resetShopSettingsDrafts()
+                shopImagePreview = null
+                showShopSettingsDialog = false
             },
             onSave = {
-                viewModel.saveShopName()
-                showShopNameDialog = false
-            }
-        )
-    }
-
-    if (showAnnouncementDialog) {
-        ShopAnnouncementDialog(
-            value = uiState.shopAnnouncementDraft,
-            onValueChange = viewModel::onShopAnnouncementChange,
-            onDismiss = {
-                viewModel.resetShopAnnouncementDraft()
-                showAnnouncementDialog = false
-            },
-            onSave = {
-                viewModel.saveShopAnnouncement()
-                showAnnouncementDialog = false
+                viewModel.saveShopSettings()
+                shopImagePreview = null
+                showShopSettingsDialog = false
             }
         )
     }
@@ -264,9 +253,11 @@ fun MenuManagementScreen(
                         shopName = uiState.shopName,
                         shopImageUrl = uiState.shopImageUrl,
                         announcement = uiState.shopAnnouncement,
-                        onEditShopName = { showShopNameDialog = true },
-                        onEditAnnouncement = { showAnnouncementDialog = true },
-                        onEditShopImage = { shopImagePicker.launch(arrayOf("image/*")) }
+                        onEdit = {
+                            viewModel.resetShopSettingsDrafts()
+                            shopImagePreview = null
+                            showShopSettingsDialog = true
+                        }
                     )
                 }
                 item {
@@ -347,14 +338,12 @@ private fun ShopSettingsStrip(
     shopName: String,
     shopImageUrl: String,
     announcement: String,
-    onEditShopName: () -> Unit,
-    onEditAnnouncement: () -> Unit,
-    onEditShopImage: () -> Unit
+    onEdit: () -> Unit
 ) {
     Surface(
-        shape = RoundedCornerShape(22.dp),
+        shape = RoundedCornerShape(20.dp),
         color = CardBackground,
-        border = BorderStroke(2.dp, PrimaryBlue.copy(alpha = 0.78f)),
+        border = BorderStroke(1.dp, BorderColor),
         modifier = Modifier
             .fillMaxWidth()
             .padding(bottom = 10.dp)
@@ -363,8 +352,7 @@ private fun ShopSettingsStrip(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(178.dp)
-                    .clickable(onClick = onEditShopImage)
+                    .height(154.dp)
             ) {
                 if (shopImageUrl.isNotBlank()) {
                     AsyncImage(
@@ -381,69 +369,68 @@ private fun ShopSettingsStrip(
                         modifier = Modifier.fillMaxSize()
                     )
                 }
+            }
+            Column(
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Text(
+                        text = shopName.ifBlank { "我的小店" },
+                        color = TextPrimary,
+                        fontSize = 21.sp,
+                        lineHeight = 27.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Surface(
+                        onClick = onEdit,
+                        shape = RoundedCornerShape(999.dp),
+                        color = PrimaryBlue.copy(alpha = 0.10f),
+                        border = BorderStroke(1.dp, PrimaryBlue.copy(alpha = 0.22f))
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Icon(Icons.Outlined.Edit, contentDescription = null, tint = PrimaryBlue, modifier = Modifier.size(17.dp))
+                            Text("编辑店铺", color = PrimaryBlue, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
                 Surface(
-                    onClick = onEditShopImage,
-                    shape = RoundedCornerShape(999.dp),
-                    color = CardBackground.copy(alpha = 0.92f),
-                    border = BorderStroke(1.dp, BorderColor),
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(12.dp)
+                    shape = RoundedCornerShape(14.dp),
+                    color = Color(0xFFFFF0F4),
+                    border = BorderStroke(1.dp, PrimaryBlue.copy(alpha = 0.12f)),
+                    modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(5.dp)
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.Top,
+                        horizontalArrangement = Arrangement.spacedBy(9.dp)
                     ) {
-                        Icon(Icons.Outlined.Edit, contentDescription = null, tint = PrimaryBlue, modifier = Modifier.size(16.dp))
-                        Text("编辑封面", color = PrimaryBlue, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                    }
-                }
-            }
-            Surface(
-                color = CardBackground,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 18.dp, vertical = 14.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(14.dp)
-                ) {
-                    Icon(Icons.Outlined.Restaurant, contentDescription = null, tint = PrimaryBlue, modifier = Modifier.size(24.dp))
-                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                        Text("店铺名称", color = TextSecondary, fontSize = 12.sp)
-                        Text(
-                            text = shopName.ifBlank { "我的小店" },
-                            color = TextPrimary,
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                        Icon(
+                            Icons.Filled.Campaign,
+                            contentDescription = null,
+                            tint = PrimaryBlue,
+                            modifier = Modifier.padding(top = 1.dp).size(18.dp)
                         )
-                    }
-                    IconButton(onClick = onEditShopName, modifier = Modifier.size(40.dp)) {
-                        Icon(Icons.Outlined.Edit, contentDescription = "编辑店铺名称", tint = PrimaryBlue, modifier = Modifier.size(24.dp))
-                    }
-                }
-            }
-            Surface(
-                shape = RoundedCornerShape(bottomStart = 20.dp, bottomEnd = 20.dp),
-                color = Color(0xFFFFE7EF),
-                border = null,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 18.dp, vertical = 18.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(14.dp)
-                ) {
-                    Icon(Icons.Filled.Campaign, contentDescription = null, tint = PrimaryBlue, modifier = Modifier.size(24.dp))
-                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text("店铺公告", color = TextPrimary, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                        Text(announcement, color = TextPrimary, fontSize = 15.sp, lineHeight = 22.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                    }
-                    IconButton(onClick = onEditAnnouncement, modifier = Modifier.size(40.dp)) {
-                        Icon(Icons.Outlined.Edit, contentDescription = "编辑店铺公告", tint = PrimaryBlue, modifier = Modifier.size(24.dp))
+                        Text(
+                            text = announcement.ifBlank { "欢迎光临" },
+                            color = TextSecondary,
+                            fontSize = 14.sp,
+                            lineHeight = 20.sp,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f)
+                        )
                     }
                 }
             }
@@ -992,80 +979,101 @@ private fun DishActionArea(
 }
 
 @Composable
-private fun ShopNameDialog(
-    value: String,
-    onValueChange: (String) -> Unit,
+private fun ShopSettingsDialog(
+    shopName: String,
+    shopImageUrl: String,
+    announcement: String,
+    onShopNameChange: (String) -> Unit,
+    onAnnouncementChange: (String) -> Unit,
+    onPickImage: () -> Unit,
     onDismiss: () -> Unit,
     onSave: () -> Unit
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        shape = RoundedCornerShape(18.dp),
-        containerColor = CardBackground,
-        title = { Text("编辑店铺名称", color = TextPrimary, fontWeight = FontWeight.Bold) },
-        text = {
-            OutlinedTextField(
-                value = value,
-                onValueChange = onValueChange,
-                label = { Text("店铺名称") },
-                singleLine = true,
-                shape = RoundedCornerShape(12.dp),
-                colors = editorTextFieldColors(),
-                modifier = Modifier.fillMaxWidth()
-            )
-        },
-        confirmButton = {
-            Button(
-                onClick = onSave,
-                enabled = value.trim().isNotBlank(),
-                shape = RoundedCornerShape(10.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = PrimaryBlue, contentColor = Color(0xFFFAFCFF))
-            ) {
-                Text("保存")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text("取消", color = TextSecondary) }
-        }
-    )
-}
-
-@Composable
-private fun ShopAnnouncementDialog(
-    value: String,
-    onValueChange: (String) -> Unit,
-    onDismiss: () -> Unit,
-    onSave: () -> Unit
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        shape = RoundedCornerShape(18.dp),
+        shape = RoundedCornerShape(28.dp),
         containerColor = CardBackground,
         title = {
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text("编辑店铺公告", color = TextPrimary, fontWeight = FontWeight.Bold)
-                Text("会显示在我的店铺和点菜页。", color = TextSecondary, fontSize = 12.sp)
-            }
+            Text(
+                "编辑店铺资料",
+                color = TextPrimary,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.fillMaxWidth(),
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+            )
         },
         text = {
-            OutlinedTextField(
-                value = value,
-                onValueChange = onValueChange,
-                label = { Text("店铺公告") },
-                minLines = 3,
-                maxLines = 5,
-                shape = RoundedCornerShape(12.dp),
-                colors = editorTextFieldColors(),
-                modifier = Modifier.fillMaxWidth()
-            )
+            Column(
+                modifier = Modifier.heightIn(max = 520.dp).verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(142.dp)
+                        .clip(RoundedCornerShape(18.dp))
+                ) {
+                    if (shopImageUrl.isNotBlank()) {
+                        AsyncImage(
+                            model = shopImageUrl,
+                            contentDescription = "店铺封面预览",
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    } else {
+                        Image(
+                            painter = painterResource(R.drawable.shop_banner_stitch),
+                            contentDescription = "店铺封面预览",
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
+                    Surface(
+                        onClick = onPickImage,
+                        shape = RoundedCornerShape(999.dp),
+                        color = CardBackground.copy(alpha = 0.96f),
+                        border = BorderStroke(1.dp, BorderColor),
+                        modifier = Modifier.align(Alignment.BottomEnd).padding(10.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Icon(Icons.Outlined.AddPhotoAlternate, contentDescription = null, tint = PrimaryBlue, modifier = Modifier.size(18.dp))
+                            Text("更换封面", color = PrimaryBlue, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+                OutlinedTextField(
+                    value = shopName,
+                    onValueChange = onShopNameChange,
+                    label = { Text("店铺名称") },
+                    singleLine = true,
+                    shape = RoundedCornerShape(14.dp),
+                    colors = editorTextFieldColors(),
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = announcement,
+                    onValueChange = onAnnouncementChange,
+                    label = { Text("店铺公告") },
+                    minLines = 3,
+                    maxLines = 5,
+                    shape = RoundedCornerShape(14.dp),
+                    colors = editorTextFieldColors(),
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
         },
         confirmButton = {
             Button(
                 onClick = onSave,
-                shape = RoundedCornerShape(10.dp),
+                enabled = shopName.trim().isNotBlank(),
+                shape = RoundedCornerShape(999.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = PrimaryBlue, contentColor = Color(0xFFFAFCFF))
             ) {
-                Text("保存")
+                Text("保存资料")
             }
         },
         dismissButton = {
@@ -1080,6 +1088,8 @@ private fun NewCategoryDialog(onDismiss: () -> Unit, onSave: (String) -> Unit) {
 
     AlertDialog(
         onDismissRequest = onDismiss,
+        shape = RoundedCornerShape(24.dp),
+        containerColor = CardBackground,
         title = { Text("新建分类", color = TextPrimary, fontWeight = FontWeight.Bold) },
         text = {
             OutlinedTextField(
@@ -1094,7 +1104,8 @@ private fun NewCategoryDialog(onDismiss: () -> Unit, onSave: (String) -> Unit) {
         confirmButton = {
             Button(
                 onClick = { onSave(categoryName) },
-                shape = RoundedCornerShape(10.dp),
+                enabled = categoryName.isNotBlank(),
+                shape = RoundedCornerShape(999.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = PrimaryBlue, contentColor = Color(0xFFFAFCFF))
             ) {
                 Text("保存分类")
@@ -1121,13 +1132,13 @@ private fun CategoryManagerDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        shape = RoundedCornerShape(18.dp),
+        shape = RoundedCornerShape(24.dp),
         containerColor = CardBackground,
         title = { Text("分类管理", color = TextPrimary, fontWeight = FontWeight.Bold) },
         text = {
             LazyColumn(
                 verticalArrangement = Arrangement.spacedBy(10.dp),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth().heightIn(max = 440.dp)
             ) {
                 item {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -1141,6 +1152,7 @@ private fun CategoryManagerDialog(
                             modifier = Modifier.weight(1f)
                         )
                         IconButton(
+                            enabled = newCategory.isNotBlank(),
                             onClick = {
                                 onCreate(newCategory)
                                 newCategory = ""
@@ -1218,13 +1230,15 @@ private fun DeleteDishDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
+        shape = RoundedCornerShape(24.dp),
+        containerColor = CardBackground,
         title = { Text(title, color = TextPrimary, fontWeight = FontWeight.Bold) },
         text = { Text(body, color = TextSecondary, fontSize = 14.sp, lineHeight = 20.sp) },
         confirmButton = {
             Button(
                 onClick = onConfirm,
                 colors = ButtonDefaults.buttonColors(containerColor = DangerRed, contentColor = Color(0xFFFAFCFF)),
-                shape = RoundedCornerShape(10.dp)
+                shape = RoundedCornerShape(999.dp)
             ) {
                 Text(confirmText)
             }
@@ -1252,9 +1266,24 @@ private fun DishEditorDialog(
     onSignatureChange: (Boolean) -> Unit,
     onPickImage: () -> Unit,
     onDismiss: () -> Unit,
-    onSave: () -> Unit
+    onSave: () -> Unit,
+    onCreateCategoryAndSave: (String) -> Unit
 ) {
     val sheetHeight = (LocalConfiguration.current.screenHeightDp * 0.67f).dp
+    var pendingCategoryCreation by remember { mutableStateOf<String?>(null) }
+    val requestSave = {
+        val normalizedCategory = state.category.trim()
+        val existingCategory = categories.firstOrNull { it.trim().equals(normalizedCategory, ignoreCase = true) }
+        when {
+            normalizedCategory.isBlank() -> onSave()
+            existingCategory != null -> {
+                if (existingCategory != state.category) onCategoryChange(existingCategory)
+                onSave()
+            }
+            else -> pendingCategoryCreation = normalizedCategory
+        }
+    }
+
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         containerColor = PageBackground,
@@ -1345,7 +1374,7 @@ private fun DishEditorDialog(
                                     }
                                 }
                                 Spacer(modifier = Modifier.height(10.dp))
-                                Text("从相册选择菜品图", color = TextSecondary, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                                Text("选择或拍摄菜品图", color = TextSecondary, fontSize = 18.sp, fontWeight = FontWeight.Bold)
                             }
                         }
                     }
@@ -1473,7 +1502,7 @@ private fun DishEditorDialog(
                     }
                 }
                 Surface(
-                    onClick = onSave,
+                    onClick = requestSave,
                     shape = RoundedCornerShape(999.dp),
                     color = PrimaryBlue,
                     modifier = Modifier
@@ -1489,6 +1518,43 @@ private fun DishEditorDialog(
                 }
             }
         }
+    }
+
+    pendingCategoryCreation?.let { category ->
+        AlertDialog(
+            onDismissRequest = { pendingCategoryCreation = null },
+            shape = RoundedCornerShape(22.dp),
+            containerColor = CardBackground,
+            title = {
+                Text("创建新分类？", color = TextPrimary, fontWeight = FontWeight.Bold)
+            },
+            text = {
+                Text(
+                    "“$category”还不是现有分类。确认后会自动创建该分类，并继续保存菜品。",
+                    color = TextSecondary
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        pendingCategoryCreation = null
+                        onCreateCategoryAndSave(category)
+                    },
+                    shape = RoundedCornerShape(10.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = PrimaryBlue,
+                        contentColor = Color(0xFFFAFCFF)
+                    )
+                ) {
+                    Text("创建并保存")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingCategoryCreation = null }) {
+                    Text("返回修改", color = TextSecondary)
+                }
+            }
+        )
     }
 }
 

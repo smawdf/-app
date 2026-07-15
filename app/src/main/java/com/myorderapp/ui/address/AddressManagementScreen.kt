@@ -9,7 +9,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
@@ -122,20 +124,26 @@ private fun AddAddressDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("添加地址") },
+        shape = RoundedCornerShape(24.dp),
+        containerColor = MaterialTheme.colorScheme.surface,
+        title = { Text("添加地址", fontWeight = FontWeight.Bold) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("联系人") }, singleLine = true)
-                OutlinedTextField(value = phone, onValueChange = { phone = it }, label = { Text("手机号") }, singleLine = true)
-                OutlinedTextField(value = addressLine1, onValueChange = { addressLine1 = it }, label = { Text("地址") }, singleLine = true)
-                OutlinedTextField(value = addressLine2, onValueChange = { addressLine2 = it }, label = { Text("门牌号，可选") }, singleLine = true)
-                OutlinedTextField(value = tag, onValueChange = { tag = it }, label = { Text("标签，可选") }, singleLine = true)
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("联系人") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = phone, onValueChange = { phone = it }, label = { Text("手机号") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = addressLine1, onValueChange = { addressLine1 = it }, label = { Text("地址") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = addressLine2, onValueChange = { addressLine2 = it }, label = { Text("门牌号，可选") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = tag, onValueChange = { tag = it }, label = { Text("标签，可选") }, singleLine = true, modifier = Modifier.fillMaxWidth())
             }
         },
         confirmButton = {
             Button(
                 onClick = { onSave(name, phone, addressLine1, addressLine2, tag) },
-                enabled = canSave
+                enabled = canSave,
+                shape = RoundedCornerShape(999.dp)
             ) {
                 Text("保存")
             }

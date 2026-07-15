@@ -47,8 +47,7 @@ class SupabaseStorageUploader(
             Log.d(tag, "压缩后: ${compressed.size} bytes")
 
             val fileName = "${UUID.randomUUID().toString().take(8)}.jpg"
-            val pairId = session.currentPairId
-            val path = if (pairId.isBlank()) "$dishId/$fileName" else "$pairId/$dishId/$fileName"
+            val path = "${currentStorageScope()}/$dishId/$fileName"
 
             Log.d(tag, "开始上传: path=$path, size=${compressed.size}")
 
@@ -76,9 +75,8 @@ class SupabaseStorageUploader(
 
             val compressed = compressImage(originalBytes) ?: originalBytes
             val userFolder = session.currentUserId.ifBlank { "anonymous" }
-            val pairFolder = session.currentPairId.ifBlank { "avatars" }
             val fileName = "${UUID.randomUUID().toString().take(8)}.jpg"
-            upload("$pairFolder/avatars/$userFolder/$fileName", compressed)
+            upload("${currentStorageScope()}/avatars/$userFolder/$fileName", compressed)
         } catch (e: Exception) {
             cloudErrorLogger.log("storage", "upload_avatar", e)
             Log.e(tag, "头像上传异常: ${e.javaClass.simpleName}: ${e.message}", e)
@@ -110,6 +108,13 @@ class SupabaseStorageUploader(
         }
     }
 
+    private fun currentStorageScope(): String {
+        val userId = session.currentUserId.ifBlank { "anonymous" }
+        return session.currentPairId.takeIf {
+            it.isNotBlank() && it != DEFAULT_PAIR_ID
+        } ?: "user:$userId"
+    }
+
     private suspend fun upload(path: String, bytes: ByteArray): UploadResult {
         return try {
             client.storage.from(bucket).upload(path, bytes)
@@ -121,5 +126,9 @@ class SupabaseStorageUploader(
             Log.e(tag, "上传失败: ${e.message}")
             UploadResult(error = "上传失败: ${e.message}")
         }
+    }
+
+    private companion object {
+        const val DEFAULT_PAIR_ID = "00000000-0000-0000-0000-000000000000"
     }
 }

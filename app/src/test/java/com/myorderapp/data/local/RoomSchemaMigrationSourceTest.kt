@@ -10,12 +10,14 @@ class RoomSchemaMigrationSourceTest {
     fun databaseExportsVersionTwelveAndRegistersMigrations() {
         val database = readMainSource("data/local/AppDatabase.kt")
         val schemaCandidates = listOf(
-            Paths.get("schemas/com.myorderapp.data.local.AppDatabase/12.json"),
-            Paths.get("app/schemas/com.myorderapp.data.local.AppDatabase/12.json")
+            Paths.get("schemas/com.myorderapp.data.local.AppDatabase/13.json"),
+            Paths.get("app/schemas/com.myorderapp.data.local.AppDatabase/13.json")
         )
-        assertTrue(database.contains("version = 12"))
+        assertTrue(database.contains("version = 13"))
         assertTrue(database.contains("MIGRATION_10_11"))
         assertTrue(database.contains("MIGRATION_11_12"))
+        assertTrue(database.contains("MIGRATION_12_13"))
+        assertTrue(database.contains("momentImageUrl"))
         assertTrue(database.contains("menu_dish_deletions"))
         assertTrue(database.contains("syncState"))
         assertTrue(schemaCandidates.any(Files::exists))

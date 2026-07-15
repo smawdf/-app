@@ -30,7 +30,7 @@ class StitchNativePageCoverageTest {
             NativePageMapping("page_6", "ui/order/OrderingScreen.kt", listOf("OrderingScreen")),
             NativePageMapping("page_7", "ui/auth/AuthScreen.kt", listOf("AuthScreen")),
             NativePageMapping("page_8", "ui/onboarding/OnboardingScreen.kt", listOf("OnboardingScreen")),
-            NativePageMapping("page_9", "ui/onboarding/OnboardingScreen.kt", listOf("ActivityResultContracts.GetContent()")),
+            NativePageMapping("page_9", "ui/onboarding/OnboardingScreen.kt", listOf("ImageSourcePickerDialog")),
             NativePageMapping("page_10", "ui/auth/ResetPasswordScreen.kt", listOf("ResetPasswordScreen")),
             NativePageMapping("page_11", "ui/checkout/CheckoutScreen.kt", listOf("CheckoutScreen")),
             NativePageMapping("page_12", "ui/menu/MenuManagementScreen.kt", listOf("MenuManagementScreen")),
