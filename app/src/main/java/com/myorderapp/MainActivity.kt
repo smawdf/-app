@@ -57,6 +57,7 @@ import com.myorderapp.ui.navigation.BottomNavItem
 import com.myorderapp.ui.navigation.NavGraph
 import com.myorderapp.ui.navigation.Routes
 import com.myorderapp.ui.navigation.navigateAsTab
+import com.myorderapp.ui.notifications.EXTRA_NOTIFICATION_ORDER_ID
 import com.myorderapp.ui.theme.Background
 import com.myorderapp.ui.theme.OrderDiskTheme
 import androidx.compose.material3.Icon
@@ -70,14 +71,19 @@ import org.koin.compose.getKoin
 
 class MainActivity : ComponentActivity() {
     private var latestDeepLink by mutableStateOf<String?>(null)
+    private var latestNotificationOrderId by mutableStateOf<String?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         latestDeepLink = intent?.data?.toString()
+        latestNotificationOrderId = intent?.getStringExtra(EXTRA_NOTIFICATION_ORDER_ID)
         setContent {
             OrderDiskTheme {
-                MainScreen(initialDeepLink = latestDeepLink)
+                MainScreen(
+                    initialDeepLink = latestDeepLink,
+                    notificationOrderId = latestNotificationOrderId
+                )
             }
         }
     }
@@ -86,11 +92,15 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         latestDeepLink = intent.data?.toString()
+        latestNotificationOrderId = intent.getStringExtra(EXTRA_NOTIFICATION_ORDER_ID)
     }
 }
 
 @Composable
-fun MainScreen(initialDeepLink: String? = null) {
+fun MainScreen(
+    initialDeepLink: String? = null,
+    notificationOrderId: String? = null
+) {
     val sessionManager = getKoin().get<SessionManager>()
     val cloudSyncCoordinator = getKoin().get<CloudSyncCoordinator>()
     val isLoggedIn by sessionManager.isLoggedIn.collectAsStateWithLifecycle()
@@ -136,6 +146,17 @@ fun MainScreen(initialDeepLink: String? = null) {
         }
         handledDeepLink = link
     }
+    var handledNotificationOrderId by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(notificationOrderId, currentRoute, isLoggedIn) {
+        val orderId = notificationOrderId?.takeIf { it.isNotBlank() } ?: return@LaunchedEffect
+        if (!isLoggedIn || currentRoute == null || handledNotificationOrderId == orderId) {
+            return@LaunchedEffect
+        }
+        navController.navigate(Routes.orderDetail(orderId)) {
+            launchSingleTop = true
+        }
+        handledNotificationOrderId = orderId
+    }
 
     val shellRoute = currentRoute ?: startDestination.takeIf { it in tabRoutes }
     val showMainShell = shellRoute in tabRoutes
@@ -149,7 +170,7 @@ fun MainScreen(initialDeepLink: String? = null) {
             notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
     }
-    val mainTopBarHeight = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + 64.dp
+    val mainTopBarHeight = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + 72.dp
 
 
     Box(modifier = Modifier.fillMaxSize()) {

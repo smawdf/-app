@@ -67,6 +67,17 @@ class OrderingScreenLayoutTest {
     }
 
     @Test
+    fun `browse mode does not compete with the shop name`() {
+        val source = readMainSource("ui/order/OrderingScreen.kt")
+        val shopNameBlock = source.substringAfter("text = displayShopName")
+            .substringBefore("Row(verticalAlignment = Alignment.Top")
+
+        assertFalse(shopNameBlock.contains("浏览模式"))
+        assertTrue(shopNameBlock.contains("modifier = Modifier.fillMaxWidth()"))
+        assertTrue(source.contains("text = \"浏览模式\""))
+    }
+
+    @Test
     fun `cart sheet uses only modal drag handle and clear checkout copy`() {
         val source = readMainSource("ui/shop/components/CartSheet.kt")
 

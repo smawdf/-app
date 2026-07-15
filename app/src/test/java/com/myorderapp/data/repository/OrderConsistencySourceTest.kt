@@ -14,7 +14,9 @@ class OrderConsistencySourceTest {
         listOf("pending_create", "pending_status", "syncPendingOrders", "OrderSyncWorker.enqueue").forEach {
             assertTrue(repository.contains(it))
         }
-        assertTrue(repository.contains("else eq(\"user_id\", activeUserId())"))
+        assertTrue(repository.contains("orderDao.getPendingOrders(userId)"))
+        assertTrue(repository.contains("val sessionId = sessionManager.currentSessionId"))
+        assertTrue(repository.contains("OrderSyncWorker.enqueue(context, userId, sessionId)"))
         assertTrue(repository.contains("syncState?.startsWith(\"pending_\")"))
         listOf("currentUserId != expectedUserId", "currentSessionId != expectedSessionId").forEach {
             assertTrue(worker.contains(it))

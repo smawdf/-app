@@ -146,9 +146,49 @@ class AppDatabaseMigrationTest {
         }
     }
 
+    @Test
+    fun migrateFrom13To14PreservesOrdersAndAddsViewerUserIds() {
+        helper.createDatabase(TEST_DB_13_14, 13).apply {
+            execSQL(
+                """
+                INSERT INTO orders (
+                    id, userId, pairId, buyerName, buyerAvatarUrl, buyerRole,
+                    shopId, shopName, shopCoverUrl, status, addressSnapshot,
+                    buyerNote, subtotal, deliveryFee, totalPrice, candyCoinsSpent,
+                    momentImageUrl, createdAt, syncState
+                ) VALUES (
+                    'order-3', 'user-1', 'pair-1', 'Eater', '', 'eater',
+                    'shop-1', 'Sweet Shop', '', 'completed', 'Pickup',
+                    '', 18.0, 0.0, 18.0, 18, '', '2026-07-15T00:00:00Z', 'synced'
+                )
+                """.trimIndent()
+            )
+            close()
+        }
+
+        val migrated = helper.runMigrationsAndValidate(
+            TEST_DB_13_14,
+            14,
+            true,
+            AppDatabase.MIGRATION_13_14
+        )
+        try {
+            val cursor = migrated.query("SELECT viewerUserIdsJson FROM orders WHERE id = 'order-3'")
+            try {
+                assertTrue(cursor.moveToFirst())
+                assertEquals("[]", cursor.getString(0))
+            } finally {
+                cursor.close()
+            }
+        } finally {
+            migrated.close()
+        }
+    }
+
     private companion object {
         const val TEST_DB_NAME = "app-database-migration-test"
         const val TEST_DB_11_12 = "app-database-migration-11-12-test"
         const val TEST_DB_12_13 = "app-database-migration-12-13-test"
+        const val TEST_DB_13_14 = "app-database-migration-13-14-test"
     }
 }

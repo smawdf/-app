@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -187,7 +188,7 @@ fun ProfileScreen(
         AlertDialog(
             onDismissRequest = { showUnpairConfirm = false },
             title = { Text("确认解除绑定？", fontWeight = FontWeight.Black) },
-            text = { Text("解除后双方将停止共享情侣资料、店铺和订单。对方会收到解绑通知。") },
+            text = { Text("解除后双方将停止同步新内容，共同订单、店铺和纪念日会各自保留。对方会收到解绑通知。") },
             confirmButton = {
                 TextButton(onClick = {
                     showUnpairConfirm = false
@@ -422,7 +423,16 @@ private fun ProfileHeader(
                 }
             }
             Spacer(modifier = Modifier.height(12.dp))
-            Text(name, color = OnSurface, fontSize = 24.sp, lineHeight = 32.sp, fontWeight = FontWeight.Black, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(
+                text = name,
+                color = OnSurface,
+                fontSize = 24.sp,
+                lineHeight = 32.sp,
+                fontWeight = FontWeight.Black,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = TextAlign.Center
+            )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = "ID: $displayUserId",
@@ -543,6 +553,7 @@ private fun CandyCoinsRechargeDialog(
     val canRechargeCustom = customAmount != null && customAmount > 0
 
     AlertDialog(
+        modifier = Modifier.imePadding(),
         onDismissRequest = onDismiss,
         shape = RoundedCornerShape(30.dp),
         containerColor = Color(0xFFFFFCF8),
@@ -568,7 +579,13 @@ private fun CandyCoinsRechargeDialog(
             )
         },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 520.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
                 Surface(
                     shape = RoundedCornerShape(22.dp),
                     color = Color(0xFFFFD1DC).copy(alpha = 0.34f),
@@ -815,6 +832,7 @@ private fun PairManagementDialog(
     val context = LocalContext.current
     val invitePreview = uiState.invitePreview
     AlertDialog(
+        modifier = Modifier.imePadding(),
         onDismissRequest = onDismiss,
         shape = RoundedCornerShape(28.dp),
         containerColor = CozySurface,
@@ -985,11 +1003,12 @@ private fun VersionInfoDialog(onDismiss: () -> Unit) {
         },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text("第一版正式发布", color = CozyCocoa, fontWeight = FontWeight.Black)
-                Text("• 情侣绑定与饲养员、吃货角色分工", color = CozyMuted)
-                Text("• 我的店铺、点菜、购物车与订单流程", color = CozyMuted)
-                Text("• 中文搜菜、云端同步与糖糖币记录", color = CozyMuted)
-                Text("• 纪念日和可更换照片的甜蜜时刻", color = CozyMuted)
+                Text("1.0.1 体验优化", color = CozyCocoa, fontWeight = FontWeight.Black)
+                Text("• 优化小屏、大字体和横屏平板布局", color = CozyMuted)
+                Text("• 修复列表滑动、文字遮挡和弹窗键盘避让", color = CozyMuted)
+                Text("• 首页订单通知自适应内容高度，减少多余空白", color = CozyMuted)
+                Text("• 解绑后仍可查看共同订单、店铺与纪念日", color = CozyMuted)
+                Text("• 完善订单图片、通知跳转和每日推荐", color = CozyMuted)
             }
         },
         confirmButton = {
@@ -1091,6 +1110,7 @@ private fun ProfileEditDialog(
 
     if (!showImageSourcePicker) {
         AlertDialog(
+            modifier = Modifier.imePadding(),
             onDismissRequest = { onDismissMessage(); onDismiss() },
             shape = RoundedCornerShape(28.dp),
             containerColor = CozySurface,
@@ -1105,6 +1125,10 @@ private fun ProfileEditDialog(
         },
         text = {
             Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 500.dp)
+                    .verticalScroll(rememberScrollState()),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
@@ -1133,7 +1157,7 @@ private fun ProfileEditDialog(
                         shape = CircleShape,
                         color = CozyRose,
                         border = BorderStroke(3.dp, CozySurface),
-                        modifier = Modifier.align(Alignment.BottomEnd).size(38.dp)
+                        modifier = Modifier.align(Alignment.BottomEnd).size(48.dp)
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Icon(Icons.Filled.Edit, contentDescription = "更换头像", tint = Color.White, modifier = Modifier.size(18.dp))

@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -259,7 +260,7 @@ private fun AnniversaryHeader(onBack: () -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .statusBarsPadding()
-            .height(64.dp)
+            .heightIn(min = 64.dp)
             .background(AnniversarySurface.copy(alpha = 0.94f))
             .padding(horizontal = 22.dp)
     ) {
@@ -442,10 +443,10 @@ private fun CalendarCard(
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                     CalendarTypeToggle(calendarType = calendarType, onCalendarTypeChange = onCalendarTypeChange)
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        IconButton(onClick = onPreviousMonth, modifier = Modifier.size(28.dp)) {
+                        IconButton(onClick = onPreviousMonth, modifier = Modifier.size(48.dp)) {
                             Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = "上月", tint = AnniversarySecondary, modifier = Modifier.size(18.dp))
                         }
-                        IconButton(onClick = onNextMonth, modifier = Modifier.size(28.dp)) {
+                        IconButton(onClick = onNextMonth, modifier = Modifier.size(48.dp)) {
                             Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = "下月", tint = AnniversarySecondary, modifier = Modifier.size(18.dp))
                         }
                     }
@@ -698,7 +699,7 @@ private fun SweetMomentItem(
                             shape = CircleShape,
                             color = AnniversaryCard.copy(alpha = 0.94f),
                             border = BorderStroke(1.dp, AnniversaryBorder),
-                            modifier = Modifier.align(Alignment.BottomEnd).padding(6.dp).size(28.dp)
+                            modifier = Modifier.align(Alignment.BottomEnd).padding(4.dp).size(48.dp)
                         ) {
                             Box(contentAlignment = Alignment.Center) {
                                 Icon(Icons.Filled.Edit, contentDescription = "设置甜蜜时刻图片", tint = AnniversaryPrimary, modifier = Modifier.size(15.dp))
@@ -844,13 +845,17 @@ private fun AnniversaryEditorDialog(
     }
 
     AlertDialog(
+        modifier = Modifier.imePadding(),
         onDismissRequest = onDismiss,
         shape = RoundedCornerShape(26.dp),
         containerColor = AnniversaryCard,
         title = { Text("设置纪念日", color = AnniversaryInk, fontWeight = FontWeight.Black) },
         text = {
             Column(
-                modifier = Modifier.verticalScroll(rememberScrollState()),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 540.dp)
+                    .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
                 Text("支持文字输入，也可以在日历里选择日期。", color = AnniversaryMuted)

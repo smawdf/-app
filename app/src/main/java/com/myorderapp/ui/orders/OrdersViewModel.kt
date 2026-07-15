@@ -6,6 +6,7 @@ import com.myorderapp.domain.model.OrderRecord
 import com.myorderapp.domain.model.ROLE_CARETAKER
 import com.myorderapp.domain.repository.OrderRepository
 import com.myorderapp.domain.repository.ProfileRepository
+import com.myorderapp.data.remote.supabase.SessionManager
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -15,13 +16,15 @@ import kotlinx.coroutines.launch
 data class OrdersUiState(
     val orders: List<OrderRecord> = emptyList(),
     val isCaretaker: Boolean = false,
+    val activePairId: String = "",
     val updatingOrderId: String? = null,
     val message: String? = null
 )
 
 class OrdersViewModel(
     private val orderRepository: OrderRepository,
-    private val profileRepository: ProfileRepository
+    private val profileRepository: ProfileRepository,
+    private val sessionManager: SessionManager
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(OrdersUiState())
@@ -46,11 +49,16 @@ class OrdersViewModel(
                 )
             }
         }
+        viewModelScope.launch {
+            sessionManager.pairId.collect { pairId ->
+                _uiState.value = _uiState.value.copy(activePairId = pairId)
+            }
+        }
     }
 
     fun advanceOrder(order: OrderRecord) {
         val state = _uiState.value
-        if (!state.isCaretaker || state.updatingOrderId != null) return
+        if (!state.isCaretaker || order.pairId != state.activePairId || state.updatingOrderId != null) return
         val nextStatus = when (order.status) {
             "submitted", "confirmed" -> "preparing"
             "preparing", "delivering" -> "completed"

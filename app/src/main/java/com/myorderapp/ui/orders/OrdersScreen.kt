@@ -100,8 +100,7 @@ fun OrdersScreen(
                     .fillMaxWidth()
                     .weight(1f),
                 contentPadding = PaddingValues(start = 20.dp, top = 20.dp, end = 20.dp, bottom = 172.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-                userScrollEnabled = visibleOrders.size > 3
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 item {
                     CozyMotionVisibility {
@@ -144,7 +143,7 @@ fun OrdersScreen(
                         CozyMotionVisibility(delayMillis = (visibleOrders.indexOf(order).coerceAtMost(4)) * 28) {
                             StitchOrderCard(
                                 order = order,
-                                isCaretaker = uiState.isCaretaker,
+                        isCaretaker = uiState.isCaretaker && order.pairId == uiState.activePairId,
                                 isUpdating = uiState.updatingOrderId == order.id,
                                 onClick = { onOrderClick(order.id) },
                                 onAdvance = { viewModel.advanceOrder(order) }
@@ -326,7 +325,7 @@ private fun StitchOrderCard(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    OrderAvatar(order = order, showBuyer = isCaretaker, displayName = displayName)
+                    OrderShopAvatar(order = order)
                     Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
                         Text(
                             text = "$displayLabel：$displayName",
@@ -414,33 +413,20 @@ private fun SquishyOrderActionButton(
 }
 
 @Composable
-private fun OrderAvatar(
-    order: OrderRecord,
-    showBuyer: Boolean,
-    displayName: String
-) {
+private fun OrderShopAvatar(order: OrderRecord) {
     Surface(
-        shape = CircleShape,
+        shape = RoundedCornerShape(12.dp),
         color = Color.White,
         border = BorderStroke(1.dp, Secondary.copy(alpha = 0.58f)),
         modifier = Modifier.size(44.dp)
     ) {
         Box(contentAlignment = Alignment.Center) {
-            if (showBuyer && order.buyerAvatarUrl.isNotBlank()) {
-                AsyncImage(
-                    model = order.buyerAvatarUrl,
-                    contentDescription = "$displayName 的头像",
-                    modifier = Modifier.fillMaxSize().clip(CircleShape),
-                    contentScale = ContentScale.Crop
-                )
-            } else {
-                Icon(
-                    imageVector = if (showBuyer) Icons.Outlined.Person else Icons.Outlined.Restaurant,
-                    contentDescription = null,
-                    tint = if (showBuyer) Tertiary else Primary,
-                    modifier = Modifier.size(22.dp)
-                )
-            }
+            AsyncImage(
+                model = order.shopCoverUrl.takeIf { it.isNotBlank() } ?: com.myorderapp.R.drawable.shop_banner_stitch,
+                contentDescription = "${order.shopName.ifBlank { "店铺" }}的头像",
+                modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(12.dp)),
+                contentScale = ContentScale.Crop
+            )
         }
     }
 }

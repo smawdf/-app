@@ -12,7 +12,9 @@ class CoupleProfileIdentitySourceTest {
         val profile = readSource("domain/model/Profile.kt")
         val repository = readSource("data/repository/SupabaseProfileRepository.kt")
 
-        assertTrue(screen.contains("Text(name, color = CozyCocoa"))
+        assertTrue(screen.contains("profile?.nickname?.takeIf { it.isNotBlank() }"))
+        assertTrue(screen.contains("text = name"))
+        assertTrue(screen.contains("maxLines = 2"))
         assertTrue(screen.contains("avatarUrl = pairInfo.partnerAvatarUrl"))
         assertTrue(profile.contains("val partnerAvatarUrl: String? = null"))
         assertTrue(repository.contains("partnerAvatarUrl = partnerAvatarUrl.takeIfCloudAvatarUrl()"))

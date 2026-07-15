@@ -23,8 +23,8 @@ class AppModuleRuntimeSourceTest {
             "single { CloudSyncCoordinator(",
             "viewModelOf(::OrderingViewModel)",
             "viewModelOf(::MenuManagementViewModel)",
-            "viewModel { OrdersViewModel(get(), get()) }",
-            "viewModel { OrderDetailViewModel(get(), get()) }"
+            "viewModel { OrdersViewModel(get(), get(), get()) }",
+            "viewModel { OrderDetailViewModel(get(), get(), get()) }"
         ).forEach { expected ->
             assertTrue("Missing runtime dependency: $expected", appModule.contains(expected))
         }

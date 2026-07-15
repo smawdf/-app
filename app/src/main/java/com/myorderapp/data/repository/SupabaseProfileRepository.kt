@@ -547,7 +547,7 @@ class SupabaseProfileRepository(
                 return false
             }
         }
-        val updated = current.copy(pairId = DEFAULT_PAIR_ID, pairedAt = "", selectedRole = "")
+        val updated = current.copy(pairId = DEFAULT_PAIR_ID, selectedRole = "")
         _profile.value = updated
         saveLocalProfile(updated)
         session.setPairId(DEFAULT_PAIR_ID)
@@ -605,7 +605,7 @@ class SupabaseProfileRepository(
             if (profiles.isNotEmpty()) {
                 val cloud = profiles.first()
                 val local = loadLocalProfile()
-                val anniversary = loadAnniversaryFromCloud(cloud.pairId)
+                val anniversary = loadAnniversaryFromCloud(anniversaryScope(cloud))
                 val merged = mergeCloudProfileWithLocalFallback(cloud, local)
                     .copy(pairedAt = anniversary.ifBlank { local.pairedAt })
                 if (anniversary.isBlank() && merged.pairedAt.isNotBlank()) {
@@ -718,7 +718,7 @@ class SupabaseProfileRepository(
     }
 
     private suspend fun loadAnniversaryFromCloud(pairId: String): String {
-        val normalizedPairId = pairId.takeIf { it.isNotBlank() && it != DEFAULT_PAIR_ID } ?: return ""
+        val normalizedPairId = pairId.takeIf { it.isNotBlank() } ?: return ""
         return try {
             client.from("anniversaries").select {
                 filter { eq("pair_id", normalizedPairId) }
@@ -729,8 +729,16 @@ class SupabaseProfileRepository(
         }
     }
 
+    private fun anniversaryScope(profile: Profile): String {
+        return profile.pairId.takeIf { it.isNotBlank() && it != DEFAULT_PAIR_ID }
+            ?: profile.userId.ifBlank { session.currentUserId }
+                .takeIf { it.isNotBlank() }
+                ?.let { "user:$it" }
+            .orEmpty()
+    }
+
     private suspend fun syncAnniversaryToCloud(profile: Profile) {
-        val pairId = profile.pairId.takeIf { it.isNotBlank() && it != DEFAULT_PAIR_ID } ?: return
+        val pairId = anniversaryScope(profile).takeIf { it.isNotBlank() } ?: return
         if (profile.pairedAt.isBlank()) return
         client.from("anniversaries").upsert(
             RemoteAnniversary(
@@ -931,4 +939,3 @@ private data class RemoteAnniversary(
     @kotlinx.serialization.SerialName("paired_at") val pairedAt: String = "",
     @kotlinx.serialization.SerialName("updated_at") val updatedAt: String = ""
 )
-

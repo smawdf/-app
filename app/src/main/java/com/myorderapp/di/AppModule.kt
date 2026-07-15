@@ -110,6 +110,6 @@ val appModule = module {
     viewModelOf(::CheckoutViewModel)
     viewModelOf(::CandyCoinsViewModel)
     viewModel { AddressViewModel(get(), get()) }
-    viewModel { OrdersViewModel(get(), get()) }
-    viewModel { OrderDetailViewModel(get(), get()) }
+    viewModel { OrdersViewModel(get(), get(), get()) }
+    viewModel { OrderDetailViewModel(get(), get(), get()) }
 }

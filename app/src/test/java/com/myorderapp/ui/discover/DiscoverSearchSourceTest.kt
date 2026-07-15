@@ -82,6 +82,20 @@ class DiscoverSearchSourceTest {
         assertTrue(bimissingSource.contains("DishSynonymTokenGroups"))
     }
 
+    @Test
+    fun `daily recommendations survive release minification and asset parse failures`() {
+        val source = readMainSource("data/local/BimissingRecipeAssetSource.kt")
+        val appGradlePath = listOf(
+            Paths.get("build.gradle.kts"),
+            Paths.get("app/build.gradle.kts")
+        ).firstOrNull { Files.exists(it) } ?: error("App Gradle file not found")
+        val appGradle = Files.readString(appGradlePath)
+
+        assertTrue(source.contains("@JsonClass(generateAdapter = true)"))
+        assertTrue(source.contains("recipes.ifEmpty { FallbackRecipes }"))
+        assertTrue(appGradle.contains("ksp(libs.moshi.kotlin.codegen)"))
+    }
+
     private fun readMainSource(relativePath: String): String {
         val candidates = listOf(
             Paths.get("src/main/java/com/myorderapp").resolve(relativePath),

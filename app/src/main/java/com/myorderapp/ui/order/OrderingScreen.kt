@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -371,31 +372,15 @@ private fun ShopCard(
                     modifier = Modifier.weight(1f),
                     verticalArrangement = Arrangement.spacedBy(3.dp)
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = displayShopName,
-                            color = CozyCocoa,
-                            style = androidx.compose.material3.MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Black,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f)
-                        )
-                        if (canManageShop) {
-                            Surface(
-                                shape = RoundedCornerShape(999.dp),
-                                color = CozyCherry.copy(alpha = 0.72f)
-                            ) {
-                                Text(
-                                    text = "浏览模式",
-                                    color = CozyRose,
-                                    style = androidx.compose.material3.MaterialTheme.typography.labelSmall,
-                                    fontWeight = FontWeight.Bold,
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                                )
-                            }
-                        }
-                    }
+                    Text(
+                        text = displayShopName,
+                        color = CozyCocoa,
+                        style = androidx.compose.material3.MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Black,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.fillMaxWidth()
+                    )
                     Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                         Icon(
                             Icons.Filled.Campaign,
@@ -413,13 +398,18 @@ private fun ShopCard(
                         )
                     }
                     if (canManageShop) {
-                        Text(
-                            text = "点菜和结算由吃货完成",
-                            color = CozyMuted,
-                            style = androidx.compose.material3.MaterialTheme.typography.labelSmall,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
+                        Surface(
+                            shape = RoundedCornerShape(999.dp),
+                            color = CozyCherry.copy(alpha = 0.72f)
+                        ) {
+                            Text(
+                                text = "浏览模式",
+                                color = CozyRose,
+                                style = androidx.compose.material3.MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                            )
+                        }
                     }
                 }
                 if (canManageShop) {
@@ -460,7 +450,7 @@ private fun CategoryRail(
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(46.dp)
+                    .heightIn(min = 48.dp)
                     .clickable { onSelect(category.id) },
                 shape = RoundedCornerShape(999.dp),
                 color = if (selected) CozyCherry else Color.Transparent,
@@ -474,7 +464,7 @@ private fun CategoryRail(
                         style = androidx.compose.material3.MaterialTheme.typography.labelMedium,
                         fontWeight = if (selected) FontWeight.Black else FontWeight.SemiBold,
                         textAlign = TextAlign.Center,
-                        maxLines = 1,
+                        maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.padding(horizontal = 8.dp)
                     )
@@ -570,7 +560,15 @@ private fun SingleShopDishCard(
                 }
             }
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(item.name, color = CozyCocoa, fontSize = 17.sp, lineHeight = 24.sp, fontWeight = FontWeight.Black, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(
+                    text = item.name,
+                    color = CozyCocoa,
+                    fontSize = 17.sp,
+                    lineHeight = 24.sp,
+                    fontWeight = FontWeight.Black,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
                 if (showDescription) {
                     Text(item.description.ifBlank { item.subtitle }.ifBlank { "今天也很适合点这一道" }, color = CozyMuted, style = androidx.compose.material3.MaterialTheme.typography.labelSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }

@@ -40,6 +40,7 @@ OrderDisk 当前使用 Supabase Auth、Postgrest、Storage。订单接收采用 
 32. `35_caretaker_order_acceptance.sql`：仅饲养员可接单和完成订单。
 33. `36_private_storage_scope.sql`：图片上传限制到当前账号或情侣目录。
 34. `37_sweet_moment_images.sql`：甜蜜时刻自定义图片字段与安全更新 RPC。
+35. `38_unpair_personal_history.sql`：解绑时保留双方订单查看权，并复制店铺、菜品和纪念日到各自个人空间。
 
 ## 当前 App 事实
 
@@ -49,4 +50,4 @@ OrderDisk 当前使用 Supabase Auth、Postgrest、Storage。订单接收采用 
 - 点菜消息接收是 App 端轮询订单，不是 Realtime 推送。
 - 当前菜谱搜索使用 Tian、本地中文菜谱、下厨房搜索与 Bing/外部图片兜底。
 - 旧 Jisu/Juhe 接入已移除；同步异常会写入 `client_error_logs`，用于私人版排错。
-- 首次部署或迁移环境必须按顺序执行到 `37_sweet_moment_images.sql`。
+- 首次部署或迁移环境必须按顺序执行到 `38_unpair_personal_history.sql`。

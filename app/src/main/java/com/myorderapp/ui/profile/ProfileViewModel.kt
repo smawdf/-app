@@ -230,6 +230,7 @@ class ProfileViewModel(
                 _uiState.value = _uiState.value.copy(saveMessage = "解除绑定失败，请检查网络后重试")
                 return@launch
             }
+            cloudSyncCoordinator.syncAll()
             val info = profileRepository.getPairInfo()
             runCatching { profileRepository.refreshCandyWalletBalance() }
             _uiState.value = _uiState.value.copy(

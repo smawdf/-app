@@ -250,6 +250,7 @@ object EntityMapper {
         totalPrice = totalPrice,
         candyCoinsSpent = candyCoinsSpent,
         momentImageUrl = momentImageUrl,
+        viewerUserIdsJson = "[]",
         createdAt = createdAt,
         syncState = "synced"
     )

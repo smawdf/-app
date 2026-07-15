@@ -42,6 +42,19 @@ class OrderNotificationSourceTest {
         ).forEach { expected ->
             assertTrue("主流程缺少通知权限申请：$expected", main.contains(expected))
         }
+
+        listOf(
+            "PendingIntent.getActivity(",
+            ".setContentIntent(contentIntent)",
+            "EXTRA_NOTIFICATION_ORDER_ID",
+            "Notification.ProgressStyle()",
+            ".setRequestPromotedOngoing(isActive)"
+        ).forEach { expected ->
+            assertTrue("订单通知缺少点击导航或实时更新能力：$expected", helper.contains(expected))
+        }
+        assertTrue(home.contains("terminalOrderStatuses"))
+        assertTrue(main.contains("Routes.orderDetail(orderId)"))
+        assertTrue(manifest.contains("android.permission.POST_PROMOTED_NOTIFICATIONS"))
     }
 
     private fun readMainSource(relativePath: String): String =

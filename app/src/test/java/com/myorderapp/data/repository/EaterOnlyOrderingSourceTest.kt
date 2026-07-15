@@ -3,6 +3,7 @@ package com.myorderapp.data.repository
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -16,7 +17,8 @@ class EaterOnlyOrderingSourceTest {
         assertTrue(viewModel.contains("profile?.selectedRole == ROLE_EATER"))
         assertTrue(viewModel.contains("if (!_uiState.value.isEater) return false"))
         assertTrue(screen.contains("canOrder = uiState.isEater"))
-        assertTrue(screen.contains("点菜和结算由吃货完成"))
+        assertTrue(screen.contains("canManageShop = !uiState.isEater"))
+        assertFalse(screen.contains("点菜和结算由吃货完成"))
     }
 
     @Test

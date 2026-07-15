@@ -20,12 +20,17 @@ import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.rpc
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import java.time.Instant
 import kotlin.math.ceil
 import java.util.UUID
@@ -49,6 +54,7 @@ private data class RemoteOrderPayload(
     @SerialName("total_price") val totalPrice: Double,
     @SerialName("candy_coins_spent") val candyCoinsSpent: Int = 0,
     @SerialName("moment_image_url") val momentImageUrl: String = "",
+    @SerialName("viewer_user_ids") val viewerUserIds: List<String> = emptyList(),
     @SerialName("created_at") val createdAt: String
 )
 
@@ -103,9 +109,13 @@ class SupabaseOrderRepository(
     private val client = SupabaseClientProvider.client
     private val submitMutex = Mutex()
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     override fun observeOrders(): Flow<List<OrderRecord>> {
-        val source = activePairId()?.let(orderDao::observeOrdersByPair)
-            ?: orderDao.observeOrdersByUser(activeUserId())
+        val source = combine(sessionManager.userId, sessionManager.pairId) { userId, pairId ->
+            userId to pairId.takeIf { it.isNotBlank() && it != DEFAULT_PAIR_ID }.orEmpty()
+        }.flatMapLatest { (userId, pairId) ->
+            orderDao.observeOrdersVisibleToUser(userId.ifBlank { "guest" }, pairId)
+        }
         return source.map { entities ->
             entities.map { order ->
                 val items = orderDao.getOrderItems(order.id).map { it.toDomain() }
@@ -300,12 +310,7 @@ class SupabaseOrderRepository(
             ?: sessionManager.currentPairId.takeIf { it.isNotBlank() && it != DEFAULT_PAIR_ID }
 
         try {
-            val remoteOrders = client.from("orders").select {
-                filter {
-                    if (pairId != null) eq("pair_id", pairId)
-                    else eq("user_id", activeUserId())
-                }
-            }.decodeList<RemoteOrderPayload>()
+            val remoteOrders = client.from("orders").select().decodeList<RemoteOrderPayload>()
 
             remoteOrders.forEach { payload ->
                 if (orderDao.getOrderById(payload.id)?.syncState?.startsWith("pending_") == true) {
@@ -315,7 +320,9 @@ class SupabaseOrderRepository(
                     filter { eq("order_id", payload.id) }
                 }.decodeList<RemoteOrderItemPayload>().map { it.toDomain() }
                 val order = payload.toDomain(orderItems)
-                orderDao.upsertOrder(order.toEntity())
+                orderDao.upsertOrder(
+                    order.toEntity().copy(viewerUserIdsJson = Json.encodeToString(payload.viewerUserIds))
+                )
                 orderDao.upsertItems(order.items.map { it.toEntity() })
             }
         } catch (e: Exception) {
@@ -324,9 +331,12 @@ class SupabaseOrderRepository(
         }
     }
 
-    private suspend fun scopedOrder(orderId: String) = activePairId()?.let { pairId ->
-        orderDao.getOrderByIdForPair(orderId, pairId)
-    } ?: orderDao.getOrderByIdForUser(orderId, activeUserId())
+    private suspend fun scopedOrder(orderId: String): com.myorderapp.data.local.entity.OrderEntity? {
+        val currentPairOrder = activePairId()?.let { pairId ->
+            orderDao.getOrderByIdForPair(orderId, pairId)
+        }
+        return currentPairOrder ?: orderDao.getOrderByIdVisibleToUser(orderId, activeUserId())
+    }
 
     private fun activePairId(): String? {
         return sessionManager.currentPairId

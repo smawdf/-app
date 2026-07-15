@@ -22,6 +22,7 @@ data class OrderEntity(
     val totalPrice: Double,
     val candyCoinsSpent: Int = 0,
     val momentImageUrl: String = "",
+    val viewerUserIdsJson: String = "[]",
     val createdAt: String,
     val syncState: String = "synced"
 )

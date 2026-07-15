@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -990,6 +991,7 @@ private fun ShopSettingsDialog(
     onSave: () -> Unit
 ) {
     AlertDialog(
+        modifier = Modifier.imePadding(),
         onDismissRequest = onDismiss,
         shape = RoundedCornerShape(28.dp),
         containerColor = CardBackground,
@@ -1087,6 +1089,7 @@ private fun NewCategoryDialog(onDismiss: () -> Unit, onSave: (String) -> Unit) {
     var categoryName by remember { mutableStateOf("") }
 
     AlertDialog(
+        modifier = Modifier.imePadding(),
         onDismissRequest = onDismiss,
         shape = RoundedCornerShape(24.dp),
         containerColor = CardBackground,
@@ -1131,6 +1134,7 @@ private fun CategoryManagerDialog(
     var editingName by remember { mutableStateOf("") }
 
     AlertDialog(
+        modifier = Modifier.imePadding(),
         onDismissRequest = onDismiss,
         shape = RoundedCornerShape(24.dp),
         containerColor = CardBackground,
@@ -1269,7 +1273,6 @@ private fun DishEditorDialog(
     onSave: () -> Unit,
     onCreateCategoryAndSave: (String) -> Unit
 ) {
-    val sheetHeight = (LocalConfiguration.current.screenHeightDp * 0.67f).dp
     var pendingCategoryCreation by remember { mutableStateOf<String?>(null) }
     val requestSave = {
         val normalizedCategory = state.category.trim()
@@ -1301,7 +1304,8 @@ private fun DishEditorDialog(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(sheetHeight)
+                .fillMaxHeight(0.9f)
+                .imePadding()
                 .navigationBarsPadding()
         ) {
             Row(

@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -36,6 +37,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.myorderapp.domain.model.OrderRecord
@@ -47,6 +50,7 @@ import com.myorderapp.ui.components.CozyMuted
 import com.myorderapp.ui.components.CozyPill
 import com.myorderapp.ui.components.CozyRose
 import com.myorderapp.ui.util.yuanText
+import coil3.compose.AsyncImage
 import org.koin.androidx.compose.koinViewModel
 
 @Composable
@@ -62,7 +66,8 @@ fun OrderDetailScreen(
     }
 
     val order = uiState.order
-    val canAdvanceOrder = uiState.isCaretaker
+    val isHistoricalOrder = order != null && order.pairId != uiState.activePairId
+    val canAdvanceOrder = uiState.isCaretaker && !isHistoricalOrder
     val nextActionText = order?.status?.nextActionText()?.takeIf { canAdvanceOrder }
 
     Box(
@@ -113,11 +118,11 @@ fun OrderDetailScreen(
                 } else {
                     item { OrderSummaryCard(order = order) }
 
-                    if (!canAdvanceOrder && order.status in setOf("submitted", "confirmed")) {
+                    if (!isHistoricalOrder && !canAdvanceOrder && order.status in setOf("submitted", "confirmed")) {
                         item { CaretakerOnlyCard() }
                     }
 
-                    if (nextActionText != null || order.status !in setOf("completed", "cancelled")) {
+                    if (!isHistoricalOrder && (nextActionText != null || order.status !in setOf("completed", "cancelled"))) {
                         item {
                             OrderActionRow(
                                 nextActionText = nextActionText,
@@ -142,7 +147,7 @@ private fun OrderDetailTopBar(onBack: () -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .statusBarsPadding()
-            .height(64.dp)
+            .heightIn(min = 64.dp)
             .padding(horizontal = 12.dp, vertical = 8.dp)
     ) {
         IconButton(onClick = onBack, modifier = Modifier.align(Alignment.CenterStart)) {
@@ -172,19 +177,49 @@ private fun OrderSummaryCard(order: OrderRecord) {
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Surface(shape = CircleShape, color = Color(0xFFFFD1DC).copy(alpha = 0.62f)) {
-                    Icon(
-                        Icons.Filled.RestaurantMenu,
-                        contentDescription = null,
-                        tint = CozyRose,
-                        modifier = Modifier.padding(12.dp).size(24.dp)
+                Surface(
+                    shape = RoundedCornerShape(14.dp),
+                    color = Color(0xFFFFD1DC).copy(alpha = 0.62f),
+                    modifier = Modifier.size(52.dp)
+                ) {
+                    AsyncImage(
+                        model = order.shopCoverUrl.takeIf { it.isNotBlank() } ?: com.myorderapp.R.drawable.shop_banner_stitch,
+                        contentDescription = "${order.shopName.ifBlank { "店铺" }}的头像",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(14.dp))
                     )
                 }
                 Column(modifier = Modifier.weight(1f)) {
                     Text(order.shopName, color = CozyCocoa, fontWeight = FontWeight.Black)
-                    Text(order.buyerDetailText(), color = CozyRose, fontWeight = FontWeight.SemiBold)
                 }
                 CozyPill(order.status.toOrderStatusText(), selected = true, color = CozyRose)
+            }
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Surface(
+                    shape = CircleShape,
+                    color = Color(0xFFFFF8F5),
+                    modifier = Modifier.size(30.dp)
+                ) {
+                    if (order.buyerAvatarUrl.isNotBlank()) {
+                        AsyncImage(
+                            model = order.buyerAvatarUrl,
+                            contentDescription = "${order.buyerName.ifBlank { "点单人" }}的头像",
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize().clip(CircleShape)
+                        )
+                    } else {
+                        Icon(
+                            Icons.Filled.RestaurantMenu,
+                            contentDescription = null,
+                            tint = CozyRose,
+                            modifier = Modifier.padding(7.dp).size(16.dp)
+                        )
+                    }
+                }
+                Text(order.buyerDetailText(), color = CozyRose, fontWeight = FontWeight.SemiBold)
             }
             Text(order.addressSnapshot.ifBlank { "小饭桌信息待补充" }, color = CozyMuted)
             Text(order.buyerNote.ifBlank { "暂无备注" }, color = CozyMuted)

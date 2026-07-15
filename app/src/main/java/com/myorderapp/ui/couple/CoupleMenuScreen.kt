@@ -18,6 +18,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -25,6 +26,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -65,6 +67,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -201,11 +204,16 @@ fun CoupleMenuScreen(
     }
 
     val activeOrder = orders.firstOrNull { it.status in activeOrderStatuses }
-    LaunchedEffect(activeOrder?.id, activeOrder?.status, selectedRole) {
-        val order = activeOrder ?: return@LaunchedEffect
+    val lastNotifiedOrderKey = profilePrefs.getString(KEY_LAST_NOTIFIED_ORDER_ID, "").orEmpty()
+    val lastNotifiedOrderId = lastNotifiedOrderKey.substringBeforeLast(":", missingDelimiterValue = "")
+    val notificationOrder = activeOrder ?: orders.firstOrNull { order ->
+        order.id == lastNotifiedOrderId && order.status in terminalOrderStatuses
+    }
+    LaunchedEffect(notificationOrder?.id, notificationOrder?.status, selectedRole) {
+        val order = notificationOrder ?: return@LaunchedEffect
         val notificationsEnabled = orderNotificationsEnabled || profilePrefs.getBoolean(KEY_ORDER_NOTIFICATIONS_ENABLED, false)
         val notifiedKey = "${order.id}:${order.status}"
-        if (notificationsEnabled && profilePrefs.getString(KEY_LAST_NOTIFIED_ORDER_ID, "") != notifiedKey) {
+        if (notificationsEnabled && lastNotifiedOrderKey != notifiedKey) {
             notifyActiveOrderIfAllowed(
                 context = context,
                 order = order,
@@ -437,7 +445,7 @@ private fun RelationshipCard(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(252.dp)
+                .heightIn(min = 252.dp)
                 .background(CozyPink.copy(alpha = 0.18f))
                 .padding(horizontal = 18.dp, vertical = 18.dp)
         ) {
@@ -450,7 +458,9 @@ private fun RelationshipCard(
                     .size(210.dp)
             )
             Column(
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 216.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.SpaceBetween
             ) {
@@ -507,7 +517,15 @@ private fun CurrentUserSlot(
             onClick = null
         )
         Spacer(modifier = Modifier.height(8.dp))
-        Text(name, color = CozyCocoa, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Black, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(
+            text = name,
+            color = CozyCocoa,
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Black,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.Center
+        )
         Spacer(modifier = Modifier.height(6.dp))
         RoleLabelPill(text = "当前角色：${selectedRole?.label ?: "选择身份"}")
     }
@@ -529,7 +547,15 @@ private fun PartnerSlot(
             onClick = onClick
         )
         Spacer(modifier = Modifier.height(8.dp))
-        Text(name, color = CozyCocoa, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Black, maxLines = 1)
+        Text(
+            text = name,
+            color = CozyCocoa,
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Black,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.Center
+        )
         Spacer(modifier = Modifier.height(6.dp))
         PartnerStatusSpacer(
             text = when {
@@ -634,40 +660,47 @@ private fun QuickActionGrid(
     onCustomizeMenuClick: () -> Unit,
     onGoOrderingClick: () -> Unit
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 14.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        QuickActionCard(
-            title = "纪念日",
-            subtitle = "记录我们一起吃饭的日子",
-            icon = Icons.Filled.Event,
-            tint = CozyTerracotta,
+    BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+        val fontScale = LocalDensity.current.fontScale
+        val narrowWidthBonus = if (maxWidth < 400.dp) 16f else 0f
+        val fontScaleBonus = (fontScale - 1f).coerceIn(0f, 0.5f) * 24f
+        val compactCardHeight = (60f + narrowWidthBonus + fontScaleBonus).dp
+        val gridHeight = compactCardHeight * 2 + 12.dp
+        Row(
             modifier = Modifier
-                .weight(1f)
-                .height(128.dp),
-            vertical = true,
-            onClick = onAnniversaryClick
-        )
-        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 14.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
             QuickActionCard(
-                title = "我的店铺",
-                subtitle = "上传菜单，整理菜品",
-                icon = Icons.Filled.Storefront,
-                tint = CozyRose,
-                modifier = Modifier.height(58.dp),
-                onClick = onCustomizeMenuClick
-            )
-            QuickActionCard(
-                title = "去点菜",
-                subtitle = "看看今天想吃什么",
-                icon = Icons.Filled.RestaurantMenu,
+                title = "纪念日",
+                subtitle = "记录我们一起吃饭的日子",
+                icon = Icons.Filled.Event,
                 tint = CozyTerracotta,
-                modifier = Modifier.height(58.dp),
-                onClick = onGoOrderingClick
+                modifier = Modifier
+                    .weight(1f)
+                    .height(gridHeight),
+                vertical = true,
+                onClick = onAnniversaryClick
             )
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                QuickActionCard(
+                    title = "我的店铺",
+                    subtitle = "上传菜单，整理菜品",
+                    icon = Icons.Filled.Storefront,
+                    tint = CozyRose,
+                    modifier = Modifier.height(compactCardHeight),
+                    onClick = onCustomizeMenuClick
+                )
+                QuickActionCard(
+                    title = "去点菜",
+                    subtitle = "看看今天想吃什么",
+                    icon = Icons.Filled.RestaurantMenu,
+                    tint = CozyTerracotta,
+                    modifier = Modifier.height(compactCardHeight),
+                    onClick = onGoOrderingClick
+                )
+            }
         }
     }
 }
@@ -688,7 +721,11 @@ private fun QuickActionCard(
         onClick = onClick,
         containerColor = Color.White.copy(alpha = 0.90f),
         borderColor = CozyRose.copy(alpha = 0.20f),
-        contentPadding = PaddingValues(12.dp)
+        contentPadding = if (vertical) {
+            PaddingValues(12.dp)
+        } else {
+            PaddingValues(horizontal = 12.dp, vertical = 8.dp)
+        }
     ) {
         if (vertical) {
             Column(
@@ -762,63 +799,64 @@ private fun RoleCard(
     onClick: () -> Unit
 ) {
     CozyCard(
-        modifier = modifier.aspectRatio(1f),
+        modifier = modifier,
         containerColor = if (selected) accent.copy(alpha = 0.15f) else Color.White.copy(alpha = 0.82f),
         borderColor = if (selected) accent.copy(alpha = 0.45f) else Color.White.copy(alpha = 0.7f),
         radius = 22,
         onClick = { if (!locked) onClick() },
         contentPadding = PaddingValues(14.dp)
     ) {
-        Box(modifier = Modifier.fillMaxSize()) {
-            Surface(
-                shape = RoundedCornerShape(bottomStart = 48.dp),
-                color = accent.copy(alpha = if (selected) 0.12f else 0.05f),
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .size(72.dp)
-            ) {}
-            Column(
-                modifier = Modifier.fillMaxSize()
-                    .padding(end = 4.dp),
-                verticalArrangement = Arrangement.SpaceBetween,
-                horizontalAlignment = Alignment.Start
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalAlignment = Alignment.Start
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 CozyIconBadge(icon = icon, background = accent.copy(alpha = 0.14f), tint = accent, modifier = Modifier.size(42.dp))
-                Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                    Text(role.label, color = CozyCocoa, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Black)
-                    if (selected) {
-                        Surface(shape = RoundedCornerShape(999.dp), color = accent.copy(alpha = 0.92f)) {
-                            Text(
-                                "当前角色",
-                                color = Color.White,
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
-                            )
-                        }
-                    }
-                    Text(
-                        subtitle,
-                        color = CozyMuted,
-                        style = MaterialTheme.typography.labelSmall,
-                        maxLines = 2,
-                        lineHeight = 15.sp,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Text(
-                        text = when {
-                            locked && selected -> "已绑定，身份锁定"
-                            locked -> "解绑后可更改"
-                            selected -> "当前：${role.label}"
-                            else -> "切换为${role.label}"
-                        },
-                        color = if (selected) accent else CozyMuted,
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1
-                    )
-                }
+                Text(
+                    role.label,
+                    color = CozyCocoa,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Black,
+                    modifier = Modifier.weight(1f)
+                )
             }
+            Surface(
+                shape = RoundedCornerShape(999.dp),
+                color = if (selected) accent.copy(alpha = 0.92f) else accent.copy(alpha = 0.08f)
+            ) {
+                Text(
+                    text = if (selected) "当前角色" else "可切换",
+                    color = if (selected) Color.White else accent,
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                )
+            }
+            Text(
+                subtitle,
+                color = CozyMuted,
+                style = MaterialTheme.typography.labelSmall,
+                maxLines = 2,
+                lineHeight = 15.sp,
+                overflow = TextOverflow.Ellipsis
+            )
+            Text(
+                text = when {
+                    locked && selected -> "已绑定，身份锁定"
+                    locked -> "解绑后可更改"
+                    selected -> "当前：${role.label}"
+                    else -> "切换为${role.label}"
+                },
+                color = if (selected) accent else CozyMuted,
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1
+            )
         }
     }
 }
@@ -862,6 +900,7 @@ private fun IdentitySwitchToast(role: CoupleRole) {
 }
 
 private val activeOrderStatuses = setOf("submitted", "confirmed", "preparing", "delivering")
+private val terminalOrderStatuses = setOf("completed", "cancelled")
 
 @Composable
 private fun LatestOrderNudge(
@@ -879,36 +918,35 @@ private fun LatestOrderNudge(
         .ifBlank { order.shopName.ifBlank { "我的小店" } }
     CozyCard(
         modifier = Modifier
-            .padding(horizontal = 20.dp, vertical = 2.dp)
-            .height(104.dp),
+            .padding(horizontal = 20.dp, vertical = 2.dp),
         containerColor = Color(0xFFFFFCF8),
         borderColor = CozyBorder.copy(alpha = 0.72f),
-        contentPadding = PaddingValues(16.dp),
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
         onClick = onClick
     ) {
         Row(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             CozyIconBadge(Icons.Filled.Restaurant, background = Color(0xFFFFD1DC), tint = CozyRose)
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.Center
+                verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
                 Text(
                     text = title,
                     color = CozyCocoa,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Black,
-                    maxLines = 1,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
                 Text(
                     text = subtitle,
                     color = CozyMuted,
                     style = MaterialTheme.typography.bodySmall,
-                    maxLines = 1,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
             }

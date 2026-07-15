@@ -3,17 +3,23 @@ package com.myorderapp.ui.notifications
 import android.Manifest
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Color
+import android.net.Uri
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
+import com.myorderapp.MainActivity
 import com.myorderapp.R
 import com.myorderapp.domain.model.OrderRecord
 
 private const val CHANNEL_ID = "couple_order_updates"
 private const val CHANNEL_NAME = "订单提醒"
+const val EXTRA_NOTIFICATION_ORDER_ID = "notification_order_id"
 
 fun notifyActiveOrderIfAllowed(
     context: Context,
@@ -35,15 +41,74 @@ fun notifyActiveOrderIfAllowed(
     }
     val content = order.items.take(2).joinToString("、") { it.menuItemName }
         .ifBlank { order.shopName.ifBlank { "打开 App 查看详情" } }
-    val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+    val contentIntent = orderDetailPendingIntent(context, order.id)
+    val notification = if (Build.VERSION.SDK_INT >= 36) {
+        buildPromotedOrderNotification(context, order, title, content, contentIntent)
+    } else {
+        NotificationCompat.Builder(context, CHANNEL_ID)
+            .setSmallIcon(R.mipmap.ic_launcher)
+            .setContentTitle(title)
+            .setContentText(content)
+            .setContentIntent(contentIntent)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setOnlyAlertOnce(true)
+            .setAutoCancel(true)
+            .build()
+    }
+
+    manager.notify(order.id.hashCode(), notification)
+}
+
+private fun orderDetailPendingIntent(context: Context, orderId: String): PendingIntent {
+    val intent = Intent(context, MainActivity::class.java).apply {
+        action = Intent.ACTION_VIEW
+        data = Uri.parse("orderdisk://orders/${Uri.encode(orderId)}")
+        putExtra(EXTRA_NOTIFICATION_ORDER_ID, orderId)
+        flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+    }
+    return PendingIntent.getActivity(
+        context,
+        orderId.hashCode(),
+        intent,
+        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+    )
+}
+
+@androidx.annotation.RequiresApi(36)
+private fun buildPromotedOrderNotification(
+    context: Context,
+    order: OrderRecord,
+    title: String,
+    content: String,
+    contentIntent: PendingIntent
+): android.app.Notification {
+    val progress = when (order.status) {
+        "submitted", "confirmed" -> 20
+        "preparing", "delivering" -> 65
+        "completed" -> 100
+        else -> 0
+    }
+    val isActive = order.status !in setOf("completed", "cancelled")
+    val style = android.app.Notification.ProgressStyle()
+        .setProgress(progress)
+        .setProgressSegments(
+            listOf(android.app.Notification.ProgressStyle.Segment(100).setColor(Color.rgb(255, 145, 164)))
+        )
+        .setStyledByProgress(true)
+
+    return android.app.Notification.Builder(context, CHANNEL_ID)
         .setSmallIcon(R.mipmap.ic_launcher)
         .setContentTitle(title)
         .setContentText(content)
-        .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-        .setAutoCancel(true)
+        .setContentIntent(contentIntent)
+        .setStyle(style)
+        .setCategory(android.app.Notification.CATEGORY_PROGRESS)
+        .setShortCriticalText(order.shopName.take(7).ifBlank { "高糖小食" })
+        .setRequestPromotedOngoing(isActive)
+        .setOngoing(isActive)
+        .setOnlyAlertOnce(true)
+        .setAutoCancel(!isActive)
         .build()
-
-    manager.notify(order.id.hashCode(), notification)
 }
 
 private fun ensureOrderNotificationChannel(context: Context) {

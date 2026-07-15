@@ -2,15 +2,18 @@ package com.myorderapp.data.local
 
 import android.content.Context
 import com.myorderapp.ui.search.ExternalDishImageResult
+import com.squareup.moshi.JsonClass
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import java.time.LocalDate
 import kotlin.math.abs
 
+@JsonClass(generateAdapter = true)
 data class BimissingRecipeAssetDto(
     val recipes: List<BimissingRecipeDto> = emptyList()
 )
 
+@JsonClass(generateAdapter = true)
 data class BimissingRecipeDto(
     val id: String = "",
     val name: String = "",
@@ -72,10 +75,10 @@ class BimissingRecipeAssetSource(private val context: Context) {
     }
 
     fun dailyRecommendation(date: LocalDate = LocalDate.now()): ExternalDishImageResult? {
-        val candidates = recipes
+        val candidates = recipes.ifEmpty { FallbackRecipes }
             .filter { it.name.isNotBlank() }
             .filterNot { it.imageUrl.isLegacyRecipeImageUrl() }
-            .ifEmpty { recipes.filter { it.name.isNotBlank() } }
+            .ifEmpty { recipes.ifEmpty { FallbackRecipes }.filter { it.name.isNotBlank() } }
         if (candidates.isEmpty()) return null
 
         val index = abs(date.toEpochDay().toInt()) % candidates.size
@@ -83,7 +86,8 @@ class BimissingRecipeAssetSource(private val context: Context) {
     }
 
     fun fatLossRecommendation(date: LocalDate = LocalDate.now()): ExternalDishImageResult? {
-        val candidates = recipes
+        val availableRecipes = recipes.ifEmpty { FallbackRecipes }
+        val candidates = availableRecipes
             .filter { recipe ->
                 val text = (listOf(recipe.name, recipe.subtitle) + recipe.ingredients)
                     .joinToString(" ")
@@ -100,7 +104,7 @@ class BimissingRecipeAssetSource(private val context: Context) {
                     imageUrl = result.imageUrl.orEmpty()
                 )
             } }
-            .ifEmpty { recipes.filter { it.name.isNotBlank() } }
+            .ifEmpty { availableRecipes.filter { it.name.isNotBlank() } }
         if (candidates.isEmpty()) return null
 
         val index = abs((date.toEpochDay() + 17).toInt()) % candidates.size
@@ -233,6 +237,20 @@ class BimissingRecipeAssetSource(private val context: Context) {
             "\u86cb\u7cd5",
             "\u9a6c\u82ac",
             "\u5976\u6cb9"
+        )
+        val FallbackRecipes = listOf(
+            BimissingRecipeDto(
+                id = "fallback-tomato-egg",
+                name = "\u756a\u8304\u7092\u86cb",
+                subtitle = "\u5bb6\u5e38\u4e0b\u996d\u83dc",
+                ingredients = listOf("\u756a\u8304", "\u9e21\u86cb")
+            ),
+            BimissingRecipeDto(
+                id = "fallback-broccoli-shrimp",
+                name = "\u897f\u5170\u82b1\u7092\u867e\u4ec1",
+                subtitle = "\u6e05\u723d\u4f4e\u8102",
+                ingredients = listOf("\u897f\u5170\u82b1", "\u867e", "\u5065\u5eb7")
+            )
         )
     }
 }

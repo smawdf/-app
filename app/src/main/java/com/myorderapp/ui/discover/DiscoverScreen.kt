@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -293,7 +294,7 @@ private fun DiscoverRecommendationCard(
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .height(292.dp)
+            .heightIn(min = 292.dp)
             .scale(if (pressed) 0.98f else 1f)
             .clickable(
                 interactionSource = interaction,
@@ -331,7 +332,7 @@ private fun DiscoverRecommendationCard(
                 color = DiscoverPrimary,
                 style = MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.Black,
-                maxLines = 1
+                maxLines = 2
             )
             Text(
                 text = item.name,
@@ -339,14 +340,14 @@ private fun DiscoverRecommendationCard(
                 fontSize = 16.sp,
                 lineHeight = 21.sp,
                 fontWeight = FontWeight.Black,
-                maxLines = 1,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis
             )
             Text(
                 text = recommendation.subtitle,
                 color = CozyMuted,
                 style = MaterialTheme.typography.labelSmall,
-                maxLines = 1,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis
             )
             SquishyDiscoverButton(

@@ -6,6 +6,7 @@ import com.myorderapp.domain.model.OrderRecord
 import com.myorderapp.domain.model.ROLE_CARETAKER
 import com.myorderapp.domain.repository.OrderRepository
 import com.myorderapp.domain.repository.ProfileRepository
+import com.myorderapp.data.remote.supabase.SessionManager
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -16,12 +17,14 @@ import kotlinx.coroutines.launch
 data class OrderDetailUiState(
     val order: OrderRecord? = null,
     val isCaretaker: Boolean = false,
+    val activePairId: String = "",
     val message: String? = null
 )
 
 class OrderDetailViewModel(
     private val orderRepository: OrderRepository,
-    private val profileRepository: ProfileRepository
+    private val profileRepository: ProfileRepository,
+    private val sessionManager: SessionManager
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(OrderDetailUiState())
@@ -34,6 +37,11 @@ class OrderDetailViewModel(
                 _uiState.value = _uiState.value.copy(
                     isCaretaker = profile?.selectedRole == ROLE_CARETAKER
                 )
+            }
+        }
+        viewModelScope.launch {
+            sessionManager.pairId.collect { pairId ->
+                _uiState.value = _uiState.value.copy(activePairId = pairId)
             }
         }
     }
@@ -57,7 +65,7 @@ class OrderDetailViewModel(
     }
 
     fun advanceStatus() {
-        if (!_uiState.value.isCaretaker) {
+        if (!_uiState.value.isCaretaker || _uiState.value.order?.pairId != _uiState.value.activePairId) {
             _uiState.value = _uiState.value.copy(message = "只有饲养员可以更新订单进度")
             return
         }
@@ -80,6 +88,7 @@ class OrderDetailViewModel(
 
     fun cancelOrder() {
         val order = _uiState.value.order ?: return
+        if (order.pairId != _uiState.value.activePairId) return
         if (order.status in setOf("completed", "cancelled")) return
         viewModelScope.launch {
             runCatching {

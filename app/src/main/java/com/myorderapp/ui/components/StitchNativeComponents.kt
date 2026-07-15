@@ -16,12 +16,14 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -87,7 +89,15 @@ fun CozyPage(
         if (decorative) {
             CozyDecorations()
         }
-        content()
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .fillMaxHeight()
+                .fillMaxWidth()
+                .widthIn(max = 920.dp)
+        ) {
+            content()
+        }
     }
 }
 
@@ -172,7 +182,7 @@ fun CozyMainTopBar(
         modifier = modifier
             .fillMaxWidth()
             .statusBarsPadding()
-            .height(64.dp)
+            .height(72.dp)
             .background(containerColor)
             .padding(horizontal = 20.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -189,13 +199,13 @@ fun CozyMainTopBar(
             text = title,
             color = CozyRose,
             style = MaterialTheme.typography.headlineSmall.copy(
-                fontSize = 24.sp,
-                lineHeight = 32.sp,
+                fontSize = 20.sp,
+                lineHeight = 24.sp,
                 fontWeight = FontWeight.Black,
                 letterSpacing = 0.sp
             ),
             textAlign = TextAlign.Center,
-            maxLines = 1,
+            maxLines = 2,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier
                 .weight(1f)

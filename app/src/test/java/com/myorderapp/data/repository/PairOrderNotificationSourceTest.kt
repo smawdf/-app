@@ -22,10 +22,11 @@ class PairOrderNotificationSourceTest {
 
         assertTrue(repository.contains("@SerialName(\"pair_id\") val pairId"))
         assertTrue(repository.contains("@SerialName(\"buyer_name\") val buyerName"))
-        assertTrue(repository.contains("if (pairId != null) eq(\"pair_id\", pairId)"))
+        assertTrue(repository.contains("viewer_user_ids"))
+        assertTrue(repository.contains("observeOrdersVisibleToUser"))
         assertTrue(repository.contains("orderDao.upsertOrderWithItems("))
         assertTrue(repository.contains("profileRepository.getProfile().firstOrNull()"))
-        assertTrue(database.contains("version = 13"))
+        assertTrue(database.contains("version = 14"))
         assertTrue(database.contains("MIGRATION_6_7"))
         assertTrue(database.contains("MIGRATION_7_8"))
         assertTrue(database.contains("MIGRATION_8_9"))
@@ -33,6 +34,7 @@ class PairOrderNotificationSourceTest {
         assertTrue(database.contains("MIGRATION_10_11"))
         assertTrue(database.contains("MIGRATION_11_12"))
         assertTrue(database.contains("MIGRATION_12_13"))
+        assertTrue(database.contains("MIGRATION_13_14"))
         assertTrue(sql.contains("add column if not exists pair_id"))
         assertTrue(sql.contains("Users can read pair orders"))
     }

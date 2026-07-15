@@ -74,8 +74,7 @@ fun CartSheet(
 
         LazyColumn(
             verticalArrangement = Arrangement.spacedBy(10.dp),
-            modifier = Modifier.weight(1f, fill = false),
-            userScrollEnabled = cartState.items.size > 3
+            modifier = Modifier.weight(1f, fill = false)
         ) {
             items(cartState.items, key = { it.id }) { item ->
                 CozyCard(containerColor = Color(0xFFFFFCF8).copy(alpha = 0.76f), radius = 24) {

@@ -17,7 +17,7 @@ class OrderDetailStatusSourceTest {
         val repository = readMainSource("data/repository/SupabaseOrderRepository.kt")
         val sql = readProjectSource("table/35_caretaker_order_acceptance.sql")
 
-        assertTrue(screen.contains("val canAdvanceOrder = uiState.isCaretaker"))
+        assertTrue(screen.contains("val canAdvanceOrder = uiState.isCaretaker && !isHistoricalOrder"))
         assertTrue(screen.contains("确认接单"))
         assertTrue(screen.contains("待饲养员确认"))
         assertTrue(screen.contains("nextActionText = order?.status?.nextActionText()?.takeIf { canAdvanceOrder }"))
@@ -26,7 +26,7 @@ class OrderDetailStatusSourceTest {
         assertFalse(screen.contains("COUPLE_HOME_PREFS"))
 
         assertTrue(viewModel.contains("profile?.selectedRole == ROLE_CARETAKER"))
-        assertTrue(viewModel.contains("if (!_uiState.value.isCaretaker)"))
+        assertTrue(viewModel.contains("if (!_uiState.value.isCaretaker || _uiState.value.order?.pairId != _uiState.value.activePairId)"))
         assertTrue(viewModel.contains("nextOrderStatus"))
         assertTrue(viewModel.contains("preparing"))
         assertTrue(viewModel.contains("completed"))

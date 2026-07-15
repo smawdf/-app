@@ -7,16 +7,18 @@ import org.junit.Test
 
 class RoomSchemaMigrationSourceTest {
     @Test
-    fun databaseExportsVersionTwelveAndRegistersMigrations() {
+    fun databaseExportsCurrentVersionAndRegistersMigrations() {
         val database = readMainSource("data/local/AppDatabase.kt")
         val schemaCandidates = listOf(
-            Paths.get("schemas/com.myorderapp.data.local.AppDatabase/13.json"),
-            Paths.get("app/schemas/com.myorderapp.data.local.AppDatabase/13.json")
+            Paths.get("schemas/com.myorderapp.data.local.AppDatabase/14.json"),
+            Paths.get("app/schemas/com.myorderapp.data.local.AppDatabase/14.json")
         )
-        assertTrue(database.contains("version = 13"))
+        assertTrue(database.contains("version = 14"))
         assertTrue(database.contains("MIGRATION_10_11"))
         assertTrue(database.contains("MIGRATION_11_12"))
         assertTrue(database.contains("MIGRATION_12_13"))
+        assertTrue(database.contains("MIGRATION_13_14"))
+        assertTrue(database.contains("viewerUserIdsJson"))
         assertTrue(database.contains("momentImageUrl"))
         assertTrue(database.contains("menu_dish_deletions"))
         assertTrue(database.contains("syncState"))

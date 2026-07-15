@@ -57,8 +57,8 @@ rtk .\gradlew.bat assembleRelease
 
 - Debug APK：`app/build/outputs/apk/debug/app-debug.apk`
 - Release APK：`app/build/outputs/apk/release/<versionName>.apk`
-- 当前正式包：`1.0.0.apk`
-- 正式版本通过 GitHub Releases 发布，Release 标签使用 `v<versionName>`，例如 `v1.0.0`。
+- 当前正式包：`1.0.1.apk`
+- 正式版本通过 GitHub Releases 发布，Release 标签使用 `v<versionName>`，例如 `v1.0.1`。
 - Release APK 使用本地 `keystore.properties` 和签名文件构建；密钥、签名文件和 APK 不提交到 Git 仓库。
 
 ## 当前数据源
