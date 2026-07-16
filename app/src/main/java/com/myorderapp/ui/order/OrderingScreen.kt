@@ -476,7 +476,6 @@ private fun CategoryRail(
 
 private fun MenuCategory.decoratedCategoryName(): String {
     return when {
-        id == ORDERING_HOT_CATEGORY_ID || name.contains("热") || name.contains("招牌") -> "热销"
         name.contains("主") || name.contains("披萨") || name.contains("饭") || name.contains("面") -> "主食"
         name.contains("饮") || name.contains("喝") || name.contains("咖啡") || name.contains("茶") -> "饮品"
         name.contains("甜") || name.contains("蛋糕") || name.contains("布丁") -> "甜点"

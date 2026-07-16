@@ -19,15 +19,6 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
-internal const val ORDERING_HOT_CATEGORY_ID = "__ordering_hot__"
-
-private val OrderingHotCategory = MenuCategory(
-    id = ORDERING_HOT_CATEGORY_ID,
-    shopId = SINGLE_SHOP_ID,
-    name = "热销",
-    sortOrder = -1
-)
-
 data class OrderingUiState(
     val shopName: String = "我的小店",
     val shopCoverUrl: String = "",
@@ -40,21 +31,11 @@ data class OrderingUiState(
     val isEater: Boolean = false
 ) {
     val orderingCategories: List<MenuCategory>
-        get() = if (categories.isEmpty() && menuItems.isEmpty()) {
-            emptyList()
-        } else if (categories.any { it.isOrderingHotCategory() }) {
-            categories
-        } else {
-            listOf(OrderingHotCategory) + categories
-        }
+        get() = categories
 
     val visibleItems: List<MenuItem>
         get() {
-            val categoryFiltered = if (
-                selectedCategory.isBlank() ||
-                selectedCategory == ORDERING_HOT_CATEGORY_ID ||
-                categories.any { it.id == selectedCategory && it.isOrderingHotCategory() }
-            ) {
+            val categoryFiltered = if (selectedCategory.isBlank()) {
                 menuItems
             } else {
                 menuItems.filter { it.categoryId == selectedCategory }
@@ -95,11 +76,8 @@ class OrderingViewModel(
                 profileRepository.getProfile()
             ) { shop, categories, items, cart, profile ->
                 val previous = _uiState.value.selectedCategory
-                val hotCategoryId = categories.firstOrNull { it.isOrderingHotCategory() }?.id ?: ORDERING_HOT_CATEGORY_ID
                 val selected = when {
-                    previous == ORDERING_HOT_CATEGORY_ID && items.isNotEmpty() -> hotCategoryId
                     categories.any { it.id == previous } -> previous
-                    items.isNotEmpty() -> hotCategoryId
                     else -> categories.firstOrNull()?.id.orEmpty()
                 }
                 OrderingUiState(
@@ -184,8 +162,4 @@ class OrderingViewModel(
             cartRepository.clearCart()
         }
     }
-}
-
-private fun MenuCategory.isOrderingHotCategory(): Boolean {
-    return id == ORDERING_HOT_CATEGORY_ID || name.contains("热") || name.contains("招牌")
 }

@@ -23,8 +23,7 @@ private const val DefaultShopAnnouncement = "欢迎来到我们的温馨小店�
 enum class MenuFilter(val title: String) {
     All("全部"),
     Available("已上架"),
-    Unavailable("已下架"),
-    Signature("招牌")
+    Unavailable("已下架")
 }
 
 enum class MenuSortMode(val title: String) {
@@ -41,8 +40,7 @@ data class DishEditorState(
     val category: String = "",
     val description: String = "",
     val stock: String = "",
-    val isAvailable: Boolean = true,
-    val isSignature: Boolean = false
+    val isAvailable: Boolean = true
 )
 
 data class MenuManagementUiState(
@@ -96,7 +94,7 @@ class MenuManagementViewModel(
         viewModelScope.launch {
             singleShopRepository.removeBundledDemoMenu()
             menuRepository.observeMenuDishes().collect { dishes ->
-                val categories = (singleShopRepository.getCategoryNames() + dishes.map { it.category }).normalizedMenuCategories()
+                val categories = singleShopRepository.getCategoryNames().normalizedMenuCategories()
                 val selected = _uiState.value.selectedCategory.takeIf { it in categories } ?: categories.firstOrNull().orEmpty()
                 updateState {
                     copy(
@@ -115,7 +113,7 @@ class MenuManagementViewModel(
         val syncedShopName = singleShopRepository.getShopName()
         val syncedAnnouncement = singleShopRepository.getShopAnnouncement()
         val dishes = _uiState.value.dishes
-        val categories = (singleShopRepository.getCategoryNames() + dishes.map { it.category }).normalizedMenuCategories()
+        val categories = singleShopRepository.getCategoryNames().normalizedMenuCategories()
         updateState {
             copy(
                 shopName = syncedShopName,
@@ -307,7 +305,7 @@ class MenuManagementViewModel(
         val category = _uiState.value.selectedCategory
             .takeIf { it.isNotBlank() }
             ?: _uiState.value.categories.firstOrNull()
-            ?: "招牌必吃"
+            ?: "未分类"
         updateState {
             copy(
                 editor = DishEditorState(category = category),
@@ -329,8 +327,7 @@ class MenuManagementViewModel(
                     category = dish.category,
                     description = dish.description,
                     stock = dish.stock.toString(),
-                    isAvailable = dish.isAvailable,
-                    isSignature = dish.isSignature
+                    isAvailable = dish.isAvailable
                 ),
                 isEditing = true,
                 message = null
@@ -375,8 +372,6 @@ class MenuManagementViewModel(
     fun onStockChange(value: String) = updateEditor { copy(stock = value.filter { it.isDigit() }) }
 
     fun onEditorAvailabilityChange(value: Boolean) = updateEditor { copy(isAvailable = value) }
-
-    fun onEditorSignatureChange(value: Boolean) = updateEditor { copy(isSignature = value) }
 
     fun saveDish() = saveDishInternal(createMissingCategory = false)
 
@@ -435,8 +430,7 @@ class MenuManagementViewModel(
                     category = editor.category,
                     description = editor.description,
                     stock = editor.stock.toIntOrNull() ?: 0,
-                    isAvailable = editor.isAvailable,
-                    isSignature = editor.isSignature
+                    isAvailable = editor.isAvailable
                 )
             )
             val pendingUri = pendingDishImageUri
@@ -536,7 +530,6 @@ class MenuManagementViewModel(
                     MenuFilter.All -> true
                     MenuFilter.Available -> it.isAvailable
                     MenuFilter.Unavailable -> !it.isAvailable
-                    MenuFilter.Signature -> it.isSignature
                 }
             }
             .filter { query.isBlank() || it.name.contains(query, ignoreCase = true) }

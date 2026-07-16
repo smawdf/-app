@@ -8,9 +8,10 @@ import org.junit.Test
 class OrderingUiStateTest {
 
     @Test
-    fun `hot category shows all available items before search filters`() {
+    fun `hot category filters by category like other categories`() {
         val state = OrderingUiState(
-            selectedCategory = ORDERING_HOT_CATEGORY_ID,
+            categories = listOf(menuCategory("热销"), menuCategory("主食")),
+            selectedCategory = "热销",
             searchQuery = "牛",
             menuItems = listOf(
                 menuItem(id = "beef", category = "热销", name = "招牌牛肉饭"),
@@ -19,7 +20,7 @@ class OrderingUiStateTest {
             )
         )
 
-        assertEquals(listOf("beef", "noodle"), state.visibleItems.map { it.id })
+        assertEquals(listOf("beef"), state.visibleItems.map { it.id })
     }
 
     @Test
@@ -38,7 +39,7 @@ class OrderingUiStateTest {
     }
 
     @Test
-    fun `real hot category replaces virtual hot category to avoid duplicate labels`() {
+    fun `ordering categories contain only managed categories`() {
         val state = OrderingUiState(
             categories = listOf(
                 menuCategory("热销"),
@@ -52,7 +53,7 @@ class OrderingUiStateTest {
         )
 
         assertEquals(listOf("热销", "主食"), state.orderingCategories.map { it.name })
-        assertEquals(listOf("beef", "noodle"), state.visibleItems.map { it.id })
+        assertEquals(listOf("beef"), state.visibleItems.map { it.id })
     }
 
     private fun menuItem(

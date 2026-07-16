@@ -9,6 +9,16 @@ import org.junit.Test
 class MenuReplicaSourceTest {
 
     @Test
+    fun `managed categories are the only source for category pickers`() {
+        val repository = readMainSource("data/repository/SingleShopRepository.kt")
+        val viewModel = readMainSource("ui/menu/MenuManagementViewModel.kt")
+
+        assertTrue(repository.contains("categoryState.asStateFlow().map { savedCategories ->"))
+        assertFalse(repository.contains("savedCategories + fromDishes"))
+        assertFalse(viewModel.contains("dishes.map { it.category }"))
+    }
+
+    @Test
     fun `dish editor confirms and creates missing category before saving`() {
         val screen = readMainSource("ui/menu/MenuManagementScreen.kt")
         val viewModel = readMainSource("ui/menu/MenuManagementViewModel.kt")
@@ -122,8 +132,6 @@ class MenuReplicaSourceTest {
             "描述",
             "是否上架",
             "立即在小店展示",
-            "是否招牌",
-            "带有专属标识",
             "保存菜品",
             "已新增菜品"
         ).forEach { expected ->

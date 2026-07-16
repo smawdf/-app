@@ -285,10 +285,7 @@ class RoomMenuRepository(
         price = price,
         originPrice = originPrice,
         monthlySales = monthlySales,
-        tags = listOfNotNull(
-            "在售".takeIf { isAvailable },
-            "招牌".takeIf { isSignature }
-        )
+        tags = listOfNotNull("在售".takeIf { isAvailable })
     )
 }
 

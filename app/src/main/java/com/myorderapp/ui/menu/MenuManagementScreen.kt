@@ -171,7 +171,6 @@ fun MenuManagementScreen(
             onDescriptionChange = viewModel::onDescriptionChange,
             onStockChange = viewModel::onStockChange,
             onAvailabilityChange = viewModel::onEditorAvailabilityChange,
-            onSignatureChange = viewModel::onEditorSignatureChange,
             onPickImage = { showDishImageSourcePicker = true },
             onDismiss = viewModel::closeEditor,
             onSave = viewModel::saveDish,
@@ -1267,7 +1266,6 @@ private fun DishEditorDialog(
     onDescriptionChange: (String) -> Unit,
     onStockChange: (String) -> Unit,
     onAvailabilityChange: (Boolean) -> Unit,
-    onSignatureChange: (Boolean) -> Unit,
     onPickImage: () -> Unit,
     onDismiss: () -> Unit,
     onSave: () -> Unit,
@@ -1471,13 +1469,6 @@ private fun DishEditorDialog(
                                 Text("立即在小店展示", color = TextSecondary, fontSize = 13.sp)
                             }
                             Switch(checked = state.isAvailable, onCheckedChange = onAvailabilityChange)
-                        }
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
-                            Column {
-                                Text("是否招牌", color = TextPrimary, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                                Text("带有专属标识", color = TextSecondary, fontSize = 13.sp)
-                            }
-                            Switch(checked = state.isSignature, onCheckedChange = onSignatureChange)
                         }
                     }
                 }

@@ -21,7 +21,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -161,9 +160,8 @@ class SingleShopRepository(
     override fun getShopById(shopId: String): Flow<Shop?> = observeSingleShop().map { it }
 
     override fun getMenuCategories(shopId: String): Flow<List<MenuCategory>> {
-        return combine(categoryState.asStateFlow(), menuDishDao.observeByPair(localPairId())) { savedCategories, dishes ->
-            val fromDishes = dishes.map { it.category.ifBlank { "其他" } }
-            (savedCategories + fromDishes)
+        return categoryState.asStateFlow().map { savedCategories ->
+            savedCategories
                 .normalizedShopCategories()
                 .mapIndexed { index, category ->
                     MenuCategory(
@@ -303,10 +301,7 @@ class SingleShopRepository(
         price = price,
         originPrice = originPrice,
         monthlySales = monthlySales,
-        tags = listOfNotNull(
-            "在售".takeIf { isAvailable },
-            "招牌".takeIf { isSignature }
-        )
+        tags = listOfNotNull("在售".takeIf { isAvailable })
     )
 
     private fun List<String>.normalizedShopCategories(): List<String> {
