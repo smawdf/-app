@@ -6,6 +6,8 @@ import com.myorderapp.data.local.RecipeAssetLoader
 import com.myorderapp.data.remote.supabase.CloudErrorLogger
 import com.myorderapp.data.remote.supabase.SessionManager
 import com.myorderapp.data.remote.supabase.SupabaseStorageUploader
+import com.myorderapp.data.remote.update.AppUpdateInstaller
+import com.myorderapp.data.remote.update.AppUpdateRepository
 import com.myorderapp.data.repository.HybridDishRepository
 import com.myorderapp.data.repository.RoomDishRepository
 import com.myorderapp.data.repository.InMemoryProfileRepository
@@ -40,6 +42,7 @@ import com.myorderapp.ui.order.OrderingViewModel
 import com.myorderapp.ui.orders.OrderDetailViewModel
 import com.myorderapp.ui.orders.OrdersViewModel
 import com.myorderapp.ui.profile.ProfileViewModel
+import com.myorderapp.ui.update.AppUpdateViewModel
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.module.dsl.viewModel
 import org.koin.core.module.dsl.viewModelOf
@@ -54,6 +57,8 @@ val appModule = module {
     // Data sources
     single { CloudErrorLogger(get()) }
     single { SupabaseStorageUploader(get(), get()) }
+    single { AppUpdateInstaller(androidContext()) }
+    single { AppUpdateRepository(get(), get(), androidContext()) }
     // Database
     single { AppDatabase.getInstance(androidContext()) }
     single { get<AppDatabase>().dishDao() }
@@ -105,6 +110,7 @@ val appModule = module {
         )
     }
     viewModelOf(::ProfileViewModel)
+    viewModelOf(::AppUpdateViewModel)
     viewModelOf(::AuthViewModel)
     viewModelOf(::OnboardingViewModel)
     viewModelOf(::CheckoutViewModel)

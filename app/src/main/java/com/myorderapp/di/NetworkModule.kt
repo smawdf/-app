@@ -11,6 +11,7 @@ import com.myorderapp.data.remote.recipe.TianRecipeApi
 import com.myorderapp.data.remote.recipe.TianRecipeRemoteDataSource
 import com.myorderapp.data.remote.recipe.XiachufangRecipeSearchSource
 import com.myorderapp.data.remote.supabase.SessionManager
+import com.myorderapp.data.remote.update.GitHubReleaseApi
 import com.myorderapp.ui.search.CombinedExternalDishImageSource
 import com.myorderapp.ui.search.ExternalDishImageSource
 import com.squareup.moshi.Moshi
@@ -27,6 +28,7 @@ import java.util.concurrent.TimeUnit
 private const val TIAN_BASE_URL = "https://apis.tianapi.com/"
 private const val SPOONACULAR_BASE_URL = "https://api.spoonacular.com/"
 private const val THE_MEAL_DB_BASE_URL = "https://www.themealdb.com/api/json/v1/1/"
+private const val GITHUB_API_BASE_URL = "https://api.github.com/"
 
 val networkModule = module {
     single {
@@ -69,9 +71,17 @@ val networkModule = module {
             .addConverterFactory(MoshiConverterFactory.create(get()))
             .build()
     }
+    single(named("github")) {
+        Retrofit.Builder()
+            .baseUrl(GITHUB_API_BASE_URL)
+            .client(get())
+            .addConverterFactory(MoshiConverterFactory.create(get()))
+            .build()
+    }
     single { get<Retrofit>(named("tianapi")).create(TianRecipeApi::class.java) }
     single { get<Retrofit>(named("spoonacular")).create(SpoonacularApi::class.java) }
     single { get<Retrofit>(named("themealdb")).create(TheMealDbApi::class.java) }
+    single { get<Retrofit>(named("github")).create(GitHubReleaseApi::class.java) }
     single<TianRecipeRemoteDataSource> {
         RetrofitTianRecipeRemoteDataSource(
             api = get(),

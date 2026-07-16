@@ -619,7 +619,7 @@ private fun AvatarBubble(
                 AsyncImage(
                     model = avatarUrl,
                     contentDescription = label,
-                    contentScale = ContentScale.Crop,
+                    contentScale = ContentScale.Fit,
                     modifier = Modifier
                         .fillMaxSize()
                         .clip(CircleShape)

@@ -359,14 +359,14 @@ private fun ShopSettingsStrip(
                     AsyncImage(
                         model = shopImageUrl,
                         contentDescription = shopName.ifBlank { "店铺图片" },
-                        contentScale = ContentScale.Crop,
+                        contentScale = ContentScale.Fit,
                         modifier = Modifier.fillMaxSize()
                     )
                 } else {
                     Image(
                         painter = painterResource(R.drawable.shop_banner_stitch),
                         contentDescription = shopName.ifBlank { "店铺图片" },
-                        contentScale = ContentScale.Crop,
+                        contentScale = ContentScale.Fit,
                         modifier = Modifier.fillMaxSize()
                     )
                 }
@@ -893,7 +893,7 @@ private fun DishImage(dish: MenuDishEntity) {
         AsyncImage(
             model = dish.imageUrl,
             contentDescription = dish.name,
-            contentScale = ContentScale.Crop,
+            contentScale = ContentScale.Fit,
             modifier = Modifier
                 .size(76.dp)
                 .clip(RoundedCornerShape(12.dp))
@@ -1019,14 +1019,14 @@ private fun ShopSettingsDialog(
                         AsyncImage(
                             model = shopImageUrl,
                             contentDescription = "店铺封面预览",
-                            contentScale = ContentScale.Crop,
+                            contentScale = ContentScale.Fit,
                             modifier = Modifier.fillMaxSize()
                         )
                     } else {
                         Image(
                             painter = painterResource(R.drawable.shop_banner_stitch),
                             contentDescription = "店铺封面预览",
-                            contentScale = ContentScale.Crop,
+                            contentScale = ContentScale.Fit,
                             modifier = Modifier.fillMaxSize()
                         )
                     }
@@ -1363,7 +1363,7 @@ private fun DishEditorDialog(
                             AsyncImage(
                                 model = state.imageUrl,
                                 contentDescription = "菜品图片",
-                                contentScale = ContentScale.Crop,
+                                contentScale = ContentScale.Fit,
                                 modifier = Modifier.fillMaxSize()
                             )
                         } else {

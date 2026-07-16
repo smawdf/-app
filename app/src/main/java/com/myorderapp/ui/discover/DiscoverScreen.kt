@@ -938,7 +938,7 @@ private fun DishImageOrPlaceholder(
                 onLoadError()
             },
             modifier = modifier,
-            contentScale = ContentScale.Crop
+            contentScale = ContentScale.Fit
         )
     }
 }

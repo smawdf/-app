@@ -691,7 +691,7 @@ private fun SweetMomentItem(
                                 model = imageUrl,
                                 contentDescription = date,
                                 modifier = Modifier.fillMaxSize(),
-                                contentScale = ContentScale.Crop
+                                contentScale = ContentScale.Fit
                             )
                             icon != null -> Icon(icon, contentDescription = null, tint = AnniversaryPrimary, modifier = Modifier.size(32.dp))
                         }

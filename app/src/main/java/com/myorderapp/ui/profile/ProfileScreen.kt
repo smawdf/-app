@@ -53,7 +53,9 @@ import androidx.compose.material.icons.outlined.SupportAgent
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
@@ -62,6 +64,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -105,6 +108,8 @@ import com.myorderapp.ui.theme.PrimaryContainer
 import com.myorderapp.ui.theme.Secondary
 import com.myorderapp.ui.theme.SecondaryContainer
 import com.myorderapp.ui.theme.SurfaceVariant
+import com.myorderapp.ui.update.AppUpdateUiState
+import com.myorderapp.ui.update.AppUpdateViewModel
 import org.koin.androidx.compose.koinViewModel
 
 private const val COUPLE_HOME_PREFS = "couple_home_prefs"
@@ -114,12 +119,14 @@ private const val KEY_SELECTED_ROLE = "selected_role"
 fun ProfileScreen(
     viewModel: ProfileViewModel = koinViewModel(),
     authViewModel: AuthViewModel = koinViewModel(),
+    updateViewModel: AppUpdateViewModel = koinViewModel(),
     onLoginClick: () -> Unit = {},
     onDishManageClick: () -> Unit = {},
     onOrdersClick: () -> Unit = {},
     onCandyCoinsClick: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val updateUiState by updateViewModel.uiState.collectAsStateWithLifecycle()
     val profile = uiState.profile
     val savedName = profile?.nickname?.takeIf { it.isNotBlank() }
     val displayName = savedName ?: "糯米小狗"
@@ -140,6 +147,10 @@ fun ProfileScreen(
     var showPairDialog by remember { mutableStateOf(false) }
     var showUnpairConfirm by remember { mutableStateOf(false) }
 
+    LaunchedEffect(showVersionDialog) {
+        if (showVersionDialog) updateViewModel.checkForUpdate()
+    }
+
     if (showProfileEditor) {
         ProfileEditDialog(
             name = savedName.orEmpty(),
@@ -156,7 +167,13 @@ fun ProfileScreen(
     }
 
     if (showVersionDialog) {
-        VersionInfoDialog(onDismiss = { showVersionDialog = false })
+        VersionInfoDialog(
+            state = updateUiState,
+            onCheck = updateViewModel::checkForUpdate,
+            onDownload = updateViewModel::downloadUpdate,
+            onInstall = updateViewModel::installUpdate,
+            onDismiss = { showVersionDialog = false }
+        )
     }
 
     if (showPairDialog) {
@@ -411,7 +428,7 @@ private fun ProfileHeader(
                     modifier = Modifier.size(96.dp)
                 ) {
                     if (!avatarUrl.isNullOrBlank()) {
-                        AsyncImage(model = avatarUrl, contentDescription = "头像", contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize().clip(CircleShape))
+                        AsyncImage(model = avatarUrl, contentDescription = "头像", contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize().clip(CircleShape))
                     } else {
                         Box(modifier = Modifier.background(Color(0xFFFFFCF8)), contentAlignment = Alignment.Center) {
                             Icon(Icons.Filled.Pets, contentDescription = null, tint = Primary, modifier = Modifier.size(42.dp))
@@ -987,7 +1004,14 @@ private fun copyPairCode(context: Context, code: String) {
 }
 
 @Composable
-private fun VersionInfoDialog(onDismiss: () -> Unit) {
+private fun VersionInfoDialog(
+    state: AppUpdateUiState,
+    onCheck: () -> Unit,
+    onDownload: () -> Unit,
+    onInstall: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val latest = state.latest
     AlertDialog(
         onDismissRequest = onDismiss,
         shape = RoundedCornerShape(28.dp),
@@ -1002,18 +1026,98 @@ private fun VersionInfoDialog(onDismiss: () -> Unit) {
             )
         },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text("1.0.1 体验优化", color = CozyCocoa, fontWeight = FontWeight.Black)
-                Text("• 优化小屏、大字体和横屏平板布局", color = CozyMuted)
-                Text("• 修复列表滑动、文字遮挡和弹窗键盘避让", color = CozyMuted)
-                Text("• 首页订单通知自适应内容高度，减少多余空白", color = CozyMuted)
-                Text("• 解绑后仍可查看共同订单、店铺与纪念日", color = CozyMuted)
-                Text("• 完善订单图片、通知跳转和每日推荐", color = CozyMuted)
+            Column(
+                modifier = Modifier
+                    .heightIn(max = 360.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                when {
+                    state.isChecking -> {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(18.dp),
+                                color = CozyRose,
+                                strokeWidth = 2.dp
+                            )
+                            Text("正在检查最新版本...", color = CozyMuted)
+                        }
+                    }
+                    state.isDownloading -> {
+                        Text("正在下载 ${latest?.versionName ?: "新版本"}", color = CozyCocoa, fontWeight = FontWeight.Black)
+                        LinearProgressIndicator(
+                            progress = { state.downloadProgress / 100f },
+                            modifier = Modifier.fillMaxWidth(),
+                            color = CozyRose,
+                            trackColor = SecondaryContainer
+                        )
+                        Text("已完成 ${state.downloadProgress}%", color = CozyMuted)
+                    }
+                    state.downloadedApk != null -> {
+                        Text("更新包已准备好", color = CozyCocoa, fontWeight = FontWeight.Black)
+                        Text(
+                            state.message ?: "点击安装更新，随后由系统完成确认。",
+                            color = CozyMuted,
+                            lineHeight = 21.sp
+                        )
+                    }
+                    latest != null && state.isUpdateAvailable -> {
+                        Text("发现新版本 ${latest.versionName}", color = CozyCocoa, fontWeight = FontWeight.Black)
+                        Text(latest.title, color = CozyRose, fontWeight = FontWeight.Bold)
+                        Text(
+                            latest.notes.ifBlank { "本次更新暂无文字说明。" },
+                            color = CozyMuted,
+                            lineHeight = 21.sp
+                        )
+                    }
+                    else -> {
+                        Text(
+                            state.message ?: "当前版本：${BuildConfig.VERSION_NAME}",
+                            color = CozyMuted,
+                            lineHeight = 21.sp
+                        )
+                    }
+                }
             }
         },
         confirmButton = {
+            when {
+                state.isDownloading || state.isChecking -> {
+                    TextButton(onClick = onDismiss) {
+                        Text("后台继续", color = CozyMuted, fontWeight = FontWeight.Bold)
+                    }
+                }
+                state.downloadedApk != null -> {
+                    Button(
+                        onClick = onInstall,
+                        colors = ButtonDefaults.buttonColors(containerColor = CozyRose),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text("安装更新", fontWeight = FontWeight.Bold)
+                    }
+                }
+                state.isUpdateAvailable -> {
+                    Button(
+                        onClick = onDownload,
+                        colors = ButtonDefaults.buttonColors(containerColor = CozyRose),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text("下载更新", fontWeight = FontWeight.Bold)
+                    }
+                }
+                else -> {
+                    TextButton(onClick = onCheck) {
+                        Text("重新检查", color = CozyRose, fontWeight = FontWeight.Black)
+                    }
+                }
+            }
+        },
+        dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("知道了", color = CozyRose, fontWeight = FontWeight.Black)
+                Text("关闭", color = CozyMuted, fontWeight = FontWeight.Bold)
             }
         }
     )
@@ -1143,7 +1247,7 @@ private fun ProfileEditDialog(
                             AsyncImage(
                                 model = previewAvatar,
                                 contentDescription = "头像预览",
-                                contentScale = ContentScale.Crop,
+                                contentScale = ContentScale.Fit,
                                 modifier = Modifier.clip(CircleShape)
                             )
                         } else {

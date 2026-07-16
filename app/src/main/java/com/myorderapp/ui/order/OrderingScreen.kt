@@ -364,7 +364,7 @@ private fun ShopCard(
                     AsyncImage(
                         model = bannerImageUrl.takeIf { it.isNotBlank() } ?: R.drawable.shop_banner_stitch,
                         contentDescription = displayShopName,
-                        contentScale = ContentScale.Crop,
+                        contentScale = ContentScale.Fit,
                         modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(12.dp))
                     )
                 }
@@ -549,7 +549,7 @@ private fun SingleShopDishCard(
                     AsyncImage(
                         model = item.imageUrl,
                         contentDescription = item.name,
-                        contentScale = ContentScale.Crop,
+                        contentScale = ContentScale.Fit,
                         modifier = Modifier.fillMaxSize()
                     )
                 } else {
@@ -819,7 +819,7 @@ private fun OrderingDishDetailSheet(
             contentAlignment = Alignment.Center
         ) {
             if (item.imageUrl.isNotBlank()) {
-                AsyncImage(model = item.imageUrl, contentDescription = item.name, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                AsyncImage(model = item.imageUrl, contentDescription = item.name, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
             } else {
                 Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Icon(Icons.Filled.Restaurant, contentDescription = null, tint = CozyRose, modifier = Modifier.size(44.dp))

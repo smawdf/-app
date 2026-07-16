@@ -425,7 +425,7 @@ private fun OrderShopAvatar(order: OrderRecord) {
                 model = order.shopCoverUrl.takeIf { it.isNotBlank() } ?: com.myorderapp.R.drawable.shop_banner_stitch,
                 contentDescription = "${order.shopName.ifBlank { "店铺" }}的头像",
                 modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(12.dp)),
-                contentScale = ContentScale.Crop
+                contentScale = ContentScale.Fit
             )
         }
     }
