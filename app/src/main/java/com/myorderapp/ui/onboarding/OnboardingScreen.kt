@@ -277,7 +277,7 @@ private fun Step2Profile(viewModel: OnboardingViewModel, uiState: OnboardingUiSt
                     model = avatarLocalPath,
                     contentDescription = "头像",
                     modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Fit
+                    contentScale = ContentScale.Crop
                 )
             } else {
                 DashedAvatarPlaceholder()

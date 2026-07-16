@@ -886,7 +886,8 @@ private fun DiscoverDishDetailSheet(
                 imageUrl = item.imageUrl,
                 contentDescription = item.name,
                 onLoadError = {},
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Fit
             )
         }
         Text(item.name, color = CozyCocoa, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
@@ -912,7 +913,8 @@ private fun DishImageOrPlaceholder(
     imageUrl: String?,
     contentDescription: String,
     onLoadError: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    contentScale: ContentScale = ContentScale.Crop
 ) {
     var loadFailed by remember(imageUrl) { mutableStateOf(false) }
 
@@ -938,7 +940,7 @@ private fun DishImageOrPlaceholder(
                 onLoadError()
             },
             modifier = modifier,
-            contentScale = ContentScale.Fit
+            contentScale = contentScale
         )
     }
 }

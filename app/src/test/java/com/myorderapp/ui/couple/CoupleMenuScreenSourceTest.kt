@@ -94,7 +94,7 @@ class CoupleMenuScreenSourceTest {
         assertTrue(source.contains("LaunchedEffect(toastState?.id)"))
         assertTrue(source.contains("delay(1600)"))
         assertTrue(source.contains("AsyncImage("))
-        assertTrue(source.contains("ContentScale.Fit"))
+        assertTrue(source.contains("ContentScale.Crop"))
         assertTrue(source.contains("profile?.nickname?.takeIf"))
         assertTrue(source.contains("今天也想和你好好吃饭"))
         assertTrue(source.contains("我的店铺"))

@@ -32,8 +32,8 @@ android {
         applicationId = "com.myorderapp"
         minSdk = 24
         targetSdk = 36
-        versionCode = 35
-        versionName = "1.0.2"
+        versionCode = 36
+        versionName = "1.0.3"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 

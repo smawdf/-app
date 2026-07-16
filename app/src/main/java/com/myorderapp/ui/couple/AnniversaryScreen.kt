@@ -151,7 +151,11 @@ fun AnniversaryScreen(
     )
 
     selectedMomentOrder?.takeIf { !showMomentImagePicker }?.let { order ->
+        val displayImageUrl = order.momentImageUrl.ifBlank {
+            order.items.firstOrNull { it.menuItemImageUrl.isNotBlank() }?.menuItemImageUrl.orEmpty()
+        }
         SweetMomentImageDialog(
+            imageUrl = displayImageUrl,
             isSaving = isMomentImageSaving,
             message = momentImageMessage,
             onUseDishImage = {
@@ -691,7 +695,7 @@ private fun SweetMomentItem(
                                 model = imageUrl,
                                 contentDescription = date,
                                 modifier = Modifier.fillMaxSize(),
-                                contentScale = ContentScale.Fit
+                                contentScale = ContentScale.Crop
                             )
                             icon != null -> Icon(icon, contentDescription = null, tint = AnniversaryPrimary, modifier = Modifier.size(32.dp))
                         }
@@ -718,6 +722,7 @@ private fun SweetMomentItem(
 
 @Composable
 private fun SweetMomentImageDialog(
+    imageUrl: String,
     isSaving: Boolean,
     message: String?,
     onUseDishImage: () -> Unit,
@@ -739,6 +744,21 @@ private fun SweetMomentImageDialog(
         },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                if (imageUrl.isNotBlank()) {
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = AnniversaryPink.copy(alpha = 0.18f),
+                        border = BorderStroke(1.dp, AnniversaryBorder.copy(alpha = 0.62f)),
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 160.dp, max = 260.dp)
+                    ) {
+                        AsyncImage(
+                            model = imageUrl,
+                            contentDescription = "甜蜜时刻完整图片",
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Fit
+                        )
+                    }
+                }
                 MomentImageOption(
                     icon = Icons.Filled.Cake,
                     title = "使用菜品图片",

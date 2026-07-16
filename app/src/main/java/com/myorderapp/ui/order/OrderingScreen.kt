@@ -364,7 +364,7 @@ private fun ShopCard(
                     AsyncImage(
                         model = bannerImageUrl.takeIf { it.isNotBlank() } ?: R.drawable.shop_banner_stitch,
                         contentDescription = displayShopName,
-                        contentScale = ContentScale.Fit,
+                        contentScale = ContentScale.Crop,
                         modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(12.dp))
                     )
                 }
@@ -549,7 +549,7 @@ private fun SingleShopDishCard(
                     AsyncImage(
                         model = item.imageUrl,
                         contentDescription = item.name,
-                        contentScale = ContentScale.Fit,
+                        contentScale = ContentScale.Crop,
                         modifier = Modifier.fillMaxSize()
                     )
                 } else {

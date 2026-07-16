@@ -185,7 +185,7 @@ private fun OrderSummaryCard(order: OrderRecord) {
                     AsyncImage(
                         model = order.shopCoverUrl.takeIf { it.isNotBlank() } ?: com.myorderapp.R.drawable.shop_banner_stitch,
                         contentDescription = "${order.shopName.ifBlank { "店铺" }}的头像",
-                        contentScale = ContentScale.Fit,
+                        contentScale = ContentScale.Crop,
                         modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(14.dp))
                     )
                 }
@@ -207,7 +207,7 @@ private fun OrderSummaryCard(order: OrderRecord) {
                         AsyncImage(
                             model = order.buyerAvatarUrl,
                             contentDescription = "${order.buyerName.ifBlank { "点单人" }}的头像",
-                            contentScale = ContentScale.Fit,
+                            contentScale = ContentScale.Crop,
                             modifier = Modifier.fillMaxSize().clip(CircleShape)
                         )
                     } else {

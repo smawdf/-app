@@ -428,7 +428,7 @@ private fun ProfileHeader(
                     modifier = Modifier.size(96.dp)
                 ) {
                     if (!avatarUrl.isNullOrBlank()) {
-                        AsyncImage(model = avatarUrl, contentDescription = "头像", contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize().clip(CircleShape))
+                        AsyncImage(model = avatarUrl, contentDescription = "头像", contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize().clip(CircleShape))
                     } else {
                         Box(modifier = Modifier.background(Color(0xFFFFFCF8)), contentAlignment = Alignment.Center) {
                             Icon(Icons.Filled.Pets, contentDescription = null, tint = Primary, modifier = Modifier.size(42.dp))
@@ -1247,7 +1247,7 @@ private fun ProfileEditDialog(
                             AsyncImage(
                                 model = previewAvatar,
                                 contentDescription = "头像预览",
-                                contentScale = ContentScale.Fit,
+                                contentScale = ContentScale.Crop,
                                 modifier = Modifier.clip(CircleShape)
                             )
                         } else {
