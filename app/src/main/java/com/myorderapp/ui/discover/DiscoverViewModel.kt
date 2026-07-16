@@ -138,9 +138,10 @@ class DiscoverViewModel(
             addToMenuMutex.withLock {
                 val normalizedName = item.name.normalizedMenuName()
                 val price = item.price.takeIf { it > 0.0 } ?: 12.0
-                val category = item.category
-                    .takeIf { it.isNotBlank() && !it.endsWith("推荐") }
-                    ?: _uiState.value.categories.firstOrNull().orEmpty().ifBlank { "主食" }
+                val currentCategories = _uiState.value.categories
+                val category = currentCategories.firstOrNull {
+                    it.equals(item.category.trim(), ignoreCase = true)
+                } ?: currentCategories.firstOrNull() ?: "未分类"
                 val resolvedImageUrl = item.imageUrl?.takeIf { it.isNotBlank() && !it.isLegacyRecipeImageUrl() }
                     ?: findImageForDishName(item.name, excludedImageUrl = item.imageUrl)
                 val existing = roomMenuRepository.observeMenuDishes()

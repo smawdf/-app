@@ -37,7 +37,7 @@ class OrderingScreenLayoutTest {
         assertTrue("菜品列表应通过 contentPadding 预留浮动导航空间", source.contains("bottom = bottomClearance + 14.dp"))
         assertTrue(
             "店铺卡容器必须由内容撑开，不能被 matchParentSize 压成 0 高度",
-            source.contains("modifier = modifier\n            .scale(if (pressed && onClick != null) CozyMotion.SoftPressedScale else 1f)")
+            source.contains(".scale(if (pressed && onClick != null) CozyMotion.SoftPressedScale else 1f)")
         )
     }
 

@@ -12,10 +12,13 @@ class MenuReplicaSourceTest {
     fun `managed categories are the only source for category pickers`() {
         val repository = readMainSource("data/repository/SingleShopRepository.kt")
         val viewModel = readMainSource("ui/menu/MenuManagementViewModel.kt")
+        val screen = readMainSource("ui/menu/MenuManagementScreen.kt")
 
         assertTrue(repository.contains("categoryState.asStateFlow().map { savedCategories ->"))
         assertFalse(repository.contains("savedCategories + fromDishes"))
         assertFalse(viewModel.contains("dishes.map { it.category }"))
+        assertTrue(screen.contains("remember(categories) { categories.distinct() }"))
+        assertFalse(screen.contains("listOf(\"主食\", \"小吃\", \"饮品\") + categories"))
     }
 
     @Test
@@ -125,9 +128,6 @@ class MenuReplicaSourceTest {
             "原价 (可选)",
             "分类",
             "选择或新建分类",
-            "主食",
-            "小吃",
-            "饮品",
             "库存",
             "描述",
             "是否上架",

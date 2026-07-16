@@ -1426,9 +1426,7 @@ private fun DishEditorDialog(
                     }
                 }
                 item {
-                    val categoryOptions = remember(categories) {
-                        (listOf("主食", "小吃", "饮品") + categories).distinct()
-                    }
+                    val categoryOptions = remember(categories) { categories.distinct() }
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         items(categoryOptions, key = { it }) { category ->
                             val selected = category == state.category

@@ -48,7 +48,8 @@ class DiscoverSearchSourceTest {
         assertTrue(screen.contains("onClick = { onAddToMenu(item) }"))
         assertTrue(viewModel.contains("markRecommendationAdded(item, resolvedImageUrl)"))
         assertTrue(viewModel.contains("isAdded = addedNames.contains"))
-        assertTrue(viewModel.contains("!it.endsWith(\"推荐\")"))
+        assertTrue(viewModel.contains("it.equals(item.category.trim(), ignoreCase = true)"))
+        assertTrue(viewModel.contains("?: currentCategories.firstOrNull() ?: \"未分类\""))
     }
 
     @Test
