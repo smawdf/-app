@@ -10,6 +10,7 @@ import android.content.pm.PackageManager
 import android.graphics.Color
 import android.net.Uri
 import android.os.Build
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
@@ -26,37 +27,45 @@ fun notifyActiveOrderIfAllowed(
     order: OrderRecord,
     isCaretaker: Boolean
 ) {
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-        ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
-    ) {
-        return
-    }
+    runCatching {
+        val manager = NotificationManagerCompat.from(context)
+        if (order.status in setOf("completed", "cancelled")) {
+            manager.cancel(order.id.hashCode())
+            return@runCatching
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) {
+            return@runCatching
+        }
 
-    val manager = NotificationManagerCompat.from(context)
-    ensureOrderNotificationChannel(context)
-    val title = when (order.status) {
-        "submitted", "confirmed" -> if (isCaretaker) "有新的点菜单等你确认" else "等待饲养员确认接单"
-        "preparing", "delivering" -> "这顿饭正在准备中"
-        else -> "订单有新进展"
-    }
-    val content = order.items.take(2).joinToString("、") { it.menuItemName }
-        .ifBlank { order.shopName.ifBlank { "打开 App 查看详情" } }
-    val contentIntent = orderDetailPendingIntent(context, order.id)
-    val notification = if (Build.VERSION.SDK_INT >= 36) {
-        buildPromotedOrderNotification(context, order, title, content, contentIntent)
-    } else {
-        NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(R.mipmap.ic_launcher)
-            .setContentTitle(title)
-            .setContentText(content)
-            .setContentIntent(contentIntent)
-            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-            .setOnlyAlertOnce(true)
-            .setAutoCancel(true)
-            .build()
-    }
+        ensureOrderNotificationChannel(context)
+        val title = when (order.status) {
+            "submitted", "confirmed" -> if (isCaretaker) "有新的点菜单等你确认" else "等待饲养员确认接单"
+            "preparing", "delivering" -> "这顿饭正在准备中"
+            else -> "订单有新进展"
+        }
+        val content = order.items.take(2).joinToString("、") { it.menuItemName }
+            .ifBlank { order.shopName.ifBlank { "打开 App 查看详情" } }
+        val contentIntent = orderDetailPendingIntent(context, order.id)
+        val notification = if (Build.VERSION.SDK_INT >= 36) {
+            buildPromotedOrderNotification(context, order, title, content, contentIntent)
+        } else {
+            NotificationCompat.Builder(context, CHANNEL_ID)
+                .setSmallIcon(R.drawable.ic_stat_order)
+                .setContentTitle(title)
+                .setContentText(content)
+                .setContentIntent(contentIntent)
+                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                .setOnlyAlertOnce(true)
+                .setAutoCancel(true)
+                .build()
+        }
 
-    manager.notify(order.id.hashCode(), notification)
+        manager.notify(order.id.hashCode(), notification)
+    }.onFailure { error ->
+        Log.w("OrderNotification", "Unable to update order notification", error)
+    }
 }
 
 private fun orderDetailPendingIntent(context: Context, orderId: String): PendingIntent {
@@ -97,7 +106,7 @@ private fun buildPromotedOrderNotification(
         .setStyledByProgress(true)
 
     return android.app.Notification.Builder(context, CHANNEL_ID)
-        .setSmallIcon(R.mipmap.ic_launcher)
+        .setSmallIcon(R.drawable.ic_stat_order)
         .setContentTitle(title)
         .setContentText(content)
         .setContentIntent(contentIntent)
