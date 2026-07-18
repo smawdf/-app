@@ -13,6 +13,7 @@ class OrderNotificationSourceTest {
         val helper = readMainSource("ui/notifications/OrderNotificationHelper.kt")
         val home = readMainSource("ui/couple/CoupleMenuScreen.kt")
         val main = readMainSource("MainActivity.kt")
+        val icon = readSource("app/src/main/res/drawable/ic_stat_order.xml", "src/main/res/drawable/ic_stat_order.xml")
 
         listOf(
             "android.permission.POST_NOTIFICATIONS",
@@ -53,6 +54,11 @@ class OrderNotificationSourceTest {
             assertTrue("订单通知缺少点击导航或实时更新能力：$expected", helper.contains(expected))
         }
         assertTrue(home.contains("terminalOrderStatuses"))
+        assertTrue(helper.contains("order.status in setOf(\"completed\", \"cancelled\")"))
+        assertTrue(helper.contains("manager.cancel(order.id.hashCode())"))
+        assertTrue(helper.contains("runCatching"))
+        assertTrue(helper.contains("R.drawable.ic_stat_order"))
+        assertTrue(icon.contains("#FFFFFFFF"))
         assertTrue(main.contains("Routes.orderDetail(orderId)"))
         assertTrue(manifest.contains("android.permission.POST_PROMOTED_NOTIFICATIONS"))
     }
