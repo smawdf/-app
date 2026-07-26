@@ -60,6 +60,8 @@ import com.myorderapp.ui.navigation.navigateAsTab
 import com.myorderapp.ui.notifications.EXTRA_NOTIFICATION_ORDER_ID
 import com.myorderapp.ui.theme.Background
 import com.myorderapp.ui.theme.OrderDiskTheme
+import com.myorderapp.ui.update.AppUpdateViewModel
+import com.myorderapp.ui.update.LoginUpdateDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.MaterialTheme
@@ -67,6 +69,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.zIndex
 import kotlinx.coroutines.delay
+import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.getKoin
 
 class MainActivity : ComponentActivity() {
@@ -104,6 +107,8 @@ fun MainScreen(
     val sessionManager = getKoin().get<SessionManager>()
     val cloudSyncCoordinator = getKoin().get<CloudSyncCoordinator>()
     val isLoggedIn by sessionManager.isLoggedIn.collectAsStateWithLifecycle()
+    val updateViewModel: AppUpdateViewModel = koinViewModel()
+    val updateUiState by updateViewModel.uiState.collectAsStateWithLifecycle()
     val restoredSessionAtStartup = remember { isLoggedIn }
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -126,6 +131,23 @@ fun MainScreen(
         }
     }
     var handledDeepLink by remember { mutableStateOf<String?>(null) }
+    var showLoginUpdateDialog by remember { mutableStateOf(false) }
+    LaunchedEffect(isLoggedIn) {
+        if (isLoggedIn) {
+            updateViewModel.checkForUpdate()
+        } else {
+            showLoginUpdateDialog = false
+        }
+    }
+    LaunchedEffect(
+        isLoggedIn,
+        updateUiState.isUpdateAvailable,
+        updateUiState.latest?.versionName
+    ) {
+        if (isLoggedIn && updateUiState.isUpdateAvailable) {
+            showLoginUpdateDialog = true
+        }
+    }
     LaunchedEffect(restoredSessionAtStartup) {
         if (restoredSessionAtStartup) cloudSyncCoordinator.syncInBackground()
     }
@@ -198,6 +220,19 @@ fun MainScreen(
                     .zIndex(20f)
             )
         }
+    }
+    if (showLoginUpdateDialog && isLoggedIn && updateUiState.isUpdateAvailable) {
+        LoginUpdateDialog(
+            state = updateUiState,
+            onUpdate = {
+                if (updateUiState.downloadedApk != null) {
+                    updateViewModel.installUpdate()
+                } else {
+                    updateViewModel.downloadUpdate()
+                }
+            },
+            onDismiss = { showLoginUpdateDialog = false }
+        )
     }
 }
 

@@ -6,7 +6,7 @@ import com.squareup.moshi.JsonClass
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import java.time.LocalDate
-import kotlin.math.abs
+import java.util.Random
 
 @JsonClass(generateAdapter = true)
 data class BimissingRecipeAssetDto(
@@ -79,15 +79,23 @@ class BimissingRecipeAssetSource(private val context: Context) {
             .filter { it.name.isNotBlank() }
             .filterNot { it.imageUrl.isLegacyRecipeImageUrl() }
             .ifEmpty { recipes.ifEmpty { FallbackRecipes }.filter { it.name.isNotBlank() } }
+            .distinctBy { it.name.normalizedSearchText() }
         if (candidates.isEmpty()) return null
 
-        val index = abs(date.toEpochDay().toInt()) % candidates.size
+        val index = stableRecommendationIndex(
+            epochDay = date.toEpochDay(),
+            salt = DAILY_RECOMMENDATION_SALT,
+            size = candidates.size
+        )
         return candidates[index].toExternalResult()
     }
 
-    fun fatLossRecommendation(date: LocalDate = LocalDate.now()): ExternalDishImageResult? {
+    fun fatLossRecommendation(
+        date: LocalDate = LocalDate.now(),
+        excludedNames: Set<String> = emptySet()
+    ): ExternalDishImageResult? {
         val availableRecipes = recipes.ifEmpty { FallbackRecipes }
-        val candidates = availableRecipes
+        val baseCandidates = availableRecipes
             .filter { recipe ->
                 val text = (listOf(recipe.name, recipe.subtitle) + recipe.ingredients)
                     .joinToString(" ")
@@ -105,9 +113,18 @@ class BimissingRecipeAssetSource(private val context: Context) {
                 )
             } }
             .ifEmpty { availableRecipes.filter { it.name.isNotBlank() } }
+            .distinctBy { it.name.normalizedSearchText() }
+        val normalizedExcludedNames = excludedNames.mapTo(mutableSetOf()) { it.normalizedSearchText() }
+        val candidates = baseCandidates
+            .filterNot { it.name.normalizedSearchText() in normalizedExcludedNames }
+            .ifEmpty { baseCandidates }
         if (candidates.isEmpty()) return null
 
-        val index = abs((date.toEpochDay() + 17).toInt()) % candidates.size
+        val index = stableRecommendationIndex(
+            epochDay = date.toEpochDay(),
+            salt = FAT_LOSS_RECOMMENDATION_SALT,
+            size = candidates.size
+        )
         return candidates[index].toExternalResult()
     }
 
@@ -179,6 +196,8 @@ class BimissingRecipeAssetSource(private val context: Context) {
 
     private companion object {
         const val ASSET_NAME = "bimissing_recipes.json"
+        const val DAILY_RECOMMENDATION_SALT = 0x13579BDF2468ACE
+        const val FAT_LOSS_RECOMMENDATION_SALT = 0x2468ACE13579BDF
         val CookingMethods = listOf(
             "\u7ea2\u70e7",
             "\u6e05\u84b8",
@@ -253,4 +272,11 @@ class BimissingRecipeAssetSource(private val context: Context) {
             )
         )
     }
+}
+
+internal fun stableRecommendationIndex(epochDay: Long, salt: Long, size: Int): Int {
+    require(size > 0) { "Recommendation candidate count must be positive" }
+    val rawSeed = epochDay * 6_364_136_223_846_793_005L + salt
+    val mixedSeed = rawSeed xor (rawSeed ushr 33)
+    return Random(mixedSeed).nextInt(size)
 }

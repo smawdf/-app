@@ -236,17 +236,20 @@ class DiscoverViewModel(
     }
 
     private suspend fun loadRecommendations() {
+        val dailyItem = bimissingRecipeAssetSource.dailyRecommendation()
         val daily = buildRecommendation(
             id = "daily",
             title = "今日推荐",
             subtitle = "每日随机更新",
-            item = bimissingRecipeAssetSource.dailyRecommendation()
+            item = dailyItem
         )
         val fatLoss = buildRecommendation(
             id = "fat_loss",
             title = "减脂推荐",
             subtitle = "轻一点，也很好吃",
-            item = bimissingRecipeAssetSource.fatLossRecommendation()
+            item = bimissingRecipeAssetSource.fatLossRecommendation(
+                excludedNames = setOfNotNull(dailyItem?.name)
+            )
         )
         val addedNames = currentShopDishNames()
         _uiState.update { state ->
