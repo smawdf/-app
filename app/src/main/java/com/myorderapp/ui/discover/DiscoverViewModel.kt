@@ -26,6 +26,7 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -109,7 +110,16 @@ class DiscoverViewModel(
         }
         scope.launch {
             delay(DISCOVER_RECOMMENDATION_FIRST_FRAME_DELAY_MS)
-            loadRecommendations()
+            roomMenuRepository.observeMenuDishes()
+                .map { dishes ->
+                    dishes.map { it.name.normalizedMenuName() }
+                        .filter { it.isNotBlank() }
+                        .toSet()
+                }
+                .distinctUntilChanged()
+                .collectLatest { shopDishNames ->
+                    loadRecommendations(shopDishNames)
+                }
         }
     }
 
@@ -235,8 +245,10 @@ class DiscoverViewModel(
         }
     }
 
-    private suspend fun loadRecommendations() {
-        val dailyItem = bimissingRecipeAssetSource.dailyRecommendation()
+    private suspend fun loadRecommendations(shopDishNames: Set<String>) {
+        val dailyItem = bimissingRecipeAssetSource.dailyRecommendation(
+            excludedNames = shopDishNames
+        )
         val daily = buildRecommendation(
             id = "daily",
             title = "今日推荐",
@@ -248,20 +260,17 @@ class DiscoverViewModel(
             title = "减脂推荐",
             subtitle = "轻一点，也很好吃",
             item = bimissingRecipeAssetSource.fatLossRecommendation(
-                excludedNames = setOfNotNull(dailyItem?.name)
+                excludedNames = shopDishNames + setOfNotNull(dailyItem?.name)
             )
         )
-        val addedNames = currentShopDishNames()
         _uiState.update { state ->
+            val recommendations = listOfNotNull(daily, fatLoss)
+                .filterNot { recommendation ->
+                    recommendation.item.name.normalizedMenuName() in shopDishNames
+                }
             state.copy(
-                recommendations = listOfNotNull(daily, fatLoss).map { recommendation ->
-                    recommendation.copy(
-                        item = recommendation.item.copy(
-                            isAdded = addedNames.contains(recommendation.item.name.normalizedMenuName())
-                        )
-                    )
-                },
-                addedMenuItemNames = state.addedMenuItemNames + addedNames
+                recommendations = recommendations,
+                addedMenuItemNames = shopDishNames
             )
         }
     }
