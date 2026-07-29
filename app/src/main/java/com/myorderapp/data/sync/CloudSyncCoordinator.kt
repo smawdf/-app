@@ -17,8 +17,6 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
-import kotlinx.coroutines.flow.filter
-import kotlinx.coroutines.flow.first
 import io.github.jan.supabase.gotrue.SessionStatus
 import io.github.jan.supabase.gotrue.auth
 
@@ -33,8 +31,15 @@ data class CloudSyncState(
     val phase: CloudSyncPhase = CloudSyncPhase.IDLE,
     val completedSteps: Int = 0,
     val totalSteps: Int = 0,
-    val failedSteps: List<String> = emptyList()
+    val failedSteps: List<String> = emptyList(),
+    val requiresLogin: Boolean = false
 )
+
+private enum class AuthReadiness {
+    AUTHENTICATED,
+    NOT_AUTHENTICATED,
+    RETRYABLE_FAILURE
+}
 
 internal data class CloudSyncTask(
     val name: String,
@@ -81,16 +86,35 @@ class CloudSyncCoordinator(
     }
 
     suspend fun syncAll() = syncMutex.withLock {
-        if (!awaitAuthenticatedSession()) {
-            _state.value = CloudSyncState()
-            return@withLock
+        when (awaitAuthReadiness()) {
+            AuthReadiness.AUTHENTICATED -> Unit
+            AuthReadiness.NOT_AUTHENTICATED -> {
+                _state.value = CloudSyncState(
+                    phase = CloudSyncPhase.PARTIAL_FAILURE,
+                    completedSteps = 0,
+                    totalSteps = 1,
+                    failedSteps = listOf("session"),
+                    requiresLogin = true
+                )
+                return@withLock
+            }
+            AuthReadiness.RETRYABLE_FAILURE -> {
+                _state.value = CloudSyncState(
+                    phase = CloudSyncPhase.PARTIAL_FAILURE,
+                    completedSteps = 0,
+                    totalSteps = 1,
+                    failedSteps = listOf("session")
+                )
+                return@withLock
+            }
         }
         if (!SupabaseClientProvider.ensureFreshAuthSession()) {
             _state.value = CloudSyncState(
                 phase = CloudSyncPhase.PARTIAL_FAILURE,
                 completedSteps = 0,
                 totalSteps = 1,
-                failedSteps = listOf("session")
+                failedSteps = listOf("session"),
+                requiresLogin = client.auth.sessionStatus.value is SessionStatus.NotAuthenticated
             )
             return@withLock
         }
@@ -128,12 +152,20 @@ class CloudSyncCoordinator(
         )
     }
 
-    private suspend fun awaitAuthenticatedSession(): Boolean {
+    private suspend fun awaitAuthReadiness(): AuthReadiness {
         return withTimeoutOrNull(AUTH_RESTORE_TIMEOUT_MS) {
-            client.auth.sessionStatus
-                .filter { it !is SessionStatus.LoadingFromStorage }
-                .first() is SessionStatus.Authenticated
-        } ?: false
+            try {
+                client.auth.awaitInitialization()
+            } catch (_: Exception) {
+                return@withTimeoutOrNull AuthReadiness.RETRYABLE_FAILURE
+            }
+            when (client.auth.sessionStatus.value) {
+                is SessionStatus.Authenticated -> AuthReadiness.AUTHENTICATED
+                is SessionStatus.NotAuthenticated -> AuthReadiness.NOT_AUTHENTICATED
+                is SessionStatus.NetworkError,
+                is SessionStatus.LoadingFromStorage -> AuthReadiness.RETRYABLE_FAILURE
+            }
+        } ?: AuthReadiness.RETRYABLE_FAILURE
     }
 
     private fun trackedTask(name: String, errorArea: String, block: suspend () -> Unit): CloudSyncTask {
