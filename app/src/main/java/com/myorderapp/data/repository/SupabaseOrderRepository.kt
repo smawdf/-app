@@ -38,7 +38,7 @@ import java.util.UUID
 @Serializable
 private data class RemoteOrderPayload(
     val id: String,
-    @SerialName("user_id") val userId: String,
+    @SerialName("user_id") val userId: String? = null,
     @SerialName("pair_id") val pairId: String = "",
     @SerialName("buyer_name") val buyerName: String = "",
     @SerialName("buyer_avatar_url") val buyerAvatarUrl: String = "",
@@ -89,6 +89,11 @@ private data class RemoteOrderItemPayload(
     @SerialName("unit_price") val unitPrice: Double,
     val quantity: Int,
     val subtotal: Double
+)
+
+@Serializable
+private data class RemoteOrderIdPayload(
+    val id: String
 )
 
 @Serializable
@@ -202,8 +207,7 @@ class SupabaseOrderRepository(
 
         if (sessionManager.isLoggedIn.value) {
             try {
-                client.from("orders").upsert(order.toRemotePayload()) { select() }
-                client.from("order_items").upsert(order.items.map { it.toRemotePayload() }) { select() }
+                uploadMissingOrderData(order)
                 orderDao.updateSyncState(orderId, userId, SYNC_SYNCED)
             } catch (e: Exception) {
                 cloudErrorLogger?.log("orders", "submit", e, "orderId=$orderId pairId=$pairId")
@@ -280,8 +284,7 @@ class SupabaseOrderRepository(
                 val order = entity.toDomain(items)
                 if (entity.syncState == SYNC_PENDING_CREATE) {
                     val initialOrder = if (order.status == "cancelled") order.copy(status = "submitted") else order
-                    client.from("orders").upsert(initialOrder.toRemotePayload()) { select() }
-                    client.from("order_items").upsert(order.items.map { it.toRemotePayload() }) { select() }
+                    uploadMissingOrderData(initialOrder.copy(items = order.items))
                 }
                 if (order.status == "cancelled") {
                     client.postgrest.rpc(
@@ -328,6 +331,25 @@ class SupabaseOrderRepository(
         } catch (e: Exception) {
             cloudErrorLogger?.log("orders", "refresh", e, "pairId=${pairId.orEmpty()} userId=${activeUserId()}")
             // Local orders remain usable if cloud fields have not been migrated yet.
+        }
+    }
+
+    private suspend fun uploadMissingOrderData(order: OrderRecord) {
+        val remoteOrderExists = client.from("orders").select {
+            filter { eq("id", order.id) }
+        }.decodeList<RemoteOrderIdPayload>().isNotEmpty()
+        if (!remoteOrderExists) {
+            client.from("orders").insert(order.toRemotePayload())
+        }
+
+        val remoteItemIds = client.from("order_items").select {
+            filter { eq("order_id", order.id) }
+        }.decodeList<RemoteOrderIdPayload>().mapTo(mutableSetOf()) { it.id }
+        val missingItems = order.items
+            .filterNot { it.id in remoteItemIds }
+            .map { it.toRemotePayload() }
+        if (missingItems.isNotEmpty()) {
+            client.from("order_items").insert(missingItems)
         }
     }
 
@@ -381,7 +403,7 @@ class SupabaseOrderRepository(
 
     private fun RemoteOrderPayload.toDomain(items: List<OrderItem>) = OrderRecord(
         id = id,
-        userId = userId,
+        userId = userId.orEmpty(),
         pairId = pairId,
         buyerName = buyerName,
         buyerAvatarUrl = buyerAvatarUrl,
