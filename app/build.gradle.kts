@@ -21,12 +21,7 @@ plugins {
 
 android {
     namespace = "com.myorderapp"
-    compileSdk {
-        version = release(36) {
-            minorApiLevel = 1
-        }
-    }
-    buildToolsVersion = "36.1.0"
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "com.myorderapp"
