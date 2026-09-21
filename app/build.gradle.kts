@@ -32,8 +32,8 @@ android {
         applicationId = "com.myorderapp"
         minSdk = 24
         targetSdk = 36
-        versionCode = 40
-        versionName = "1.0.7"
+        versionCode = 45
+        versionName = "1.0.11"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -156,6 +156,10 @@ dependencies {
 
     // Animations
     implementation(libs.lottie.compose)
+
+    // Kyant Liquid Glass & Smooth Shapes
+    implementation(libs.kyant.backdrop)
+    implementation(libs.kyant.shapes)
 
     // Accompanist
     // Accompanist removed; use Compose Foundation built-in permissions API

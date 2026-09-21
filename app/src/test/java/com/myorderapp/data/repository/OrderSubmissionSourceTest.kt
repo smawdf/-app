@@ -14,8 +14,11 @@ class OrderSubmissionSourceTest {
         assertTrue(repository.contains("submitMutex.withLock"))
         assertTrue(repository.contains("upsertOrderWithItems"))
         assertTrue(repository.contains("profileRepository.spendCandyCoins(candyCost, orderId)"))
-        assertTrue(repository.contains("profileRepository.refundCandyCoins(candyCost, orderId)"))
-        assertTrue(repository.contains("from(\"orders\").upsert"))
+        assertTrue(repository.contains("refundCandyCoinsWithRetry(candyCost, orderId)"))
+        assertTrue(repository.contains("profileRepository.refundCandyCoins(amount, transactionId)"))
+        assertTrue(repository.contains("REFUND_ATTEMPTS"))
+        assertTrue(repository.contains("uploadMissingOrderData(order)"))
+        assertTrue(repository.contains("from(\"orders\").insert"))
         assertTrue(dao.contains("@Transaction"))
     }
 

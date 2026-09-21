@@ -59,7 +59,7 @@ fun CartScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFFEF8F2))
+            .background(Color(0xFFFFFFFF))
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
             CartTopBar(
@@ -214,7 +214,7 @@ private fun CartSummaryBar(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Color(0xFFFEF8F2).copy(alpha = 0.96f))
+            .background(Color(0xFFFFFFFF).copy(alpha = 0.96f))
             .navigationBarsPadding()
             .padding(horizontal = 20.dp, vertical = 16.dp)
     ) {

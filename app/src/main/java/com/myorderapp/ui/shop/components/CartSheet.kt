@@ -47,7 +47,7 @@ fun CartSheet(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Color(0xFFFEF8F2))
+            .background(Color(0xFFFFFFFF))
             .navigationBarsPadding()
             .padding(start = 20.dp, top = 10.dp, end = 20.dp, bottom = 20.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)

@@ -190,6 +190,7 @@ class ProfileViewModel(
             val success = profileRepository.joinPair(code)
             if (success) {
                 profileRepository.saveSelectedRole(roleToSave)
+                cloudSyncCoordinator.syncAll()
                 onSuccess(roleToSave)
                 val info = profileRepository.getPairInfo()
                 runCatching { profileRepository.refreshCandyWalletBalance() }
@@ -202,7 +203,10 @@ class ProfileViewModel(
                 )
             } else {
                 val info = profileRepository.getPairInfo()
-                if (info.isPaired) runCatching { profileRepository.refreshCandyWalletBalance() }
+                if (info.isPaired) {
+                    cloudSyncCoordinator.syncAll()
+                    runCatching { profileRepository.refreshCandyWalletBalance() }
+                }
                 _uiState.value = if (info.isPaired) {
                     onSuccess(roleToSave)
                     _uiState.value.copy(

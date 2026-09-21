@@ -32,6 +32,7 @@ class AccountIsolationSourceTest {
 
         assertTrue(orderDao.contains("observeOrdersByPair"))
         assertTrue(orderDao.contains("observeOrdersByUser"))
+        assertTrue(orderDao.contains("(:pairId != '' AND pairId = :pairId)"))
         assertTrue(addressDao.contains("WHERE userId = :userId"))
         assertTrue(menuDaoWritesArePairScoped())
         assertTrue(shop.contains("KEY_OWNER_USER_ID"))

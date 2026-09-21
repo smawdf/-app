@@ -118,3 +118,11 @@ How it works: `/how-it-works`
 
 This message disappears once the first observation lands.
 </claude-mem-context>
+
+## Current release state
+
+- Current release: 1.0.10 (versionCode 43).
+- Order sync handles nullable historical user_id and inserts only missing orders/details.
+- Use rtk for every Gradle command; do not build unless explicitly requested.
+- Never commit local.properties, keystore.properties, orderdisk.jks, or secrets.
+

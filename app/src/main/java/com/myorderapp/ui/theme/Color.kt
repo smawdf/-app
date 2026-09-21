@@ -3,7 +3,7 @@ package com.myorderapp.ui.theme
 import androidx.compose.ui.graphics.Color
 
 // Stitch Cozy Table warm pink palette, translated to native Compose.
-val Background = Color(0xFFFEF8F2)
+val Background = Color(0xFFFFFFFF)
 val Surface = Color(0xFFFFFCF8)
 val SurfaceVariant = Color(0xFFE7E2DC)
 val SurfaceContainer = Color(0xFFF3EDE7)

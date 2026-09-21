@@ -18,6 +18,10 @@ class OrderConsistencySourceTest {
         assertTrue(repository.contains("val sessionId = sessionManager.currentSessionId"))
         assertTrue(repository.contains("OrderSyncWorker.enqueue(context, userId, sessionId)"))
         assertTrue(repository.contains("syncState?.startsWith(\"pending_\")"))
+        assertTrue(repository.contains("previousOrder.syncState != SYNC_PENDING_CREATE"))
+        assertTrue(repository.contains("pendingStatusSyncState"))
+        assertTrue(repository.contains("firstFailure"))
+        assertTrue(repository.contains("pendingSyncFailure"))
         listOf("currentUserId != expectedUserId", "currentSessionId != expectedSessionId").forEach {
             assertTrue(worker.contains(it))
         }

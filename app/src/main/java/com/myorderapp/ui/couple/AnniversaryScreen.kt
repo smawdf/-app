@@ -85,7 +85,7 @@ import java.time.temporal.ChronoUnit
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 
-private val AnniversarySurface = Color(0xFFFEF8F2)
+private val AnniversarySurface = Color(0xFFFFFFFF)
 private val AnniversaryCard = Color(0xFFFFFCF8)
 private val AnniversaryInk = Color(0xFF1D1B18)
 private val AnniversaryMuted = Color(0xFF524346)

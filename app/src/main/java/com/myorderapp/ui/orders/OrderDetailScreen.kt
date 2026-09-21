@@ -73,7 +73,7 @@ fun OrderDetailScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFFEF8F2))
+            .background(Color(0xFFFFFFFF))
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
             OrderDetailTopBar(onBack = onBack)

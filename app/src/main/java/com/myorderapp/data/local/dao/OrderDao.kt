@@ -20,7 +20,7 @@ interface OrderDao {
     @Query("SELECT * FROM orders WHERE userId = :userId ORDER BY createdAt DESC")
     fun observeOrdersByUser(userId: String): Flow<List<OrderEntity>>
 
-    @Query("SELECT * FROM orders WHERE userId = :userId OR pairId = :pairId OR viewerUserIdsJson LIKE '%\"' || :userId || '\"%' ORDER BY createdAt DESC")
+    @Query("SELECT * FROM orders WHERE userId = :userId OR (:pairId != '' AND pairId = :pairId) OR viewerUserIdsJson LIKE '%\"' || :userId || '\"%' ORDER BY createdAt DESC")
     fun observeOrdersVisibleToUser(userId: String, pairId: String): Flow<List<OrderEntity>>
 
     @Query("SELECT * FROM orders WHERE id = :orderId LIMIT 1")

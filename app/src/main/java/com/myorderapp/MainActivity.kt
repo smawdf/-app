@@ -78,7 +78,16 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
+        enableEdgeToEdge(
+            statusBarStyle = androidx.activity.SystemBarStyle.light(
+                android.graphics.Color.TRANSPARENT,
+                android.graphics.Color.TRANSPARENT
+            ),
+            navigationBarStyle = androidx.activity.SystemBarStyle.light(
+                android.graphics.Color.TRANSPARENT,
+                android.graphics.Color.TRANSPARENT
+            )
+        )
         latestDeepLink = intent?.data?.toString()
         latestNotificationOrderId = intent?.getStringExtra(EXTRA_NOTIFICATION_ORDER_ID)
         setContent {
@@ -270,15 +279,14 @@ private fun FloatingLiquidBottomBar(
                 .matchParentSize()
                 .clip(RoundedCornerShape(36.dp))
                 .background(
-                    Brush.linearGradient(
+                    Brush.verticalGradient(
                         colors = listOf(
-                            Color(0xE6FFFFFF),
-                            Color(0xAFFFF8FB),
-                            Color(0x91FFF1F6)
+                            Color.White.copy(alpha = 0.08f),
+                            Color.White.copy(alpha = 0.02f)
                         )
                     )
                 )
-                .border(1.dp, Color(0xC9FFFFFF), RoundedCornerShape(36.dp))
+                .border(1.2.dp, Color.White.copy(alpha = 0.85f), RoundedCornerShape(36.dp))
                 .padding(horizontal = 8.dp, vertical = 6.dp),
         ) {
             val tabWidth = maxWidth / BottomNavItem.items.size
@@ -347,15 +355,26 @@ private fun FloatingLiquidBottomBar(
 @Composable
 private fun LiquidGlassNavLayer(modifier: Modifier = Modifier) {
     Canvas(modifier = modifier) {
-        drawCircle(
-            color = Color.White.copy(alpha = 0.48f),
-            radius = size.height * 0.62f,
-            center = androidx.compose.ui.geometry.Offset(size.width * 0.18f, size.height * 0.18f)
+        // 顶部钻石切角强反光刃（1.5px 纯白）
+        drawLine(
+            color = Color.White.copy(alpha = 0.95f),
+            start = androidx.compose.ui.geometry.Offset(size.width * 0.10f, 1.5f),
+            end = androidx.compose.ui.geometry.Offset(size.width * 0.90f, 1.5f),
+            strokeWidth = 2.2f
         )
-        drawCircle(
-            color = Color.White.copy(alpha = 0.34f),
-            radius = size.height * 0.46f,
-            center = androidx.compose.ui.geometry.Offset(size.width * 0.86f, size.height * 0.22f)
+        // 顶部月牙形水光反光弧（纯净水滴感，绝不发雾）
+        drawRoundRect(
+            brush = Brush.verticalGradient(
+                colors = listOf(
+                    Color.White.copy(alpha = 0.35f),
+                    Color.Transparent
+                ),
+                startY = 0f,
+                endY = size.height * 0.45f
+            ),
+            topLeft = androidx.compose.ui.geometry.Offset(size.width * 0.08f, 0f),
+            size = androidx.compose.ui.geometry.Size(size.width * 0.84f, size.height * 0.45f),
+            cornerRadius = androidx.compose.ui.geometry.CornerRadius(20f, 20f)
         )
     }
 }

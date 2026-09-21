@@ -19,6 +19,8 @@ import com.myorderapp.domain.repository.ProfileRepository
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.rpc
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
@@ -38,7 +40,7 @@ import java.util.UUID
 @Serializable
 private data class RemoteOrderPayload(
     val id: String,
-    @SerialName("user_id") val userId: String,
+    @SerialName("user_id") val userId: String? = null,
     @SerialName("pair_id") val pairId: String = "",
     @SerialName("buyer_name") val buyerName: String = "",
     @SerialName("buyer_avatar_url") val buyerAvatarUrl: String = "",
@@ -92,6 +94,11 @@ private data class RemoteOrderItemPayload(
 )
 
 @Serializable
+private data class RemoteOrderIdPayload(
+    val id: String
+)
+
+@Serializable
 private data class CancelOrderResult(
     @SerialName("order_status") val orderStatus: String,
     @SerialName("refunded_coins") val refundedCoins: Int
@@ -107,6 +114,9 @@ class SupabaseOrderRepository(
 ) : OrderRepository {
 
     private val client = SupabaseClientProvider.client
+
+    // Submissions, status changes, and pending uploads share one process-wide lock.
+    // This prevents a retry from racing a new order or a local status change.
     private val submitMutex = Mutex()
 
     @OptIn(ExperimentalCoroutinesApi::class)
@@ -191,7 +201,14 @@ class SupabaseOrderRepository(
                 order.items.map { it.toEntity() }
             )
         } catch (error: Exception) {
-            profileRepository.refundCandyCoins(candyCost, orderId)
+            if (!refundCandyCoinsWithRetry(candyCost, orderId)) {
+                cloudErrorLogger?.log(
+                    "orders",
+                    "refund_after_local_write_failure",
+                    IllegalStateException("Candy coin refund failed after local order write failed", error),
+                    "orderId=$orderId amount=$candyCost"
+                )
+            }
             throw error
         }
         runCatching {
@@ -202,8 +219,7 @@ class SupabaseOrderRepository(
 
         if (sessionManager.isLoggedIn.value) {
             try {
-                client.from("orders").upsert(order.toRemotePayload()) { select() }
-                client.from("order_items").upsert(order.items.map { it.toRemotePayload() }) { select() }
+                uploadMissingOrderData(order)
                 orderDao.updateSyncState(orderId, userId, SYNC_SYNCED)
             } catch (e: Exception) {
                 cloudErrorLogger?.log("orders", "submit", e, "orderId=$orderId pairId=$pairId")
@@ -215,6 +231,12 @@ class SupabaseOrderRepository(
     }
 
     override suspend fun updateOrderStatus(orderId: String, status: String) {
+        submitMutex.withLock {
+            updateOrderStatusLocked(orderId, status)
+        }
+    }
+
+    private suspend fun updateOrderStatusLocked(orderId: String, status: String) {
         val normalizedStatus = status.takeIf { it in ORDER_STATUSES } ?: return
         if (normalizedStatus != "cancelled") {
             val selectedRole = profileRepository.getProfile().firstOrNull()?.selectedRole
@@ -224,7 +246,11 @@ class SupabaseOrderRepository(
         }
         val previousOrder = scopedOrder(orderId)
         if (previousOrder == null || previousOrder.status == normalizedStatus) return
-        if (sessionManager.isLoggedIn.value) {
+        if (
+            sessionManager.isLoggedIn.value &&
+                previousOrder.syncState != SYNC_PENDING_CREATE &&
+                previousOrder.syncState != SYNC_LOCAL_ONLY
+        ) {
             try {
                 if (normalizedStatus == "cancelled") {
                     client.postgrest.rpc(
@@ -244,8 +270,11 @@ class SupabaseOrderRepository(
                 cloudErrorLogger?.log("orders", "update_status", e, "orderId=$orderId status=$normalizedStatus")
             }
         }
-        updateLocalStatus(orderId, normalizedStatus, SYNC_PENDING_STATUS)
-        enqueueSync()
+        val pendingSyncState = previousOrder.syncState.pendingStatusSyncState()
+        updateLocalStatus(orderId, normalizedStatus, pendingSyncState)
+        if (pendingSyncState != SYNC_LOCAL_ONLY) {
+            enqueueSync()
+        }
     }
 
     override suspend fun updateMomentImage(orderId: String, imageUrl: String) {
@@ -267,21 +296,30 @@ class SupabaseOrderRepository(
     }
 
     override suspend fun refreshOrders() {
-        runCatching { syncPendingOrders() }
+        var pendingSyncFailure: Exception? = null
+        try {
+            syncPendingOrders()
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            pendingSyncFailure = error
+        }
         syncRemoteOrders()
+        pendingSyncFailure?.let { throw it }
     }
 
-    suspend fun syncPendingOrders() {
-        if (!sessionManager.isLoggedIn.value) return
+    suspend fun syncPendingOrders() = submitMutex.withLock {
+        if (!sessionManager.isLoggedIn.value) return@withLock
+
         val userId = activeUserId()
-        orderDao.getPendingOrders(userId).forEach { entity ->
-            runCatching {
+        var firstFailure: Exception? = null
+        for (entity in orderDao.getPendingOrders(userId)) {
+            try {
                 val items = orderDao.getOrderItems(entity.id).map { it.toDomain() }
                 val order = entity.toDomain(items)
                 if (entity.syncState == SYNC_PENDING_CREATE) {
                     val initialOrder = if (order.status == "cancelled") order.copy(status = "submitted") else order
-                    client.from("orders").upsert(initialOrder.toRemotePayload()) { select() }
-                    client.from("order_items").upsert(order.items.map { it.toRemotePayload() }) { select() }
+                    uploadMissingOrderData(initialOrder.copy(items = order.items))
                 }
                 if (order.status == "cancelled") {
                     client.postgrest.rpc(
@@ -296,11 +334,14 @@ class SupabaseOrderRepository(
                     ).decodeAs<String>()
                 }
                 orderDao.updateSyncState(order.id, userId, SYNC_SYNCED)
-            }.onFailure { error ->
-                cloudErrorLogger?.log("orders", "retry_sync", error, "orderId=${entity.id}")
+            } catch (error: CancellationException) {
                 throw error
+            } catch (error: Exception) {
+                cloudErrorLogger?.log("orders", "retry_sync", error, "orderId=${entity.id}")
+                if (firstFailure == null) firstFailure = error
             }
         }
+        firstFailure?.let { throw it }
     }
 
     private suspend fun syncRemoteOrders() {
@@ -331,6 +372,25 @@ class SupabaseOrderRepository(
         }
     }
 
+    private suspend fun uploadMissingOrderData(order: OrderRecord) {
+        val remoteOrderExists = client.from("orders").select {
+            filter { eq("id", order.id) }
+        }.decodeList<RemoteOrderIdPayload>().isNotEmpty()
+        if (!remoteOrderExists) {
+            client.from("orders").insert(order.toRemotePayload())
+        }
+
+        val remoteItemIds = client.from("order_items").select {
+            filter { eq("order_id", order.id) }
+        }.decodeList<RemoteOrderIdPayload>().mapTo(mutableSetOf()) { it.id }
+        val missingItems = order.items
+            .filterNot { it.id in remoteItemIds }
+            .map { it.toRemotePayload() }
+        if (missingItems.isNotEmpty()) {
+            client.from("order_items").insert(missingItems)
+        }
+    }
+
     private suspend fun scopedOrder(orderId: String): com.myorderapp.data.local.entity.OrderEntity? {
         val currentPairOrder = activePairId()?.let { pairId ->
             orderDao.getOrderByIdForPair(orderId, pairId)
@@ -349,6 +409,20 @@ class SupabaseOrderRepository(
         activePairId()?.let { pairId ->
             orderDao.updateStatusAndSyncStateForPair(orderId, pairId, status, syncState)
         } ?: orderDao.updateStatusAndSyncStateForUser(orderId, activeUserId(), status, syncState)
+    }
+
+    private fun String.pendingStatusSyncState(): String = when (this) {
+        SYNC_PENDING_CREATE -> SYNC_PENDING_CREATE
+        SYNC_LOCAL_ONLY -> SYNC_LOCAL_ONLY
+        else -> SYNC_PENDING_STATUS
+    }
+
+    private suspend fun refundCandyCoinsWithRetry(amount: Int, transactionId: String): Boolean {
+        repeat(REFUND_ATTEMPTS) { attempt ->
+            if (profileRepository.refundCandyCoins(amount, transactionId)) return true
+            if (attempt < REFUND_ATTEMPTS - 1) delay(REFUND_RETRY_DELAY_MS)
+        }
+        return false
     }
 
     private fun enqueueSync() {
@@ -381,7 +455,7 @@ class SupabaseOrderRepository(
 
     private fun RemoteOrderPayload.toDomain(items: List<OrderItem>) = OrderRecord(
         id = id,
-        userId = userId,
+        userId = userId.orEmpty(),
         pairId = pairId,
         buyerName = buyerName,
         buyerAvatarUrl = buyerAvatarUrl,
@@ -430,6 +504,8 @@ class SupabaseOrderRepository(
         const val SYNC_LOCAL_ONLY = "local_only"
         const val SYNC_PENDING_CREATE = "pending_create"
         const val SYNC_PENDING_STATUS = "pending_status"
+        const val REFUND_ATTEMPTS = 3
+        const val REFUND_RETRY_DELAY_MS = 250L
     }
 }
 

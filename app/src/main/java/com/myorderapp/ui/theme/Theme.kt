@@ -7,6 +7,7 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
@@ -62,9 +63,16 @@ fun OrderDiskTheme(
 
     val view = LocalView.current
     if (!view.isInEditMode) {
+        // 系统栏（状态栏/导航栏）与主题背景同源：改背景色自动跟随，永不割裂
+        val bgColor = MaterialTheme.colorScheme.background
         SideEffect {
             val window = (view.context as Activity).window
-            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
+            window.statusBarColor = bgColor.toArgb()
+            window.navigationBarColor = bgColor.toArgb()
+            // 图标颜色随背景亮度自动切换（深底→浅图标，浅底→深图标）
+            val lightIcons = bgColor.luminance() > 0.5f
+            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = lightIcons
+            WindowCompat.getInsetsController(window, view).isAppearanceLightNavigationBars = lightIcons
         }
     }
 

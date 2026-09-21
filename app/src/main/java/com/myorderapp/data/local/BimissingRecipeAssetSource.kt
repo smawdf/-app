@@ -74,20 +74,28 @@ class BimissingRecipeAssetSource(private val context: Context) {
             .toList()
     }
 
-    fun dailyRecommendation(date: LocalDate = LocalDate.now()): ExternalDishImageResult? {
-        val candidates = recipes.ifEmpty { FallbackRecipes }
+    fun dailyRecommendation(
+        date: LocalDate = LocalDate.now(),
+        excludedNames: Set<String> = emptySet()
+    ): ExternalDishImageResult? {
+        val availableRecipes = recipes.ifEmpty { FallbackRecipes }
+        val candidates = availableRecipes
             .filter { it.name.isNotBlank() }
             .filterNot { it.imageUrl.isLegacyRecipeImageUrl() }
-            .ifEmpty { recipes.ifEmpty { FallbackRecipes }.filter { it.name.isNotBlank() } }
+            .ifEmpty { availableRecipes.filter { it.name.isNotBlank() } }
             .distinctBy { it.name.normalizedSearchText() }
-        if (candidates.isEmpty()) return null
+        val normalizedExcludedNames = excludedNames.mapTo(mutableSetOf()) { it.normalizedSearchText() }
+        val eligibleCandidates = candidates.filterNot {
+            it.name.normalizedSearchText() in normalizedExcludedNames
+        }
+        if (eligibleCandidates.isEmpty()) return null
 
         val index = stableRecommendationIndex(
             epochDay = date.toEpochDay(),
             salt = DAILY_RECOMMENDATION_SALT,
-            size = candidates.size
+            size = eligibleCandidates.size
         )
-        return candidates[index].toExternalResult()
+        return eligibleCandidates[index].toExternalResult()
     }
 
     fun fatLossRecommendation(
@@ -95,7 +103,12 @@ class BimissingRecipeAssetSource(private val context: Context) {
         excludedNames: Set<String> = emptySet()
     ): ExternalDishImageResult? {
         val availableRecipes = recipes.ifEmpty { FallbackRecipes }
-        val baseCandidates = availableRecipes
+        val allCandidates = availableRecipes
+            .filter { it.name.isNotBlank() }
+            .filterNot { it.imageUrl.isLegacyRecipeImageUrl() }
+            .ifEmpty { availableRecipes.filter { it.name.isNotBlank() } }
+            .distinctBy { it.name.normalizedSearchText() }
+        val preferredCandidates = availableRecipes
             .filter { recipe ->
                 val text = (listOf(recipe.name, recipe.subtitle) + recipe.ingredients)
                     .joinToString(" ")
@@ -104,20 +117,23 @@ class BimissingRecipeAssetSource(private val context: Context) {
                     FatLossAvoidTokens.none { token -> text.contains(token) }
             }
             .filterNot { it.imageUrl.isLegacyRecipeImageUrl() }
-            .ifEmpty { search("\u51cf\u8102", limit = 20).map { result ->
+            .ifEmpty {
+                search("\u51cf\u8102", limit = 20).map { result ->
                 BimissingRecipeDto(
                     id = result.id,
                     name = result.name,
                     subtitle = result.subtitle,
                     imageUrl = result.imageUrl.orEmpty()
                 )
-            } }
-            .ifEmpty { availableRecipes.filter { it.name.isNotBlank() } }
+                }
+            }
             .distinctBy { it.name.normalizedSearchText() }
         val normalizedExcludedNames = excludedNames.mapTo(mutableSetOf()) { it.normalizedSearchText() }
-        val candidates = baseCandidates
+        val eligiblePreferredCandidates = preferredCandidates
             .filterNot { it.name.normalizedSearchText() in normalizedExcludedNames }
-            .ifEmpty { baseCandidates }
+        val candidates = eligiblePreferredCandidates.ifEmpty {
+            allCandidates.filterNot { it.name.normalizedSearchText() in normalizedExcludedNames }
+        }
         if (candidates.isEmpty()) return null
 
         val index = stableRecommendationIndex(

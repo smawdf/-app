@@ -91,6 +91,8 @@ import com.myorderapp.ui.components.CozyIconBadge
 import com.myorderapp.ui.components.CozyMuted
 import com.myorderapp.ui.components.CozyMotion
 import com.myorderapp.ui.components.CozyMotionVisibility
+import com.myorderapp.ui.theme.glassBorder
+import com.myorderapp.ui.theme.glassTint
 import com.myorderapp.ui.components.CozyPage
 import com.myorderapp.ui.components.CozyPill
 import com.myorderapp.ui.components.CozyPrimaryButton
@@ -108,7 +110,7 @@ private val FloatingBottomNavHeight = 68.dp
 private val FloatingBottomNavMargin = 14.dp
 private val FloatingCartGap = 8.dp
 private val FloatingCartHeight = 66.dp
-private val OrderingSurface = Color(0xFFFEF8F2)
+private val OrderingSurface = Color(0xFFFFFFFF)
 private val OrderingHandDrawnBorder = Color(0xFF78555E)
 private const val SHOP_MENU_REFRESH_INTERVAL_MS = 10_000L
 
@@ -137,7 +139,7 @@ fun OrderingScreen(
     if (showCartSheet) {
         ModalBottomSheet(
             onDismissRequest = { showCartSheet = false },
-            containerColor = Color(0xFFFEF8F2),
+            containerColor = Color(0xFFFFFFFF),
             dragHandle = {
                 Surface(
                     shape = RoundedCornerShape(999.dp),
@@ -344,8 +346,8 @@ private fun ShopCard(
                 .heightIn(min = if (expanded) 96.dp else 86.dp)
                 .padding(horizontal = 20.dp, vertical = 4.dp),
             radius = 18,
-            containerColor = Color(0xFFFFFCF8),
-            borderColor = OrderingHandDrawnBorder.copy(alpha = 0.48f),
+            containerColor = glassTint(),
+            borderColor = glassBorder(),
             onClick = null
         ) {
             Row(
@@ -531,8 +533,8 @@ private fun SingleShopDishCard(
             .fillMaxWidth()
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(18.dp),
-        color = Color.White.copy(alpha = 0.68f),
-        border = BorderStroke(2.dp, Color.White),
+        color = glassTint(),
+        border = BorderStroke(1.dp, glassBorder()),
         shadowElevation = 0.dp
     ) {
         Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(11.dp)) {
@@ -596,9 +598,9 @@ private fun CartFloatingBar(
             .fillMaxWidth()
             .height(FloatingCartHeight),
         shape = RoundedCornerShape(999.dp),
-        color = Color(0xFFFFFCF8),
-        border = BorderStroke(1.dp, Color(0xFFD6C1C5).copy(alpha = 0.82f)),
-        shadowElevation = 0.dp,
+        color = glassTint(),
+        border = BorderStroke(1.dp, glassBorder()),
+        shadowElevation = 8.dp,
         onClick = onCartClick
     ) {
         Row(modifier = Modifier.fillMaxSize().padding(start = 26.dp, end = 8.dp), verticalAlignment = Alignment.CenterVertically) {

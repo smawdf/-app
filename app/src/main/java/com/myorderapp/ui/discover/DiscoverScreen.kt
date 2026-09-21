@@ -86,7 +86,7 @@ private val DiscoverPrimary = Primary
 private val DiscoverCard = SecondaryContainer
 private val DiscoverCardBorder = Secondary
 private val DiscoverInput = Color(0xFFE7E2DC)
-private val DiscoverSurface = Color(0xFFFEF8F2)
+private val DiscoverSurface = Color(0xFFFFFFFF)
 private val DiscoverCreamCard = Color(0xFFFFFCF8)
 private const val DiscoverSearchPlaceholder = "搜索菜品、做法、食材"
 

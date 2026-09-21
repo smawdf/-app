@@ -74,7 +74,7 @@ private enum class OrderFilter(val label: String) {
     CANCELLED("已取消")
 }
 
-private val OrderSurface = Color(0xFFFEF8F2)
+private val OrderSurface = Color(0xFFFFFFFF)
 
 @Composable
 fun OrdersScreen(

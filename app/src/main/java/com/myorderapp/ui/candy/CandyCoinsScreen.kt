@@ -75,7 +75,7 @@ import kotlin.math.max
 
 private const val COUPLE_HOME_PREFS = "couple_home_prefs"
 private const val KEY_SELECTED_ROLE = "selected_role"
-private val CandySurface = Color(0xFFFEF8F2)
+private val CandySurface = Color(0xFFFFFFFF)
 private val CandyCard = Color(0xFFFFFCF8)
 private val CandyLine = Color(0xFFD6C1C5)
 

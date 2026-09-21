@@ -13,7 +13,11 @@ import com.myorderapp.ui.search.SearchableMenuItem
 import io.github.jan.supabase.postgrest.from
 import java.time.Instant
 import java.util.UUID
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -75,7 +79,15 @@ class RoomMenuRepository(
 
     fun observeMenuDishes(): Flow<List<MenuDishEntity>> = observeLocalDishes()
 
-    private fun observeLocalDishes(): Flow<List<MenuDishEntity>> = menuDishDao.observeByPair(localPairId())
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private fun observeLocalDishes(): Flow<List<MenuDishEntity>> {
+        val currentSession = session ?: return menuDishDao.observeByPair("")
+        return combine(currentSession.pairId, currentSession.userId) { pairId, userId ->
+            dataScope(pairId, userId).orEmpty()
+        }
+            .distinctUntilChanged()
+            .flatMapLatest(menuDishDao::observeByPair)
+    }
 
     suspend fun getDish(id: String): MenuDishEntity? = menuDishDao.getById(id, localPairId())
 
@@ -233,10 +245,12 @@ class RoomMenuRepository(
 
     private fun activePairId(): String? {
         val currentSession = session ?: return null
-        return currentSession.currentPairId
-            .takeIf { it.isNotBlank() && it != DEFAULT_PAIR_ID }
-            ?: currentSession.currentUserId.takeIf { it.isNotBlank() }?.let { "user:$it" }
+        return dataScope(currentSession.currentPairId, currentSession.currentUserId)
     }
+
+    private fun dataScope(pairId: String, userId: String): String? =
+        pairId.takeIf { it.isNotBlank() && it != DEFAULT_PAIR_ID }
+            ?: userId.takeIf { it.isNotBlank() }?.let { "user:$it" }
 
     private fun localPairId(): String = activePairId().orEmpty()
 

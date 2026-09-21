@@ -86,7 +86,7 @@ fun AuthDecoratedBackground(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(Color(0xFFFEF8F2))
+            .background(Color(0xFFFFFFFF))
     ) {
         Canvas(modifier = Modifier.fillMaxSize()) {
             drawCircle(AuthCream.copy(alpha = 0.16f), radius = size.width * 0.22f, center = Offset(size.width * 0.05f, size.height * 0.12f))
