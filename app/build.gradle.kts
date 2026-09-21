@@ -21,7 +21,12 @@ plugins {
 
 android {
     namespace = "com.myorderapp"
-    compileSdk = 37
+    compileSdk {
+        version = release(36) {
+            minorApiLevel = 1
+        }
+    }
+    buildToolsVersion = "36.1.0"
 
     defaultConfig {
         applicationId = "com.myorderapp"
@@ -151,10 +156,6 @@ dependencies {
 
     // Animations
     implementation(libs.lottie.compose)
-
-    // Kyant Liquid Glass & Smooth Shapes
-    implementation(libs.kyant.backdrop)
-    implementation(libs.kyant.shapes)
 
     // Accompanist
     // Accompanist removed; use Compose Foundation built-in permissions API
