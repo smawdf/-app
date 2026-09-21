@@ -32,8 +32,8 @@ android {
         applicationId = "com.myorderapp"
         minSdk = 24
         targetSdk = 36
-        versionCode = 46
-        versionName = "1.0.12"
+        versionCode = 47
+        versionName = "1.0.13"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -157,8 +157,8 @@ dependencies {
     // Animations
     implementation(libs.lottie.compose)
 
-    // Real-time Backdrop Blur & Glass
-    implementation(libs.haze)
+    // Liquid Glass: SDF refraction + lens + highlight (Kyant backdrop)
+    implementation(libs.kyant.backdrop)
 
     // Accompanist
     // Accompanist removed; use Compose Foundation built-in permissions API

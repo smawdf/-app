@@ -46,15 +46,19 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntOffset
 import androidx.core.content.ContextCompat
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.compose.currentBackStackEntryAsState
-import dev.chrisbanes.haze.HazeState
-import dev.chrisbanes.haze.HazeStyle
-import dev.chrisbanes.haze.HazeTint
-import dev.chrisbanes.haze.hazeEffect
-import dev.chrisbanes.haze.hazeSource
+import com.kyant.backdrop.Backdrop
+import com.kyant.backdrop.backdrops.layerBackdrop
+import com.kyant.backdrop.backdrops.rememberLayerBackdrop
+import com.kyant.backdrop.drawBackdrop
+import com.kyant.backdrop.effects.blur
+import com.kyant.backdrop.effects.lens
+import com.kyant.backdrop.effects.vibrancy
+import com.kyant.backdrop.highlight.Highlight
 import com.myorderapp.data.remote.supabase.SessionManager
 import com.myorderapp.data.sync.CloudSyncCoordinator
 import com.myorderapp.ui.components.CozyMainTopBar
@@ -209,14 +213,14 @@ fun MainScreen(
     val mainTopBarHeight = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + 72.dp
 
 
-    val hazeState = remember { HazeState() }
+    val glassBackdrop = rememberLayerBackdrop()
 
     Box(modifier = Modifier.fillMaxSize()) {
         NavGraph(
             navController = navController,
             modifier = Modifier
                 .fillMaxSize()
-                .hazeSource(hazeState)
+                .layerBackdrop(glassBackdrop)
                 .padding(top = if (showMainShell) mainTopBarHeight else 0.dp),
             startDestination = startDestination,
             resetPasswordDeepLink = initialDeepLink.orEmpty()
@@ -232,7 +236,7 @@ fun MainScreen(
             FloatingLiquidBottomBar(
                 currentRoute = currentRoute,
                 onTabClick = { route -> navController.navigateAsTab(route) },
-                hazeState = hazeState,
+                backdrop = glassBackdrop,
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .zIndex(20f)
@@ -270,10 +274,15 @@ private fun String?.mainTabTopBarContainerColor(): Color = Background
 private fun FloatingLiquidBottomBar(
     currentRoute: String?,
     onTabClick: (String) -> Unit,
-    hazeState: HazeState,
+    backdrop: Backdrop,
     modifier: Modifier = Modifier
 ) {
     val bottomPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+    val density = LocalDensity.current
+    val blurRadiusPx = with(density) { 8.dp.toPx() }
+    val refractionHeightPx = with(density) { 24.dp.toPx() }
+    val refractionAmountPx = with(density) { 24.dp.toPx() }
+    val hasHardwareBlur = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
     Box(
         modifier = modifier
             .padding(horizontal = 20.dp)
@@ -287,17 +296,24 @@ private fun FloatingLiquidBottomBar(
         BoxWithConstraints(
             modifier = Modifier
                 .matchParentSize()
-                .clip(RoundedCornerShape(36.dp))
-                .hazeEffect(
-                    state = hazeState,
-                    style = HazeStyle(
-                        backgroundColor = Color.Transparent,
-                        tint = HazeTint(Color.White.copy(alpha = 0.22f)),
-                        blurRadius = 24.dp,
-                        noiseFactor = 0f
-                    )
+                .drawBackdrop(
+                    backdrop = backdrop,
+                    shape = { RoundedCornerShape(36.dp) },
+                    effects = {
+                        vibrancy()
+                        blur(blurRadiusPx)
+                        lens(
+                            refractionHeight = refractionHeightPx,
+                            refractionAmount = refractionAmountPx,
+                            depthEffect = true,
+                            chromaticAberration = true
+                        )
+                    },
+                    highlight = { Highlight.Default },
+                    onDrawSurface = {
+                        drawRect(Color.White.copy(alpha = if (hasHardwareBlur) 0.12f else 0.62f))
+                    }
                 )
-                .border(1.2.dp, Color.White.copy(alpha = 0.85f), RoundedCornerShape(36.dp))
                 .padding(horizontal = 8.dp, vertical = 6.dp),
         ) {
             val tabWidth = maxWidth / BottomNavItem.items.size
@@ -309,7 +325,6 @@ private fun FloatingLiquidBottomBar(
                 ),
                 label = "heartNavOffset"
             )
-            LiquidGlassNavLayer(modifier = Modifier.matchParentSize())
             Box(
                 modifier = Modifier
                     .offset { IntOffset(heartOffset.roundToPx(), 0) }
@@ -360,33 +375,6 @@ private fun FloatingLiquidBottomBar(
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun LiquidGlassNavLayer(modifier: Modifier = Modifier) {
-    Canvas(modifier = modifier) {
-        // 顶部钻石切角强反光刃（1.5px 纯白）
-        drawLine(
-            color = Color.White.copy(alpha = 0.95f),
-            start = androidx.compose.ui.geometry.Offset(size.width * 0.10f, 1.5f),
-            end = androidx.compose.ui.geometry.Offset(size.width * 0.90f, 1.5f),
-            strokeWidth = 2.2f
-        )
-        // 顶部月牙形水光反光弧（纯净水滴感，绝不发雾）
-        drawRoundRect(
-            brush = Brush.verticalGradient(
-                colors = listOf(
-                    Color.White.copy(alpha = 0.35f),
-                    Color.Transparent
-                ),
-                startY = 0f,
-                endY = size.height * 0.45f
-            ),
-            topLeft = androidx.compose.ui.geometry.Offset(size.width * 0.08f, 0f),
-            size = androidx.compose.ui.geometry.Size(size.width * 0.84f, size.height * 0.45f),
-            cornerRadius = androidx.compose.ui.geometry.CornerRadius(20f, 20f)
-        )
     }
 }
 
