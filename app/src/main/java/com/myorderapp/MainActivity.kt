@@ -50,6 +50,11 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.core.content.ContextCompat
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.compose.currentBackStackEntryAsState
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.HazeStyle
+import dev.chrisbanes.haze.HazeTint
+import dev.chrisbanes.haze.hazeEffect
+import dev.chrisbanes.haze.hazeSource
 import com.myorderapp.data.remote.supabase.SessionManager
 import com.myorderapp.data.sync.CloudSyncCoordinator
 import com.myorderapp.ui.components.CozyMainTopBar
@@ -204,11 +209,14 @@ fun MainScreen(
     val mainTopBarHeight = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + 72.dp
 
 
+    val hazeState = remember { HazeState() }
+
     Box(modifier = Modifier.fillMaxSize()) {
         NavGraph(
             navController = navController,
             modifier = Modifier
                 .fillMaxSize()
+                .hazeSource(hazeState)
                 .padding(top = if (showMainShell) mainTopBarHeight else 0.dp),
             startDestination = startDestination,
             resetPasswordDeepLink = initialDeepLink.orEmpty()
@@ -224,6 +232,7 @@ fun MainScreen(
             FloatingLiquidBottomBar(
                 currentRoute = currentRoute,
                 onTabClick = { route -> navController.navigateAsTab(route) },
+                hazeState = hazeState,
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .zIndex(20f)
@@ -261,6 +270,7 @@ private fun String?.mainTabTopBarContainerColor(): Color = Background
 private fun FloatingLiquidBottomBar(
     currentRoute: String?,
     onTabClick: (String) -> Unit,
+    hazeState: HazeState,
     modifier: Modifier = Modifier
 ) {
     val bottomPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
@@ -278,12 +288,13 @@ private fun FloatingLiquidBottomBar(
             modifier = Modifier
                 .matchParentSize()
                 .clip(RoundedCornerShape(36.dp))
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(
-                            Color.White.copy(alpha = 0.08f),
-                            Color.White.copy(alpha = 0.02f)
-                        )
+                .hazeEffect(
+                    state = hazeState,
+                    style = HazeStyle(
+                        backgroundColor = Color.Transparent,
+                        tint = HazeTint(Color.White.copy(alpha = 0.22f)),
+                        blurRadius = 24.dp,
+                        noiseFactor = 0f
                     )
                 )
                 .border(1.2.dp, Color.White.copy(alpha = 0.85f), RoundedCornerShape(36.dp))
