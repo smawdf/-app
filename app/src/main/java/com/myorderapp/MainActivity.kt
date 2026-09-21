@@ -283,6 +283,7 @@ private fun FloatingLiquidBottomBar(
     val refractionHeightPx = with(density) { 24.dp.toPx() }
     val refractionAmountPx = with(density) { 24.dp.toPx() }
     val hasHardwareBlur = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+    val hasRefraction = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
     Box(
         modifier = modifier
             .padding(horizontal = 20.dp)
@@ -309,9 +310,15 @@ private fun FloatingLiquidBottomBar(
                             chromaticAberration = true
                         )
                     },
-                    highlight = { Highlight.Default },
+                    highlight = { Highlight(width = 1.dp, blurRadius = 1.dp, alpha = 1f) },
                     onDrawSurface = {
-                        drawRect(Color.White.copy(alpha = if (hasHardwareBlur) 0.12f else 0.62f))
+                        // 纯透明会在浅色页面上「隐形」，按系统能力分级给暖奶油玻璃底
+                        val glassAlpha = when {
+                            hasRefraction -> 0.38f
+                            hasHardwareBlur -> 0.50f
+                            else -> 0.74f
+                        }
+                        drawRect(Color(0xFFFFF7F2).copy(alpha = glassAlpha))
                     }
                 )
                 .padding(horizontal = 8.dp, vertical = 6.dp),
