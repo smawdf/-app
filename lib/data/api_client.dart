@@ -3,11 +3,23 @@ import 'package:dio/dio.dart';
 import 'local_store.dart';
 import 'models.dart';
 
-/// 默认后端地址。可在构建时覆盖：
+/// 默认后端地址：优先使用公网隧道，手机在任何网络下都能连上。
+/// 可在构建时覆盖：
 /// flutter build apk --dart-define=API_HOST=192.168.1.6 --dart-define=API_PORT=8085
 /// 运行时也可在登录页「服务器设置」里修改，并会持久化到本地。
-const String kDefaultApiHost = String.fromEnvironment('API_HOST', defaultValue: '192.168.1.6');
+const String kDefaultApiHost = String.fromEnvironment(
+  'API_HOST',
+  defaultValue: 'https://orderdisk-couple.loca.lt',
+);
 const int kDefaultApiPort = int.fromEnvironment('API_PORT', defaultValue: 8085);
+
+/// 自动探测的后端候选地址（按优先级）：
+/// 1. 公网隧道 —— 手机在外网/4G 也能连
+/// 2. 局域网 IP —— 在家同 WiFi 时延迟最低、最稳定
+const List<String> kApiHostCandidates = [
+  'https://orderdisk-couple.loca.lt',
+  '192.168.1.6',
+];
 
 const String _kPrefHost = 'server_host';
 const String _kPrefPort = 'server_port';
@@ -83,6 +95,33 @@ class ApiClient {
     _host = await store.getString(_kPrefHost) ?? kDefaultApiHost;
     _port = await store.getInt(_kPrefPort) ?? kDefaultApiPort;
     _dio.options.baseUrl = baseUrl;
+  }
+
+  /// 是否已经保存过用户手动配置的地址
+  Future<bool> hasSavedServerConfig() async {
+    final saved = await LocalStore.instance.getString(_kPrefHost);
+    return saved != null && saved.isNotEmpty;
+  }
+
+  /// 依次探测候选地址，返回第一个可达的；全部失败返回 null。
+  /// 用于首次启动时自动选择「公网隧道」或「局域网」。
+  Future<String?> probeReachableHost({Duration timeout = const Duration(seconds: 4)}) async {
+    for (final candidate in kApiHostCandidates) {
+      final probe = Dio(BaseOptions(
+        baseUrl: candidate.startsWith('http') ? '$candidate/api/v1' : 'http://$candidate:$kDefaultApiPort/api/v1',
+        connectTimeout: timeout,
+        receiveTimeout: timeout,
+        contentType: Headers.jsonContentType,
+        validateStatus: (s) => s != null && s < 500,
+      ));
+      try {
+        await probe.post('/auth/login', data: {'username': '__probe__', 'password': '__probe__'});
+        return candidate;
+      } catch (_) {
+        // 试下一个候选地址
+      }
+    }
+    return null;
   }
 
   /// 运行时切换服务器地址并持久化

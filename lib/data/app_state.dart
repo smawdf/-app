@@ -66,6 +66,16 @@ class AppState extends ChangeNotifier {
   /// App 启动引导：读取服务器地址 → 恢复上次登录 → 拉取档案
   Future<void> bootstrap() async {
     await _api.loadServerConfig();
+
+    // 首次启动（用户没手动配过地址）时自动探测：
+    // 依次尝试 公网隧道 → 局域网，选第一个能通的存下来。
+    if (!await _api.hasSavedServerConfig()) {
+      final reachable = await _api.probeReachableHost();
+      if (reachable != null) {
+        await _api.configureServer(host: reachable, port: kDefaultApiPort);
+      }
+    }
+
     final saved = await _api.restoreSession();
     if (saved == null) {
       notifyListeners();
