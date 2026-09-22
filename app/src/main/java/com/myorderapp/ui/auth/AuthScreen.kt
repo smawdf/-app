@@ -168,6 +168,23 @@ fun AuthScreen(
                         modifier = Modifier.fillMaxWidth()
                     )
 
+                    if (com.myorderapp.BuildConfig.DEBUG) {
+                        Spacer(modifier = Modifier.height(10.dp))
+                        androidx.compose.material3.OutlinedButton(
+                            onClick = {
+                                viewModel.setDebugGuestSession()
+                                onLoggedIn()
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(
+                                contentColor = AuthPrimaryStart
+                            ),
+                            shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp)
+                        ) {
+                            Text("🛠️ 免登录直通测试 (Debug专用)", fontWeight = FontWeight.Bold)
+                        }
+                    }
+
 
                 }
             }

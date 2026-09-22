@@ -48,6 +48,11 @@ class AuthViewModel(
     private val _uiState = MutableStateFlow(AuthUiState())
     val uiState: StateFlow<AuthUiState> = _uiState.asStateFlow()
 
+    fun setDebugGuestSession() {
+        session.setSession("debug_token", "debug_user_id", "debug_pair_id")
+        _uiState.value = _uiState.value.copy(isLoggedIn = true)
+    }
+
     init {
         val savedEmail = session.getSavedEmail()
         val rememberCredentials = session.isRememberCredentialsEnabled()

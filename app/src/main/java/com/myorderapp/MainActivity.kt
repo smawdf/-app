@@ -69,6 +69,7 @@ import com.myorderapp.ui.navigation.navigateAsTab
 import com.myorderapp.ui.notifications.EXTRA_NOTIFICATION_ORDER_ID
 import com.myorderapp.ui.theme.Background
 import com.myorderapp.ui.theme.OrderDiskTheme
+import com.myorderapp.ui.theme.liquidDropGlass
 import com.myorderapp.ui.update.AppUpdateViewModel
 import com.myorderapp.ui.update.LoginUpdateDialog
 import androidx.compose.material3.Icon
@@ -290,37 +291,14 @@ private fun FloatingLiquidBottomBar(
             .padding(bottom = bottomPadding + 14.dp)
             .fillMaxWidth()
             .widthIn(max = 430.dp)
-            .height(68.dp),
+            .height(68.dp)
+            .liquidDropGlass(shape = RoundedCornerShape(36.dp), isDark = false, alphaBase = 0.55f),
         contentAlignment = Alignment.Center
     ) {
         val selectedIndex = BottomNavItem.items.indexOfFirst { it.route == currentRoute }.coerceAtLeast(0)
         BoxWithConstraints(
             modifier = Modifier
                 .matchParentSize()
-                .drawBackdrop(
-                    backdrop = backdrop,
-                    shape = { RoundedCornerShape(36.dp) },
-                    effects = {
-                        vibrancy()
-                        blur(blurRadiusPx)
-                        lens(
-                            refractionHeight = refractionHeightPx,
-                            refractionAmount = refractionAmountPx,
-                            depthEffect = true,
-                            chromaticAberration = true
-                        )
-                    },
-                    highlight = { Highlight(width = 1.dp, blurRadius = 1.dp, alpha = 1f) },
-                    onDrawSurface = {
-                        // 纯透明会在浅色页面上「隐形」，按系统能力分级给暖奶油玻璃底
-                        val glassAlpha = when {
-                            hasRefraction -> 0.38f
-                            hasHardwareBlur -> 0.50f
-                            else -> 0.74f
-                        }
-                        drawRect(Color(0xFFFFF7F2).copy(alpha = glassAlpha))
-                    }
-                )
                 .padding(horizontal = 8.dp, vertical = 6.dp),
         ) {
             val tabWidth = maxWidth / BottomNavItem.items.size
