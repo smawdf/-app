@@ -3,6 +3,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
 import '../../data/app_state.dart';
+import '../candy/candy_coins_page.dart';
+import '../couple/anniversary_page.dart';
+import '../menu/menu_management_page.dart';
 import '../theme/cozy_glass.dart';
 
 class HomePage extends StatefulWidget {
@@ -165,27 +168,36 @@ class _HomePageState extends State<HomePage> {
                             ),
                             const SizedBox(height: 14),
 
-                            // 在一起的天数胶囊
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(20),
-                                border: Border.all(color: const Color(0x0A000000)),
-                                boxShadow: const [
-                                  BoxShadow(
-                                    color: Color(0x04000000),
-                                    blurRadius: 8,
-                                    offset: Offset(0, 2),
+                            // 在一起的天数胶囊（点击可进入纪念日时光墙）
+                            GestureDetector(
+                              onTap: () {
+                                HapticFeedback.lightImpact();
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(builder: (_) => const AnniversaryPage()),
+                                );
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(20),
+                                  border: Border.all(color: const Color(0x0A000000)),
+                                  boxShadow: const [
+                                    BoxShadow(
+                                      color: Color(0x04000000),
+                                      blurRadius: 8,
+                                      offset: Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                child: Text(
+                                  isPaired ? "一起开饭的第 520 天 💕" : "绑定伴侣后开启小家小铺",
+                                  style: const TextStyle(
+                                    fontSize: 11.5,
+                                    fontWeight: FontWeight.w800,
+                                    color: Color(0xFF333333),
                                   ),
-                                ],
-                              ),
-                              child: Text(
-                                isPaired ? "一起开饭的第 520 天 💕" : "绑定伴侣后开启小家小铺",
-                                style: const TextStyle(
-                                  fontSize: 11.5,
-                                  fontWeight: FontWeight.w800,
-                                  color: Color(0xFF333333),
                                 ),
                               ),
                             ),
@@ -252,22 +264,37 @@ class _HomePageState extends State<HomePage> {
                             onTap: () => widget.onNavigateTab(1),
                           ),
                           _buildQuickCard(
-                            emoji: "✨",
-                            title: "发现好菜",
-                            desc: "搜索海量灵感菜谱",
-                            onTap: () => widget.onNavigateTab(2),
+                            emoji: "🏪",
+                            title: "小店管理",
+                            desc: "上新菜品与维护菜单",
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(builder: (_) => const MenuManagementPage()),
+                              );
+                            },
                           ),
                           _buildQuickCard(
-                            emoji: "📋",
-                            title: "做饭订单",
-                            desc: "查看正在慢炖的美味",
-                            onTap: () => widget.onNavigateTab(3),
+                            emoji: "🎂",
+                            title: "恋爱纪念日",
+                            desc: "恋爱天数与做饭回忆墙",
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(builder: (_) => const AnniversaryPage()),
+                              );
+                            },
                           ),
                           _buildQuickCard(
                             emoji: "🍬",
                             title: "糖币钱包",
                             desc: "甜蜜撒糖与收支明细",
-                            onTap: () => widget.onNavigateTab(4),
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(builder: (_) => const CandyCoinsPage()),
+                              );
+                            },
                           ),
                         ],
                       ),

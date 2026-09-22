@@ -195,6 +195,10 @@ class ApiClient {
     await store.remove(_kPrefUserJson);
   }
 
+  Future<void> deleteMenuItem(String itemId) async {
+    await _dio.delete('/menu/$itemId');
+  }
+
   /// 统一解析响应：2xx 返回 data，否则抛出带友好文案的异常
   dynamic _unwrap(Response res) {
     final data = res.data;

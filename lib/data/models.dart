@@ -214,6 +214,27 @@ class Order {
         _ => null,
       };
 
+  String? get nextStatusAction => switch (status) {
+        'submitted' => '饲养员接单确认 🍳',
+        'confirmed' => '开始下锅烹饪 🍳',
+        'preparing' => '端盘端上餐桌 🛎️',
+        'delivering' => '开饭全部吃光 😋',
+        _ => null,
+      };
+
+  Order copyWithStatus(String newStatus) => Order(
+        id: id,
+        buyerId: buyerId,
+        buyerName: buyerName,
+        status: newStatus,
+        buyerNote: buyerNote,
+        totalPrice: totalPrice,
+        candyCoinsSpent: candyCoinsSpent,
+        momentImageUrl: momentImageUrl,
+        items: items,
+        createdAt: createdAt,
+      );
+
   bool get isActive => status != 'completed' && status != 'cancelled';
 
   factory Order.fromJson(Map<String, dynamic> j) => Order(

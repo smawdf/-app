@@ -5,6 +5,7 @@ import 'package:liquid_glass_widgets/liquid_glass_widgets.dart';
 
 import '../../data/app_state.dart';
 import '../../data/models.dart';
+import '../cart/cart_sheet.dart';
 import '../theme/cozy_glass.dart';
 
 class OrderingPage extends StatefulWidget {
@@ -53,7 +54,43 @@ class _OrderingPageState extends State<OrderingPage> {
     });
   }
 
-  Future<void> _submit() async {
+  /// 打开购物车清单半屏弹层
+  void _openCartSheet() {
+    HapticFeedback.lightImpact();
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (_) => CartDetailSheet(
+        cart: _cart,
+        qty: _qty,
+        onAdd: _add,
+        onRemove: _remove,
+        onClear: () {
+          setState(() {
+            _cart.clear();
+            _qty.clear();
+          });
+        },
+        onCheckout: _openCheckoutDialog,
+        candyBalance: AppState.instance.candyCoins,
+      ),
+    );
+  }
+
+  /// 打开给后厨伴侣的悄悄话结算弹窗
+  void _openCheckoutDialog() {
+    showDialog(
+      context: context,
+      builder: (_) => CheckoutDialog(
+        coinCost: _coinCost,
+        candyBalance: AppState.instance.candyCoins,
+        onConfirm: (buyerNote) => _submit(buyerNote: buyerNote),
+      ),
+    );
+  }
+
+  Future<void> _submit({String buyerNote = ""}) async {
     final state = AppState.instance;
     final dishes = <MenuItem>[];
     _qty.forEach((id, q) {
@@ -70,7 +107,10 @@ class _OrderingPageState extends State<OrderingPage> {
         _qty.clear();
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(state.toast ?? '点单成功'), backgroundColor: CozyTheme.sweetCocoa),
+        SnackBar(
+          content: Text(buyerNote.isNotEmpty ? '点单成功！悄悄话已传递给伴侣 💕' : (state.toast ?? '点单成功')),
+          backgroundColor: CozyTheme.sweetCocoa,
+        ),
       );
     } else if (state.error != null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -201,63 +241,65 @@ class _OrderingPageState extends State<OrderingPage> {
               ),
             ),
 
-            // iOS 26 风格真实折射玻璃购物车条（吃货选菜后浮现）
+            // iOS 26 风格真实折射玻璃购物车条（点击整条可展开购物篮详情，点击去点单进入结算）
             if (_count > 0 && isEater)
               Positioned(
                 left: 20,
                 right: 20,
                 bottom: 112,
                 child: GestureDetector(
-                  // GlassCard 本身不含 onTap，外包一层手势并设为 opaque 保证整块可点
-                  onTap: state.busy ? null : _submit,
+                  onTap: _openCartSheet,
                   behavior: HitTestBehavior.opaque,
                   child: GlassCard(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                     child: Row(
-                    children: [
-                      Container(
-                        width: 36,
-                        height: 36,
-                        decoration: const BoxDecoration(
-                            color: CozyTheme.sweetCocoa, shape: BoxShape.circle),
-                        child: Center(
-                          child: Text('$_count',
-                              style: const TextStyle(
-                                  color: Colors.white, fontSize: 13, fontWeight: FontWeight.w900)),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('合计 ${_total.toStringAsFixed(0)} 元',
+                      children: [
+                        Container(
+                          width: 36,
+                          height: 36,
+                          decoration: const BoxDecoration(
+                              color: CozyTheme.sweetCocoa, shape: BoxShape.circle),
+                          child: Center(
+                            child: Text('$_count',
                                 style: const TextStyle(
-                                    fontSize: 14, fontWeight: FontWeight.w900, color: CozyTheme.sweetCocoa)),
-                            Text('消耗 $_coinCost 糖币 · 剩余 ${state.candyCoins}',
-                                style: const TextStyle(fontSize: 11, color: CozyTheme.mutedText)),
-                          ],
+                                    color: Colors.white, fontSize: 13, fontWeight: FontWeight.w900)),
+                          ),
                         ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 9),
-                        decoration: BoxDecoration(
-                          color: CozyTheme.primaryPink,
-                          borderRadius: BorderRadius.circular(20),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('合计 ${_total.toStringAsFixed(0)} 元 · 查看清单',
+                                  style: const TextStyle(
+                                      fontSize: 13.5, fontWeight: FontWeight.w900, color: CozyTheme.sweetCocoa)),
+                              Text('消耗 $_coinCost 糖币 · 剩余 ${state.candyCoins}',
+                                  style: const TextStyle(fontSize: 11, color: CozyTheme.mutedText)),
+                            ],
+                          ),
                         ),
-                        child: state.busy
-                            ? const SizedBox(
-                                width: 15,
-                                height: 15,
-                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                            : const Text('去点单',
-                                style: TextStyle(
-                                    fontSize: 13, fontWeight: FontWeight.w900, color: Colors.white)),
-                      ),
-                    ],
+                        GestureDetector(
+                          onTap: state.busy ? null : _openCheckoutDialog,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 9),
+                            decoration: BoxDecoration(
+                              color: CozyTheme.primaryPink,
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: state.busy
+                                ? const SizedBox(
+                                    width: 15,
+                                    height: 15,
+                                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                                : const Text('去结算',
+                                    style: TextStyle(
+                                        fontSize: 13, fontWeight: FontWeight.w900, color: Colors.white)),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
                 ),
               ).animate().fadeIn(duration: 220.ms).slideY(begin: 0.25, end: 0),
           ],

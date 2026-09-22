@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../data/app_state.dart';
+import '../candy/candy_coins_page.dart';
+import '../couple/anniversary_page.dart';
+import '../menu/menu_management_page.dart';
 import '../theme/cozy_glass.dart';
 
 class ProfilePage extends StatefulWidget {
@@ -119,56 +122,72 @@ class _ProfilePageState extends State<ProfilePage> {
               ),
               const SizedBox(height: 14),
 
-              // ---- 2. 糖糖币钱包卡片 ----
-              Container(
-                padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: const Color(0x0A000000)),
-                  boxShadow: const [
-                    BoxShadow(color: Color(0x04000000), blurRadius: 16, offset: Offset(0, 4)),
-                  ],
-                ),
-                child: Column(
-                  children: [
-                    const Text('小铺共有糖糖币', style: TextStyle(fontSize: 12, color: CozyTheme.mutedText)),
-                    const SizedBox(height: 6),
-                    Text(
-                      '🍬 ${state.candyCoins}',
-                      style: const TextStyle(
-                        fontSize: 32,
-                        fontWeight: FontWeight.w900,
-                        color: CozyTheme.primaryPink,
-                      ),
-                    ),
-                    if (state.isCaretaker) ...[
-                      const SizedBox(height: 12),
-                      const Text('饲养员快捷投喂：', style: TextStyle(fontSize: 11, color: CozyTheme.mutedText)),
-                      const SizedBox(height: 8),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [10, 50, 100].map((amount) {
-                          return Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 5),
-                            child: GestureDetector(
-                              onTap: () => _recharge(amount),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                                decoration: BoxDecoration(
-                                  color: CozyTheme.softPink,
-                                  borderRadius: BorderRadius.circular(14),
-                                ),
-                                child: Text('+$amount 🍬',
-                                    style: const TextStyle(
-                                        fontSize: 12, fontWeight: FontWeight.w800, color: CozyTheme.primaryPink)),
-                              ),
-                            ),
-                          );
-                        }).toList(),
-                      ),
+              // ---- 2. 糖糖币钱包卡片（点击进入完整流水与自定义撒糖）----
+              GestureDetector(
+                onTap: () {
+                  HapticFeedback.lightImpact();
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const CandyCoinsPage()),
+                  );
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(color: const Color(0x0A000000)),
+                    boxShadow: const [
+                      BoxShadow(color: Color(0x04000000), blurRadius: 16, offset: Offset(0, 4)),
                     ],
-                  ],
+                  ),
+                  child: Column(
+                    children: [
+                      const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text('小铺共有糖糖币', style: TextStyle(fontSize: 12, color: CozyTheme.mutedText)),
+                          SizedBox(width: 4),
+                          Icon(Icons.arrow_forward_ios, size: 10, color: CozyTheme.mutedText),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        '🍬 ${state.candyCoins}',
+                        style: const TextStyle(
+                          fontSize: 32,
+                          fontWeight: FontWeight.w900,
+                          color: CozyTheme.primaryPink,
+                        ),
+                      ),
+                      if (state.isCaretaker) ...[
+                        const SizedBox(height: 12),
+                        const Text('饲养员快捷投喂：', style: TextStyle(fontSize: 11, color: CozyTheme.mutedText)),
+                        const SizedBox(height: 8),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [10, 50, 100].map((amount) {
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 5),
+                              child: GestureDetector(
+                                onTap: () => _recharge(amount),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                  decoration: BoxDecoration(
+                                    color: CozyTheme.softPink,
+                                    borderRadius: BorderRadius.circular(14),
+                                  ),
+                                  child: Text('+$amount 🍬',
+                                      style: const TextStyle(
+                                          fontSize: 12, fontWeight: FontWeight.w800, color: CozyTheme.primaryPink)),
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ],
+                    ],
+                  ),
                 ),
               ),
               const SizedBox(height: 16),
@@ -186,7 +205,12 @@ class _ProfilePageState extends State<ProfilePage> {
                       icon: "🏪",
                       label: "管理小店菜单与价格",
                       trailing: const Icon(Icons.chevron_right, size: 18, color: Color(0xFFC7C7CC)),
-                      onTap: () {},
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const MenuManagementPage()),
+                        );
+                      },
                     ),
                     const Divider(height: 1, indent: 46, color: Color(0xFFF2F2F7)),
                     _menuRow(
@@ -208,7 +232,12 @@ class _ProfilePageState extends State<ProfilePage> {
                       icon: "🎂",
                       label: "恋爱纪念日",
                       trailing: const Icon(Icons.chevron_right, size: 18, color: Color(0xFFC7C7CC)),
-                      onTap: () {},
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const AnniversaryPage()),
+                        );
+                      },
                     ),
                     const Divider(height: 1, indent: 46, color: Color(0xFFF2F2F7)),
                     _menuRow(

@@ -47,6 +47,18 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<bool> deleteDish(String itemId) async {
+    final res = await _guard(() async {
+      await _api.deleteMenuItem(itemId);
+      return true;
+    });
+    if (res == true) {
+      await refreshMenu();
+      return true;
+    }
+    return false;
+  }
+
   Future<T?> _guard<T>(Future<T> Function() action, {bool silent = false}) async {
     if (!silent) _setBusy(true);
     error = null;

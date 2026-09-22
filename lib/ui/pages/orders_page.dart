@@ -4,6 +4,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 
 import '../../data/app_state.dart';
 import '../../data/models.dart';
+import '../orders/order_detail_page.dart';
 import '../theme/cozy_glass.dart';
 
 class OrdersPage extends StatefulWidget {
@@ -83,10 +84,18 @@ class _OrdersPageState extends State<OrdersPage> {
             itemBuilder: (context, index) {
               final order = orders[index];
               final color = _statusColor(order.status);
-              return Container(
-                margin: const EdgeInsets.only(bottom: 14),
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
+              return GestureDetector(
+                onTap: () {
+                  HapticFeedback.lightImpact();
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => OrderDetailPage(order: order)),
+                  );
+                },
+                child: Container(
+                  margin: const EdgeInsets.only(bottom: 14),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(24),
                   border: Border.all(color: CozyTheme.cardStroke),
@@ -204,6 +213,7 @@ class _OrdersPageState extends State<OrdersPage> {
                     ),
                   ],
                 ),
+              ),
               ).animate().fadeIn(delay: (index * 50).ms, duration: 380.ms).slideY(begin: 0.08, end: 0);
             },
           ),
