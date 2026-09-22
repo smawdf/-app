@@ -2,15 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:liquid_glass_widgets/liquid_glass_widgets.dart';
 
 import '../../data/app_state.dart';
+import '../pages/discover_page.dart';
+import '../pages/home_page.dart';
 import '../pages/ordering_page.dart';
 import '../pages/orders_page.dart';
 import '../pages/profile_page.dart';
 import '../theme/cozy_glass.dart';
 
-/// 主界面外壳：纯白底 + liquid_glass_widgets 的 iOS 26 风格液态玻璃底栏
-///
-/// 使用 GlassScaffold 统一接管背景采样、层级次序与边缘渐变，
-/// 底栏由 GlassTabBar.bottom 渲染（库会自动将其提升到 premium 折射质量）。
+/// 主界面外壳：纯白底 + 基于 liquid_glass_widgets 的 5 大完整 Tab 水滴液态玻璃底栏
 class MainShell extends StatefulWidget {
   const MainShell({super.key});
 
@@ -33,9 +32,10 @@ class _MainShellState extends State<MainShell> {
   void _onTabTap(int index) {
     setState(() => _tab = index);
     final state = AppState.instance;
-    if (index == 0) state.refreshMenu();
-    if (index == 1) state.refreshOrders();
-    if (index == 2) state.refreshTransactions();
+    if (index == 0) state.loadMe();
+    if (index == 1) state.refreshMenu();
+    if (index == 3) state.refreshOrders();
+    if (index == 4) state.refreshTransactions();
   }
 
   @override
@@ -45,7 +45,7 @@ class _MainShellState extends State<MainShell> {
     return ListenableBuilder(
       listenable: state,
       builder: (context, _) {
-        // WebSocket 推送到达时，用 SnackBar 提示伴侣动态
+        // WebSocket 实时推送提示
         final toast = state.toast;
         if (toast != null && toast != _lastToast) {
           _lastToast = toast;
@@ -64,32 +64,40 @@ class _MainShellState extends State<MainShell> {
           });
         }
 
+        final pages = [
+          HomePage(onNavigateTab: (idx) => _onTabTap(idx)),
+          const OrderingPage(),
+          DiscoverPage(onGoToOrdering: () => _onTabTap(1)),
+          const OrdersPage(),
+          const ProfilePage(),
+        ];
+
         return GlassScaffold(
           backgroundColor: CozyTheme.pureWhite,
-          statusBarStyle: GlassStatusBarStyle.light,
-          // 底栏同样需要 Material 祖先，否则 tab 文字会退化成红字+黄双下划线错误样式
+          statusBarStyle: GlassStatusBarStyle.dark,
+          // 悬浮 5 大 Tab 水滴液态玻璃底栏
           bottomBar: Material(
             type: MaterialType.transparency,
             child: GlassTabBar.bottom(
               selectedIndex: _tab,
               onTabSelected: _onTabTap,
               tabs: const [
-                GlassTab(icon: Icon(Icons.restaurant), label: '点餐'),
-                GlassTab(icon: Icon(Icons.receipt_long), label: '订单'),
-                GlassTab(icon: Icon(Icons.pets), label: '我的'),
+                GlassTab(icon: Icon(Icons.home_outlined), label: '首页'),
+                GlassTab(icon: Icon(Icons.restaurant_outlined), label: '点餐'),
+                GlassTab(icon: Icon(Icons.explore_outlined), label: '发现'),
+                GlassTab(icon: Icon(Icons.receipt_long_outlined), label: '订单'),
+                GlassTab(icon: Icon(Icons.pets_outlined), label: '我的'),
               ],
             ),
           ),
-          // GlassScaffold 内部是 CupertinoPageScaffold，树里没有 Material 祖先，
-          // 会导致 Text 退化成 Flutter 的「缺 Material 祖先」错误样式
-          // （红字 + 黄色双下划线）。这里显式补一层透明 Material。
+          // 外层包透明 Material，杜绝无 Material 祖先引起的红字黄线
           body: Material(
             type: MaterialType.transparency,
             child: SafeArea(
               bottom: false,
               child: IndexedStack(
                 index: _tab,
-                children: const [OrderingPage(), OrdersPage(), ProfilePage()],
+                children: pages,
               ),
             ),
           ),

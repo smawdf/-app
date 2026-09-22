@@ -43,6 +43,10 @@ class AppState extends ChangeNotifier {
     toast = null;
   }
 
+  void notify() {
+    notifyListeners();
+  }
+
   Future<T?> _guard<T>(Future<T> Function() action, {bool silent = false}) async {
     if (!silent) _setBusy(true);
     error = null;

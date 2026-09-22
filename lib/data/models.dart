@@ -24,6 +24,15 @@ class AppUser {
 
   String get roleLabel => isCaretaker ? '饲养员' : '吃货';
 
+  AppUser copyWithRole(String newRole) => AppUser(
+        id: id,
+        username: username,
+        nickname: nickname,
+        avatarUrl: avatarUrl,
+        role: newRole,
+        pairId: pairId,
+      );
+
   factory AppUser.fromJson(Map<String, dynamic> j) => AppUser(
         id: j['id'] ?? '',
         username: j['username'] ?? '',
