@@ -1,14 +1,16 @@
-import 'package:fluid_glass/fluid_glass.dart';
 import 'package:flutter/material.dart';
+import 'package:liquid_glass_widgets/liquid_glass_widgets.dart';
 
 import '../../data/app_state.dart';
 import '../pages/ordering_page.dart';
 import '../pages/orders_page.dart';
 import '../pages/profile_page.dart';
-import '../theme/backdrop_scope.dart';
 import '../theme/cozy_glass.dart';
 
-/// 主界面外壳：纯白底 + 基于 Kyant 移植版 FluidGlass 的真实折射水滴底栏
+/// 主界面外壳：纯白底 + liquid_glass_widgets 的 iOS 26 风格液态玻璃底栏
+///
+/// 使用 GlassScaffold 统一接管背景采样、层级次序与边缘渐变，
+/// 底栏由 GlassTabBar.bottom 渲染（库会自动将其提升到 premium 折射质量）。
 class MainShell extends StatefulWidget {
   const MainShell({super.key});
 
@@ -19,7 +21,6 @@ class MainShell extends StatefulWidget {
 class _MainShellState extends State<MainShell> {
   int _tab = 0;
   String? _lastToast;
-  final LayerBackdrop _backdrop = LayerBackdrop();
 
   @override
   void initState() {
@@ -63,64 +64,32 @@ class _MainShellState extends State<MainShell> {
           });
         }
 
-        final pages = const [OrderingPage(), OrdersPage(), ProfilePage()];
-
-        return BackdropScope(
-          backdrop: _backdrop,
-          child: Scaffold(
-            backgroundColor: CozyTheme.pureWhite,
-            body: SafeArea(
+        return GlassScaffold(
+          backgroundColor: CozyTheme.pureWhite,
+          statusBarStyle: GlassStatusBarStyle.light,
+          // 底栏同样需要 Material 祖先，否则 tab 文字会退化成红字+黄双下划线错误样式
+          bottomBar: Material(
+            type: MaterialType.transparency,
+            child: GlassTabBar.bottom(
+              selectedIndex: _tab,
+              onTabSelected: _onTabTap,
+              tabs: const [
+                GlassTab(icon: Icon(Icons.restaurant), label: '点餐'),
+                GlassTab(icon: Icon(Icons.receipt_long), label: '订单'),
+                GlassTab(icon: Icon(Icons.pets), label: '我的'),
+              ],
+            ),
+          ),
+          // GlassScaffold 内部是 CupertinoPageScaffold，树里没有 Material 祖先，
+          // 会导致 Text 退化成 Flutter 的「缺 Material 祖先」错误样式
+          // （红字 + 黄色双下划线）。这里显式补一层透明 Material。
+          body: Material(
+            type: MaterialType.transparency,
+            child: SafeArea(
               bottom: false,
-              child: Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  // 1. 被折射的内容层（BackdropLayer，负责向玻璃输出实时采样纹理）
-                  Positioned.fill(
-                    child: BackdropLayer(
-                      backdrop: _backdrop,
-                      child: IndexedStack(index: _tab, children: pages),
-                    ),
-                  ),
-
-                  // 2. 官方原生 FluidGlass LiquidBottomTabs 悬浮折射底栏
-                  Positioned(
-                    left: 20,
-                    right: 20,
-                    bottom: 24,
-                    child: LiquidBottomTabs(
-                      backdrop: _backdrop,
-                      selectedTabIndex: _tab,
-                      onTabSelected: _onTabTap,
-                      tabsCount: 3,
-                      children: [
-                        LiquidBottomTab(
-                          onPressed: () => _onTabTap(0),
-                          children: const [
-                            Icon(Icons.restaurant, size: 20, color: CozyTheme.sweetCocoa),
-                            SizedBox(height: 2),
-                            Text('点餐', style: TextStyle(color: CozyTheme.sweetCocoa, fontSize: 11.5, fontWeight: FontWeight.w800)),
-                          ],
-                        ),
-                        LiquidBottomTab(
-                          onPressed: () => _onTabTap(1),
-                          children: const [
-                            Icon(Icons.receipt_long, size: 20, color: CozyTheme.sweetCocoa),
-                            SizedBox(height: 2),
-                            Text('订单', style: TextStyle(color: CozyTheme.sweetCocoa, fontSize: 11.5, fontWeight: FontWeight.w800)),
-                          ],
-                        ),
-                        LiquidBottomTab(
-                          onPressed: () => _onTabTap(2),
-                          children: const [
-                            Icon(Icons.pets, size: 20, color: CozyTheme.sweetCocoa),
-                            SizedBox(height: 2),
-                            Text('我的', style: TextStyle(color: CozyTheme.sweetCocoa, fontSize: 11.5, fontWeight: FontWeight.w800)),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+              child: IndexedStack(
+                index: _tab,
+                children: const [OrderingPage(), OrdersPage(), ProfilePage()],
               ),
             ),
           ),

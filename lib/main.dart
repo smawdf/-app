@@ -1,6 +1,6 @@
-import 'package:fluid_glass/fluid_glass.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
+import 'package:liquid_glass_widgets/liquid_glass_widgets.dart';
 
 import 'data/app_state.dart';
 import 'ui/auth/auth_screen.dart';
@@ -10,9 +10,12 @@ import 'ui/theme/cozy_glass.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // 强制构建语义树：让 uiautomator / 无障碍服务能识别控件，
+  // 同时也是 UI 自动化测试能够定位元素的前提。
   SemanticsBinding.instance.ensureSemantics();
-  // 预热并编译 FluidGlass 全部 GPU 片段着色器 (refraction.frag, dispersion 等)
-  await FluidGlass.ensureInitialized();
+  // 预热液态玻璃着色器（纯内存 I/O，不阻塞首帧）
+  // enablePerformanceMonitor 默认为 true，会在界面上绘制调试用的栅格监视层，正式包必须关掉
+  await LiquidGlassWidgets.initialize(enablePerformanceMonitor: false);
   runApp(const OrderDiskApp());
 }
 
@@ -21,15 +24,19 @@ class OrderDiskApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: '高糖小食',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        scaffoldBackgroundColor: CozyTheme.pureWhite, // 纯白极简底色
-        useMaterial3: true,
-        splashFactory: NoSplash.splashFactory,
+    return LiquidGlassWidgets.wrap(
+      // 本 App 固定浅色（纯白底），直接给出亮度避免 MaterialApp 下解析不到 Theme
+      brightnessResolver: (BuildContext context) => Brightness.light,
+      child: MaterialApp(
+        title: '高糖小食',
+        debugShowCheckedModeBanner: false,
+        theme: ThemeData(
+          scaffoldBackgroundColor: CozyTheme.pureWhite, // 纯白极简底色
+          useMaterial3: true,
+          splashFactory: NoSplash.splashFactory,
+        ),
+        home: const _RootRouter(),
       ),
-      home: const _RootRouter(),
     );
   }
 }
