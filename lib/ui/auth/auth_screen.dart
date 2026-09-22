@@ -201,19 +201,19 @@ class _AuthScreenState extends State<AuthScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              '填运行 orderdisk-server 的那台电脑的局域网 IP，手机需与它连同一个 WiFi。',
+              '支持局域网 IP (如 192.168.1.6) 或外网穿透完整域名 (如 https://xxx.loca.lt)。填完整 https:// 网址时端口可填 0。',
               style: TextStyle(fontSize: 11.5, color: CozyTheme.mutedText),
             ),
             const SizedBox(height: 14),
             TextField(
               controller: hostCtrl,
-              decoration: const InputDecoration(labelText: '主机 IP', hintText: '192.168.1.6'),
+              decoration: const InputDecoration(labelText: '主机 IP 或公网网址', hintText: '192.168.1.6 或 https://...'),
             ),
             const SizedBox(height: 6),
             TextField(
               controller: portCtrl,
               keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: '端口', hintText: '8085'),
+              decoration: const InputDecoration(labelText: '端口 (网址自带时可填0或8085)', hintText: '8085'),
             ),
           ],
         ),

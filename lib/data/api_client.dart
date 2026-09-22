@@ -54,14 +54,28 @@ class ApiClient {
 
   String get host => _host;
   int get port => _port;
-  String get baseUrl => 'http://$_host:$_port/api/v1';
+  String get baseUrl {
+    if (_host.startsWith('http://') || _host.startsWith('https://')) {
+      return '$_host/api/v1';
+    }
+    return 'http://$_host:$_port/api/v1';
+  }
 
   String _token = '';
   String _userId = '';
   String _pairId = '';
 
   String get token => _token;
-  String get wsUrl => 'ws://$_host:$_port/ws?pair_id=$_pairId&user_id=$_userId';
+  String get wsUrl {
+    if (_host.startsWith('https://')) {
+      final domain = _host.replaceFirst('https://', '');
+      return 'wss://$domain/ws?pair_id=$_pairId&user_id=$_userId';
+    } else if (_host.startsWith('http://')) {
+      final domain = _host.replaceFirst('http://', '');
+      return 'ws://$domain/ws?pair_id=$_pairId&user_id=$_userId';
+    }
+    return 'ws://$_host:$_port/ws?pair_id=$_pairId&user_id=$_userId';
+  }
 
   /// 从本地读取服务器地址（真机 WiFi 网段可能与开发机不同）
   Future<void> loadServerConfig() async {
