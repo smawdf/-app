@@ -1,9 +1,11 @@
+import 'package:fluid_glass/fluid_glass.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
 import '../../data/app_state.dart';
 import '../../data/models.dart';
+import '../theme/backdrop_scope.dart';
 import '../theme/cozy_glass.dart';
 
 class OrderingPage extends StatefulWidget {
@@ -81,6 +83,7 @@ class _OrderingPageState extends State<OrderingPage> {
   @override
   Widget build(BuildContext context) {
     final state = AppState.instance;
+    final backdrop = BackdropScope.of(context);
 
     return ListenableBuilder(
       listenable: state,
@@ -89,6 +92,7 @@ class _OrderingPageState extends State<OrderingPage> {
         final isEater = !state.isCaretaker;
 
         return Stack(
+          clipBehavior: Clip.none,
           children: [
             RefreshIndicator(
               color: CozyTheme.primaryPink,
@@ -199,59 +203,73 @@ class _OrderingPageState extends State<OrderingPage> {
               ),
             ),
 
-            // 悬浮玻璃购物车条（仅在吃货选菜后出现）
+            // 基于 FluidGlass 的真实折射悬浮购物车条（吃货选菜后浮现）
             if (_count > 0 && isEater)
               Positioned(
                 left: 20,
                 right: 20,
-                bottom: 108,
-                child: LiquidDropGlass(
-                  height: 62,
-                  borderRadius: BorderRadius.circular(31),
-                  onTap: state.busy ? null : _submit,
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 34,
-                        height: 34,
-                        decoration: const BoxDecoration(
-                            color: CozyTheme.sweetCocoa, shape: BoxShape.circle),
-                        child: Center(
-                          child: Text('$_count',
-                              style: const TextStyle(
-                                  color: Colors.white, fontSize: 13, fontWeight: FontWeight.w900)),
-                        ),
+                bottom: 112,
+                child: DrawBackdrop(
+                  backdrop: backdrop,
+                  shape: () => const Capsule(),
+                  effects: (scope) => scope
+                    ..vibrancy()
+                    ..blur(12)
+                    ..lens(16, 20, chromaticAberration: true),
+                  onDrawSurface: (canvas, size) => canvas.drawRect(
+                    Offset.zero & size,
+                    Paint()..color = const Color(0x66FFFFFF),
+                  ),
+                  child: InkWell(
+                    onTap: state.busy ? null : _submit,
+                    borderRadius: BorderRadius.circular(32),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 36,
+                            height: 36,
+                            decoration: const BoxDecoration(
+                                color: CozyTheme.sweetCocoa, shape: BoxShape.circle),
+                            child: Center(
+                              child: Text('$_count',
+                                  style: const TextStyle(
+                                      color: Colors.white, fontSize: 13, fontWeight: FontWeight.w900)),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('合计 ${_total.toStringAsFixed(0)} 元',
+                                    style: const TextStyle(
+                                        fontSize: 14, fontWeight: FontWeight.w900, color: CozyTheme.sweetCocoa)),
+                                Text('消耗 $_coinCost 糖币 · 剩余 ${state.candyCoins}',
+                                    style: const TextStyle(fontSize: 11, color: CozyTheme.mutedText)),
+                              ],
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 9),
+                            decoration: BoxDecoration(
+                              color: CozyTheme.primaryPink,
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: state.busy
+                                ? const SizedBox(
+                                    width: 15,
+                                    height: 15,
+                                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                                : const Text('去点单',
+                                    style: TextStyle(
+                                        fontSize: 13, fontWeight: FontWeight.w900, color: Colors.white)),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('合计 ${_total.toStringAsFixed(0)} 元',
-                                style: const TextStyle(
-                                    fontSize: 14, fontWeight: FontWeight.w900, color: CozyTheme.sweetCocoa)),
-                            Text('消耗 $_coinCost 糖币 · 剩余 ${state.candyCoins}',
-                                style: const TextStyle(fontSize: 11, color: CozyTheme.mutedText)),
-                          ],
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 9),
-                        decoration: BoxDecoration(
-                          color: CozyTheme.primaryPink,
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: state.busy
-                            ? const SizedBox(
-                                width: 15,
-                                height: 15,
-                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                            : const Text('去点单',
-                                style: TextStyle(
-                                    fontSize: 13, fontWeight: FontWeight.w900, color: Colors.white)),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
               ).animate().fadeIn(duration: 220.ms).slideY(begin: 0.25, end: 0),
@@ -328,7 +346,6 @@ class _OrderingPageState extends State<OrderingPage> {
     ).animate().fadeIn(delay: (index * 45).ms, duration: 380.ms).slideY(begin: 0.08, end: 0);
   }
 
-  /// 加减控制器：数量为 0 时显示黑色加号，>0 时展开为 - n +
   Widget _stepper(MenuItem item, int qty) {
     if (qty == 0) {
       return InkWell(

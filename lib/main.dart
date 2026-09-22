@@ -1,3 +1,4 @@
+import 'package:fluid_glass/fluid_glass.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 
@@ -7,11 +8,11 @@ import 'ui/auth/pair_screen.dart';
 import 'ui/shell/main_shell.dart';
 import 'ui/theme/cozy_glass.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // 强制构建语义树：让 uiautomator / 无障碍服务能识别控件，
-  // 同时也是 UI 自动化测试能够定位元素的前提。
   SemanticsBinding.instance.ensureSemantics();
+  // 预热并编译 FluidGlass 全部 GPU 片段着色器 (refraction.frag, dispersion 等)
+  await FluidGlass.ensureInitialized();
   runApp(const OrderDiskApp());
 }
 
