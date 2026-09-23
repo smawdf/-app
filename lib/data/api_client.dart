@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 
 import 'local_store.dart';
 import 'models.dart';
+export 'models.dart' show ApiException;
 
 /// 默认后端地址：优先使用公网隧道，手机在任何网络下都能连上。
 /// 可在构建时覆盖：
@@ -27,15 +28,6 @@ const String _kPrefToken = 'session_token';
 const String _kPrefUserId = 'session_user_id';
 const String _kPrefPairId = 'session_pair_id';
 const String _kPrefUserJson = 'session_user_json';
-
-class ApiException implements Exception {
-  final String message;
-  final int? statusCode;
-  ApiException(this.message, {this.statusCode});
-
-  @override
-  String toString() => message;
-}
 
 class ApiClient {
   ApiClient._() {

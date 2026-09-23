@@ -26,19 +26,22 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
-  void _switchRole(String newRole) {
+  Future<void> _switchRole(String newRole) async {
     final state = AppState.instance;
     if (state.user == null) return;
     if (state.user!.role == newRole) return;
 
     HapticFeedback.mediumImpact();
-    // 切换本地角色身份并通知更新
-    state.user = state.user!.copyWithRole(newRole);
-    state.notify();
+    // 持久化身份到云端 profiles.selected_role，再刷新本地状态
+    final ok = await state.updateRole(newRole);
+    if (!mounted) return;
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('已切换身份为【${state.user!.roleLabel}】'),
-        backgroundColor: CozyTheme.sweetCocoa,
+        content: Text(ok
+            ? '已切换身份为【${state.user?.roleLabel ?? newRole}】'
+            : '身份切换失败，请检查网络'),
+        backgroundColor: ok ? CozyTheme.sweetCocoa : const Color(0xFFD64545),
         duration: const Duration(seconds: 2),
       ),
     );

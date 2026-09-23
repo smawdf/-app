@@ -3,6 +3,16 @@ library;
 
 import 'dart:convert';
 
+/// 网络/业务异常统一类型（后端与 Supabase 层共用）
+class ApiException implements Exception {
+  final String message;
+  final int? statusCode;
+  ApiException(this.message, {this.statusCode});
+
+  @override
+  String toString() => message;
+}
+
 class AppUser {
   final String id;
   final String username;

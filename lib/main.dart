@@ -3,6 +3,7 @@ import 'package:flutter/semantics.dart';
 import 'package:liquid_glass_widgets/liquid_glass_widgets.dart';
 
 import 'data/app_state.dart';
+import 'data/supabase_api.dart';
 import 'ui/auth/auth_screen.dart';
 import 'ui/auth/pair_screen.dart';
 import 'ui/shell/main_shell.dart';
@@ -16,6 +17,8 @@ void main() async {
   // 预热液态玻璃着色器（纯内存 I/O，不阻塞首帧）
   // enablePerformanceMonitor 默认为 true，会在界面上绘制调试用的栅格监视层，正式包必须关掉
   await LiquidGlassWidgets.initialize(enablePerformanceMonitor: false);
+  // 连接在线 Supabase 云端数据库
+  await SupabaseApi.initialize();
   runApp(const OrderDiskApp());
 }
 

@@ -1,18 +1,16 @@
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
-import 'package:web_socket_channel/web_socket_channel.dart';
 
-import 'api_client.dart';
 import 'models.dart';
+import 'supabase_api.dart';
 
-/// 全局应用状态：承担 Session、数据缓存与 WebSocket 实时同步
+/// 全局应用状态：承担 Session、数据缓存与云端实时同步（Supabase）
 class AppState extends ChangeNotifier {
   AppState._();
   static final AppState instance = AppState._();
 
-  final ApiClient _api = ApiClient.instance;
+  final SupabaseApi _api = SupabaseApi.instance;
 
   AppUser? user;
   CouplePair? pair;
@@ -30,9 +28,9 @@ class AppState extends ChangeNotifier {
   bool get isCaretaker => user?.isCaretaker ?? false;
   int get candyCoins => pair?.candyCoins ?? 0;
 
-  WebSocketChannel? _channel;
-  StreamSubscription? _wsSub;
+  StreamSubscription? _rtSub;
   Timer? _reconnectTimer;
+  Timer? _pollTimer;
 
   void _setBusy(bool v) {
     busy = v;
@@ -81,16 +79,8 @@ class AppState extends ChangeNotifier {
 
   /// App 启动引导：读取服务器地址 → 恢复上次登录 → 拉取档案
   Future<void> bootstrap() async {
-    await _api.loadServerConfig();
-
-    // 首次启动（用户没手动配过地址）时自动探测：
-    // 依次尝试 公网隧道 → 局域网，选第一个能通的存下来。
-    if (!await _api.hasSavedServerConfig()) {
-      final reachable = await _api.probeReachableHost();
-      if (reachable != null) {
-        await _api.configureServer(host: reachable, port: kDefaultApiPort);
-      }
-    }
+    // 云端地址固定，这里只做一次连通性自检并恢复上次登录态
+    await _api.probeReachableHost();
 
     final saved = await _api.restoreSession();
     if (saved == null) {
@@ -112,7 +102,7 @@ class AppState extends ChangeNotifier {
     required String role,
   }) async {
     final res = await _guard(() => _api.register(
-          username: username,
+          email: username,
           password: password,
           nickname: nickname,
           role: role,
@@ -127,7 +117,7 @@ class AppState extends ChangeNotifier {
   }
 
   Future<bool> login({required String username, required String password}) async {
-    final res = await _guard(() => _api.login(username: username, password: password));
+    final res = await _guard(() => _api.login(email: username, password: password));
     if (res == null) return false;
     _api.setSession(token: res.token, userId: res.user.id, pairId: res.user.pairId);
     user = res.user;
@@ -150,13 +140,9 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// 切换后端服务器地址（真机 WiFi 网段可能与开发机不同）
+  /// 云端数据库地址固定，此方法保留仅为兼容旧界面调用
   Future<bool> configureServer({required String host, required int port}) async {
-    if (host.trim().isEmpty) return false;
-    await _api.configureServer(host: host, port: port);
-    final reachable = await _api.ping();
-    notifyListeners();
-    return reachable;
+    return await _api.ping();
   }
 
   // ---------------- 档案 / 配对 ----------------
@@ -217,7 +203,7 @@ class AppState extends ChangeNotifier {
     if (list != null) orders = list;
   }
 
-  Future<void> refreshTransactions() async {
+  Future<void> refreshTransactions({bool silent = false}) async {
     final list = await _guard(() => _api.candyTransactions(), silent: true);
     if (list != null) transactions = list;
   }
@@ -322,44 +308,58 @@ class AppState extends ChangeNotifier {
     return res ?? [];
   }
 
-  // ---------------- WebSocket 实时同步 ----------------
+  /// 切换当前用户身份（饲养员 / 吃货），并持久化到云端 profiles.selected_role
+  Future<bool> updateRole(String role) async {
+    final ok = await _guard(() async {
+      await _api.updateRole(role);
+      return true;
+    });
+    if (ok != true) return false;
+    if (user != null) {
+      user = user!.copyWithRole(role);
+    }
+    notifyListeners();
+    return true;
+  }
 
+  // ---------------- Supabase 云端实时同步 ----------------
+
+  /// 订阅云端变更：优先用 Supabase Realtime，同时保留 8 秒兜底轮询，
+  /// 即使项目未把表加入 realtime publication，界面也不会停止刷新。
   void connectRealtime() {
     _closeRealtime();
     if (!isPaired || user == null) return;
 
     try {
-      _channel = WebSocketChannel.connect(Uri.parse(_api.wsUrl));
-      _wsSub = _channel!.stream.listen(
-        (raw) {
-          try {
-            final evt = jsonDecode(raw as String) as Map<String, dynamic>;
-            _handleEvent(evt['type'] as String? ?? '');
-          } catch (_) {}
-        },
-        onDone: _scheduleReconnect,
+      _rtSub = _api.realtimeEvents().listen(
+        (_) => _handleEvent('order_updated'),
         onError: (_) => _scheduleReconnect(),
-        cancelOnError: true,
       );
     } catch (_) {
       _scheduleReconnect();
     }
+
+    _pollTimer = Timer.periodic(const Duration(seconds: 8), (_) {
+      if (!isPaired) return;
+      refreshOrders(silent: true);
+      refreshTransactions(silent: true);
+    });
   }
 
   void _scheduleReconnect() {
     _reconnectTimer?.cancel();
     if (!isPaired) return;
-    _reconnectTimer = Timer(const Duration(seconds: 3), () {
+    _reconnectTimer = Timer(const Duration(seconds: 4), () {
       if (isPaired) connectRealtime();
     });
   }
 
   void _closeRealtime() {
     _reconnectTimer?.cancel();
-    _wsSub?.cancel();
-    _wsSub = null;
-    _channel?.sink.close();
-    _channel = null;
+    _pollTimer?.cancel();
+    _pollTimer = null;
+    _rtSub?.cancel();
+    _rtSub = null;
   }
 
   /// 伴侣端的动作，这里实时落库并刷新 UI

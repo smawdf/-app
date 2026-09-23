@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../../data/api_client.dart';
 import '../../data/app_state.dart';
+import '../../data/supabase_api.dart';
 import '../theme/cozy_glass.dart';
 
 class AuthScreen extends StatefulWidget {
@@ -22,9 +22,7 @@ class _AuthScreenState extends State<AuthScreen> {
   @override
   void initState() {
     super.initState();
-    // 演示账号预填，方便一键联调
-    _username.text = 'eat2';
-    _password.text = '123';
+    // 云端 Supabase 使用邮箱登录，这里留空由用户输入
   }
 
   @override
@@ -33,16 +31,6 @@ class _AuthScreenState extends State<AuthScreen> {
     _password.dispose();
     _nickname.dispose();
     super.dispose();
-  }
-
-  void _fillDemo({required String u, required String nick, required String role}) {
-    setState(() {
-      _isRegister = false;
-      _username.text = u;
-      _password.text = '123';
-      _nickname.text = nick;
-      _role = role;
-    });
   }
 
   Future<void> _submit() async {
@@ -108,9 +96,9 @@ class _AuthScreenState extends State<AuthScreen> {
                     const SizedBox(height: 14),
                   ],
 
-                  _field(controller: _username, label: '账号', hint: '请输入账号'),
+                  _field(controller: _username, label: '邮箱', hint: '请输入邮箱，例如 xx@example.com'),
                   const SizedBox(height: 14),
-                  _field(controller: _password, label: '密码', hint: '请输入密码', obscure: true),
+                  _field(controller: _password, label: '密码', hint: '请输入密码（至少 6 位）', obscure: true),
                   const SizedBox(height: 26),
 
                   LiquidDropGlass(
@@ -137,24 +125,12 @@ class _AuthScreenState extends State<AuthScreen> {
 
                   const SizedBox(height: 30),
                   const Text(
-                    '演示账号（前后端已联调通过）',
+                    '首次使用请点上方「注册」创建账号',
                     textAlign: TextAlign.center,
                     style: TextStyle(fontSize: 12, color: CozyTheme.mutedText),
                   ),
-                  const SizedBox(height: 10),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _demoButton('吃货 小马', () => _fillDemo(u: 'eat2', nick: '小马', role: 'eater')),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: _demoButton('饲养员 小金毛', () => _fillDemo(u: 'cook2', nick: '小金毛', role: 'caretaker')),
-                      ),
-                    ],
-                  ),
                   const SizedBox(height: 20),
-                  // 服务器地址：真机 WiFi 网段可能与开发机不同，可点此修改
+                  // 云端数据库地址（Supabase），点击可查看
                   GestureDetector(
                     onTap: _openServerSettings,
                     behavior: HitTestBehavior.opaque,
@@ -163,14 +139,14 @@ class _AuthScreenState extends State<AuthScreen> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Icon(Icons.dns_outlined, size: 13, color: CozyTheme.mutedText),
+                          const Icon(Icons.cloud_done_outlined, size: 13, color: CozyTheme.mutedText),
                           const SizedBox(width: 6),
                           Text(
-                            '服务器 ${ApiClient.instance.baseUrl}',
+                            '云端数据库 ${kSupabaseUrl.replaceFirst('https://', '')}',
                             style: const TextStyle(fontSize: 11, color: CozyTheme.mutedText),
                           ),
                           const SizedBox(width: 4),
-                          const Text('修改', style: TextStyle(fontSize: 11, color: CozyTheme.primaryPink)),
+                          const Text('详情', style: TextStyle(fontSize: 11, color: CozyTheme.primaryPink)),
                         ],
                       ),
                     ),
@@ -184,54 +160,47 @@ class _AuthScreenState extends State<AuthScreen> {
     );
   }
 
-  /// 服务器地址设置：方便真机在不同 WiFi 下切换后端
+  /// 云端数据库信息（Supabase 地址固定，无需用户配置）
   Future<void> _openServerSettings() async {
-    final api = ApiClient.instance;
-    final hostCtrl = TextEditingController(text: api.host);
-    final portCtrl = TextEditingController(text: api.port.toString());
-
-    final confirmed = await showDialog<bool>(
+    await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
-        title: const Text('后端服务器地址', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900)),
+        title: const Text('云端数据库', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              '支持局域网 IP (如 192.168.1.6) 或外网穿透完整域名 (如 https://xxx.loca.lt)。填完整 https:// 网址时端口可填 0。',
-              style: TextStyle(fontSize: 11.5, color: CozyTheme.mutedText),
+              '本版本数据全部保存在你自己的在线 Supabase 数据库中，无需手动配置地址，也不依赖电脑开着后端服务。',
+              style: TextStyle(fontSize: 12, color: CozyTheme.mutedText, height: 1.5),
             ),
             const SizedBox(height: 14),
-            TextField(
-              controller: hostCtrl,
-              decoration: const InputDecoration(labelText: '主机 IP 或公网网址', hintText: '192.168.1.6 或 https://...'),
-            ),
-            const SizedBox(height: 6),
-            TextField(
-              controller: portCtrl,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: '端口 (网址自带时可填0或8085)', hintText: '8085'),
+            Text(
+              kSupabaseUrl.replaceFirst('https://', ''),
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: CozyTheme.sweetCocoa),
             ),
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('取消')),
-          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('保存并测试')),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(ctx, true);
+            },
+            child: const Text('测试连接'),
+          ),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('关闭')),
         ],
       ),
-    );
-
-    if (confirmed != true) return;
-    final port = int.tryParse(portCtrl.text.trim()) ?? 8085;
-    final ok = await AppState.instance.configureServer(host: hostCtrl.text.trim(), port: port);
-    if (!mounted) return;
-    setState(() {});
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(ok ? '服务器已保存，连接正常 ✅' : '地址已保存，但暂时连不上，请确认后端已启动')),
-    );
+    ).then((probe) async {
+      if (probe != true || !mounted) return;
+      final ok = await AppState.instance.configureServer(host: kSupabaseUrl, port: 0);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(ok ? '云端连接正常 ✅' : '云端暂时连不上，请检查手机网络（可能需要科学上网）')),
+      );
+    });
   }
 
   Widget _modeChip(String label, bool active, VoidCallback onTap) {
@@ -334,23 +303,4 @@ class _AuthScreenState extends State<AuthScreen> {
     );
   }
 
-  Widget _demoButton(String label, VoidCallback onTap) {
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 11),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: CozyTheme.cardStroke),
-        ),
-        child: Text(
-          label,
-          textAlign: TextAlign.center,
-          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: CozyTheme.sweetCocoa),
-        ),
-      ),
-    );
-  }
 }
