@@ -380,6 +380,35 @@ class ApiClient {
         .toList();
   }
 
+  // ---------------- 恋爱纪念日与时光记录 ----------------
+
+  Future<Map<String, dynamic>> anniversary() async {
+    final data = await _get('/anniversary') as Map<String, dynamic>;
+    return data;
+  }
+
+  Future<Map<String, dynamic>> updateAnniversary(String date) async {
+    final data = await put('/anniversary', {'anniversary_at': date}) as Map<String, dynamic>;
+    return data;
+  }
+
+  // ---------------- 真实菜谱搜索 ----------------
+
+  Future<List<Map<String, dynamic>>> searchRecipes(String keyword) async {
+    final data = await _get('/recipes/search?keyword=$keyword') as Map<String, dynamic>;
+    return ((data['recipes'] as List?) ?? const []).cast<Map<String, dynamic>>();
+  }
+
+  // ---------------- 小店设置 ----------------
+
+  Future<Shop> updateShop({required String name, required String announcement}) async {
+    final data = await put('/shop', {
+      'name': name,
+      'announcement': announcement,
+    }) as Map<String, dynamic>;
+    return Shop.fromJson(data);
+  }
+
   /// 用于 PUT 的便捷封装（dio 的 put 与 post 在此项目里用法一致）
   Future<dynamic> put(String path, Map<String, dynamic> body) async {
     try {

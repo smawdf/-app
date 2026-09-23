@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 
 import '../../data/app_state.dart';
 import '../theme/cozy_glass.dart';
@@ -16,66 +15,29 @@ class DiscoverPage extends StatefulWidget {
 
 class _DiscoverPageState extends State<DiscoverPage> {
   final _searchCtrl = TextEditingController();
-  String _keyword = "";
+  List<Map<String, dynamic>> _recipes = [];
+  bool _loading = false;
 
-  // 灵感菜谱示例库（支持一键加入我的小店）
-  final List<Map<String, dynamic>> _allRecipes = [
-    {
-      "name": "关东风味肥牛寿喜烧",
-      "desc": "经典关东甜咸风味，热气腾腾，冬天情侣窝在一起吃最暖胃。",
-      "time": "25 分钟",
-      "difficulty": "简单",
-      "price": 42.0,
-      "emoji": "🥘",
-      "bg": const Color(0xFFFFF4EC),
-      "added": false,
-    },
-    {
-      "name": "多汁白桃乌龙暴打冻饮",
-      "desc": "手捣新鲜白桃果肉，配清香高山乌龙，0 卡糖清爽低负担。",
-      "time": "10 分钟",
-      "difficulty": "极快",
-      "price": 12.0,
-      "emoji": "🥤",
-      "bg": const Color(0xFFEFF6FF),
-      "added": false,
-    },
-    {
-      "name": "鲜香滑嫩黑椒雪花牛肉粒",
-      "desc": "外焦里嫩，浓郁黑椒黄油汁包裹杏鲍菇，下饭绝配。",
-      "time": "20 分钟",
-      "difficulty": "家常",
-      "price": 38.0,
-      "emoji": "🥩",
-      "bg": const Color(0xFFFEF2F2),
-      "added": false,
-    },
-    {
-      "name": "焦糖海盐流心松饼塔",
-      "desc": "松软云朵口感，淋上手熬微咸焦糖酱与香草冰淇淋。",
-      "time": "18 分钟",
-      "difficulty": "甜品",
-      "price": 26.0,
-      "emoji": "🥞",
-      "bg": const Color(0xFFFFFBEB),
-      "added": false,
-    },
-    {
-      "name": "暖心鲜甜上汤娃娃菜",
-      "desc": "皮蛋火腿慢火吊高汤，清润鲜甜，做饭方拿手好汤。",
-      "time": "15 分钟",
-      "difficulty": "快手",
-      "price": 16.0,
-      "emoji": "🥬",
-      "bg": const Color(0xFFF0FDF4),
-      "added": false,
-    },
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _search("");
+  }
 
   @override
   void dispose() {
     _searchCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _search(String kw) async {
+    setState(() => _loading = true);
+    final list = await AppState.instance.searchRemoteRecipes(kw);
+    if (!mounted) return;
+    setState(() {
+      _recipes = list;
+      _loading = false;
+    });
   }
 
   Future<void> _addToShop(Map<String, dynamic> recipe) async {
@@ -84,7 +46,7 @@ class _DiscoverPageState extends State<DiscoverPage> {
 
     final ok = await state.addDish(
       name: recipe["name"] as String,
-      price: recipe["price"] as double,
+      price: (recipe["price"] as num).toDouble(),
       description: recipe["desc"] as String,
       emoji: recipe["emoji"] as String,
     );
@@ -114,13 +76,6 @@ class _DiscoverPageState extends State<DiscoverPage> {
 
   @override
   Widget build(BuildContext context) {
-    final filtered = _allRecipes.where((r) {
-      if (_keyword.isEmpty) return true;
-      final name = r["name"] as String;
-      final desc = r["desc"] as String;
-      return name.contains(_keyword) || desc.contains(_keyword);
-    }).toList();
-
     return Scaffold(
       backgroundColor: CozyTheme.pureWhite,
       body: SafeArea(
@@ -133,7 +88,6 @@ class _DiscoverPageState extends State<DiscoverPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // 大标题
                     const Text(
                       "发现灵感好菜 ✨",
                       style: TextStyle(
@@ -144,8 +98,6 @@ class _DiscoverPageState extends State<DiscoverPage> {
                       ),
                     ),
                     const SizedBox(height: 12),
-
-                    // 纯白极简搜索框
                     Container(
                       decoration: BoxDecoration(
                         color: const Color(0xFFF6F6F7),
@@ -154,17 +106,17 @@ class _DiscoverPageState extends State<DiscoverPage> {
                       ),
                       child: TextField(
                         controller: _searchCtrl,
-                        onChanged: (val) => setState(() => _keyword = val.trim()),
+                        onSubmitted: _search,
                         style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
                         decoration: InputDecoration(
                           hintText: "搜索菜品、做法、食材、减脂餐...",
                           hintStyle: const TextStyle(fontSize: 13, color: CozyTheme.mutedText),
                           prefixIcon: const Icon(Icons.search, size: 20, color: CozyTheme.mutedText),
-                          suffixIcon: _keyword.isNotEmpty
+                          suffixIcon: _searchCtrl.text.isNotEmpty
                               ? GestureDetector(
                                   onTap: () {
                                     _searchCtrl.clear();
-                                    setState(() => _keyword = "");
+                                    _search("");
                                   },
                                   child: const Icon(Icons.close, size: 18, color: CozyTheme.mutedText),
                                 )
@@ -179,142 +131,141 @@ class _DiscoverPageState extends State<DiscoverPage> {
               ),
             ),
 
-            // 菜谱列表流
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 120),
-              sliver: SliverList(
-                delegate: SliverChildBuilderDelegate(
-                  (context, index) {
-                    final item = filtered[index];
-                    final isAdded = item["added"] as bool;
+            if (_loading)
+              const SliverFillRemaining(
+                child: Center(
+                  child: CircularProgressIndicator(color: CozyTheme.primaryPink),
+                ),
+              )
+            else if (_recipes.isEmpty)
+              const SliverFillRemaining(
+                child: Center(
+                  child: Text("未搜到相关菜谱，换个关键词试试吧", style: TextStyle(color: CozyTheme.mutedText)),
+                ),
+              )
+            else
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 120),
+                sliver: SliverList(
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) {
+                      final item = _recipes[index];
+                      final isAdded = item["added"] == true;
 
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: 16),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(22),
-                        border: Border.all(color: const Color(0x0A000000)),
-                        boxShadow: const [
-                          BoxShadow(
-                            color: Color(0x04000000),
-                            blurRadius: 14,
-                            offset: Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // 顶部大图展位
-                          Container(
-                            height: 100,
-                            width: double.infinity,
-                            decoration: BoxDecoration(
-                              color: item["bg"] as Color,
-                              borderRadius: const BorderRadius.vertical(top: Radius.circular(21)),
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 16),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(22),
+                          border: Border.all(color: const Color(0x0A000000)),
+                          boxShadow: const [
+                            BoxShadow(color: Color(0x04000000), blurRadius: 14, offset: Offset(0, 4)),
+                          ],
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              height: 100,
+                              width: double.infinity,
+                              decoration: const BoxDecoration(
+                                color: Color(0xFFFAFAFA),
+                                borderRadius: BorderRadius.vertical(top: Radius.circular(21)),
+                              ),
+                              child: Center(
+                                child: Text(item["emoji"] as String? ?? "🍲", style: const TextStyle(fontSize: 48)),
+                              ),
                             ),
-                            child: Center(
-                              child: Text(item["emoji"] as String, style: const TextStyle(fontSize: 48)),
-                            ),
-                          ),
-
-                          // 详细信息
-                          Padding(
-                            padding: const EdgeInsets.all(14),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Expanded(
-                                      child: Text(
-                                        item["name"] as String,
-                                        style: const TextStyle(
-                                          fontSize: 15.5,
-                                          fontWeight: FontWeight.w900,
-                                          color: CozyTheme.sweetCocoa,
-                                        ),
-                                      ),
-                                    ),
-                                    Text(
-                                      "${(item["price"] as double).toStringAsFixed(0)} 🍬",
-                                      style: const TextStyle(
-                                        fontSize: 14.5,
-                                        fontWeight: FontWeight.w900,
-                                        color: CozyTheme.primaryPink,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 6),
-                                Text(
-                                  item["desc"] as String,
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    color: CozyTheme.mutedText,
-                                    height: 1.35,
-                                  ),
-                                ),
-                                const SizedBox(height: 12),
-
-                                // 底部标签与操作
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Row(
-                                      children: [
-                                        _tag("⏱️ ${item["time"]}"),
-                                        const SizedBox(width: 6),
-                                        _tag("🔥 ${item["difficulty"]}"),
-                                      ],
-                                    ),
-                                    GestureDetector(
-                                      onTap: isAdded ? null : () => _addToShop(item),
-                                      child: Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-                                        decoration: BoxDecoration(
-                                          color: isAdded ? const Color(0xFFF0FDF4) : CozyTheme.softPink,
-                                          borderRadius: BorderRadius.circular(12),
-                                          border: Border.all(
-                                            color: isAdded
-                                                ? const Color(0xFF86EFAC)
-                                                : CozyTheme.primaryPink.withValues(alpha: 0.3),
+                            Padding(
+                              padding: const EdgeInsets.all(14),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          item["name"] as String? ?? "",
+                                          style: const TextStyle(
+                                            fontSize: 15.5,
+                                            fontWeight: FontWeight.w900,
+                                            color: CozyTheme.sweetCocoa,
                                           ),
                                         ),
-                                        child: Row(
-                                          children: [
-                                            Icon(
-                                              isAdded ? Icons.check : Icons.add,
-                                              size: 14,
-                                              color: isAdded ? const Color(0xFF16A34A) : CozyTheme.primaryPink,
-                                            ),
-                                            const SizedBox(width: 4),
-                                            Text(
-                                              isAdded ? "已在小店" : "加进小店",
-                                              style: TextStyle(
-                                                fontSize: 11.5,
-                                                fontWeight: FontWeight.w800,
-                                                color: isAdded ? const Color(0xFF16A34A) : CozyTheme.primaryPink,
-                                              ),
-                                            ),
-                                          ],
+                                      ),
+                                      Text(
+                                        "${((item["price"] as num?) ?? 10).toStringAsFixed(0)} 🍬",
+                                        style: const TextStyle(
+                                          fontSize: 14.5,
+                                          fontWeight: FontWeight.w900,
+                                          color: CozyTheme.primaryPink,
                                         ),
                                       ),
-                                    ),
-                                  ],
-                                ),
-                              ],
+                                    ],
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    item["desc"] as String? ?? "",
+                                    style: const TextStyle(fontSize: 12, color: CozyTheme.mutedText, height: 1.35),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          _tag("⏱️ ${item["time"] ?? "20分钟"}"),
+                                          const SizedBox(width: 6),
+                                          _tag("🔥 ${item["difficulty"] ?? "家常"}"),
+                                        ],
+                                      ),
+                                      GestureDetector(
+                                        onTap: isAdded ? null : () => _addToShop(item),
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                                          decoration: BoxDecoration(
+                                            color: isAdded ? const Color(0xFFF0FDF4) : CozyTheme.softPink,
+                                            borderRadius: BorderRadius.circular(12),
+                                            border: Border.all(
+                                              color: isAdded
+                                                  ? const Color(0xFF86EFAC)
+                                                  : CozyTheme.primaryPink.withValues(alpha: 0.3),
+                                            ),
+                                          ),
+                                          child: Row(
+                                            children: [
+                                              Icon(
+                                                isAdded ? Icons.check : Icons.add,
+                                                size: 14,
+                                                color: isAdded ? const Color(0xFF16A34A) : CozyTheme.primaryPink,
+                                              ),
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                isAdded ? "已在小店" : "加进小店",
+                                                style: TextStyle(
+                                                  fontSize: 11.5,
+                                                  fontWeight: FontWeight.w800,
+                                                  color: isAdded ? const Color(0xFF16A34A) : CozyTheme.primaryPink,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
-                        ],
-                      ),
-                    ).animate().fadeIn(delay: (index * 40).ms, duration: 320.ms).slideY(begin: 0.08, end: 0);
-                  },
-                  childCount: filtered.length,
+                          ],
+                        ),
+                      );
+                    },
+                    childCount: _recipes.length,
+                  ),
                 ),
               ),
-            ),
           ],
         ),
       ),

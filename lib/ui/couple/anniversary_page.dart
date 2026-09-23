@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../data/app_state.dart';
 import '../theme/cozy_glass.dart';
 
 /// 恋爱纪念日与时光记录页面 (AnniversaryPage)
@@ -11,7 +12,9 @@ class AnniversaryPage extends StatefulWidget {
 }
 
 class _AnniversaryPageState extends State<AnniversaryPage> {
-  // 模拟做饭甜蜜时光墙相册
+  int _daysTogether = 520;
+  String _anniversaryAt = "2025-04-20";
+
   final List<Map<String, String>> _moments = [
     {
       "dish": "蜜汁可乐小鸡翅",
@@ -35,6 +38,22 @@ class _AnniversaryPageState extends State<AnniversaryPage> {
       "chef": "饲养员 小金毛",
     },
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _fetch();
+  }
+
+  Future<void> _fetch() async {
+    final info = await AppState.instance.loadAnniversary();
+    if (info != null && mounted) {
+      setState(() {
+        _daysTogether = info["days_together"] as int? ?? 520;
+        _anniversaryAt = info["anniversary_at"] as String? ?? "2025-04-20";
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -75,22 +94,22 @@ class _AnniversaryPageState extends State<AnniversaryPage> {
               children: [
                 const Text("相恋开饭至今", style: TextStyle(fontSize: 13, color: CozyTheme.mutedText)),
                 const SizedBox(height: 6),
-                const Row(
+                Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.baseline,
                   textBaseline: TextBaseline.alphabetic,
                   children: [
-                    Text("520",
-                        style: TextStyle(
+                    Text("$_daysTogether",
+                        style: const TextStyle(
                             fontSize: 48, fontWeight: FontWeight.w900, color: CozyTheme.primaryPink, letterSpacing: -1)),
-                    SizedBox(width: 4),
-                    Text("天",
+                    const SizedBox(width: 4),
+                    const Text("天",
                         style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: CozyTheme.primaryPink)),
                   ],
                 ),
                 const SizedBox(height: 8),
-                const Text("始于 2025 年 4 月 20 日",
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: CozyTheme.sweetCocoa)),
+                Text("始于 $_anniversaryAt",
+                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: CozyTheme.sweetCocoa)),
               ],
             ),
           ),
@@ -102,7 +121,7 @@ class _AnniversaryPageState extends State<AnniversaryPage> {
               Text("出锅时光回忆墙 📸",
                   style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: CozyTheme.sweetCocoa)),
               Spacer(),
-              Text("共 3 次甜蜜记录", style: TextStyle(fontSize: 12, color: CozyTheme.mutedText)),
+              Text("历次做饭成品记录", style: TextStyle(fontSize: 12, color: CozyTheme.mutedText)),
             ],
           ),
           const SizedBox(height: 12),

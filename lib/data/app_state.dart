@@ -298,6 +298,30 @@ class AppState extends ChangeNotifier {
     return true;
   }
 
+  Future<bool> updateShopInfo({required String name, required String announcement}) async {
+    final updated = await _guard(() => _api.updateShop(name: name, announcement: announcement));
+    if (updated != null) {
+      shop = updated;
+      notifyListeners();
+      return true;
+    }
+    return false;
+  }
+
+  Future<Map<String, dynamic>?> loadAnniversary() async {
+    return _guard(() => _api.anniversary(), silent: true);
+  }
+
+  Future<bool> setAnniversary(String date) async {
+    final res = await _guard(() => _api.updateAnniversary(date));
+    return res != null;
+  }
+
+  Future<List<Map<String, dynamic>>> searchRemoteRecipes(String keyword) async {
+    final res = await _guard(() => _api.searchRecipes(keyword), silent: true);
+    return res ?? [];
+  }
+
   // ---------------- WebSocket 实时同步 ----------------
 
   void connectRealtime() {
