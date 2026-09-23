@@ -28,6 +28,7 @@ func InitDB(dbPath string) (*gorm.DB, error) {
 		&model.Order{},
 		&model.OrderItem{},
 		&model.CandyTransaction{},
+		&model.SweetMoment{},
 	)
 	if err != nil {
 		return nil, err

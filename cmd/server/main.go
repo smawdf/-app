@@ -62,6 +62,13 @@ func main() {
 			authorized.POST("/pairs", h.CreatePair)
 			authorized.POST("/pairs/join", h.JoinPair)
 
+			// 恋爱纪念日与时光记录
+			authorized.GET("/anniversary", h.GetAnniversary)
+			authorized.PUT("/anniversary", h.UpdateAnniversary)
+
+			// 真实菜谱搜索
+			authorized.GET("/recipes/search", h.SearchRecipes)
+
 			// 小店与菜单（读写分离：查询双方可用，写操作仅饲养员）
 			authorized.GET("/shop", h.GetShop)
 			authorized.GET("/menu", h.ListMenu)
@@ -78,6 +85,7 @@ func main() {
 			caretaker := authorized.Group("")
 			caretaker.Use(middleware.RequireRole(model.RoleCaretaker))
 			{
+				caretaker.PUT("/shop", h.UpdateShop)
 				caretaker.POST("/candy/recharge", h.RechargeCandy)
 				caretaker.PUT("/orders/:order_id/status", h.AdvanceOrderStatus)
 				caretaker.POST("/menu", h.CreateMenuItem)

@@ -8,18 +8,18 @@ import (
 
 // Role 常量定义
 const (
-	RoleCaretaker = "caretaker" // 饲养员（做饭方、接单推单、充糖币、管理菜单）
-	RoleEater     = "eater"     // 吃货（选菜点餐、扣减糖币、提交订单）
+	RoleCaretaker = "caretaker" // 饲养员（做饭方）
+	RoleEater     = "eater"     // 吃货（点菜方）
 )
 
-// OrderStatus 常量定义（做饭流转状态机）
+// 订单流转状态常量
 const (
-	StatusSubmitted  = "submitted"  // 吃货已提交订单
-	StatusConfirmed  = "confirmed"  // 饲养员已接单
-	StatusPreparing  = "preparing"  // 正在备料下锅烹饪
-	StatusDelivering = "delivering" // 准备出锅端盘上桌
-	StatusCompleted  = "completed"  // 开饭吃光 / 订单完成
-	StatusCancelled  = "cancelled"  // 已取消（自动退回糖币）
+	StatusSubmitted  = "submitted"  // 待接单
+	StatusConfirmed  = "confirmed"  // 已接单备料
+	StatusPreparing  = "preparing"  // 厨房烹饪中
+	StatusDelivering = "delivering" // 端盘上桌
+	StatusCompleted  = "completed"  // 开饭吃光
+	StatusCancelled  = "cancelled"  // 已取消
 )
 
 // User 用户账号
@@ -51,14 +51,14 @@ type Pair struct {
 
 // Shop 单店模式（每对情侣专属的小店）
 type Shop struct {
-	ID          string         `gorm:"primaryKey;size:36" json:"id"`
-	PairID      string         `gorm:"uniqueIndex;size:36;not null" json:"pair_id"` // 与情侣强绑定
-	Name        string         `gorm:"size:64;not null" json:"name"`
-	Announcement string        `gorm:"size:255" json:"announcement"`
-	CoverURL    string         `gorm:"size:512" json:"cover_url"`
-	CreatedAt   time.Time      `json:"created_at"`
-	UpdatedAt   time.Time      `json:"updated_at"`
-	DeletedAt   gorm.DeletedAt `gorm:"index" json:"-"`
+	ID           string         `gorm:"primaryKey;size:36" json:"id"`
+	PairID       string         `gorm:"uniqueIndex;size:36;not null" json:"pair_id"` // 与情侣强绑定
+	Name         string         `gorm:"size:64;not null" json:"name"`
+	Announcement string         `gorm:"size:255" json:"announcement"`
+	CoverURL     string         `gorm:"size:512" json:"cover_url"`
+	CreatedAt    time.Time      `json:"created_at"`
+	UpdatedAt    time.Time      `json:"updated_at"`
+	DeletedAt    gorm.DeletedAt `gorm:"index" json:"-"`
 }
 
 // Category 菜单分类
@@ -130,4 +130,18 @@ type CandyTransaction struct {
 	Description string    `gorm:"size:128" json:"description"`      // 备注说明
 	ReferenceID string    `gorm:"size:36" json:"reference_id"`      // 关联的订单号或充值操作
 	CreatedAt   time.Time `json:"created_at"`
+}
+
+// SweetMoment 做饭出锅时光回忆墙（对应原生 momentImageUrl 与时光纪念）
+type SweetMoment struct {
+	ID        string    `gorm:"primaryKey;size:36" json:"id"`
+	PairID    string    `gorm:"index;size:36;not null" json:"pair_id"`
+	OrderID   string    `gorm:"size:36" json:"order_id"`
+	DishName  string    `gorm:"size:64;not null" json:"dish_name"`
+	ImageURL  string    `gorm:"size:512" json:"image_url"`
+	ChefName  string    `gorm:"size:64" json:"chef_name"`
+	Note      string    `gorm:"size:512" json:"note"`
+	Emoji     string    `gorm:"size:16" json:"emoji"`
+	CookedAt  time.Time `json:"cooked_at"`
+	CreatedAt time.Time `json:"created_at"`
 }
