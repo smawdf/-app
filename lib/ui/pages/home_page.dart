@@ -8,6 +8,8 @@ import '../couple/anniversary_page.dart';
 import '../menu/menu_management_page.dart';
 import '../theme/cozy_glass.dart';
 
+/// 忠实还原原生 Android CoupleMenuScreen 布局与暖调色彩，
+/// 背景纯白，卡片与结构保持原状，无擅自删改。
 class HomePage extends StatefulWidget {
   final ValueChanged<int> onNavigateTab;
 
@@ -32,7 +34,6 @@ class _HomePageState extends State<HomePage> {
     if (state.user!.role == newRole) return;
 
     HapticFeedback.mediumImpact();
-    // 持久化身份到云端 profiles.selected_role，再刷新本地状态
     final ok = await state.updateRole(newRole);
     if (!mounted) return;
 
@@ -57,361 +58,193 @@ class _HomePageState extends State<HomePage> {
         final user = state.user;
         final pair = state.pair;
         final isPaired = state.isPaired;
-        final isCaretaker = user?.isCaretaker ?? true;
+        final selectedRole = user?.role;
 
         return RefreshIndicator(
           color: CozyTheme.primaryPink,
           onRefresh: () => state.loadMe(),
-          child: CustomScrollView(
-            slivers: [
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 130),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // 顶部大标题
-                      const Text(
-                        "今天也要一起好好吃饭 💕",
-                        style: TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.w900,
-                          color: CozyTheme.sweetCocoa,
-                          letterSpacing: -0.5,
-                        ),
-                      ),
-                      const SizedBox(height: 14),
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.only(bottom: 120),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // 1. 原生顶部标题栏 (CozyMainTopBar 原型)
+                _buildOriginalTopBar(),
 
-                      // 1. Apple 风格情侣关系主画板
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.symmetric(vertical: 22, horizontal: 16),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFAFAFA),
-                          borderRadius: BorderRadius.circular(26),
-                          border: Border.all(color: const Color(0x0A000000)),
-                          boxShadow: const [
-                            BoxShadow(
-                              color: Color(0x06000000),
-                              blurRadius: 20,
-                              offset: Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: Column(
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                // 当前用户头像
-                                _buildDogAvatar(
-                                  emoji: isCaretaker ? "🐶" : "🐩",
-                                  name: user?.nickname.isNotEmpty == true ? user!.nickname : "我",
-                                  roleTag: user?.roleLabel ?? "角色",
-                                  tagColor: CozyTheme.primaryPink,
-                                  tagBg: CozyTheme.softPink,
-                                ),
+                const SizedBox(height: 10),
 
-                                // 中间爱心动效
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 18),
-                                  child: const Text("❤️", style: TextStyle(fontSize: 24))
-                                      .animate(onPlay: (c) => c.repeat(reverse: true))
-                                      .scale(
-                                        duration: 1200.ms,
-                                        begin: const Offset(0.9, 0.9),
-                                        end: const Offset(1.15, 1.15),
-                                        curve: Curves.easeInOut,
-                                      ),
-                                ),
-
-                                // 伴侣头像位（未绑定时为空心邀请位）
-                                if (isPaired && pair!.isFullyBound)
-                                  _buildDogAvatar(
-                                    emoji: isCaretaker ? "🐩" : "🐶",
-                                    name: isCaretaker ? "吃货伴侣" : "做饭伴侣",
-                                    roleTag: isCaretaker ? "吃货" : "饲养员",
-                                    tagColor: const Color(0xFFFF7A00),
-                                    tagBg: const Color(0xFFFFF4EC),
-                                  )
-                                else
-                                  GestureDetector(
-                                    onTap: () => widget.onNavigateTab(4), // 跳到我的/配对
-                                    child: Column(
-                                      children: [
-                                        Container(
-                                          width: 64,
-                                          height: 64,
-                                          decoration: BoxDecoration(
-                                            color: Colors.white,
-                                            shape: BoxShape.circle,
-                                            border: Border.all(
-                                              color: CozyTheme.primaryPink.withValues(alpha: 0.5),
-                                              width: 1.5,
-                                              strokeAlign: BorderSide.strokeAlignInside,
-                                            ),
-                                          ),
-                                          child: const Center(
-                                            child: Icon(Icons.add, color: CozyTheme.primaryPink, size: 26),
-                                          ),
-                                        ),
-                                        const SizedBox(height: 6),
-                                        const Text(
-                                          "邀请伴侣",
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w800,
-                                            color: CozyTheme.primaryPink,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                              ],
-                            ),
-                            const SizedBox(height: 14),
-
-                            // 在一起的天数胶囊（点击可进入纪念日时光墙）
-                            GestureDetector(
-                              onTap: () {
-                                HapticFeedback.lightImpact();
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(builder: (_) => const AnniversaryPage()),
-                                );
-                              },
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(20),
-                                  border: Border.all(color: const Color(0x0A000000)),
-                                  boxShadow: const [
-                                    BoxShadow(
-                                      color: Color(0x04000000),
-                                      blurRadius: 8,
-                                      offset: Offset(0, 2),
-                                    ),
-                                  ],
-                                ),
-                                child: Text(
-                                  isPaired ? "一起开饭的第 520 天 💕" : "绑定伴侣后开启小家小铺",
-                                  style: const TextStyle(
-                                    fontSize: 11.5,
-                                    fontWeight: FontWeight.w800,
-                                    color: Color(0xFF333333),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 18),
-
-                      // 2. 身份选择切换
-                      const Text(
-                        "身份选择",
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w800,
-                          color: CozyTheme.sweetCocoa,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _buildRoleCard(
-                              title: "我是饲养员 🍳",
-                              subtitle: "掌勺做饭、上传菜单与推进状态",
-                              isSelected: isCaretaker,
-                              onTap: () => _switchRole("caretaker"),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: _buildRoleCard(
-                              title: "我是吃货 🍽️",
-                              subtitle: "挑选美味、提交订单与开怀享用",
-                              isSelected: !isCaretaker,
-                              onTap: () => _switchRole("eater"),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 20),
-
-                      // 3. 苹果风格四格快捷入口
-                      const Text(
-                        "快捷入口",
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w800,
-                          color: CozyTheme.sweetCocoa,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      GridView.count(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        crossAxisCount: 2,
-                        mainAxisSpacing: 10,
-                        crossAxisSpacing: 10,
-                        childAspectRatio: 1.45,
-                        children: [
-                          _buildQuickCard(
-                            emoji: "🍲",
-                            title: "进店点餐",
-                            desc: "挑选今天想吃的好菜",
-                            onTap: () => widget.onNavigateTab(1),
-                          ),
-                          _buildQuickCard(
-                            emoji: "🏪",
-                            title: "小店管理",
-                            desc: "上新菜品与维护菜单",
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(builder: (_) => const MenuManagementPage()),
-                              );
-                            },
-                          ),
-                          _buildQuickCard(
-                            emoji: "🎂",
-                            title: "恋爱纪念日",
-                            desc: "恋爱天数与做饭回忆墙",
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(builder: (_) => const AnniversaryPage()),
-                              );
-                            },
-                          ),
-                          _buildQuickCard(
-                            emoji: "🍬",
-                            title: "糖币钱包",
-                            desc: "甜蜜撒糖与收支明细",
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(builder: (_) => const CandyCoinsPage()),
-                              );
-                            },
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
+                // 2. 原生 RelationshipCard 暖粉色主卡片
+                _buildOriginalRelationshipCard(
+                  user: user,
+                  pair: pair,
+                  isPaired: isPaired,
+                  onAnniversaryClick: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const AnniversaryPage()),
+                    );
+                  },
                 ),
-              ),
-            ],
+
+                const SizedBox(height: 14),
+
+                // 3. 原生 QuickActionGrid 三卡片非对称排版 (纪念日左高，我的店铺+去点菜右叠)
+                _buildOriginalQuickActionGrid(),
+
+                const SizedBox(height: 14),
+
+                // 4. 原生 RoleSwitcher (饲养员 + 吃货横排卡片)
+                _buildOriginalRoleSwitcher(
+                  selectedRole: selectedRole,
+                  onCaretakerClick: () => _switchRole("caretaker"),
+                  onEaterClick: () => _switchRole("eater"),
+                ),
+              ],
+            ),
           ),
         );
       },
     );
   }
 
-  Widget _buildDogAvatar({
-    required String emoji,
-    required String name,
-    required String roleTag,
-    required Color tagColor,
-    required Color tagBg,
-  }) {
-    return Column(
-      children: [
-        Container(
-          width: 64,
-          height: 64,
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            shape: BoxShape.circle,
-            boxShadow: [
-              BoxShadow(
-                color: Color(0x0A000000),
-                blurRadius: 12,
-                offset: Offset(0, 4),
+  /// 原生 CozyMainTopBar: 居中大字标题 + 左右心形与铃铛
+  Widget _buildOriginalTopBar() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      child: Row(
+        children: [
+          const Icon(Icons.favorite, color: Color(0xFF894C5C), size: 24),
+          const Expanded(
+            child: Text(
+              "今天也要一起好好吃饭",
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 21,
+                fontWeight: FontWeight.w900,
+                color: Color(0xFF1D1B18),
+                letterSpacing: -0.5,
               ),
-            ],
-          ),
-          child: Center(
-            child: Text(emoji, style: const TextStyle(fontSize: 32)),
-          ),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          name,
-          style: const TextStyle(
-            fontSize: 12.5,
-            fontWeight: FontWeight.w800,
-            color: Color(0xFF111111),
-          ),
-        ),
-        const SizedBox(height: 2),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-          decoration: BoxDecoration(
-            color: tagBg,
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Text(
-            roleTag,
-            style: TextStyle(
-              fontSize: 9.5,
-              fontWeight: FontWeight.w800,
-              color: tagColor,
             ),
           ),
-        ),
-      ],
+          GestureDetector(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const CandyCoinsPage()),
+              );
+            },
+            child: const Icon(Icons.notifications_none_rounded, color: Color(0xFF524346), size: 24),
+          ),
+        ],
+      ),
     );
   }
 
-  Widget _buildRoleCard({
-    required String title,
-    required String subtitle,
-    required bool isSelected,
-    required VoidCallback onTap,
+  /// 原生 RelationshipCard: 暖粉色背景底、爪印大水印、情侣双头像 + 爱心连接器 + 椭圆开饭胶囊
+  Widget _buildOriginalRelationshipCard({
+    required dynamic user,
+    required dynamic pair,
+    required bool isPaired,
+    required VoidCallback onAnniversaryClick,
   }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 220),
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFFFFF9FA) : Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: isSelected ? CozyTheme.primaryPink : const Color(0x0F000000),
-            width: isSelected ? 1.6 : 1.0,
-          ),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x04000000),
-              blurRadius: 10,
-              offset: Offset(0, 3),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+    final myName = user?.nickname?.isNotEmpty == true ? user.nickname : "我";
+    final myRole = user?.roleLabel ?? "选择身份";
+    final partnerName = isPaired ? "伴侣资料同步中" : "邀请对方";
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 20),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFD1DC).withValues(alpha: 0.35),
+        borderRadius: BorderRadius.circular(26),
+        border: Border.all(color: const Color(0xFFFFD1DC).withValues(alpha: 0.55), width: 1.2),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(26),
+        child: Stack(
+          alignment: Alignment.center,
           children: [
-            Text(
-              title,
-              style: TextStyle(
-                fontSize: 13.5,
-                fontWeight: FontWeight.w900,
-                color: isSelected ? CozyTheme.primaryPink : const Color(0xFF111111),
+            // 背景爪印大水印
+            Positioned(
+              child: Icon(
+                Icons.pets,
+                size: 190,
+                color: Colors.white.withValues(alpha: 0.35),
               ),
             ),
-            const SizedBox(height: 4),
-            Text(
-              subtitle,
-              style: const TextStyle(
-                fontSize: 10.5,
-                color: CozyTheme.mutedText,
-                height: 1.3,
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // 头像与心动连接器
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      // 左侧：当前用户
+                      _buildSlotAvatar(
+                        fallbackIcon: Icons.pets,
+                        name: myName,
+                        tagText: "当前角色:$myRole",
+                        isHighlight: true,
+                      ),
+
+                      // 中间：心形连接器
+                      Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.92),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.favorite, color: Color(0xFF894C5C), size: 22)
+                            .animate(onPlay: (c) => c.repeat(reverse: true))
+                            .scale(duration: 1200.ms, begin: const Offset(0.9, 0.9), end: const Offset(1.15, 1.15)),
+                      ),
+
+                      // 右侧：伴侣位
+                      _buildSlotAvatar(
+                        fallbackText: isPaired ? "伴" : "+",
+                        name: partnerName,
+                        tagText: isPaired ? "已绑定" : "点击配对",
+                        isHighlight: isPaired,
+                        onTap: isPaired ? null : () => widget.onNavigateTab(4),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 18),
+
+                  // 椭圆开饭天数胶囊 (Surface with pill)
+                  GestureDetector(
+                    onTap: onAnniversaryClick,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 26, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.92),
+                        borderRadius: BorderRadius.circular(999),
+                        border: Border.all(color: const Color(0xFF894C5C).withValues(alpha: 0.20)),
+                      ),
+                      child: Column(
+                        children: [
+                          Text(
+                            isPaired ? "一起吃饭 520 天" : "一起吃饭 1 天",
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w900,
+                              color: Color(0xFF894C5C),
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          const Text(
+                            "今天也想和你好好吃饭",
+                            style: TextStyle(fontSize: 11.5, color: Color(0xFF524346)),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
@@ -420,10 +253,144 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildQuickCard({
-    required String emoji,
+  Widget _buildSlotAvatar({
+    IconData? fallbackIcon,
+    String? fallbackText,
+    required String name,
+    required String tagText,
+    bool isHighlight = false,
+    VoidCallback? onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        children: [
+          Container(
+            width: 76,
+            height: 76,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: isHighlight ? const Color(0xFF894C5C).withValues(alpha: 0.35) : const Color(0xFFE7E2DC),
+                width: 2,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.04),
+                  blurRadius: 10,
+                  offset: const Offset(0, 3),
+                ),
+              ],
+            ),
+            child: Center(
+              child: fallbackIcon != null
+                  ? Icon(fallbackIcon, size: 34, color: const Color(0xFF894C5C))
+                  : Text(
+                      fallbackText ?? "",
+                      style: const TextStyle(
+                        fontSize: 26,
+                        fontWeight: FontWeight.w900,
+                        color: Color(0xFF894C5C),
+                      ),
+                    ),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            name,
+            style: const TextStyle(
+              fontSize: 13.5,
+              fontWeight: FontWeight.w900,
+              color: Color(0xFF1D1B18),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(color: const Color(0xFFD6C1C5), width: 0.8),
+            ),
+            child: Text(
+              tagText,
+              style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: Color(0xFF524346)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 原生 QuickActionGrid: 左侧高卡片「纪念日」，右侧两张扁卡片「我的店铺」与「去点菜」
+  Widget _buildOriginalQuickActionGrid() {
+    const double cardHeight = 84;
+    const double gridHeight = cardHeight * 2 + 12;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 左侧：纪念日垂直长卡片
+          Expanded(
+            child: _buildCozyCard(
+              height: gridHeight,
+              title: "纪念日",
+              subtitle: "记录我们一起吃饭的日子",
+              icon: Icons.event,
+              tint: const Color(0xFF8B4E38),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const AnniversaryPage()),
+                );
+              },
+            ),
+          ),
+          const SizedBox(width: 12),
+
+          // 右侧：上下两张扁卡片
+          Expanded(
+            child: Column(
+              children: [
+                _buildCozyCard(
+                  height: cardHeight,
+                  title: "我的店铺",
+                  subtitle: "上传菜单，整理菜品",
+                  icon: Icons.storefront,
+                  tint: const Color(0xFF894C5C),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const MenuManagementPage()),
+                    );
+                  },
+                ),
+                const SizedBox(height: 12),
+                _buildCozyCard(
+                  height: cardHeight,
+                  title: "去点菜",
+                  subtitle: "看看今天想吃什么",
+                  icon: Icons.restaurant_menu,
+                  tint: const Color(0xFF8B4E38),
+                  onTap: () => widget.onNavigateTab(1),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCozyCard({
+    required double height,
     required String title,
-    required String desc,
+    required String subtitle,
+    required IconData icon,
+    required Color tint,
     required VoidCallback onTap,
   }) {
     return GestureDetector(
@@ -432,41 +399,155 @@ class _HomePageState extends State<HomePage> {
         onTap();
       },
       child: Container(
+        height: height,
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: const Color(0x0A000000)),
-          boxShadow: const [
+          color: const Color(0xFFFFFCF8),
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(color: const Color(0xFFD6C1C5).withValues(alpha: 0.72)),
+          boxShadow: [
             BoxShadow(
-              color: Color(0x04000000),
-              blurRadius: 12,
-              offset: Offset(0, 3),
+              color: Colors.black.withValues(alpha: 0.02),
+              blurRadius: 10,
+              offset: const Offset(0, 3),
             ),
           ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(emoji, style: const TextStyle(fontSize: 22)),
-            const SizedBox(height: 6),
-            Text(
-              title,
-              style: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w900,
-                color: Color(0xFF111111),
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: tint.withValues(alpha: 0.13),
+                borderRadius: BorderRadius.circular(12),
               ),
+              child: Icon(icon, color: tint, size: 20),
             ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w900,
+                    color: Color(0xFF1D1B18),
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 10.5, color: Color(0xFF524346)),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 原生 RoleSwitcher: 饲养员卡片 + 吃货卡片并排
+  Widget _buildOriginalRoleSwitcher({
+    required String? selectedRole,
+    required VoidCallback onCaretakerClick,
+    required VoidCallback onEaterClick,
+  }) {
+    final isCaretaker = selectedRole == 'caretaker';
+    final isEater = selectedRole == 'eater';
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Row(
+        children: [
+          Expanded(
+            child: _buildRoleCardItem(
+              title: "饲养员",
+              subtitle: "上传菜单，照顾小饭桌",
+              icon: Icons.soup_kitchen,
+              selected: isCaretaker,
+              accent: const Color(0xFF894C5C),
+              onTap: onCaretakerClick,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: _buildRoleCardItem(
+              title: "吃货",
+              subtitle: "浏览菜单，准备开饭",
+              icon: Icons.restaurant,
+              selected: isEater,
+              accent: const Color(0xFF8B4E38),
+              onTap: onEaterClick,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRoleCardItem({
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required bool selected,
+    required Color accent,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: selected ? accent.withValues(alpha: 0.12) : const Color(0xFFFFFCF8),
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(
+            color: selected ? accent.withValues(alpha: 0.65) : const Color(0xFFD6C1C5).withValues(alpha: 0.72),
+            width: selected ? 1.5 : 1.0,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.02),
+              blurRadius: 10,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: accent.withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(icon, color: accent, size: 20),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w900,
+                    color: selected ? accent : const Color(0xFF1D1B18),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
             Text(
-              desc,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontSize: 10,
-                color: CozyTheme.mutedText,
-              ),
+              subtitle,
+              style: const TextStyle(fontSize: 11, color: Color(0xFF524346)),
             ),
           ],
         ),

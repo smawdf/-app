@@ -79,8 +79,8 @@ class AppState extends ChangeNotifier {
 
   /// App 启动引导：读取服务器地址 → 恢复上次登录 → 拉取档案
   Future<void> bootstrap() async {
-    // 云端地址固定，这里只做一次连通性自检并恢复上次登录态
-    await _api.probeReachableHost();
+    // 异步快速探测，不阻塞启动首帧
+    unawaited(_api.probeReachableHost());
 
     final saved = await _api.restoreSession();
     if (saved == null) {
