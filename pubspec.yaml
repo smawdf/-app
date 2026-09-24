@@ -14,7 +14,7 @@ publish_to: 'none'
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 3.0.1+55
+version: 2.0.0+56
 
 environment:
   sdk: ^3.13.2
@@ -59,10 +59,23 @@ flutter:
   # the material Icons class.
   uses-material-design: true
 
-  # To add assets to your application, add an assets section, like this:
-  # assets:
-  #   - images/a_dot_burr.jpeg
-  #   - images/a_dot_ham.jpeg
+  # 「浪漫雅圆」—— 与原生 MyOrderApp 同一份字体资源
+  # 原生 `ui/theme/Type.kt` 里 Typography 的每一个 TextStyle 都指定了它。
+  # 缺了它中文会退化成系统默认字体，原版整页的圆润观感就没了。
+  fonts:
+    - family: RomanticRound
+      fonts:
+        - asset: assets/fonts/romantic_round.ttf
+
+  # 原生 res 里的图片资源，逐张搬过来（同名同内容），保证 1:1。
+  #   auth_dogs_artwork.png             → AuthVisuals.kt:164 / ResetPasswordScreen.kt:223 / OnboardingScreen.kt:130
+  #   candy_coin.png                    → CandyCoinIcon.kt:15
+  #   shop_banner_stitch.png            → OrderingScreen.kt:367 / OrdersScreen.kt:425 / OrderDetailScreen.kt:186
+  #                                       / MenuManagementScreen.kt:366,1026（店铺/订单封面兜底图）
+  #   candy_coin_small.png              → 小尺寸糖币（列表用）
+  #   ic_launcher_orderdisk_dogs_cropped.png → DeviceSwitchScreen.kt:75
+  assets:
+    - assets/images/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

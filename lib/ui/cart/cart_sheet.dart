@@ -1,10 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../data/app_state.dart';
 import '../../data/models.dart';
 import '../theme/cozy_glass.dart';
 
-/// 苹果风格购物车详情半屏弹层 (CartModalSheet)
+/// 原生 `yuanText(value) = "¥" + "%.2f".format(value)`
+/// （OrderDisk/app/src/main/java/com/myorderapp/ui/util/PriceText.kt:3）
+String _yuanText(double value) => '¥${value.toStringAsFixed(2)}';
+
+/// 购物车详情半屏弹层。
+///
+/// 原生对应：
+/// - `ui/shop/components/CartSheet.kt`（点餐页里的半屏购物篮）
+/// - `ui/cart/CartScreen.kt`（清单卡片 / 数量步进器 / 空态 / 清空 / 结算栏）
+///
+/// 只保留原文件已有的接线（onAdd / onRemove / onClear / onCheckout / candyBalance）。
 class CartDetailSheet extends StatelessWidget {
   final Map<String, MenuItem> cart;
   final Map<String, int> qty;
@@ -25,226 +36,372 @@ class CartDetailSheet extends StatelessWidget {
     required this.candyBalance,
   });
 
+  /// 对应原生 `CartState.itemCount`（domain/model/Cart.kt:27）
   int get totalCount => qty.values.fold(0, (a, b) => a + b);
+
+  /// 对应原生 `CartState.subtotal / totalPrice`（本工程无配送费，两者相等）
   double get totalPrice =>
       qty.entries.fold(0.0, (sum, e) => sum + (cart[e.key]!.price * e.value));
+
+  double get subtotal => totalPrice;
+
+  /// 对应原生 `candyCoinsCost(totalPrice) = ceil(totalPrice)`（CheckoutViewModel.kt:144）
   int get coinCost => totalPrice.ceil();
 
   @override
   Widget build(BuildContext context) {
-    final items = qty.entries.toList();
+    final entries = <MapEntry<String, int>>[
+      for (final e in qty.entries)
+        if (cart.containsKey(e.key)) e,
+    ];
+    final bool isEmpty = entries.isEmpty;
 
     return Container(
       decoration: const BoxDecoration(
-        color: Colors.white,
+        // 原生 CartSheet.kt:50 `background(Color(0xFFFFFFFF))`
+        color: CozyPalette.background,
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
-      padding: EdgeInsets.fromLTRB(20, 12, 20, MediaQuery.of(context).padding.bottom + 20),
+      // 原生 CartSheet.kt:52 `padding(start = 20, top = 10, end = 20, bottom = 20)`
+      padding: EdgeInsets.fromLTRB(
+        20,
+        10,
+        20,
+        MediaQuery.of(context).padding.bottom + 20,
+      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
+        // 原生 CozyCard 自带 fillMaxWidth（StitchNativeComponents.kt:239）
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // 顶部小横条把手
+          // 原生 ModalBottomSheet 默认拖拽把手（32 × 4）
           Center(
             child: Container(
-              width: 36,
-              height: 4.5,
+              width: 32,
+              height: 4,
               decoration: BoxDecoration(
-                color: const Color(0xFFE5E5EA),
-                borderRadius: BorderRadius.circular(3),
+                color: CozyPalette.onSurfaceVariant.withValues(alpha: 0.4),
+                borderRadius: BorderRadius.circular(2),
               ),
             ),
           ),
+          const SizedBox(height: 12),
+          _cartHeader(context, isEmpty),
+          const SizedBox(height: 14), // 原生 spacedBy(14.dp)
+          if (isEmpty) _emptyCartState(context) else _cartItemList(entries),
           const SizedBox(height: 14),
+          _cartSummaryCard(context, isEmpty),
+        ],
+      ),
+    );
+  }
 
-          // 标题与清空
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  /// 原生 `CartSheet.kt:55-73` 头部 + `CartScreen.kt:141-150` 清空按钮
+  Widget _cartHeader(BuildContext context, bool isEmpty) {
+    final text = Theme.of(context).textTheme;
+    // 原生 `CartSheet.kt:66` 用购物篮所属小店名，空则显示「购物篮」
+    final shopName = AppState.instance.shop?.name ?? '';
+
+    return Row(
+      children: [
+        // 原生 Surface(CircleShape, #FFD1DC@0.64) + Icon(ShoppingBasket, padding 12, size 24)
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: CozyPalette.secondaryContainer.withValues(alpha: 0.64),
+            shape: BoxShape.circle,
+          ),
+          child: const Icon(
+            Icons.shopping_basket,
+            size: 24,
+            color: CozyPalette.primary,
+          ),
+        ),
+        const SizedBox(width: 12), // 原生 spacedBy(12.dp)
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  const Text(
-                    "购物篮清单",
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: CozyTheme.sweetCocoa),
-                  ),
-                  const SizedBox(width: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: CozyTheme.softPink,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Text(
-                      "$totalCount 份",
-                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: CozyTheme.primaryPink),
-                    ),
-                  ),
-                ],
+              Text(
+                shopName.isEmpty ? '购物篮' : shopName,
+                style: text.titleLarge!.copyWith(
+                  color: CozyPalette.onSurface,
+                  fontWeight: FontWeight.w900,
+                ),
               ),
-              GestureDetector(
-                onTap: () {
-                  HapticFeedback.lightImpact();
-                  onClear();
-                  Navigator.pop(context);
-                },
-                child: const Row(
-                  children: [
-                    Icon(Icons.delete_outline, size: 16, color: CozyTheme.mutedText),
-                    SizedBox(width: 4),
-                    Text("清空", style: TextStyle(fontSize: 12, color: CozyTheme.mutedText)),
-                  ],
+              Text(
+                '确认购物篮后进入确认点菜',
+                style: text.bodySmall!.copyWith(
+                  color: CozyPalette.onSurfaceVariant,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 16),
-
-          // 菜品清单列表
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxHeight: 280),
-            child: ListView.separated(
-              shrinkWrap: true,
-              itemCount: items.length,
-              separatorBuilder: (context, index) => const Divider(height: 16, color: Color(0xFFF6F6F7)),
-              itemBuilder: (ctx, idx) {
-                final entry = items[idx];
-                final item = cart[entry.key]!;
-                final q = entry.value;
-
-                return Row(
-                  children: [
-                    Container(
-                      width: 44,
-                      height: 44,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFAFAFA),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Center(
-                        child: Text(item.imageUrl.isNotEmpty ? item.imageUrl : "🍽️",
-                            style: const TextStyle(fontSize: 22)),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(item.name,
-                              style: const TextStyle(
-                                  fontSize: 14.5, fontWeight: FontWeight.w800, color: CozyTheme.sweetCocoa)),
-                          Text("${item.price.toStringAsFixed(0)} 🍬",
-                              style: const TextStyle(fontSize: 12, color: CozyTheme.mutedText)),
-                        ],
-                      ),
-                    ),
-                    // 步进器
-                    Row(
-                      children: [
-                        GestureDetector(
-                          onTap: () => onRemove(item),
-                          child: Container(
-                            width: 26,
-                            height: 26,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFF2F2F7),
-                              borderRadius: BorderRadius.circular(13),
-                            ),
-                            child: const Icon(Icons.remove, size: 14, color: CozyTheme.sweetCocoa),
-                          ),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 10),
-                          child: Text('$q',
-                              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: CozyTheme.sweetCocoa)),
-                        ),
-                        GestureDetector(
-                          onTap: () => onAdd(item),
-                          child: Container(
-                            width: 26,
-                            height: 26,
-                            decoration: BoxDecoration(
-                              color: CozyTheme.sweetCocoa,
-                              borderRadius: BorderRadius.circular(13),
-                            ),
-                            child: const Icon(Icons.add, size: 14, color: Colors.white),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                );
-              },
+        ),
+        if (!isEmpty)
+          TextButton(
+            onPressed: () {
+              HapticFeedback.lightImpact();
+              onClear();
+              Navigator.pop(context);
+            },
+            style: TextButton.styleFrom(
+              foregroundColor: CozyPalette.primary,
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.delete, size: 18),
+                SizedBox(width: 8),
+                Text('清空'),
+              ],
             ),
           ),
-          const SizedBox(height: 20),
+      ],
+    );
+  }
 
-          // 糖币消耗提示卡片
+  /// 原生 `CartScreen.kt:154-179` EmptyCartState
+  Widget _emptyCartState(BuildContext context) {
+    final text = Theme.of(context).textTheme;
+    return CozyCard(
+      // 原生 `modifier.padding(28.dp)`（外间距），contentPadding 为默认 18
+      margin: const EdgeInsets.all(28),
+      padding: const EdgeInsets.all(18),
+      radius: 24,
+      child: Column(
+        children: [
+          // 原生 Surface(CircleShape, #FFD1DC@0.62) + Icon(ShoppingCart, padding 18, size 36)
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
-              color: candyBalance >= coinCost ? const Color(0xFFFAFAFA) : const Color(0xFFFFF0F0),
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(
-                color: candyBalance >= coinCost ? const Color(0x0A000000) : const Color(0xFFFFD1D1),
+              color: CozyPalette.secondaryContainer.withValues(alpha: 0.62),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.shopping_cart,
+              size: 36,
+              color: CozyPalette.primary,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            '购物篮为空',
+            style: text.bodyLarge!.copyWith(
+              color: CozyPalette.onSurface,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            '回到点菜页添加喜欢的菜品。',
+            textAlign: TextAlign.center,
+            style: text.bodySmall!.copyWith(
+              color: CozyPalette.onSurfaceVariant,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 原生 `CartSheet.kt:75-98` 的 LazyColumn（spacedBy 10）+ `CartScreen.kt:80-103` 的卡片
+  Widget _cartItemList(List<MapEntry<String, int>> entries) {
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxHeight: 320),
+      child: ListView.separated(
+        shrinkWrap: true,
+        padding: EdgeInsets.zero,
+        itemCount: entries.length,
+        separatorBuilder: (BuildContext context, int index) =>
+            const SizedBox(height: 10),
+        itemBuilder: (BuildContext context, int index) {
+          final String id = entries[index].key;
+          return _cartItemCard(context, cart[id]!, entries[index].value);
+        },
+      ),
+    );
+  }
+
+  /// 原生 `CartSheet.kt:80-96` / `CartScreen.kt:81-102` 的清单卡片
+  Widget _cartItemCard(BuildContext context, MenuItem item, int quantity) {
+    final text = Theme.of(context).textTheme;
+    return CozyCard(
+      radius: 24, // 原生 radius = 24
+      padding: const EdgeInsets.all(18),
+      child: Row(
+        children: [
+          // 原生清单卡片没有缩略图；Flutter 侧 MenuItem.imageUrl 存的是菜品 emoji
+          // （AppState.addDish 写入），这里沿用 44×44 / 圆角 16 的图标底
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: CozyPalette.secondaryContainer.withValues(alpha: 0.62),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Center(
+              child: Text(
+                item.imageUrl.isNotEmpty ? item.imageUrl : '🍽️',
+                style: const TextStyle(fontSize: 22),
               ),
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          ),
+          const SizedBox(width: 12), // 原生 spacedBy(12.dp)
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    const Text("🍬 账户糖糖币: ", style: TextStyle(fontSize: 12, color: CozyTheme.mutedText)),
-                    Text("$candyBalance",
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w900,
-                          color: candyBalance >= coinCost ? CozyTheme.sweetCocoa : const Color(0xFFDC2626),
-                        )),
-                  ],
-                ),
+                // 原生 Text(item.menuItemName, color = CozyCocoa, fontWeight = Black)
                 Text(
-                  candyBalance >= coinCost ? "余额充足 ✨" : "糖币不足，请饲养员撒糖 ⚠️",
-                  style: TextStyle(
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w700,
-                    color: candyBalance >= coinCost ? const Color(0xFF16A34A) : const Color(0xFFDC2626),
+                  item.name,
+                  style: text.bodyLarge!.copyWith(
+                    color: CozyPalette.onSurface,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 4), // 原生 spacedBy(4.dp)
+                // 原生 Text(yuanText(item.unitPrice), color = CozyRose, SemiBold)
+                Text(
+                  _yuanText(item.price),
+                  style: text.bodyLarge!.copyWith(
+                    color: CozyPalette.primary,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 16),
+          _quantityStepper(context, item, quantity),
+        ],
+      ),
+    );
+  }
 
-          // 底部结算条
+  /// 原生 `CartScreen.kt:181-192` QuantityStepper
+  Widget _quantityStepper(BuildContext context, MenuItem item, int quantity) {
+    final text = Theme.of(context).textTheme;
+    return Row(
+      children: [
+        _stepperButton(Icons.remove, '减少', () => onRemove(item)),
+        // 原生 spacedBy(4.dp) + Text 的 horizontal padding 8
+        const SizedBox(width: 12),
+        Text(
+          '$quantity',
+          style: text.bodyLarge!.copyWith(
+            color: CozyPalette.onSurface,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        const SizedBox(width: 12),
+        _stepperButton(Icons.add, '增加', () => onAdd(item)),
+      ],
+    );
+  }
+
+  /// 原生 `CartScreen.kt:194-207` StepperButton
+  /// Surface(onClick, CircleShape, #FFD1DC@0.72) + Icon(padding 8, size 18)
+  Widget _stepperButton(IconData icon, String label, VoidCallback onTap) {
+    return Semantics(
+      button: true,
+      label: label,
+      child: InkWell(
+        onTap: onTap,
+        customBorder: const CircleBorder(),
+        child: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: CozyPalette.secondaryContainer.withValues(alpha: 0.72),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(icon, size: 18, color: CozyPalette.primary),
+        ),
+      ),
+    );
+  }
+
+  /// 原生 `CartSheet.kt:100-118` 结算卡片 / `CartScreen.kt:209-245` CartSummaryBar
+  Widget _cartSummaryCard(BuildContext context, bool isEmpty) {
+    final text = Theme.of(context).textTheme;
+    return CozyCard(
+      radius: 28,
+      padding: const EdgeInsets.all(18),
+      child: Column(
+        children: [
+          // 原生 Text("小计", color = CozyMuted) / yuanText(subtotal) cocoa Bold
           Row(
             children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text("合计 ¥${totalPrice.toStringAsFixed(0)}",
-                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: CozyTheme.sweetCocoa)),
-                    Text("消耗 $coinCost 糖糖币",
-                        style: const TextStyle(fontSize: 11, color: CozyTheme.mutedText)),
-                  ],
+              Text(
+                '小计',
+                style: text.bodyLarge!.copyWith(
+                  color: CozyPalette.onSurfaceVariant,
                 ),
               ),
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                  onCheckout();
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: CozyTheme.primaryPink,
-                  elevation: 0,
-                  padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 13),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+              const Spacer(),
+              Text(
+                _yuanText(subtotal),
+                style: text.bodyLarge!.copyWith(
+                  color: CozyPalette.onSurface,
+                  fontWeight: FontWeight.w700,
                 ),
-                child: const Text("去结算",
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: Colors.white)),
               ),
             ],
+          ),
+          const SizedBox(height: 8), // 原生 spacedBy(8.dp)
+          // 原生 Text("合计", color = CozyCocoa, Black) / yuanText(totalPrice) CozyRose Black
+          Row(
+            children: [
+              Text(
+                '合计',
+                style: text.bodyLarge!.copyWith(
+                  color: CozyPalette.onSurface,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const Spacer(),
+              Text(
+                _yuanText(totalPrice),
+                style: text.bodyLarge!.copyWith(
+                  color: CozyPalette.primary,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          // 件数 + 糖糖币消耗（原生 CartScreen.kt:137「共 N 份菜品」同义文案）
+          Row(
+            children: [
+              Text(
+                '共 $totalCount 份菜品',
+                style: text.bodySmall!.copyWith(
+                  color: CozyPalette.onSurfaceVariant,
+                ),
+              ),
+              const Spacer(),
+              Text(
+                '消耗 $coinCost 糖糖币',
+                style: text.bodySmall!.copyWith(
+                  color: CozyPalette.primary,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4), // 原生 Spacer(height = 4.dp)
+          SizedBox(
+            width: double.infinity,
+            child: CozyPrimaryButton(
+              text: '去结算',
+              enabled: !isEmpty,
+              onTap: () {
+                Navigator.pop(context);
+                onCheckout();
+              },
+            ),
           ),
         ],
       ),
@@ -252,7 +409,18 @@ class CartDetailSheet extends StatelessWidget {
   }
 }
 
-/// 结算确认与给后厨的悄悄话弹窗 (CheckoutDialog)
+/// 结算确认与给后厨的悄悄话弹窗 (CheckoutDialog)。
+///
+/// 原生对应 `ui/checkout/CheckoutScreen.kt`：
+/// - 顶部标题 `CheckoutTopBar`（CheckoutScreen.kt:188-208）
+/// - 糖糖币核算卡 `CheckoutCandyCoinsCard`（CheckoutScreen.kt:314-365）
+/// - 悄悄话卡（CheckoutScreen.kt:123-152）
+/// - 底部提交 `CheckoutBottomAction`（CheckoutScreen.kt:367-426）
+///
+/// 说明：原生的点单明细卡与地址输入区没有搬进弹窗——Flutter 侧购物清单已经在
+/// [CartDetailSheet] 里呈现，而云端 `orders.address_snapshot` 由
+/// `lib/data/supabase_api.dart:590` 固定写入（原生 CheckoutViewModel 也只是写
+/// 「到店取餐 / 本店」默认地址），弹窗内没有这两份数据来源。
 class CheckoutDialog extends StatefulWidget {
   final int coinCost;
   final int candyBalance;
@@ -272,6 +440,10 @@ class CheckoutDialog extends StatefulWidget {
 class _CheckoutDialogState extends State<CheckoutDialog> {
   final _noteCtrl = TextEditingController();
 
+  /// 原生 `CheckoutCandyCoinsCard`：`val enough = isCartEmpty || balance >= cost`
+  bool get _isEmpty => widget.coinCost <= 0;
+  bool get _enough => _isEmpty || widget.candyBalance >= widget.coinCost;
+
   @override
   void dispose() {
     _noteCtrl.dispose();
@@ -280,100 +452,289 @@ class _CheckoutDialogState extends State<CheckoutDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final canAfford = widget.candyBalance >= widget.coinCost;
-
     return Dialog(
-      backgroundColor: Colors.white,
+      // 原生结算页底色 `Color(0xFFFFFFFF)`（CheckoutScreen.kt:80）
+      backgroundColor: CozyPalette.background,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
-      insetPadding: const EdgeInsets.symmetric(horizontal: 24),
-      child: Padding(
-        padding: const EdgeInsets.all(22),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const Text("确认点单", style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: CozyTheme.sweetCocoa)),
-                const Spacer(),
-                GestureDetector(
-                  onTap: () => Navigator.pop(context),
-                  child: const Icon(Icons.close, size: 20, color: CozyTheme.mutedText),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-
-            // 糖币消耗摘要
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFAFAFA),
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: const Color(0x0A000000)),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _checkoutTopBar(context),
+          Flexible(
+            child: SingleChildScrollView(
+              // 原生 LazyColumn contentPadding = (20, 14, 20, 24)（CheckoutScreen.kt:94）
+              padding: const EdgeInsets.fromLTRB(20, 14, 20, 24),
+              child: Column(
+                // 原生 CozyCard 自带 fillMaxWidth
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Text("本次消耗糖币", style: TextStyle(fontSize: 13, color: CozyTheme.mutedText)),
-                  Text("-${widget.coinCost} 🍬",
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: CozyTheme.primaryPink)),
+                  _candyCoinsCard(context),
+                  const SizedBox(height: 16), // 原生 spacedBy(16.dp)
+                  _buyerNoteCard(context),
                 ],
               ),
             ),
-            const SizedBox(height: 14),
+          ),
+          _bottomAction(context),
+        ],
+      ),
+    );
+  }
 
-            // 给后厨的悄悄话输入框 (对应原版 buyerNote)
-            const Text("给后厨伴侣的悄悄话 💬",
-                style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: CozyTheme.sweetCocoa)),
-            const SizedBox(height: 6),
-            Container(
-              decoration: BoxDecoration(
-                color: const Color(0xFFF8F8FA),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: const Color(0x0A000000)),
-              ),
-              child: TextField(
-                controller: _noteCtrl,
-                maxLines: 3,
-                style: const TextStyle(fontSize: 13),
-                decoration: const InputDecoration(
-                  hintText: "比如少辣、多加葱、今天想吃热一点...",
-                  hintStyle: TextStyle(fontSize: 12, color: CozyTheme.mutedText),
-                  border: InputBorder.none,
-                  contentPadding: EdgeInsets.all(12),
+  /// 原生 `CheckoutScreen.kt:188-208` CheckoutTopBar
+  Widget _checkoutTopBar(BuildContext context) {
+    return SizedBox(
+      height: 64, // 原生 heightIn(min = 64.dp)
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            Align(
+              alignment: Alignment.centerLeft,
+              child: IconButton(
+                onPressed: () => Navigator.pop(context),
+                tooltip: '返回',
+                icon: const Icon(
+                  Icons.arrow_back,
+                  color: CozyPalette.primary,
                 ),
               ),
             ),
-            const SizedBox(height: 20),
-
-            // 提交按钮
-            SizedBox(
-              width: double.infinity,
-              height: 48,
-              child: ElevatedButton(
-                onPressed: canAfford
-                    ? () {
-                        HapticFeedback.mediumImpact();
-                        Navigator.pop(context);
-                        widget.onConfirm(_noteCtrl.text.trim());
-                      }
-                    : null,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: CozyTheme.primaryPink,
-                  disabledBackgroundColor: const Color(0xFFE5E5EA),
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-                ),
-                child: Text(
-                  canAfford ? "心动提交给伴侣 💕" : "糖币不足无法下单",
-                  style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w900, color: Colors.white),
-                ),
-              ),
+            Text(
+              '确认点菜',
+              style: Theme.of(context).textTheme.headlineSmall!.copyWith(
+                    color: CozyPalette.primary,
+                    fontWeight: FontWeight.w900,
+                  ),
             ),
           ],
         ),
       ),
     );
+  }
+
+  /// 原生 `CheckoutScreen.kt:314-365` CheckoutCandyCoinsCard
+  ///
+  /// 额外补出父任务要求的核算明细（当前余额 / 本单消耗 / 付后余额），
+  /// 文案沿用原生同名字段语义（balance / cost / 还差 N 糖糖币）。
+  Widget _candyCoinsCard(BuildContext context) {
+    final text = Theme.of(context).textTheme;
+    final bool enough = _enough;
+
+    return CozyCard(
+      radius: 28,
+      padding: const EdgeInsets.all(20),
+      // 原生 borderColor = if (enough) White@0.72 else error@0.34（CheckoutScreen.kt:323）
+      borderColor: enough ? null : CozyPalette.error.withValues(alpha: 0.34),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '糖糖币',
+                      style: text.titleMedium!.copyWith(
+                        color: CozyPalette.onSurface,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 4), // 原生 spacedBy(4.dp)
+                    Text(
+                      _isEmpty
+                          ? '点菜会消耗糖糖币，它不是金币，只是你们的小额度'
+                          : enough
+                              ? '本次点菜将消耗 ${widget.coinCost} 糖糖币'
+                              : '还差 ${widget.coinCost - widget.candyBalance} 糖糖币，找饲养员撒点糖',
+                      style: text.bodySmall!.copyWith(
+                        color: enough
+                            ? CozyPalette.onSurfaceVariant
+                            : CozyPalette.error,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              // 原生 Surface(RoundedCornerShape(999)) + Row(padding h12 v7, spacedBy 5)
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 7,
+                ),
+                decoration: BoxDecoration(
+                  color: enough
+                      ? CozyPalette.secondaryContainer.withValues(alpha: 0.68)
+                      : CozyPalette.errorContainer,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // 原生 CandyCoinIcon 用 R.drawable.candy_coin 位图
+                    Image.asset(
+                      'assets/images/candy_coin.png',
+                      width: 22,
+                      height: 22,
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, _, _) =>
+                          const Text('🍬', style: TextStyle(fontSize: 22)),
+                    ),
+                    const SizedBox(width: 5),
+                    Text(
+                      '${widget.candyBalance} 枚',
+                      style: text.bodyLarge!.copyWith(
+                        color: enough
+                            ? CozyPalette.primary
+                            : CozyPalette.error,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Container(
+            height: 1,
+            color: CozyPalette.primary.withValues(alpha: 0.08),
+          ),
+          const SizedBox(height: 8),
+          _coinRow(context, '当前余额', '${widget.candyBalance} 枚'),
+          const SizedBox(height: 6),
+          _coinRow(context, '本单消耗', '-${widget.coinCost} 枚'),
+          const SizedBox(height: 6),
+          _coinRow(
+            context,
+            '付后余额',
+            '${widget.candyBalance - widget.coinCost} 枚',
+            valueColor: enough ? CozyPalette.primary : CozyPalette.error,
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 核算明细一行（原生 CheckoutItemsCard 的 SpaceBetween 明细行样式）
+  Widget _coinRow(
+    BuildContext context,
+    String label,
+    String value, {
+    Color? valueColor,
+  }) {
+    final text = Theme.of(context).textTheme;
+    return Row(
+      children: [
+        Text(
+          label,
+          style: text.bodyLarge!.copyWith(
+            color: CozyPalette.onSurfaceVariant,
+          ),
+        ),
+        const Spacer(),
+        Text(
+          value,
+          style: text.bodyLarge!.copyWith(
+            color: valueColor ?? CozyPalette.onSurface,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// 原生 `CheckoutScreen.kt:123-152` 给后厨的悄悄话（buyerNote → orders.buyer_note）
+  Widget _buyerNoteCard(BuildContext context) {
+    final text = Theme.of(context).textTheme;
+    return CozyCard(
+      radius: 28,
+      padding: const EdgeInsets.all(18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '给后厨的悄悄话',
+            style: text.titleMedium!.copyWith(
+              color: CozyPalette.onSurface,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 10), // 原生 spacedBy(10.dp)
+          Text(
+            '口味、忌口、想说的话都可以写在这里',
+            style: text.bodySmall!.copyWith(
+              color: CozyPalette.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 10),
+          TextField(
+            controller: _noteCtrl,
+            minLines: 3, // 原生 minLines = 3
+            decoration: cozyInputDecoration(
+              hintText: '比如少辣、多加葱、今天想吃热一点...',
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 原生 `CheckoutScreen.kt:367-426` CheckoutBottomAction
+  ///
+  /// 原生用 Material3 Button 配 #FF9FB7 / #FFDCE6 / #E7E2DC；按 PORT_BRIEF §1.5
+  /// 「颜色一律 CozyPalette.*」用 primaryContainer / secondaryContainer /
+  /// surfaceVariant 近似（后两者与原色一致或几乎一致），且原生此处没有按下缩放。
+  Widget _bottomAction(BuildContext context) {
+    final text = Theme.of(context).textTheme;
+    final bool enough = _enough;
+    // 原生 enabled = !cart.isEmpty && !isSubmitting（CheckoutScreen.kt:385）
+    final bool enabled = !_isEmpty;
+
+    return Container(
+      width: double.infinity,
+      // 原生 padding(horizontal = 20, vertical = 16)
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      child: SizedBox(
+        height: 54, // 原生 height(54.dp)
+        child: InkWell(
+          onTap: enabled ? _submit : null,
+          borderRadius: BorderRadius.circular(999),
+          child: Container(
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: !enabled
+                  ? CozyPalette.surfaceVariant
+                  : (enough
+                      ? CozyPalette.primaryContainer
+                      : CozyPalette.secondaryContainer),
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Text(
+              enough
+                  ? '提交点菜 · 消耗 ${widget.coinCost} 糖糖币'
+                  : '糖糖币不足 · 需要 ${widget.coinCost} 枚',
+              style: text.titleMedium!.copyWith(
+                color: !enabled
+                    ? CozyPalette.surface
+                    : (enough ? CozyPalette.surface : CozyPalette.onSurface),
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _submit() {
+    HapticFeedback.mediumImpact();
+    Navigator.pop(context);
+    widget.onConfirm(_noteCtrl.text.trim());
   }
 }

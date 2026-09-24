@@ -1,9 +1,32 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 
 import 'models.dart';
 import 'supabase_api.dart';
+
+/// 把底层网络异常翻译成与原生一致的文案。
+///
+/// 这里以前直接把 `e.toString()` 交给界面，于是注册/登录一旦遇到瞬时网络抖动，
+/// 用户看到的是整段
+/// `AuthRetryableFetchException(message: ClientException with SocketException:
+///  Connection reset by peer (OS Error: Connection reset by peer, errno = 104) ...)`。
+/// 原生 `AuthViewModel.kt:164` / `OnboardingViewModel.kt:183` 都只给一句人话。
+String _friendlyError(Object e) {
+  if (e is SocketException || e is HandshakeException || e is TimeoutException) {
+    return '网络连接失败，请检查网络后重试。';
+  }
+  final String text = e.toString();
+  if (text.contains('SocketException') ||
+      text.contains('HandshakeException') ||
+      text.contains('Connection reset') ||
+      text.contains('Connection terminated') ||
+      (text.contains('ClientException') && text.contains('Socket'))) {
+    return '网络连接失败，请检查网络后重试。';
+  }
+  return '请求失败，请检查网络或稍后重试';
+}
 
 /// 全局应用状态：承担 Session、数据缓存与云端实时同步（Supabase）
 class AppState extends ChangeNotifier {
@@ -67,7 +90,7 @@ class AppState extends ChangeNotifier {
       error = e.message;
       return null;
     } catch (e) {
-      error = e.toString();
+      error = _friendlyError(e);
       return null;
     } finally {
       if (!silent) _setBusy(false);

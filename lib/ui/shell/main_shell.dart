@@ -8,8 +8,16 @@ import '../pages/ordering_page.dart';
 import '../pages/orders_page.dart';
 import '../pages/profile_page.dart';
 import '../theme/cozy_glass.dart';
+import 'cozy_glass_dock.dart';
 
-/// 主界面外壳：纯白底 + 基于 liquid_glass_widgets 的 5 大完整 Tab 水滴液态玻璃底栏
+/// 主界面外壳
+///
+/// 纯白底 + 3.0.0 的悬浮液态玻璃底栏（`liquid_glass_widgets`）。
+/// 底栏配方已对齐原生 `MainActivity.kt` 的 `drawBackdrop(vibrancy + blur + lens)`：
+///   · 填充从 38% 暖白实色压到 6% —— 这是「不透」的根因
+///   · 折射变强（magnification / thickness / refractiveIndex 上调）
+///   · 模糊降低 —— 玻璃质感靠「折」不靠「糊」
+///   · 底栏后方补一层常驻暖色环境光，纯白卡片背景下也有颜色可折
 class MainShell extends StatefulWidget {
   const MainShell({super.key});
 
@@ -45,7 +53,7 @@ class _MainShellState extends State<MainShell> {
     return ListenableBuilder(
       listenable: state,
       builder: (context, _) {
-        // WebSocket 实时推送提示
+        // 实时推送提示
         final toast = state.toast;
         if (toast != null && toast != _lastToast) {
           _lastToast = toast;
@@ -54,7 +62,7 @@ class _MainShellState extends State<MainShell> {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(toast, style: const TextStyle(fontWeight: FontWeight.w700)),
-                backgroundColor: CozyTheme.sweetCocoa,
+                backgroundColor: CozyPalette.onSurface,
                 behavior: SnackBarBehavior.floating,
                 margin: const EdgeInsets.fromLTRB(20, 0, 20, 130),
                 duration: const Duration(seconds: 3),
@@ -64,30 +72,22 @@ class _MainShellState extends State<MainShell> {
           });
         }
 
-        final pages = [
+        final pages = <Widget>[
           HomePage(onNavigateTab: (idx) => _onTabTap(idx)),
           const OrderingPage(),
           DiscoverPage(onGoToOrdering: () => _onTabTap(1)),
-          const OrdersPage(),
-          const ProfilePage(),
+          OrdersPage(onGoOrdering: () => _onTabTap(1)),
+          ProfilePage(onNavigateTab: (idx) => _onTabTap(idx)),
         ];
 
         return GlassScaffold(
-          backgroundColor: CozyTheme.pureWhite,
+          backgroundColor: CozyPalette.background,
           statusBarStyle: GlassStatusBarStyle.dark,
-          // 悬浮 5 大 Tab 水滴液态玻璃底栏
           bottomBar: Material(
             type: MaterialType.transparency,
-            child: GlassTabBar.bottom(
+            child: CozyBottomBarLayer(
               selectedIndex: _tab,
               onTabSelected: _onTabTap,
-              tabs: const [
-                GlassTab(icon: Icon(Icons.home_outlined), label: '首页'),
-                GlassTab(icon: Icon(Icons.restaurant_outlined), label: '点餐'),
-                GlassTab(icon: Icon(Icons.explore_outlined), label: '发现'),
-                GlassTab(icon: Icon(Icons.receipt_long_outlined), label: '订单'),
-                GlassTab(icon: Icon(Icons.pets_outlined), label: '我的'),
-              ],
             ),
           ),
           // 外层包透明 Material，杜绝无 Material 祖先引起的红字黄线
@@ -95,10 +95,7 @@ class _MainShellState extends State<MainShell> {
             type: MaterialType.transparency,
             child: SafeArea(
               bottom: false,
-              child: IndexedStack(
-                index: _tab,
-                children: pages,
-              ),
+              child: IndexedStack(index: _tab, children: pages),
             ),
           ),
         );

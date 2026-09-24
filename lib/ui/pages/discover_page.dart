@@ -1,8 +1,40 @@
+// 发现页 —— 1:1 移植自原生
+//   D:\kaifa\myapp\OrderDisk\app\src\main\java\com\myorderapp\ui\discover\DiscoverScreen.kt
+//
+// 结构对照（原生行号见每处注释）：
+//   CozyPage(decorative=false) → 单个 ListView（原生 LazyColumn，无 tab / 无分段）
+//   标题块 → 搜索框 → 今日/减脂推荐行 → 部分网络错误 → 三态（空查询提示 / 搜索中 / 空结果 / 结果卡片）
+//   结果卡片点击 → ModalBottomSheet 菜品详情（原生 L102-119 + DiscoverDishDetailSheet L863-909）
+//
+// 数据层沿用工程现有的 `AppState.instance`：
+//   searchRemoteRecipes(keyword)（本地内置菜谱库）+ addDish(...)，未新增任何 AppState 能力。
+
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../data/app_state.dart';
 import '../theme/cozy_glass.dart';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 原生同名的页内私有常量（DiscoverScreen.kt L85-91）
+// ─────────────────────────────────────────────────────────────────────────────
+const Color _discoverPrimary = CozyPalette.primary; // Primary        #FF894C5C
+const Color _discoverCard = CozyPalette.secondaryContainer; // #FFFFD1DC
+const Color _discoverCardBorder = CozyPalette.secondary; // Secondary      #FF78555E
+const Color _discoverInput = CozyPalette.surfaceVariant; // #FFE7E2DC
+const Color _discoverCreamCard = CozyPalette.surface; // #FFFFFCF8
+const String _kSearchPlaceholder = '搜索菜品、做法、食材';
+
+// 原生里散落在各 @Composable 内的字面色，一并命名以保持一一对应
+const Color _kThumbBg = Color(0xFFFFEAF0); // 缩略图 / 推荐图底
+const Color _kSoftPinkBg = Color(0xFFFFE8EE); // 空态、提示图章底
+const Color _kPlaceholderBg = Color(0xFFFFF6EF); // 「暂无图片」底
+const Color _kSheetImageBg = Color(0xFFFFDDE7); // 详情弹层图底
+const Color _kDisabledBg = Color(0xFFF0ECE4); // Squishy 按钮 disabled
+const Color _kDisabledText = Color(0xFF8B7164); // Squishy 按钮 disabled 文字
+const Color _kToastBadge = Color(0xFFFFD1DC); // toast 圆形徽底
 
 class DiscoverPage extends StatefulWidget {
   final VoidCallback onGoToOrdering;
@@ -15,273 +47,1215 @@ class DiscoverPage extends StatefulWidget {
 
 class _DiscoverPageState extends State<DiscoverPage> {
   final _searchCtrl = TextEditingController();
-  List<Map<String, dynamic>> _recipes = [];
-  bool _loading = false;
+
+  /// 原生 `DiscoverUiState.query` + `searchDebounceMs = 300L`
+  Timer? _debounce;
+  String _query = '';
+  bool _isSearching = false;
+
+  /// 原生 `DiscoverUiState.errorMessage != null`（网络部分失败提示条）
+  bool _partialError = false;
+
+  /// 原生 `DiscoverUiState.results`
+  List<Map<String, dynamic>> _results = [];
+
+  /// 原生 `buildRecommendation()` 的取菜来源（发现页首屏空查询时的推荐位）
+  List<Map<String, dynamic>> _library = [];
+
+  /// 原生 `addedMenuItemNames`。这里用本地集合记录，**不写回菜谱 Map**：
+  /// `supabase_api.dart:855` 的 `_recipeLibrary` 是 `const`，其内层 Map 不可变，
+  /// 旧代码里的 `recipe['added'] = true` 会在运行时抛
+  /// `Unsupported operation: Cannot modify unmodifiable map`。
+  final Set<String> _addedNames = {};
 
   @override
   void initState() {
     super.initState();
-    _search("");
+    _loadLibrary();
   }
 
   @override
   void dispose() {
+    _debounce?.cancel();
     _searchCtrl.dispose();
     super.dispose();
   }
 
-  Future<void> _search(String kw) async {
-    setState(() => _loading = true);
-    final list = await AppState.instance.searchRemoteRecipes(kw);
+  Future<void> _loadLibrary() async {
+    final list = await AppState.instance.searchRemoteRecipes('');
+    if (!mounted) return;
+    setState(() => _library = list);
+  }
+
+  // 对应原生 onQueryChanged：立即更新 query（清 errorMessage），300ms 后再搜。
+  void _onQueryChanged(String value) {
+    setState(() {
+      _query = value;
+      _partialError = false;
+    });
+    _debounce?.cancel();
+    _debounce = Timer(
+      const Duration(milliseconds: 300),
+      () => _performSearch(value),
+    );
+  }
+
+  // 对应原生 performSearch / clearResults
+  Future<void> _performSearch(String keyword) async {
+    if (keyword.trim().isEmpty) {
+      if (!mounted) return;
+      setState(() {
+        _results = <Map<String, dynamic>>[];
+        _isSearching = false;
+        _partialError = false;
+      });
+      return;
+    }
+
+    setState(() => _isSearching = true);
+    final list = await AppState.instance.searchRemoteRecipes(keyword);
     if (!mounted) return;
     setState(() {
-      _recipes = list;
-      _loading = false;
+      _results = list;
+      _isSearching = false;
+      _partialError = list.isEmpty && AppState.instance.error != null;
     });
   }
 
-  Future<void> _addToShop(Map<String, dynamic> recipe) async {
-    HapticFeedback.mediumImpact();
-    final state = AppState.instance;
+  bool _isAdded(Map<String, dynamic> recipe) {
+    final name = _name(recipe);
+    if (_addedNames.contains(name)) return true;
+    // 原生 addedMenuItemNames：已在店铺的菜直接算「已加入」
+    return AppState.instance.menu.any((item) => item.name == name);
+  }
 
+  // 对应原生 addToMenu(item) + 旧版页面的接入动作。
+  Future<void> _addToShop(Map<String, dynamic> recipe) async {
+    final name = _name(recipe);
+    HapticFeedback.mediumImpact();
+
+    if (_isAdded(recipe)) {
+      // 原生："已在我的小店：${item.name}"
+      _showToast('已在我的小店：$name');
+      return;
+    }
+
+    final state = AppState.instance;
+    final rawPrice = (recipe['price'] as num?)?.toDouble() ?? 12.0;
     final ok = await state.addDish(
-      name: recipe["name"] as String,
-      price: (recipe["price"] as num).toDouble(),
-      description: recipe["desc"] as String,
-      emoji: recipe["emoji"] as String,
+      name: name,
+      // 原生：price <= 0 时用 12.0
+      price: rawPrice <= 0 ? 12.0 : rawPrice,
+      description: (recipe['desc'] as String?) ?? '',
+      emoji: (recipe['emoji'] as String?) ?? '🍽️',
     );
 
     if (!mounted) return;
     if (ok) {
       setState(() {
-        recipe["added"] = true;
+        _addedNames.add(name);
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('已成功将【${recipe["name"]}】加入我的小店！'),
-          backgroundColor: CozyTheme.sweetCocoa,
-          action: SnackBarAction(
-            label: '去点单',
-            textColor: CozyTheme.primaryPink,
-            onPressed: widget.onGoToOrdering,
-          ),
-        ),
-      );
+      // 原生："已加入我的小店：${item.name}"
+      _showToast('已加入我的小店：$name', actionLabel: '去点单');
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(state.error ?? '添加失败，请确认是否为饲养员身份')),
-      );
+      _showToast(state.error ?? '添加失败，请确认是否为饲养员身份');
     }
+  }
+
+  // 原生 DiscoverToastSnackbar（L382-416）：奶白胶囊 + 圆形 ✓ 徽 + 消息
+  void _showToast(String message, {String? actionLabel}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        padding: EdgeInsets.zero,
+        // 原生 bottom = 172.dp；底栏收敛后用 CozyDock.clearance，与外壳 toast 的 130 对齐
+        margin: const EdgeInsets.fromLTRB(20, 0, 20, CozyDock.clearance + 26),
+        duration: const Duration(milliseconds: 2200),
+        content: _ToastBody(
+          message: message,
+          actionLabel: actionLabel,
+          onAction: actionLabel == null
+              ? null
+              : () {
+                  ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                  widget.onGoToOrdering();
+                },
+        ),
+      ),
+    );
+  }
+
+  // 原生 openVideoAppSearch（L807-861）：跳抖音 / 哔站客户端内搜索。
+  // 本工程未依赖 url_launcher（也不允许新增依赖），无法拉起外部 App，故只提示。
+  void _openVideo(String platform, String query) {
+    _showToast('暂不支持跳转$platform，可在$platform里搜索「$query」');
+  }
+
+  // 原生 DiscoverDishDetailSheet（L863-909）
+  Future<void> _showDishDetail(Map<String, dynamic> recipe) async {
+    final theme = Theme.of(context);
+    final name = _name(recipe);
+    final subtitle = _subtitle(recipe);
+    final price = ((recipe['price'] as num?) ?? 12).toDouble();
+
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: CozyPalette.surfaceContainerLow,
+      showDragHandle: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (sheetContext) {
+        return ListenableBuilder(
+          listenable: AppState.instance,
+          builder: (context, _) {
+            final added = _isAdded(recipe);
+            return Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 28),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: double.infinity,
+                    height: 190,
+                    clipBehavior: Clip.antiAlias,
+                    decoration: BoxDecoration(
+                      color: _kSheetImageBg,
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: _DishImageOrPlaceholder(
+                      recipe: recipe,
+                      fit: BoxFit.cover,
+                      emojiSize: 56,
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  Text(
+                    name,
+                    style: theme.textTheme.headlineSmall?.copyWith(
+                      color: CozyPalette.onSurface,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  Text(
+                    subtitle.isEmpty ? '暂无描述' : subtitle,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: CozyPalette.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  CozyPill(
+                    text: '建议售价 ¥${price.toStringAsFixed(2)}',
+                    color: _discoverPrimary,
+                  ),
+                  const SizedBox(height: 14),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextButton(
+                          onPressed: () => Navigator.of(sheetContext).maybePop(),
+                          child: const Text('关闭'),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: FilledButton(
+                          onPressed: added ? null : () => _addToShop(recipe),
+                          style: FilledButton.styleFrom(
+                            backgroundColor: _discoverPrimary,
+                            foregroundColor: Colors.white,
+                            disabledBackgroundColor: _kDisabledBg,
+                            disabledForegroundColor: _kDisabledText,
+                            minimumSize: const Size(0, 44),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          child: Text(added ? '已在我的小店' : '加入我的小店'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: CozyTheme.pureWhite,
-      body: SafeArea(
-        bottom: false,
-        child: CustomScrollView(
-          slivers: [
-            SliverToBoxAdapter(
+    return CozyPage(
+      // 原生 `CozyPage(decorative = false)`（DiscoverScreen.kt L93）
+      decorative: false,
+      child: ListenableBuilder(
+        listenable: AppState.instance,
+        builder: (context, _) {
+          final items = _buildItems(context);
+          return ListView.separated(
+            // 原生 contentPadding(start 20, top 24, end 20, bottom 172) → 底栏收敛为 clearance
+            padding: const EdgeInsets.fromLTRB(20, 24, 20, CozyDock.clearance),
+            // 原生 verticalArrangement = Arrangement.spacedBy(24.dp)
+            separatorBuilder: (_, _) => const SizedBox(height: 24),
+            itemCount: items.length,
+            itemBuilder: (_, index) => items[index],
+          );
+        },
+      ),
+    );
+  }
+
+  /// 原生 LazyColumn 的 item 顺序，一一对应。
+  List<Widget> _buildItems(BuildContext context) {
+    final theme = Theme.of(context);
+    final recommendations = _buildRecommendations();
+
+    return <Widget>[
+      // ① 标题块（L130-149）
+      _buildTitleBlock(theme),
+      // ② 搜索框（L151-160）
+      _buildSearchField(theme),
+      // ③ 推荐行（L162-171，仅空查询且推荐非空）
+      if (_query.trim().isEmpty && recommendations.isNotEmpty)
+        _buildRecommendationRow(context, recommendations),
+      // ④ 部分网络错误（L173-181）
+      if (_partialError)
+        Text(
+          '部分网络结果暂不可用，先展示可用结果',
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: CozyPalette.onSurfaceVariant,
+          ),
+        ),
+      // ⑤ 三态分支（L183-232）
+      ..._buildStateItems(context),
+    ];
+  }
+
+  // 原生 L130-149
+  Widget _buildTitleBlock(ThemeData theme) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: const [
+        Text(
+          '发现 - 探索新菜谱',
+          style: TextStyle(
+            color: _discoverPrimary,
+            fontSize: 29,
+            height: 37 / 29,
+            fontWeight: FontWeight.w900,
+            letterSpacing: 0,
+          ),
+        ),
+        SizedBox(height: 9),
+        Text(
+          '搜一搜，给你们的小饭桌加点新菜',
+          style: TextStyle(
+            color: CozyPalette.onSurfaceVariant,
+            fontSize: 17,
+            height: 25 / 17,
+          ),
+        ),
+      ],
+    );
+  }
+
+  // 原生 StitchDiscoverSearchField（L562-613）：60 高、全圆角、无清除按钮
+  Widget _buildSearchField(ThemeData theme) {
+    final placeholder = _query.trim().isEmpty
+        ? '想吃点什么？例如：糖醋排骨...'
+        : _kSearchPlaceholder;
+
+    return Container(
+      height: 60,
+      decoration: BoxDecoration(
+        color: _discoverInput,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(
+          color: _discoverCardBorder.withValues(alpha: 0.32),
+          width: 2,
+        ),
+      ),
+      child: Row(
+        children: [
+          const SizedBox(width: 22),
+          const Icon(Icons.search, size: 22, color: CozyPalette.outline),
+          const SizedBox(width: 10),
+          Expanded(
+            child: TextField(
+              controller: _searchCtrl,
+              onChanged: _onQueryChanged,
+              onSubmitted: (value) {
+                _debounce?.cancel();
+                _performSearch(value);
+              },
+              maxLines: 1,
+              textInputAction: TextInputAction.search,
+              cursorColor: _discoverPrimary,
+              style: const TextStyle(
+                color: CozyPalette.onSurface,
+                fontSize: 17,
+                height: 25 / 17,
+              ),
+              decoration: InputDecoration(
+                isCollapsed: true,
+                border: InputBorder.none,
+                hintText: placeholder,
+                hintStyle: const TextStyle(
+                  color: CozyPalette.outline,
+                  fontSize: 17,
+                  height: 25 / 17,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 22),
+        ],
+      ),
+    );
+  }
+
+  // 原生三态分支（L183-232）
+  List<Widget> _buildStateItems(BuildContext context) {
+    final theme = Theme.of(context);
+
+    if (_query.trim().isEmpty) {
+      return <Widget>[_buildSearchPrompt(theme)];
+    }
+
+    if (_isSearching) {
+      return <Widget>[
+        Padding(
+          padding: const EdgeInsets.only(top: 2),
+          child: Row(
+            children: [
+              const SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: _discoverPrimary,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Text(
+                '正在搜索菜品...',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: CozyPalette.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ];
+    }
+
+    if (_results.isEmpty) {
+      return <Widget>[_buildEmptyState(theme)];
+    }
+
+    // 原生 CozyMotionVisibility(delayMillis = index.coerceAtMost(5) * 28)
+    return <Widget>[
+      for (var index = 0; index < _results.length; index++)
+        _CozyMotionVisibility(
+          delayMillis: (index > 5 ? 5 : index) * 28,
+          child: _buildResultCard(context, _results[index]),
+        ),
+    ];
+  }
+
+  // 原生 DiscoverSearchPrompt（L669-705）
+  Widget _buildSearchPrompt(ThemeData theme) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: _discoverCreamCard.withValues(alpha: 0.84),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: _discoverCardBorder.withValues(alpha: 0.32),
+          width: 2,
+        ),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 72,
+            height: 72,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: _kSoftPinkBg,
+              borderRadius: BorderRadius.circular(26),
+            ),
+            child: const Icon(Icons.search, size: 32, color: _discoverPrimary),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            '搜一搜新菜谱',
+            style: theme.textTheme.titleMedium?.copyWith(
+              color: CozyPalette.onSurface,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            '输入菜名、食材或做法，找到合适的菜后加入我的小店。',
+            textAlign: TextAlign.center,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: CozyPalette.onSurfaceVariant,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 原生 DiscoverEmptyState（L707-747）
+  Widget _buildEmptyState(ThemeData theme) {
+    final query = _query.trim();
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: _discoverCreamCard.withValues(alpha: 0.92),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: _discoverCardBorder.withValues(alpha: 0.45),
+          width: 2,
+        ),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 68,
+            height: 68,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: _kSoftPinkBg,
+              borderRadius: BorderRadius.circular(24),
+            ),
+            child: Text(
+              '菜',
+              style: theme.textTheme.bodyLarge?.copyWith(
+                color: _discoverPrimary,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            '没有找到相关菜品',
+            style: theme.textTheme.titleMedium?.copyWith(
+              color: CozyPalette.onSurface,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            '换个更准确的菜名试试，或者直接加入我的小店后再编辑',
+            textAlign: TextAlign.center,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: CozyPalette.onSurfaceVariant,
+            ),
+          ),
+          if (query.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            _RecipeVideoLinkIcons(
+              query: query,
+              compact: false,
+              onOpen: _openVideo,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  // 原生 DiscoverResultCard（L418-515）
+  Widget _buildResultCard(BuildContext context, Map<String, dynamic> recipe) {
+    final theme = Theme.of(context);
+    final name = _name(recipe);
+    final subtitle = _subtitle(recipe);
+    final added = _isAdded(recipe);
+
+    return _Pressable(
+      onTap: () => _showDishDetail(recipe),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: _discoverCard,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: _discoverCardBorder, width: 2),
+        ),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 100,
+              height: 100,
+              child: Container(
+                clipBehavior: Clip.antiAlias,
+                decoration: BoxDecoration(
+                  color: _kThumbBg,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: _discoverCardBorder, width: 2),
+                ),
+                child: _DishImageOrPlaceholder(
+                  recipe: recipe,
+                  fit: BoxFit.cover,
+                  emojiSize: 38,
+                ),
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
+                padding: const EdgeInsets.symmetric(vertical: 8),
                 child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      "发现灵感好菜 ✨",
-                      style: TextStyle(
+                    Text(
+                      name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: CozyPalette.onPrimaryContainer,
                         fontSize: 22,
+                        height: 29 / 22,
                         fontWeight: FontWeight.w900,
-                        color: CozyTheme.sweetCocoa,
-                        letterSpacing: -0.5,
                       ),
                     ),
-                    const SizedBox(height: 12),
-                    Container(
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF6F6F7),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: const Color(0x08000000)),
-                      ),
-                      child: TextField(
-                        controller: _searchCtrl,
-                        onSubmitted: _search,
-                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-                        decoration: InputDecoration(
-                          hintText: "搜索菜品、做法、食材、减脂餐...",
-                          hintStyle: const TextStyle(fontSize: 13, color: CozyTheme.mutedText),
-                          prefixIcon: const Icon(Icons.search, size: 20, color: CozyTheme.mutedText),
-                          suffixIcon: _searchCtrl.text.isNotEmpty
-                              ? GestureDetector(
-                                  onTap: () {
-                                    _searchCtrl.clear();
-                                    _search("");
-                                  },
-                                  child: const Icon(Icons.close, size: 18, color: CozyTheme.mutedText),
-                                )
-                              : null,
-                          border: InputBorder.none,
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    const SizedBox(height: 7),
+                    Row(
+                      children: [
+                        _DiscoverSourceChip(text: _displaySourceName(recipe)),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            subtitle.isEmpty ? '暂无描述' : subtitle,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: CozyPalette.onSurfaceVariant,
+                            ),
+                          ),
                         ),
-                      ),
+                      ],
+                    ),
+                    const SizedBox(height: 11),
+                    _SquishyDiscoverButton(
+                      text: added ? '已在我的小店' : '加入我的小店',
+                      enabled: !added,
+                      onTap: () => _addToShop(recipe),
+                    ),
+                    const SizedBox(height: 9),
+                    _RecipeVideoLinkIcons(
+                      query: name,
+                      compact: true,
+                      onOpen: _openVideo,
                     ),
                   ],
                 ),
               ),
             ),
-
-            if (_loading)
-              const SliverFillRemaining(
-                child: Center(
-                  child: CircularProgressIndicator(color: CozyTheme.primaryPink),
-                ),
-              )
-            else if (_recipes.isEmpty)
-              const SliverFillRemaining(
-                child: Center(
-                  child: Text("未搜到相关菜谱，换个关键词试试吧", style: TextStyle(color: CozyTheme.mutedText)),
-                ),
-              )
-            else
-              SliverPadding(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 120),
-                sliver: SliverList(
-                  delegate: SliverChildBuilderDelegate(
-                    (context, index) {
-                      final item = _recipes[index];
-                      final isAdded = item["added"] == true;
-
-                      return Container(
-                        margin: const EdgeInsets.only(bottom: 16),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(22),
-                          border: Border.all(color: const Color(0x0A000000)),
-                          boxShadow: const [
-                            BoxShadow(color: Color(0x04000000), blurRadius: 14, offset: Offset(0, 4)),
-                          ],
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Container(
-                              height: 100,
-                              width: double.infinity,
-                              decoration: const BoxDecoration(
-                                color: Color(0xFFFAFAFA),
-                                borderRadius: BorderRadius.vertical(top: Radius.circular(21)),
-                              ),
-                              child: Center(
-                                child: Text(item["emoji"] as String? ?? "🍲", style: const TextStyle(fontSize: 48)),
-                              ),
-                            ),
-                            Padding(
-                              padding: const EdgeInsets.all(14),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Expanded(
-                                        child: Text(
-                                          item["name"] as String? ?? "",
-                                          style: const TextStyle(
-                                            fontSize: 15.5,
-                                            fontWeight: FontWeight.w900,
-                                            color: CozyTheme.sweetCocoa,
-                                          ),
-                                        ),
-                                      ),
-                                      Text(
-                                        "${((item["price"] as num?) ?? 10).toStringAsFixed(0)} 🍬",
-                                        style: const TextStyle(
-                                          fontSize: 14.5,
-                                          fontWeight: FontWeight.w900,
-                                          color: CozyTheme.primaryPink,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 6),
-                                  Text(
-                                    item["desc"] as String? ?? "",
-                                    style: const TextStyle(fontSize: 12, color: CozyTheme.mutedText, height: 1.35),
-                                  ),
-                                  const SizedBox(height: 12),
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Row(
-                                        children: [
-                                          _tag("⏱️ ${item["time"] ?? "20分钟"}"),
-                                          const SizedBox(width: 6),
-                                          _tag("🔥 ${item["difficulty"] ?? "家常"}"),
-                                        ],
-                                      ),
-                                      GestureDetector(
-                                        onTap: isAdded ? null : () => _addToShop(item),
-                                        child: Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-                                          decoration: BoxDecoration(
-                                            color: isAdded ? const Color(0xFFF0FDF4) : CozyTheme.softPink,
-                                            borderRadius: BorderRadius.circular(12),
-                                            border: Border.all(
-                                              color: isAdded
-                                                  ? const Color(0xFF86EFAC)
-                                                  : CozyTheme.primaryPink.withValues(alpha: 0.3),
-                                            ),
-                                          ),
-                                          child: Row(
-                                            children: [
-                                              Icon(
-                                                isAdded ? Icons.check : Icons.add,
-                                                size: 14,
-                                                color: isAdded ? const Color(0xFF16A34A) : CozyTheme.primaryPink,
-                                              ),
-                                              const SizedBox(width: 4),
-                                              Text(
-                                                isAdded ? "已在小店" : "加进小店",
-                                                style: TextStyle(
-                                                  fontSize: 11.5,
-                                                  fontWeight: FontWeight.w800,
-                                                  color: isAdded ? const Color(0xFF16A34A) : CozyTheme.primaryPink,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    },
-                    childCount: _recipes.length,
-                  ),
-                ),
-              ),
           ],
         ),
       ),
     );
   }
 
-  Widget _tag(String label) {
+  // 原生 DiscoverRecommendationRow（L247-312）
+  Widget _buildRecommendationRow(
+    BuildContext context,
+    List<_DiscoverRecommendation> recommendations,
+  ) {
+    final children = <Widget>[];
+    for (var index = 0; index < recommendations.length; index++) {
+      if (index > 0) children.add(const SizedBox(width: 12));
+      children.add(
+        Expanded(
+          child: _CozyMotionVisibility(
+            delayMillis: index * 40,
+            child: _buildRecommendationCard(context, recommendations[index]),
+          ),
+        ),
+      );
+    }
+    // 原生：只有一个推荐时补 Spacer(weight 1f)
+    if (recommendations.length == 1) {
+      children.add(const SizedBox(width: 12));
+      children.add(const Expanded(child: SizedBox.shrink()));
+    }
+    return Row(crossAxisAlignment: CrossAxisAlignment.start, children: children);
+  }
+
+  // 原生推荐卡（L313-361）
+  Widget _buildRecommendationCard(
+    BuildContext context,
+    _DiscoverRecommendation recommendation,
+  ) {
+    final theme = Theme.of(context);
+    final recipe = recommendation.recipe;
+    final name = _name(recipe);
+    final added = _isAdded(recipe);
+
+    return _Pressable(
+      onTap: () => _showDishDetail(recipe),
+      child: Container(
+        width: double.infinity,
+        constraints: const BoxConstraints(minHeight: 292),
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: _discoverCreamCard.withValues(alpha: 0.96),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: _discoverCardBorder.withValues(alpha: 0.45),
+            width: 2,
+          ),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: double.infinity,
+              height: 92,
+              clipBehavior: Clip.antiAlias,
+              decoration: BoxDecoration(
+                color: _kThumbBg,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: _discoverCardBorder.withValues(alpha: 0.34),
+                  width: 1,
+                ),
+              ),
+              child: _DishImageOrPlaceholder(
+                recipe: recipe,
+                fit: BoxFit.cover,
+                emojiSize: 34,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              recommendation.title,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.labelLarge?.copyWith(
+                color: _discoverPrimary,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              name,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: CozyPalette.onSurface,
+                fontSize: 16,
+                height: 21 / 16,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              recommendation.subtitle,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: CozyPalette.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 8),
+            _SquishyDiscoverButton(
+              text: added ? '已在店铺' : '加入店铺',
+              enabled: !added,
+              onTap: () => _addToShop(recipe),
+            ),
+            const SizedBox(height: 8),
+            // 原生 RecommendationVideoLinks：文案「抖音」/「哔站」，间距 6
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                _VideoSearchChip(
+                  text: '抖音',
+                  onTap: () => _openVideo('抖音', name),
+                ),
+                _VideoSearchChip(
+                  text: '哔站',
+                  onTap: () => _openVideo('哔站', name),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // 原生 DiscoverViewModel.buildRecommendation()：今日推荐 / 减脂推荐（空查询时展示）
+  // Flutter 数据层没有对应接口，这里从本地菜谱库里就地取两条，文案与原生一致。
+  List<_DiscoverRecommendation> _buildRecommendations() {
+    if (_library.isEmpty) return const <_DiscoverRecommendation>[];
+
+    final pool = _library.where((recipe) => !_isAdded(recipe)).toList();
+    if (pool.isEmpty) return const <_DiscoverRecommendation>[];
+
+    final now = DateTime.now();
+    final day = now.difference(DateTime(now.year)).inDays;
+    final dailyIndex = day % pool.length;
+
+    if (pool.length == 1) {
+      return <_DiscoverRecommendation>[
+        _DiscoverRecommendation(
+          title: '今日推荐',
+          subtitle: '每日随机更新',
+          recipe: pool[dailyIndex],
+        ),
+      ];
+    }
+
+    var lightIndex = pool.indexWhere(
+      (recipe) => RegExp(r'沙拉|鸡胸|娃娃菜|蔬|汤|蒸|豆腐|虾|鱼').hasMatch(_name(recipe)),
+    );
+    if (lightIndex < 0) lightIndex = (dailyIndex + 1) % pool.length;
+    if (lightIndex == dailyIndex) lightIndex = (dailyIndex + 1) % pool.length;
+
+    return <_DiscoverRecommendation>[
+      _DiscoverRecommendation(
+        title: '今日推荐',
+        subtitle: '每日随机更新',
+        recipe: pool[dailyIndex],
+      ),
+      _DiscoverRecommendation(
+        title: '减脂推荐',
+        subtitle: '轻一点，也很好吃',
+        recipe: pool[lightIndex],
+      ),
+    ];
+  }
+
+  static String _name(Map<String, dynamic> recipe) =>
+      (recipe['name'] as String?) ?? '';
+
+  static String _subtitle(Map<String, dynamic> recipe) {
+    final raw = (recipe['subtitle'] as String?) ?? (recipe['desc'] as String?) ?? '';
+    return raw.trim();
+  }
+
+  // 原生 String.displaySourceName()（L794-805）
+  static String _displaySourceName(Map<String, dynamic> recipe) {
+    final source =
+        (recipe['sourceLabel'] as String?) ?? (recipe['source'] as String?) ?? 'builtin';
+    switch (source) {
+      case 'xiachufang':
+        return '下厨房';
+      case 'bimissing':
+        return '中文菜谱';
+      case 'bing':
+        return '网络图片';
+      case 'builtin':
+        return '下厨房';
+      case 'tian':
+        return '天行';
+      case 'local':
+        return '我的小店';
+      case 'menu':
+        return '我的小店';
+      default:
+        return '天行';
+    }
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 私有组件（对应原生 DiscoverScreen.kt 内的私有 @Composable）
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _DiscoverRecommendation {
+  const _DiscoverRecommendation({
+    required this.title,
+    required this.subtitle,
+    required this.recipe,
+  });
+
+  final String title;
+  final String subtitle;
+  final Map<String, dynamic> recipe;
+}
+
+/// 原生：`Modifier.scale(按下 0.98f)`（卡片）/ `0.96f`（按钮）+ 点击回调。
+class _Pressable extends StatefulWidget {
+  const _Pressable({
+    required this.child,
+    this.onTap,
+    this.pressedScale = 0.98,
+  });
+
+  final Widget child;
+  final VoidCallback? onTap;
+  final double pressedScale;
+
+  @override
+  State<_Pressable> createState() => _PressableState();
+}
+
+class _PressableState extends State<_Pressable> {
+  bool _down = false;
+
+  void _setDown(bool value) {
+    if (!mounted || _down == value) return;
+    setState(() => _down = value);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final tappable = widget.onTap != null;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTapDown: tappable ? (_) => _setDown(true) : null,
+      onTapUp: tappable ? (_) => _setDown(false) : null,
+      onTapCancel: tappable ? () => _setDown(false) : null,
+      onTap: widget.onTap,
+      child: AnimatedScale(
+        scale: _down ? widget.pressedScale : 1.0,
+        duration: const Duration(milliseconds: 140),
+        curve: Curves.easeOut,
+        child: widget.child,
+      ),
+    );
+  }
+}
+
+/// 原生 `CozyMotionVisibility(delayMillis = ...)`：按延迟做一次淡入 + 上浮。
+class _CozyMotionVisibility extends StatefulWidget {
+  const _CozyMotionVisibility({
+    required this.child,
+    required this.delayMillis,
+  });
+
+  final Widget child;
+  final int delayMillis;
+
+  @override
+  State<_CozyMotionVisibility> createState() => _CozyMotionVisibilityState();
+}
+
+class _CozyMotionVisibilityState extends State<_CozyMotionVisibility> {
+  bool _visible = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.delayMillis <= 0) {
+      _visible = true;
+      return;
+    }
+    Future<void>.delayed(Duration(milliseconds: widget.delayMillis), () {
+      if (!mounted) return;
+      setState(() => _visible = true);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedOpacity(
+      opacity: _visible ? 1 : 0,
+      duration: const Duration(milliseconds: 260),
+      curve: Curves.easeOut,
+      child: AnimatedSlide(
+        offset: _visible ? Offset.zero : const Offset(0, 0.06),
+        duration: const Duration(milliseconds: 320),
+        curve: Curves.easeOutCubic,
+        child: widget.child,
+      ),
+    );
+  }
+}
+
+/// 原生 DiscoverSourceChip（L615-632）
+class _DiscoverSourceChip extends StatelessWidget {
+  const _DiscoverSourceChip({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final isMine = text == '我的小店';
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: const Color(0xFFF7F7F8),
-        borderRadius: BorderRadius.circular(6),
+        color: isMine ? CozyPalette.primaryContainer : _discoverPrimary,
+        borderRadius: BorderRadius.circular(999),
+        border: isMine
+            ? Border.all(color: _discoverPrimary, width: 1)
+            : null,
       ),
       child: Text(
-        label,
-        style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: CozyTheme.mutedText),
+        text,
+        maxLines: 1,
+        style: TextStyle(
+          color: isMine ? CozyPalette.onPrimaryContainer : Colors.white,
+          fontSize: 10,
+          height: 14 / 10,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+    );
+  }
+}
+
+/// 原生 SquishyDiscoverButton（L634-667）：按下缩 0.96，minHeight 38。
+class _SquishyDiscoverButton extends StatelessWidget {
+  const _SquishyDiscoverButton({
+    required this.text,
+    required this.enabled,
+    this.onTap,
+  });
+
+  final String text;
+  final bool enabled;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return _Pressable(
+      onTap: enabled ? onTap : null,
+      pressedScale: 0.96,
+      child: Container(
+        constraints: const BoxConstraints(minHeight: 38),
+        alignment: Alignment.center,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+        decoration: BoxDecoration(
+          color: enabled ? _discoverPrimary : _kDisabledBg,
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: Text(
+          text,
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                color: enabled ? Colors.white : _kDisabledText,
+                fontWeight: FontWeight.w900,
+              ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 原生 RecipeVideoLinkIcons（L749-770）+ VideoSearchChip（L772-792）
+class _RecipeVideoLinkIcons extends StatelessWidget {
+  const _RecipeVideoLinkIcons({
+    required this.query,
+    required this.onOpen,
+    this.compact = true,
+  });
+
+  final String query;
+  final void Function(String platform, String query) onOpen;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    // 原生用 Row；这里换 Wrap，窄屏（≤330dp 逻辑宽）时避免 Flutter 的黄黑溢出条
+    return Wrap(
+      spacing: 8,
+      runSpacing: 6,
+      alignment: compact ? WrapAlignment.start : WrapAlignment.center,
+      children: [
+        _VideoSearchChip(
+          text: compact ? '抖音视频' : '去抖音看看',
+          onTap: () => onOpen('抖音', query),
+        ),
+        _VideoSearchChip(
+          text: compact ? '哔站视频' : '去哔站看看',
+          onTap: () => onOpen('哔站', query),
+        ),
+      ],
+    );
+  }
+}
+
+class _VideoSearchChip extends StatelessWidget {
+  const _VideoSearchChip({required this.text, required this.onTap});
+
+  final String text;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+        decoration: BoxDecoration(
+          color: CozyPalette.surface,
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(
+            color: _discoverCardBorder.withValues(alpha: 0.38),
+            width: 1,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.play_circle_outline,
+              size: 15,
+              color: _discoverPrimary,
+            ),
+            const SizedBox(width: 5),
+            Text(
+              text,
+              maxLines: 1,
+              style: const TextStyle(
+                color: _discoverPrimary,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// 原生 DishImageOrPlaceholder（L911-946）
+///
+/// 原生这里放 Coil `AsyncImage(imageUrl)`；Flutter 侧菜谱没有图片 URL，
+/// 数据层把 `emoji` 当作图片载体（`AppState.addDish(emoji: → imageUrl)`），
+/// 因此：http 图片 → 网络图；无 URL 但有 emoji → 居中放大 emoji；两者皆无 → 原生同款「暂无图片」。
+class _DishImageOrPlaceholder extends StatelessWidget {
+  const _DishImageOrPlaceholder({
+    required this.recipe,
+    required this.fit,
+    required this.emojiSize,
+  });
+
+  final Map<String, dynamic> recipe;
+  final BoxFit fit;
+  final double emojiSize;
+
+  @override
+  Widget build(BuildContext context) {
+    final url = (recipe['imageUrl'] as String?) ?? (recipe['image_url'] as String?);
+    final emoji = (recipe['emoji'] as String?) ?? '';
+
+    if (url != null && (url.startsWith('http://') || url.startsWith('https://'))) {
+      return Image.network(
+        url,
+        fit: fit,
+        errorBuilder: (context, error, stackTrace) => _placeholder(context),
+      );
+    }
+    if (emoji.trim().isNotEmpty) {
+      return Center(
+        child: Text(emoji, style: TextStyle(fontSize: emojiSize)),
+      );
+    }
+    return _placeholder(context);
+  }
+
+  Widget _placeholder(BuildContext context) {
+    return Container(
+      color: _kPlaceholderBg,
+      alignment: Alignment.center,
+      child: Text(
+        '暂无图片',
+        style: Theme.of(context).textTheme.labelMedium?.copyWith(
+              color: _discoverPrimary,
+              fontWeight: FontWeight.w700,
+            ),
+      ),
+    );
+  }
+}
+
+/// 原生 DiscoverToastSnackbar（L382-416）
+class _ToastBody extends StatelessWidget {
+  const _ToastBody({
+    required this.message,
+    this.actionLabel,
+    this.onAction,
+  });
+
+  final String message;
+  final String? actionLabel;
+  final VoidCallback? onAction;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+        decoration: BoxDecoration(
+          color: CozyPalette.surface,
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(
+            color: _discoverCardBorder.withValues(alpha: 0.42),
+            width: 1,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 24,
+              height: 24,
+              alignment: Alignment.center,
+              decoration: const BoxDecoration(
+                color: _kToastBadge,
+                shape: BoxShape.circle,
+              ),
+              child: const Text(
+                '✓',
+                style: TextStyle(
+                  color: _discoverPrimary,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
+            const SizedBox(width: 9),
+            Flexible(
+              child: Text(
+                message,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: CozyPalette.onSurface,
+                      fontWeight: FontWeight.w700,
+                    ),
+              ),
+            ),
+            if (onAction != null && actionLabel != null) ...[
+              const SizedBox(width: 10),
+              GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: onAction,
+                child: Text(
+                  actionLabel!,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: _discoverPrimary,
+                        fontWeight: FontWeight.w900,
+                      ),
+                ),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }

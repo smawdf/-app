@@ -4,7 +4,20 @@ import 'package:flutter/services.dart';
 import '../../data/app_state.dart';
 import '../theme/cozy_glass.dart';
 
-/// 未绑定伴侣时的配对页：饲养员生成邀请码，吃货输入邀请码
+/// Pairing surface, ported 1:1 from the native `PairManagementDialog` at
+/// `app/src/main/java/com/myorderapp/ui/profile/ProfileScreen.kt:839-991`.
+///
+/// **Deviation (structural, unavoidable):** the native app has no pairing
+/// route — the dialog is raised from the profile screen. The Flutter shell
+/// still gates on pairing (`lib/main.dart` renders this widget while
+/// `!AppState.instance.isPaired`), so the native dialog body is presented as a
+/// standalone page. Layout, spacing, colours, radii and every string come from
+/// the Kotlin source; only the page chrome (scroll + SafeArea + 退出登录) is added.
+///
+/// **Second deviation:** native performs a two-phase preview
+/// (`onPreviewPairInvite` -> `onConfirmPairInvite`). `AppState` exposes only a
+/// single-shot `joinPair(code)`, so the preview card cannot be shown and the
+/// confirm button reads `绑定伴侣` instead of the preview's `confirmText`.
 class PairScreen extends StatefulWidget {
   const PairScreen({super.key});
 
@@ -13,178 +26,276 @@ class PairScreen extends StatefulWidget {
 }
 
 class _PairScreenState extends State<PairScreen> {
-  final _code = TextEditingController();
-  String? _generatedCode;
+  final TextEditingController _joinCode = TextEditingController();
+  String _pairCode = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _pairCode = AppState.instance.pair?.inviteCode ?? '';
+    _joinCode.addListener(_onCodeChanged);
+  }
 
   @override
   void dispose() {
-    _code.dispose();
+    _joinCode.removeListener(_onCodeChanged);
+    _joinCode.dispose();
     super.dispose();
   }
 
-  Future<void> _create() async {
-    final state = AppState.instance;
-    final ok = await state.createPair();
+  void _onCodeChanged() => setState(() {});
+
+  Future<void> _generate() async {
+    final AppState state = AppState.instance;
+    final bool ok = await state.createPair();
     if (!mounted) return;
     if (ok && state.pair != null) {
-      setState(() => _generatedCode = state.pair!.inviteCode);
+      setState(() => _pairCode = state.pair!.inviteCode);
     } else if (state.error != null) {
       _snack(state.error!);
     }
   }
 
-  Future<void> _join() async {
-    final state = AppState.instance;
-    final code = _code.text.trim();
-    if (code.length != 6) {
-      _snack('请输入 6 位邀请码');
-      return;
-    }
-    final ok = await state.joinPair(code);
+  Future<void> _confirmPair() async {
+    final AppState state = AppState.instance;
+    final bool ok = await state.joinPair(_joinCode.text.trim());
     if (!mounted) return;
     if (!ok && state.error != null) _snack(state.error!);
   }
 
-  void _snack(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  /// `copyPairCode(context, code)` — clipboard + `Toast("已复制邀请码")`.
+  Future<void> _copy() async {
+    await Clipboard.setData(ClipboardData(text: _pairCode));
+    if (!mounted) return;
+    _snack('已复制邀请码');
+  }
+
+  Future<void> _unpair() async {
+    // Native raises `onUnpair()`; AppState has no unpair capability yet.
+    _snack('解绑能力待接入云端接口');
+  }
+
+  void _snack(String message) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
   Widget build(BuildContext context) {
-    final state = AppState.instance;
+    final AppState state = AppState.instance;
 
     return Scaffold(
-      backgroundColor: CozyTheme.pureWhite,
+      backgroundColor: CozyPalette.background,
       body: SafeArea(
         child: ListenableBuilder(
           listenable: state,
-          builder: (context, _) {
+          builder: (BuildContext context, Widget? _) {
+            final bool isPaired = state.isPaired;
+            // `CouplePair` carries no partner display name yet, so the native
+            // `partnerName.ifBlank { "对方" }` fallback is always taken. Wiring
+            // the real name needs a new AppState/data-layer field.
+            const String partnerName = '';
+            final bool hasCode = _pairCode.isNotEmpty;
+
             return SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 40),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const Text('💕', textAlign: TextAlign.center, style: TextStyle(fontSize: 54)),
-                  const SizedBox(height: 16),
-                  const Text(
-                    '还差一步就开饭啦',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: CozyTheme.sweetCocoa),
-                  ),
-                  const SizedBox(height: 8),
+                children: <Widget>[
+                  // ---- dialog title -------------------------------------
                   Text(
-                    '当前身份：${state.user?.nickname ?? ''} · ${state.user?.roleLabel ?? ''}',
+                    isPaired ? '伴侣已绑定' : '邀请对方',
                     textAlign: TextAlign.center,
-                    style: const TextStyle(fontSize: 13.5, color: CozyTheme.mutedText),
+                    style: CozyType.textTheme.titleLarge!.copyWith(
+                      color: CozyPalette.onSurface,
+                      fontWeight: FontWeight.w900,
+                    ),
                   ),
-                  const SizedBox(height: 36),
+                  const SizedBox(height: 18),
 
-                  // ---- 饲养员：生成邀请码 ----
-                  if (_generatedCode == null) ...[
-                    const Text(
-                      '由其中一方生成邀请码，另一方输入即可绑定',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 12.5, color: CozyTheme.mutedText),
+                  // ---- description --------------------------------------
+                  Text(
+                    isPaired
+                        ? '已和 ${partnerName.isNotEmpty ? partnerName : '对方'} 绑定。你们正在共享情侣资料、店铺、菜单和订单。'
+                        : '请先在首页选择身份。饲养员邀请对方去点餐；吃货邀请对方去做饭，确认后才会绑定。',
+                    textAlign: TextAlign.center,
+                    style: CozyType.textTheme.bodyMedium!.copyWith(
+                      color: CozyPalette.onSurfaceVariant,
                     ),
-                    const SizedBox(height: 18),
-                    LiquidDropGlass(
-                      height: 56,
-                      borderRadius: BorderRadius.circular(28),
-                      onTap: state.busy ? null : _create,
-                      child: const Center(
-                        child: Text(
-                          '生成我的邀请码',
-                          style: TextStyle(fontSize: 15.5, fontWeight: FontWeight.w900, color: CozyTheme.sweetCocoa),
-                        ),
+                  ),
+                  const SizedBox(height: 14),
+
+                  // ---- invite code surface ------------------------------
+                  if (!isPaired) ...<Widget>[
+                    Surface(
+                      radius: 22,
+                      color: CozyPalette.primaryContainer.withValues(
+                        alpha: 0.72,
                       ),
-                    ),
-                  ] else ...[
-                    LiquidDropGlass(
-                      height: 120,
-                      borderRadius: BorderRadius.circular(28),
+                      borderColor: CozyPalette.primary.withValues(alpha: 0.22),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 18,
+                        vertical: 18,
+                      ),
                       child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Text('把这串邀请码发给 Ta',
-                              style: TextStyle(fontSize: 12.5, color: CozyTheme.mutedText)),
-                          const SizedBox(height: 8),
+                        children: <Widget>[
                           Text(
-                            _generatedCode!,
-                            style: const TextStyle(
-                              fontSize: 34,
+                            hasCode ? '把这个邀请码发给对方' : '我的邀请码',
+                            textAlign: TextAlign.center,
+                            style: CozyType.textTheme.labelLarge!.copyWith(
+                              color: CozyPalette.onSurface,
                               fontWeight: FontWeight.w900,
-                              letterSpacing: 8,
-                              color: CozyTheme.primaryPink,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            hasCode ? _pairCode : '点击生成',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: CozyPalette.primary,
+                              fontSize: hasCode ? 38 : 26,
+                              height: (hasCode ? 44 : 32) / (hasCode ? 38 : 26),
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                          if (hasCode) ...<Widget>[
+                            const SizedBox(height: 12),
+                            Text(
+                              '等待对方输入后才会完成绑定',
+                              textAlign: TextAlign.center,
+                              style: CozyType.textTheme.bodySmall!.copyWith(
+                                color: CozyPalette.onSurfaceVariant,
+                              ),
+                            ),
+                          ],
+                          const SizedBox(height: 12),
+                          SizedBox(
+                            height: 44,
+                            child: FilledButton(
+                              onPressed: state.busy ? null : _generate,
+                              style: FilledButton.styleFrom(
+                                backgroundColor: CozyPalette.primary,
+                                shape: const StadiumBorder(),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 26,
+                                ),
+                              ),
+                              child: Text(
+                                hasCode ? '重新生成' : '生成邀请码',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
                             ),
                           ),
                         ],
                       ),
                     ),
-                    const SizedBox(height: 12),
-                    TextButton.icon(
-                      onPressed: () {
-                        Clipboard.setData(ClipboardData(text: _generatedCode!));
-                        _snack('邀请码已复制');
-                      },
-                      icon: const Icon(Icons.copy, size: 16),
-                      label: const Text('复制邀请码'),
+                    const SizedBox(height: 14),
+                    Center(
+                      child: TextButton(
+                        onPressed: hasCode ? _copy : null,
+                        child: Text(
+                          '复制邀请码',
+                          style: TextStyle(
+                            color: CozyPalette.onSurface,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ),
                     ),
+                    const SizedBox(height: 14),
                   ],
 
-                  const SizedBox(height: 34),
-                  const Row(children: [
-                    Expanded(child: Divider(color: CozyTheme.cardStroke)),
-                    Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 12),
-                      child: Text('或者', style: TextStyle(fontSize: 12, color: CozyTheme.mutedText)),
-                    ),
-                    Expanded(child: Divider(color: CozyTheme.cardStroke)),
-                  ]),
-                  const SizedBox(height: 24),
-
-                  // ---- 另一方：输入邀请码 ----
-                  const Text('输入 Ta 给你的 6 位邀请码',
-                      style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: CozyTheme.mutedText)),
-                  const SizedBox(height: 8),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF7F7F8),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: CozyTheme.cardStroke),
-                    ),
+                  // ---- join field ---------------------------------------
+                  SizedBox(
+                    height: 60,
                     child: TextField(
-                      controller: _code,
-                      textAlign: TextAlign.center,
-                      maxLength: 6,
+                      controller: _joinCode,
+                      maxLines: 1,
                       textCapitalization: TextCapitalization.characters,
-                      style: const TextStyle(
-                          fontSize: 22, fontWeight: FontWeight.w900, letterSpacing: 6, color: CozyTheme.sweetCocoa),
-                      decoration: const InputDecoration(
-                        counterText: '',
-                        hintText: 'ABC123',
-                        hintStyle: TextStyle(letterSpacing: 6, color: Color(0xFFC9C6CC), fontSize: 20),
-                        border: InputBorder.none,
-                        contentPadding: EdgeInsets.symmetric(vertical: 16),
+                      inputFormatters: <TextInputFormatter>[
+                        LengthLimitingTextInputFormatter(6),
+                      ],
+                      style: const TextStyle(fontSize: 15),
+                      decoration: cozyInputDecoration(
+                        labelText: '输入对方邀请码',
                       ),
                     ),
                   ),
-                  const SizedBox(height: 18),
-                  LiquidDropGlass(
-                    height: 56,
-                    borderRadius: BorderRadius.circular(28),
-                    onTap: state.busy ? null : _join,
-                    child: const Center(
-                      child: Text(
-                        '绑定伴侣，开启小店',
-                        style: TextStyle(fontSize: 15.5, fontWeight: FontWeight.w900, color: CozyTheme.sweetCocoa),
-                      ),
-                    ),
-                  ),
+                  const SizedBox(height: 14),
 
-                  const SizedBox(height: 30),
-                  TextButton(
-                    onPressed: () => AppState.instance.logout(),
-                    child: const Text('退出登录', style: TextStyle(color: CozyTheme.mutedText, fontSize: 13)),
+                  if (state.error != null)
+                    Text(
+                      state.error!,
+                      textAlign: TextAlign.center,
+                      style: CozyType.textTheme.bodySmall!.copyWith(
+                        color: CozyPalette.primary,
+                      ),
+                    ),
+                  if (state.toast != null)
+                    Text(
+                      state.toast!,
+                      textAlign: TextAlign.center,
+                      style: CozyType.textTheme.bodySmall!.copyWith(
+                        color: CozyPalette.primary,
+                      ),
+                    ),
+
+                  const SizedBox(height: 18),
+
+                  // ---- confirm ------------------------------------------
+                  if (isPaired)
+                    Center(
+                      child: TextButton(
+                        onPressed: _unpair,
+                        child: const Text(
+                          '解除绑定',
+                          style: TextStyle(
+                            color: CozyPalette.error,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ),
+                    )
+                  else
+                    SizedBox(
+                      height: 48,
+                      child: FilledButton(
+                        onPressed: _joinCode.text.length == 6 && !state.busy
+                            ? _confirmPair
+                            : null,
+                        style: FilledButton.styleFrom(
+                          backgroundColor: CozyPalette.primary,
+                          shape: const StadiumBorder(),
+                          disabledBackgroundColor: CozyPalette.primary
+                              .withValues(alpha: 0.45),
+                        ),
+                        child: Text(
+                          '绑定伴侣',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ),
+                    ),
+
+                  const SizedBox(height: 22),
+
+                  // ---- page chrome (not in the native dialog) -----------
+                  Center(
+                    child: TextButton(
+                      onPressed: () => AppState.instance.logout(),
+                      child: Text(
+                        '退出登录',
+                        style: CozyType.textTheme.bodySmall!.copyWith(
+                          color: CozyPalette.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -192,6 +303,39 @@ class _PairScreenState extends State<PairScreen> {
           },
         ),
       ),
+    );
+  }
+}
+
+/// Native counterpart: `Surface(shape = RoundedCornerShape(radius.dp),
+/// color = color, border = BorderStroke(1.dp, borderColor))` wrapped around a
+/// padded `Column`.
+class Surface extends StatelessWidget {
+  const Surface({
+    super.key,
+    required this.radius,
+    required this.color,
+    required this.borderColor,
+    required this.padding,
+    required this.child,
+  });
+
+  final double radius;
+  final Color color;
+  final Color borderColor;
+  final EdgeInsetsGeometry padding;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(radius),
+        border: Border.all(color: borderColor),
+      ),
+      padding: padding,
+      child: child,
     );
   }
 }

@@ -3,9 +3,9 @@ import 'package:flutter/semantics.dart';
 import 'package:liquid_glass_widgets/liquid_glass_widgets.dart';
 
 import 'data/app_state.dart';
+import 'data/net_resilience.dart';
 import 'data/supabase_api.dart';
 import 'ui/auth/auth_screen.dart';
-import 'ui/auth/pair_screen.dart';
 import 'ui/shell/main_shell.dart';
 import 'ui/theme/cozy_glass.dart';
 
@@ -17,6 +17,9 @@ void main() async {
   // 预热液态玻璃着色器（纯内存 I/O，不阻塞首帧）
   // enablePerformanceMonitor 默认为 true，会在界面上绘制调试用的栅格监视层，正式包必须关掉
   await LiquidGlassWidgets.initialize(enablePerformanceMonitor: false);
+  // 本机到 Supabase 的 TLS 握手有约 50% 概率被瞬时中断，
+  // 装上带退避重试的 connectionFactory（必须在任何 HttpClient 创建前）。
+  installNetworkResilience();
   // 连接在线 Supabase 云端数据库
   await SupabaseApi.initialize();
   runApp(const OrderDiskApp());
@@ -37,6 +40,9 @@ class OrderDiskApp extends StatelessWidget {
           scaffoldBackgroundColor: CozyTheme.pureWhite, // 纯白极简底色
           useMaterial3: true,
           splashFactory: NoSplash.splashFactory,
+          // 「浪漫雅圆」+ 与原生 Type.kt 逐条对齐的字号/行高
+          fontFamily: CozyType.family,
+          textTheme: CozyType.textTheme,
         ),
         home: const _RootRouter(),
       ),
@@ -106,7 +112,11 @@ class _RootRouterState extends State<_RootRouter> {
       listenable: state,
       builder: (context, _) {
         if (!state.isLoggedIn) return const AuthScreen();
-        if (!state.isPaired) return const PairScreen();
+        // 与原生的路由结构一致：`NavGraph.kt` 的 startDestination 是 HOME，
+        // 没有独立的配对路由 —— 未配对用户照样进主壳，配对由「我的」页里的
+        // 伴侣绑定卡片（原生 `ProfileScreen.kt:839-991` 的 PairManagementDialog）
+        // 完成。之前在这里加 `!isPaired -> PairScreen` 硬闸是我引入的死锁：
+        // 那一页既没有身份选择器，底栏外壳又必须配对后才可达。
         return const MainShell();
       },
     );

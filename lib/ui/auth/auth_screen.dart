@@ -1,9 +1,24 @@
 import 'package:flutter/material.dart';
 
 import '../../data/app_state.dart';
-import '../../data/supabase_api.dart';
 import '../theme/cozy_glass.dart';
+import 'auth_visuals.dart';
 
+/// Faithful Flutter port of the two native auth surfaces:
+///
+///   * login    -> `app/src/main/java/com/myorderapp/ui/auth/AuthScreen.kt` (183 lines)
+///   * register -> `app/src/main/java/com/myorderapp/ui/onboarding/OnboardingScreen.kt` (348 lines),
+///                 a two-step flow: account credentials, then profile.
+///
+/// The only structural deviation from the Kotlin sources is routing: native has
+/// two separate destinations (`Routes.AUTH` and `Routes.ONBOARDING`) while the
+/// Flutter shell renders both from this one widget, toggled by the
+/// `还没有账号？ 去注册` / `已有账号？ 去登录` bottom links.
+///
+/// Also intentionally dropped (native has neither):
+///   * the old `登录 / 注册` mode chips,
+///   * the role picker. Native writes `"selected_role" to ""` at registration
+///     (`AuthViewModel.kt:428`); the role is chosen later on the home page.
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
 
@@ -12,295 +27,478 @@ class AuthScreen extends StatefulWidget {
 }
 
 class _AuthScreenState extends State<AuthScreen> {
-  final _username = TextEditingController();
-  final _password = TextEditingController();
-  final _nickname = TextEditingController();
+  final TextEditingController _email = TextEditingController();
+  final TextEditingController _password = TextEditingController();
+  final TextEditingController _confirmPassword = TextEditingController();
+  final TextEditingController _nickname = TextEditingController();
 
-  bool _isRegister = false;
-  String _role = 'eater'; // eater | caretaker
+  /// `false` renders `AuthScreen.kt`, `true` renders `OnboardingScreen.kt`.
+  bool _register = false;
 
-  @override
-  void initState() {
-    super.initState();
-    // 云端 Supabase 使用邮箱登录，这里留空由用户输入
-  }
+  /// Register flow step: 1 = account credentials, 2 = profile.
+  int _step = 1;
+
+  /// `AuthScreen.kt` `rememberCredentials`.
+  bool _remember = true;
+
+  String? _error;
 
   @override
   void dispose() {
-    _username.dispose();
+    _email.dispose();
     _password.dispose();
+    _confirmPassword.dispose();
     _nickname.dispose();
     super.dispose();
   }
 
-  Future<void> _submit() async {
-    final state = AppState.instance;
-    final ok = _isRegister
-        ? await state.register(
-            username: _username.text.trim(),
-            password: _password.text,
-            nickname: _nickname.text.trim().isEmpty ? _username.text.trim() : _nickname.text.trim(),
-            role: _role,
-          )
-        : await state.login(username: _username.text.trim(), password: _password.text);
+  // ---------------------------------------------------------------- actions
 
-    if (!ok && mounted && state.error != null) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(state.error!)));
+  /// `AuthViewModel.kt` login path.
+  Future<void> _submitLogin() async {
+    final AppState state = AppState.instance;
+    if (_email.text.trim().isEmpty || _password.text.isEmpty) {
+      setState(() => _error = '请输入邮箱和密码');
+      return;
+    }
+    setState(() => _error = null);
+    final bool ok = await state.login(
+      username: _email.text.trim(),
+      password: _password.text,
+    );
+    if (!ok && mounted) {
+      setState(
+        () => _error = state.error ?? '账号或密码不正确，请检查后重试。',
+      );
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final state = AppState.instance;
-
-    return Scaffold(
-      backgroundColor: CozyTheme.pureWhite,
-      body: SafeArea(
-        child: ListenableBuilder(
-          listenable: state,
-          builder: (context, _) {
-            return SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 32),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const SizedBox(height: 20),
-                  const Text(
-                    '高糖小食',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 32, fontWeight: FontWeight.w900, color: CozyTheme.sweetCocoa),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    '情侣两个人的过家家小餐厅',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 13.5, color: CozyTheme.mutedText),
-                  ),
-                  const SizedBox(height: 36),
-
-                  // 切换 登录 / 注册
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      _modeChip('登录', !_isRegister, () => setState(() => _isRegister = false)),
-                      const SizedBox(width: 10),
-                      _modeChip('注册', _isRegister, () => setState(() => _isRegister = true)),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-
-                  if (_isRegister) ...[
-                    _field(controller: _nickname, label: '昵称', hint: '小金毛 / 小马尔济斯'),
-                    const SizedBox(height: 14),
-                    _rolePicker(),
-                    const SizedBox(height: 14),
-                  ],
-
-                  _field(controller: _username, label: '邮箱', hint: '请输入邮箱，例如 xx@example.com'),
-                  const SizedBox(height: 14),
-                  _field(controller: _password, label: '密码', hint: '请输入密码（至少 6 位）', obscure: true),
-                  const SizedBox(height: 26),
-
-                  LiquidDropGlass(
-                    height: 56,
-                    borderRadius: BorderRadius.circular(28),
-                    onTap: state.busy ? null : _submit,
-                    child: Center(
-                      child: state.busy
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFFFF5A79)),
-                            )
-                          : Text(
-                              _isRegister ? '注册并进入' : '登录',
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w900,
-                                color: CozyTheme.sweetCocoa,
-                              ),
-                            ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 30),
-                  const Text(
-                    '首次使用请点上方「注册」创建账号',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 12, color: CozyTheme.mutedText),
-                  ),
-                  const SizedBox(height: 20),
-                  // 云端数据库地址（Supabase），点击可查看
-                  GestureDetector(
-                    onTap: _openServerSettings,
-                    behavior: HitTestBehavior.opaque,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(Icons.cloud_done_outlined, size: 13, color: CozyTheme.mutedText),
-                          const SizedBox(width: 6),
-                          Text(
-                            '云端数据库 ${kSupabaseUrl.replaceFirst('https://', '')}',
-                            style: const TextStyle(fontSize: 11, color: CozyTheme.mutedText),
-                          ),
-                          const SizedBox(width: 4),
-                          const Text('详情', style: TextStyle(fontSize: 11, color: CozyTheme.primaryPink)),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            );
-          },
-        ),
-      ),
-    );
-  }
-
-  /// 云端数据库信息（Supabase 地址固定，无需用户配置）
-  Future<void> _openServerSettings() async {
-    await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
-        title: const Text('云端数据库', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              '本版本数据全部保存在你自己的在线 Supabase 数据库中，无需手动配置地址，也不依赖电脑开着后端服务。',
-              style: TextStyle(fontSize: 12, color: CozyTheme.mutedText, height: 1.5),
-            ),
-            const SizedBox(height: 14),
-            Text(
-              kSupabaseUrl.replaceFirst('https://', ''),
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: CozyTheme.sweetCocoa),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () async {
-              Navigator.pop(ctx, true);
-            },
-            child: const Text('测试连接'),
-          ),
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('关闭')),
-        ],
-      ),
-    ).then((probe) async {
-      if (probe != true || !mounted) return;
-      final ok = await AppState.instance.configureServer(host: kSupabaseUrl, port: 0);
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(ok ? '云端连接正常 ✅' : '云端暂时连不上，请检查手机网络（可能需要科学上网）')),
-      );
+  /// `OnboardingViewModel.kt:73-81` — validates step 1 and advances to step 2.
+  void _goToStep2() {
+    if (_email.text.trim().isEmpty || _password.text.isEmpty) {
+      setState(() => _error = '请输入邮箱和密码');
+      return;
+    }
+    if (_password.text.length < 6) {
+      setState(() => _error = '密码至少6位');
+      return;
+    }
+    if (_password.text != _confirmPassword.text) {
+      setState(() => _error = '两次密码输入不一致');
+      return;
+    }
+    setState(() {
+      _error = null;
+      _step = 2;
     });
   }
 
-  Widget _modeChip(String label, bool active, VoidCallback onTap) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 220),
-        padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 9),
-        decoration: BoxDecoration(
-          color: active ? CozyTheme.sweetCocoa : CozyTheme.softPink,
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 13.5,
-            fontWeight: FontWeight.w800,
-            color: active ? Colors.white : CozyTheme.primaryPink,
+  /// `OnboardingViewModel.kt:105` + `completeRegistration`.
+  ///
+  /// Native persists `selected_role = ""`; the home page role switcher is what
+  /// actually sets it later, so an empty role is passed on purpose.
+  Future<void> _completeRegistration() async {
+    final AppState state = AppState.instance;
+    if (_nickname.text.trim().isEmpty) {
+      setState(() => _error = '请输入昵称');
+      return;
+    }
+    setState(() => _error = null);
+    final bool ok = await state.register(
+      username: _email.text.trim(),
+      password: _password.text,
+      nickname: _nickname.text.trim(),
+      role: '',
+    );
+    if (!ok && mounted) {
+      setState(() => _error = state.error ?? '请求失败，请检查网络或稍后重试');
+    }
+  }
+
+  void _showAvatarNotice() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('头像上传暂未接入云端，可稍后在「我的」页更换')),
+    );
+  }
+
+  // ------------------------------------------------------------------ build
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: AppState.instance,
+      builder: (BuildContext context, Widget? _) {
+        return Scaffold(
+          backgroundColor: Colors.white,
+          resizeToAvoidBottomInset: true,
+          body: _register ? _buildRegister() : _buildLogin(),
+        );
+      },
+    );
+  }
+
+  /// `AuthScreen.kt` — vertically centred login card over the decorated white
+  /// background.
+  Widget _buildLogin() {
+    final bool busy = AppState.instance.busy;
+
+    return AuthDecoratedBackground(
+      child: _centeredScroll(
+        children: <Widget>[
+          const Center(child: AuthLogo()),
+          const SizedBox(height: 20),
+          _displayTitle('欢迎回来', AuthColors.ink),
+          const SizedBox(height: 6),
+          _mutedLine('今天也一起好好吃饭吧'),
+          const SizedBox(height: 28),
+          AuthGlassCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                AuthInputField(
+                  controller: _email,
+                  label: '账号 / 邮箱',
+                  placeholder: '账号 / 邮箱',
+                  floatingLabel: false,
+                  keyboardType: TextInputType.emailAddress,
+                  textInputAction: TextInputAction.next,
+                ),
+                const SizedBox(height: 8),
+                _mutedSmall('可在多台设备登录，同步你们的小店和订单。'),
+                const SizedBox(height: 14),
+                AuthInputField(
+                  controller: _password,
+                  label: '密码',
+                  placeholder: '密码',
+                  isPassword: true,
+                  floatingLabel: false,
+                  textInputAction: TextInputAction.done,
+                  onSubmitted: (_) => _submitLogin(),
+                ),
+                const SizedBox(height: 18),
+                _rememberRow(),
+                if (_error != null) ...<Widget>[
+                  const SizedBox(height: 10),
+                  _errorLine(_error!),
+                ],
+                const SizedBox(height: 18),
+                AuthPrimaryButton(
+                  text: busy ? '登录中...' : '登录',
+                  enabled: !busy,
+                  onTap: _submitLogin,
+                ),
+              ],
+            ),
           ),
+          AuthBottomLink(
+            prefix: '还没有账号？',
+            actionText: '去注册',
+            top: 10,
+            onTap: () => setState(() {
+              _register = true;
+              _step = 1;
+              _error = null;
+            }),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// `OnboardingScreen.kt` — `Color(0xFFFFFCF8)` background, a faint artwork
+  /// watermark top-right, and the two-step registration column.
+  Widget _buildRegister() {
+    return Stack(
+      children: <Widget>[
+        const Positioned.fill(
+          child: ColoredBox(color: CozyPalette.surface), // #FFFCF8
+        ),
+        if (_step == 1)
+          Positioned(
+            top: MediaQuery.of(context).padding.top + 12,
+            right: 20,
+            child: IgnorePointer(
+              child: Opacity(
+                opacity: 0.10,
+                child: Image.asset(
+                  'assets/images/auth_dogs_artwork.png',
+                  width: 138,
+                  height: 138,
+                ),
+              ),
+            ),
+          )
+        else
+          Positioned(
+            top: MediaQuery.of(context).padding.top + 178,
+            right: 24,
+            child: IgnorePointer(
+              child: Icon(
+                Icons.favorite_border,
+                size: 82,
+                color: AuthColors.primaryEnd.withValues(alpha: 0.18),
+              ),
+            ),
+          ),
+        Positioned.fill(
+          child: _step == 1 ? _buildRegisterStep1() : _buildRegisterStep2(),
+        ),
+      ],
+    );
+  }
+
+  /// `RegisterAccountScreen` — 账号 / 邮箱, 密码, 确认密码, 下一步.
+  Widget _buildRegisterStep1() {
+    final bool busy = AppState.instance.busy;
+
+    return SafeArea(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 34),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            const SizedBox(height: 92),
+            _displayTitle('创建你们的小饭桌', AuthColors.ink),
+            const SizedBox(height: 6),
+            _mutedLine('一起记录每一次想吃什么'),
+            const SizedBox(height: 28),
+            AuthGlassCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  AuthInputField(
+                    controller: _email,
+                    label: '账号 / 邮箱',
+                    placeholder: '账号 / 邮箱',
+                    floatingLabel: false,
+                    keyboardType: TextInputType.emailAddress,
+                    textInputAction: TextInputAction.next,
+                  ),
+                  const SizedBox(height: 12),
+                  AuthInputField(
+                    controller: _password,
+                    label: '密码',
+                    placeholder: '密码',
+                    isPassword: true,
+                    floatingLabel: false,
+                    textInputAction: TextInputAction.next,
+                  ),
+                  const SizedBox(height: 12),
+                  AuthInputField(
+                    controller: _confirmPassword,
+                    label: '确认密码',
+                    placeholder: '确认密码',
+                    isPassword: true,
+                    floatingLabel: false,
+                    textInputAction: TextInputAction.done,
+                    onSubmitted: (_) => _goToStep2(),
+                  ),
+                  if (_error != null) ...<Widget>[
+                    const SizedBox(height: 10),
+                    _errorLine(_error!),
+                  ],
+                  const SizedBox(height: 18),
+                  AuthPrimaryButton(
+                    text: busy ? '请稍候...' : '下一步',
+                    enabled: !busy,
+                    onTap: _goToStep2,
+                  ),
+                ],
+              ),
+            ),
+            AuthBottomLink(
+              prefix: '已有账号？',
+              actionText: '去登录',
+              top: 10,
+              onTap: () => setState(() {
+                _register = false;
+                _error = null;
+              }),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _rolePicker() {
-    Widget option(String role, String emoji, String label) {
-      final active = _role == role;
-      return Expanded(
-        child: GestureDetector(
-          onTap: () => setState(() => _role = role),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 220),
-            padding: const EdgeInsets.symmetric(vertical: 12),
-            decoration: BoxDecoration(
-              color: active ? CozyTheme.softPink : Colors.transparent,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: active ? CozyTheme.primaryPink.withValues(alpha: 0.5) : CozyTheme.cardStroke,
-                width: 1.2,
+  /// `Step2Profile` — avatar, 昵称, 开启甜蜜点菜之旅.
+  Widget _buildRegisterStep2() {
+    final bool busy = AppState.instance.busy;
+
+    return SafeArea(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 34),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            const SizedBox(height: 114),
+            _displayTitle('完善个人资料', AuthColors.primaryEnd),
+            const SizedBox(height: 6),
+            _mutedLine('让对方一眼认出你'),
+            const SizedBox(height: 28),
+            Column(
+              children: <Widget>[
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: _showAvatarNotice,
+                  child: Container(
+                    width: 128,
+                    height: 128,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: AuthColors.primaryEnd.withValues(alpha: 0.06),
+                    ),
+                    child: const DashedAvatarPlaceholder(size: 128),
+                  ),
+                ),
+                const SizedBox(height: 26),
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: _showAvatarNotice,
+                  child: Text(
+                    '选择头像照片',
+                    style: CozyType.textTheme.titleSmall!.copyWith(
+                      color: AuthColors.primaryEnd,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 26),
+                AuthInputField(
+                  controller: _nickname,
+                  label: '昵称',
+                  placeholder: '昵称',
+                  floatingLabel: false,
+                  textInputAction: TextInputAction.done,
+                  onSubmitted: (_) => _completeRegistration(),
+                ),
+                if (_error != null) ...<Widget>[
+                  const SizedBox(height: 10),
+                  _errorLine(_error!),
+                ],
+                const SizedBox(height: 26),
+                AuthPrimaryButton(
+                  text: busy ? '注册中...' : '开启甜蜜点菜之旅',
+                  enabled: !busy,
+                  onTap: _completeRegistration,
+                ),
+              ],
+            ),
+            AuthBottomLink(
+              actionText: '返回上一步',
+              top: 10,
+              onTap: () => setState(() {
+                _step = 1;
+                _error = null;
+              }),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ------------------------------------------------------------- fragments
+
+  /// `Column(verticalArrangement = Arrangement.Center)` inside a scrolling box.
+  Widget _centeredScroll({required List<Widget> children}) {
+    return SafeArea(
+      child: LayoutBuilder(
+        builder: (BuildContext context, BoxConstraints constraints) {
+          return SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 30),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                minHeight: (constraints.maxHeight - 60).clamp(0, double.infinity),
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: children,
               ),
             ),
-            child: Column(
-              children: [
-                Text(emoji, style: const TextStyle(fontSize: 20)),
-                const SizedBox(height: 4),
+          );
+        },
+      ),
+    );
+  }
+
+  /// `MaterialTheme.typography.displayLarge` + `ExtraBold`.
+  Widget _displayTitle(String text, Color color) {
+    return Text(
+      text,
+      textAlign: TextAlign.center,
+      style: CozyType.textTheme.displayLarge!.copyWith(
+        color: color,
+        fontWeight: FontWeight.w800,
+      ),
+    );
+  }
+
+  /// `bodyMedium` in `AuthMuted`.
+  Widget _mutedLine(String text) {
+    return Text(
+      text,
+      textAlign: TextAlign.center,
+      style: CozyType.textTheme.bodyMedium!.copyWith(color: AuthColors.muted),
+    );
+  }
+
+  /// `bodySmall` in `AuthMuted`.
+  Widget _mutedSmall(String text) {
+    return Text(
+      text,
+      style: CozyType.textTheme.bodySmall!.copyWith(color: AuthColors.muted),
+    );
+  }
+
+  /// Error text — `bodySmall`, `MaterialTheme.colorScheme.error`, centred.
+  Widget _errorLine(String text) {
+    return Text(
+      text,
+      textAlign: TextAlign.center,
+      style: CozyType.textTheme.bodySmall!.copyWith(color: CozyPalette.error),
+    );
+  }
+
+  /// `AuthScreen.kt` `记住账号密码` checkbox row.
+  Widget _rememberRow() {
+    return Row(
+      children: <Widget>[
+        Expanded(
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () => setState(() => _remember = !_remember),
+            child: Row(
+              children: <Widget>[
+                SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: Checkbox(
+                    value: _remember,
+                    onChanged: (bool? v) =>
+                        setState(() => _remember = v ?? false),
+                    activeColor: AuthColors.primaryEnd,
+                    checkColor: const Color(0xFFFFFBF5),
+                    side: BorderSide(
+                      color: AuthColors.muted.withValues(alpha: 0.70),
+                    ),
+                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                ),
+                const SizedBox(width: 4),
                 Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w800,
-                    color: active ? CozyTheme.primaryPink : CozyTheme.mutedText,
+                  '记住账号密码',
+                  style: CozyType.textTheme.bodySmall!.copyWith(
+                    color: AuthColors.ink,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ],
             ),
           ),
         ),
-      );
-    }
-
-    return Row(
-      children: [
-        option('eater', '🍽️', '吃货（点菜方）'),
-        const SizedBox(width: 10),
-        option('caretaker', '🍳', '饲养员（做饭方）'),
       ],
     );
   }
-
-  Widget _field({
-    required TextEditingController controller,
-    required String label,
-    required String hint,
-    bool obscure = false,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: CozyTheme.mutedText)),
-        const SizedBox(height: 7),
-        Container(
-          decoration: BoxDecoration(
-            color: const Color(0xFFF7F7F8),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: CozyTheme.cardStroke),
-          ),
-          child: TextField(
-            controller: controller,
-            obscureText: obscure,
-            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
-            decoration: InputDecoration(
-              hintText: hint,
-              hintStyle: const TextStyle(color: Color(0xFFB5B2B8), fontSize: 14),
-              border: InputBorder.none,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
 }

@@ -207,28 +207,14 @@ class Order {
         _ => status,
       };
 
-  /// 饲养员下一个可推进的状态
+  /// 饲养员下一个可推进的状态。
+  ///
+  /// 对齐云端 `transition_order_status`（`table/35_caretaker_order_acceptance.sql`）
+  /// 与原生 `OrdersViewModel.kt:62-66`：**跳过** `confirmed`/`delivering` 这两档过渡态 ——
+  /// `submitted | confirmed → preparing`，`preparing | delivering → completed`。
   String? get nextStatus => switch (status) {
-        'submitted' => 'confirmed',
-        'confirmed' => 'preparing',
-        'preparing' => 'delivering',
-        'delivering' => 'completed',
-        _ => null,
-      };
-
-  String? get nextStatusLabel => switch (status) {
-        'submitted' => '接单',
-        'confirmed' => '开始做饭',
-        'preparing' => '端盘上桌',
-        'delivering' => '开饭完成',
-        _ => null,
-      };
-
-  String? get nextStatusAction => switch (status) {
-        'submitted' => '饲养员接单确认 🍳',
-        'confirmed' => '开始下锅烹饪 🍳',
-        'preparing' => '端盘端上餐桌 🛎️',
-        'delivering' => '开饭全部吃光 😋',
+        'submitted' || 'confirmed' => 'preparing',
+        'preparing' || 'delivering' => 'completed',
         _ => null,
       };
 
