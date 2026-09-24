@@ -478,6 +478,11 @@ class SupabaseApi {
     String description = '',
     String imageUrl = '',
   }) async {
+    // 未配对时 pair_id 还是哨兵值，写进去只会被 RLS 42501 拒绝，
+    // 再被上层兜底成「请求失败，请检查网络」，用户完全看不出该去配对。
+    if (_pairId.isEmpty || _pairId == kEmptyPairId) {
+      throw ApiException('请先在「我的」里邀请伴侣绑定小饭桌，之后才能添加菜品');
+    }
     final id = _newRecordId();
     await _db.from('menu_dishes').insert({
       'id': id,

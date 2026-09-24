@@ -177,8 +177,13 @@ class AppState extends ChangeNotifier {
     pair = me.pair;
     shop = me.shop;
     if (user != null) {
-      _api.setSession(token: _api.token, userId: user!.id, pairId: pair?.id ?? '');
-      await _api.persistSession(user: user!, pairId: pair?.id ?? '');
+      // 未配对时 pair 为 null，但绝不能把会话里的 pair_id 清成空串：
+      // 空串会让后续所有写入（菜单/店铺/订单）撞上 menu_dishes 的 RLS 42501，
+      // 再被 _friendlyError 兜底成「请求失败，请检查网络或稍后重试」，看不出真因。
+      // 注册/登录写的是哨兵值 kEmptyPairId，这里必须沿用同一哨兵（_api.pairId）。
+      final String pairId = (pair?.id.isNotEmpty ?? false) ? pair!.id : _api.pairId;
+      _api.setSession(token: _api.token, userId: user!.id, pairId: pairId);
+      await _api.persistSession(user: user!, pairId: pairId);
     }
     if (isPaired) {
       await Future.wait([refreshMenu(silent: true), refreshOrders(silent: true)]);
