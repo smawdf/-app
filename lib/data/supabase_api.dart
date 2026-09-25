@@ -296,6 +296,8 @@ class SupabaseApi {
 
     // 伴侣信息 + 糖币余额：优先用云端权威快照函数
     String partnerId = '';
+    String partnerName = '';
+    String partnerAvatarUrl = '';
     int candy = (profile?['candy_coins'] as int?) ?? 66;
 
     if (paired) {
@@ -303,13 +305,17 @@ class SupabaseApi {
       try {
         final partnerRows = await _db
             .from('profiles')
-            .select('user_id,nickname,candy_coins')
+            .select('user_id,nickname,avatar_url,candy_coins')
             .eq('pair_id', pairId)
             .neq('user_id', uid)
             .limit(1);
         if (partnerRows.isNotEmpty) {
           final p = partnerRows.first;
           partnerId = (p['user_id'] as String?) ?? '';
+          // 【真机修正】昵称/头像以前查出来就被丢掉，导致首页恒显示
+          // 「伴侣资料同步中」、我的页恒显示「对方」。
+          partnerName = ((p['nickname'] as String?) ?? '').trim();
+          partnerAvatarUrl = (p['avatar_url'] as String?) ?? '';
           candy = (p['candy_coins'] as int?) ?? candy;
         }
       } catch (_) {}
@@ -352,6 +358,8 @@ class SupabaseApi {
         caretakerId: role == 'caretaker' ? uid : partnerId,
         eaterId: role == 'eater' ? uid : partnerId,
         candyCoins: candy,
+        partnerName: partnerName,
+        partnerAvatarUrl: partnerAvatarUrl,
       );
     }
 
@@ -468,6 +476,7 @@ class SupabaseApi {
         imageUrl: (m['image_url'] as String?) ?? '',
         salesCount: (m['monthly_sales'] as int?) ?? 0,
         isAvailable: (m['is_available'] as bool?) ?? true,
+        category: (m['category'] as String?) ?? '',
       );
     }).toList();
   }
@@ -477,12 +486,16 @@ class SupabaseApi {
     required double price,
     String description = '',
     String imageUrl = '',
+    String category = '',
   }) async {
     // 未配对时 pair_id 还是哨兵值，写进去只会被 RLS 42501 拒绝，
     // 再被上层兜底成「请求失败，请检查网络」，用户完全看不出该去配对。
     if (_pairId.isEmpty || _pairId == kEmptyPairId) {
       throw ApiException('请先在「我的」里邀请伴侣绑定小饭桌，之后才能添加菜品');
     }
+    // 分类用调用方给的真实值；早先这里写死 '其他'，用户在编辑器里
+    // 选的分类会被静默丢弃（分类管理区/点餐分类栏因此永远是空的）。
+    final String normalizedCategory = category.trim().isEmpty ? '未分类' : category.trim();
     final id = _newRecordId();
     await _db.from('menu_dishes').insert({
       'id': id,
@@ -490,7 +503,7 @@ class SupabaseApi {
       'name': name,
       'price': price,
       'image_url': imageUrl,
-      'category': '其他',
+      'category': normalizedCategory,
       'description': description,
       'is_available': true,
       'sort_order': 0,
@@ -505,11 +518,40 @@ class SupabaseApi {
       imageUrl: imageUrl,
       salesCount: 0,
       isAvailable: true,
+      category: normalizedCategory,
     );
   }
 
   Future<void> deleteMenuItem(String itemId) async {
     await _db.from('menu_dishes').delete().eq('id', itemId).eq('pair_id', _pairId);
+  }
+
+  /// 原生 `MenuRepository.renameCategory()`（`RoomMenuRepository.kt:229`）。
+  ///
+  /// 【真机修正】`menu_dishes.category` 是单列文本，「分类」是靠对菜品那一列做聚合
+  /// 派生出来的（原生 `SingleShopRepository.getCategoryNames()`），所以
+  /// 「重命名分类」= 把小饭桌里所有落在旧分类名下的菜品批量改到新分类名。
+  Future<void> renameDishCategory(String from, String to) async {
+    final String oldName = from.trim();
+    final String newName = to.trim();
+    if (oldName.isEmpty || newName.isEmpty || oldName == newName) return;
+    await _db
+        .from('menu_dishes')
+        .update(<String, dynamic>{'category': newName})
+        .eq('pair_id', _pairId)
+        .eq('category', oldName);
+  }
+
+  /// 原生 `MenuRepository.moveToCategory()`（`MenuManagementViewModel.kt:292-293`）：
+  /// 删分类前把它下面的菜品挪到兜底分类，避免留下没有分类的菜。
+  Future<void> moveDishesToCategory(List<String> itemIds, String to) async {
+    if (itemIds.isEmpty) return;
+    final String target = to.trim().isEmpty ? '未分类' : to.trim();
+    await _db
+        .from('menu_dishes')
+        .update(<String, dynamic>{'category': target})
+        .eq('pair_id', _pairId)
+        .inFilter('id', itemIds);
   }
 
   // ---------------- 订单 ----------------

@@ -150,7 +150,13 @@ class _HomePageState extends State<HomePage> {
   }) {
     final myName = user?.nickname?.isNotEmpty == true ? user.nickname : "我";
     final myRole = user?.roleLabel ?? "选择身份";
-    final partnerName = isPaired ? "伴侣资料同步中" : "邀请对方";
+    // 【真机修正】伴侣昵称来自 `CouplePair.partnerName`（`SupabaseApi.me()` 里
+    // 按 pair_id 查对方那行 profile 时把 nickname/avatar_url 一起带回来）。
+    // 之前这里写死「伴侣资料同步中」，即使用户已绑定也永远看不到对方名字。
+    final String rawPartnerName = (pair?.partnerName as String?)?.trim() ?? '';
+    final partnerName = !isPaired
+        ? "邀请对方"
+        : (rawPartnerName.isNotEmpty ? rawPartnerName : "伴侣资料同步中");
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20),

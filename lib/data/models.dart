@@ -79,12 +79,24 @@ class CouplePair {
   final String eaterId;
   final int candyCoins;
 
+  /// 【真机修正】伴侣的昵称与头像。
+  ///
+  /// 真机首页一直显示「伴侣资料同步中」、我的页显示「对方」，是因为
+  /// `SupabaseApi.me()` 虽然已经按 pair_id 查到了对方那一行
+  /// （`profiles.select('user_id,nickname,candy_coins')`），却只取了 user_id 和糖币，
+  /// 昵称被丢掉了，`CouplePair` 也没有地方放。原生 `partnerName.ifBlank { "对方" }`
+  /// 因此永远走到兜底分支。这里把昵称/头像接出来。
+  final String partnerName;
+  final String partnerAvatarUrl;
+
   CouplePair({
     required this.id,
     required this.inviteCode,
     required this.caretakerId,
     required this.eaterId,
     required this.candyCoins,
+    this.partnerName = '',
+    this.partnerAvatarUrl = '',
   });
 
   bool get isFullyBound => caretakerId.isNotEmpty && eaterId.isNotEmpty;
@@ -95,6 +107,8 @@ class CouplePair {
         caretakerId: j['caretaker_id'] ?? '',
         eaterId: j['eater_id'] ?? '',
         candyCoins: j['candy_coins'] ?? 0,
+        partnerName: j['partner_name'] ?? '',
+        partnerAvatarUrl: j['partner_avatar_url'] ?? '',
       );
 }
 
@@ -123,6 +137,13 @@ class MenuItem {
   final int salesCount;
   final bool isAvailable;
 
+  /// 【真机修正】菜品分类。
+  /// 原生 `menu_dishes.category` 是单列文本，`categories` 本身是原生侧由
+  /// `getCategoryNames()` 聚合出来的派生列表；Flutter 之前漏了这个字段，
+  /// 只能用会话内的 `_categoryByDishName` 临时顶替，导致冷启动后
+  /// 「分类管理」永远是空的、点餐页分类栏永远为空。这里补齐后彻底对齐原生。
+  final String category;
+
   MenuItem({
     required this.id,
     required this.name,
@@ -131,6 +152,7 @@ class MenuItem {
     required this.imageUrl,
     required this.salesCount,
     required this.isAvailable,
+    this.category = '',
   });
 
   factory MenuItem.fromJson(Map<String, dynamic> j) => MenuItem(
@@ -141,6 +163,7 @@ class MenuItem {
         imageUrl: j['image_url'] ?? '',
         salesCount: j['sales_count'] ?? 0,
         isAvailable: j['is_available'] ?? true,
+        category: (j['category'] as String?) ?? '',
       );
 }
 

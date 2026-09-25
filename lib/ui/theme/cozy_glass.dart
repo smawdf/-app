@@ -246,6 +246,12 @@ class CozyDock {
   /// 原版各页留了 172~188dp，内容根本滑不到底栏后面，透镜无物可折。
   /// 收到 104 之后，末尾卡片才会真正滑进胶囊下方被弯折。
   static const double clearance = 104;
+
+  /// 【真机修正】页面内容底部留白 = 胶囊让位 104 + 系统导航栏 inset。
+  /// 只给 104 而不管系统导航栏时，末页内容会被悬浮底栏压住
+  /// （三键导航/手势条设备尤其明显），这是「末尾内容被底栏压住」的根因。
+  static double clearanceOf(BuildContext context) =>
+      clearance + MediaQuery.paddingOf(context).bottom;
 }
 
 /// ⑤ 兼容层 —— 旧代码里的 `CozyTheme.xxx` 全部转发到新令牌

@@ -94,7 +94,7 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
             _topBar(context),
             Expanded(
               child: ListView(
-                padding: const EdgeInsets.fromLTRB(20, 8, 20, CozyDock.clearance),
+                padding: EdgeInsets.fromLTRB(20, 8, 20, CozyDock.clearanceOf(context)),
                 children: <Widget>[
                   _summaryCard(context, order, state),
                   if (caretakerOnly) ...<Widget>[

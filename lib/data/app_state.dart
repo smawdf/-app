@@ -80,6 +80,34 @@ class AppState extends ChangeNotifier {
     return false;
   }
 
+  /// 【真机修正】把某个分类下的菜品整体改名（分类是聚合出来的，见
+  /// `SupabaseApi.renameDishCategory` 的说明）。
+  Future<bool> renameDishCategory(String from, String to) async {
+    final res = await _guard(() async {
+      await _api.renameDishCategory(from, to);
+      return true;
+    });
+    if (res == true) {
+      await refreshMenu(silent: true);
+      return true;
+    }
+    return false;
+  }
+
+  /// 【真机修正】删分类时把菜品挪到兜底分类（原生
+  /// `MenuManagementViewModel.deleteCategory()` 同样先 take ids 再 moveToCategory）。
+  Future<bool> moveDishesToCategory(List<String> itemIds, String to) async {
+    final res = await _guard(() async {
+      await _api.moveDishesToCategory(itemIds, to);
+      return true;
+    });
+    if (res == true) {
+      await refreshMenu(silent: true);
+      return true;
+    }
+    return false;
+  }
+
   Future<T?> _guard<T>(Future<T> Function() action, {bool silent = false}) async {
     if (!silent) _setBusy(true);
     error = null;
@@ -214,7 +242,9 @@ class AppState extends ChangeNotifier {
     }
     await _api.updatePersistedPairId(res.pair.id);
     toast = '绑定成功，你们的小店已连通 💕';
-    await refreshMenu(silent: true);
+    // 【真机修正】`joinPair` 的 RPC 只回邀请码，没有伴侣昵称/头像；绑定完成后再
+    // 拉一次 `me()`，首页情侣卡和我的页才能立刻显示对方的名字（否则要等下次启动）。
+    await loadMe();
     connectRealtime();
     return true;
   }
@@ -287,6 +317,9 @@ class AppState extends ChangeNotifier {
         caretakerId: pair!.caretakerId,
         eaterId: pair!.eaterId,
         candyCoins: balance,
+        // 保留伴侣昵称/头像，别在撒糖后丢掉（见 `CouplePair.partnerName` 注释）。
+        partnerName: pair!.partnerName,
+        partnerAvatarUrl: pair!.partnerAvatarUrl,
       );
     }
     toast = '撒糖成功，对方已收到 $amount 糖币 🍬';
@@ -299,12 +332,14 @@ class AppState extends ChangeNotifier {
     required double price,
     String description = '',
     String emoji = '🍽️',
+    String category = '',
   }) async {
     final item = await _guard(() => _api.createMenuItem(
           name: name,
           price: price,
           description: description,
           imageUrl: emoji,
+          category: category,
         ));
     if (item == null) return false;
     toast = '已上新：${item.name}';

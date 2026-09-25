@@ -124,7 +124,7 @@ class _OrdersPageState extends State<OrdersPage> {
                   onRefresh: () => state.refreshOrders(),
                   child: ListView.separated(
                     physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.fromLTRB(20, 20, 20, CozyDock.clearance),
+                    padding: EdgeInsets.fromLTRB(20, 20, 20, CozyDock.clearanceOf(context)),
                     itemCount: firstLoad ? 2 : (visible.isEmpty ? 2 : 1 + visible.length),
                     separatorBuilder: (BuildContext context, int index) => const SizedBox(height: 12),
                     itemBuilder: (BuildContext context, int index) {

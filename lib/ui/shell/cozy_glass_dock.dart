@@ -42,12 +42,25 @@ class CozyGlassDock extends StatelessWidget {
       horizontalPadding: CozyDock.sideMargin,
       verticalPadding: CozyDock.bottomMargin,
 
+      // ── 渲染档位：必须显式要 premium ──
+      // 【真机修正】`quality` 不传时，包内默认 `GlassQuality.standard`
+      // （`glass_tab_bar.dart:915-919`：null → 继承或默认 standard），
+      // 而 standard 走的是轻量着色器、没有折射与色散。真机上底栏压到菜品大图上
+      // 就成了一块糊掉的灰板子，也就是「液态玻璃效果不对」。
+      // `premium` 才是本文件开头注释声称对齐的 Kyant 配方
+      // （lens 折射 + chromaticAberration + 镜面高光），且底栏是静态页脚，
+      // 正落在包文档给 premium 划定的适用场景（静态 header/footer）。
+      quality: GlassQuality.premium,
+
       // ── 对齐 Kyant 原版参数 ──
       magnification: 1.04,
       innerBlur: 0.0,
       settings: const LiquidGlassSettings(
-        // 微量中性底色，保持浅色底上的物理边缘立体感
-        glassColor: Color(0x12FFFFFF),
+        // 【真机修正】0x12FFFFFF 只有 7% 白，压在菜品大图上几乎全被底下的糊图
+        // 吃掉，观感偏灰。改用包内自己的 iOS 26 级中性白雾
+        // （`glass_sheet_defaults.dart:19` = 0x1FFFFFFF ≈ 12%），
+        // 让胶囊在任何底色上都读起来是「透明玻璃」而不是一块灰板。
+        glassColor: Color(0x1FFFFFFF),
         // 对齐 Kyant blur(8.dp)
         blur: 8.0,
         // 对齐 Kyant refraction 24dp

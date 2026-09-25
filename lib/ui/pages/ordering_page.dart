@@ -48,7 +48,11 @@ class _MenuCategory {
     if (name.contains('甜') || name.contains('蛋糕') || name.contains('布丁')) {
       return '甜点';
     }
-    return name.length <= 3 ? name : name.substring(0, 3);
+    // 原生 `else -> name.take(3)`（OrderingScreen.kt:484）会把「招牌必吃」
+    // 砍成「招牌必」——真机上左侧分类栏只剩三个残缺字，观感就是坏图。
+    // 分类名是用户自己取的，且这里 Rail 宽 96dp + Text(maxLines: 2, ellipsis)
+    // 已能优雅降级，故只保留原生的语义归类（主食/饮品/甜点），不再硬截断。
+    return name;
   }
 }
 
@@ -100,10 +104,20 @@ class _OrderingPageState extends State<OrderingPage> {
 
   /// 原生 `OrderingUiState.orderingCategories`（`OrderingViewModel.kt:33-34`）。
   ///
-  /// AppState 目前没有分类接口（原生走
-  /// `menuRepository.getMenuCategories(SINGLE_SHOP_ID)`），所以这里恒为空、
-  /// 分类栏不渲染。详见交付说明「需要的 AppState / models 新增能力」。
-  List<_MenuCategory> get _categories => const <_MenuCategory>[];
+  /// 【真机修正】原生走 `menuRepository.getMenuCategories(SINGLE_SHOP_ID)`，
+  /// 该列表由 `menu_dishes.category` 聚合而来。`MenuItem` 现在带 `category` 字段，
+  /// 直接聚合即可 —— 此前恒为空数组，所以分类栏永远不渲染。
+  List<_MenuCategory> get _categories {
+    final Set<String> names = <String>{};
+    for (final MenuItem item in AppState.instance.menu) {
+      final String c = item.category.trim();
+      if (c.isNotEmpty) names.add(c);
+    }
+    final List<String> sorted = names.toList()..sort();
+    return <_MenuCategory>[
+      for (final String name in sorted) _MenuCategory(id: name, name: name),
+    ];
+  }
 
   @override
   void initState() {
@@ -121,17 +135,23 @@ class _OrderingPageState extends State<OrderingPage> {
 
   /// 原生 `OrderingUiState.visibleItems`（`OrderingViewModel.kt:36-53`）。
   ///
-  /// 分类过滤依赖 `MenuItem.categoryId`，Flutter 侧模型暂无该字段，
-  /// 因此这里只保留搜索过滤（name / description）。
+  /// 【真机修正】分类过滤现在可用：`MenuItem.category` 已补齐，
+  /// 按 `_selectedCategory` 先过滤，再叠加搜索（name / description）。
   List<MenuItem> _visibleItems(List<MenuItem> all) {
+    Iterable<MenuItem> items = all;
+    if (_selectedCategory.isNotEmpty) {
+      items = items.where(
+        (MenuItem item) => item.category.trim() == _selectedCategory,
+      );
+    }
     final String query = _searchQuery.trim();
-    if (query.isEmpty) return all;
-    final String lower = query.toLowerCase();
-    return all
-        .where((MenuItem item) =>
-            item.name.toLowerCase().contains(lower) ||
-            item.description.toLowerCase().contains(lower))
-        .toList();
+    if (query.isNotEmpty) {
+      final String lower = query.toLowerCase();
+      items = items.where((MenuItem item) =>
+          item.name.toLowerCase().contains(lower) ||
+          item.description.toLowerCase().contains(lower));
+    }
+    return items.toList();
   }
 
   Offset? _pageLocalCenter(GlobalKey key) {
@@ -290,10 +310,12 @@ class _OrderingPageState extends State<OrderingPage> {
         // 原生 `OrderingScreen.kt:187-194`。
         // 原生 floatingNavClearance = navBottom + FloatingBottomNavMargin(14) +
         // FloatingBottomNavHeight(68) = 82dp；外壳底栏（cozy_glass_dock.dart）已经
-        // 按 CozyDock 摆好，这里统一用 CozyDock.clearance(=104)。
-        final double cartBottomOffset = CozyDock.clearance + _kFloatingCartGap;
+        // 按 CozyDock 摆好，这里统一用 CozyDock.clearanceOf(context)
+        // = 104 + 系统导航栏 inset —— 原版公式里的 navBottom 不能丢，
+        // 丢了购物车条/列表末尾就会被系统导航栏和悬浮底栏一起压住。
+        final double cartBottomOffset = CozyDock.clearanceOf(context) + _kFloatingCartGap;
         final double bottomClearance = cartEmpty
-            ? CozyDock.clearance + 16
+            ? CozyDock.clearanceOf(context) + 16
             : cartBottomOffset + _kFloatingCartHeight + 18;
 
         return Stack(
@@ -354,7 +376,14 @@ class _OrderingPageState extends State<OrderingPage> {
                                       selectedCategory: _selectedCategory,
                                       bottomClearance: bottomClearance,
                                       onSelect: (String id) => setState(
-                                          () => _selectedCategory = id),
+                                        // 【真机修正】再点一次已选分类 = 取消筛选。
+                                        // 原生 `OrderingViewModel.selectCategory` 只能单选、
+                                        // 没有「全部」入口，选错分类就回不去，这里补上出口。
+                                        () => _selectedCategory =
+                                            _selectedCategory == id
+                                            ? ''
+                                            : id,
+                                      ),
                                     ),
                                   Expanded(
                                     child: Center(
@@ -367,8 +396,10 @@ class _OrderingPageState extends State<OrderingPage> {
                                           showDescription: isEater,
                                           bottomClearance: bottomClearance,
                                           addKeys: _addKeys,
+                                          quantities: _qty,
                                           onAdd: (MenuItem item, GlobalKey key) =>
                                               _add(item, fromKey: key),
+                                          onDecrement: _remove,
                                           onDishClick: _openDishDetail,
                                           onManageMenuClick: _openManageMenu,
                                         ),
@@ -762,7 +793,9 @@ class _DishList extends StatelessWidget {
     required this.showDescription,
     required this.bottomClearance,
     required this.addKeys,
+    required this.quantities,
     required this.onAdd,
+    required this.onDecrement,
     required this.onDishClick,
     required this.onManageMenuClick,
   });
@@ -772,7 +805,13 @@ class _DishList extends StatelessWidget {
   final bool showDescription;
   final double bottomClearance;
   final Map<String, GlobalKey> addKeys;
+
+  /// 【真机修正】菜品 id -> 购物篮数量。> 0 时卡片右侧渲染 `- n +` 步进器
+  /// （对齐 docs/demos 设计稿），而不是只留一个「+」。
+  final Map<String, int> quantities;
+
   final void Function(MenuItem item, GlobalKey key) onAdd;
+  final ValueChanged<MenuItem> onDecrement;
   final ValueChanged<MenuItem> onDishClick;
   final VoidCallback onManageMenuClick;
 
@@ -804,8 +843,10 @@ class _DishList extends StatelessWidget {
           canOrder: canOrder,
           showDescription: showDescription,
           addButtonKey: key,
+          quantity: quantities[item.id] ?? 0,
           onClick: () => onDishClick(item),
           onAdd: () => onAdd(item, key),
+          onDecrement: () => onDecrement(item),
         )
             .animate()
             .fadeIn(
@@ -828,16 +869,20 @@ class _SingleShopDishCard extends StatelessWidget {
     required this.canOrder,
     required this.showDescription,
     required this.addButtonKey,
+    required this.quantity,
     required this.onClick,
     required this.onAdd,
+    required this.onDecrement,
   });
 
   final MenuItem item;
   final bool canOrder;
   final bool showDescription;
   final GlobalKey addButtonKey;
+  final int quantity;
   final VoidCallback onClick;
   final VoidCallback onAdd;
+  final VoidCallback onDecrement;
 
   @override
   Widget build(BuildContext context) {
@@ -899,11 +944,20 @@ class _SingleShopDishCard extends StatelessWidget {
                   ),
                 ),
               ),
-              _AddDishButton(
-                buttonKey: addButtonKey,
-                enabled: canOrder,
-                onTap: onAdd,
-              ),
+              if (quantity > 0)
+                _QuantityStepper(
+                  quantity: quantity,
+                  enabled: canOrder,
+                  plusKey: addButtonKey,
+                  onIncrement: onAdd,
+                  onDecrement: onDecrement,
+                )
+              else
+                _AddDishButton(
+                  buttonKey: addButtonKey,
+                  enabled: canOrder,
+                  onTap: onAdd,
+                ),
             ],
           ),
         ],
@@ -991,6 +1045,107 @@ class _DishImage extends StatelessWidget {
                 ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// 【真机修正】购物篮数量步进器（`- n +`）。
+///
+/// 真机与 `docs/demos/shots/redesign_5pages_sheet.png` 设计稿一致：菜品加入购物篮后，
+/// 卡片右下角从单个「+」变成 `- n +`，让吃货能直接在同一张卡上加减。
+/// `plusKey` 继续复用 `AddDishButton` 那个 GlobalKey，飞入购物篮动画的起点不受影响。
+class _QuantityStepper extends StatelessWidget {
+  const _QuantityStepper({
+    required this.quantity,
+    required this.enabled,
+    required this.plusKey,
+    required this.onIncrement,
+    required this.onDecrement,
+  });
+
+  final int quantity;
+  final bool enabled;
+  final GlobalKey plusKey;
+  final VoidCallback onIncrement;
+  final VoidCallback onDecrement;
+
+  @override
+  Widget build(BuildContext context) {
+    final TextTheme text = Theme.of(context).textTheme;
+    final bool on = enabled;
+    return Container(
+      height: 36,
+      padding: const EdgeInsets.symmetric(horizontal: 3),
+      decoration: BoxDecoration(
+        color: CozyPalette.secondaryContainer,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: CozyPalette.primary.withValues(alpha: 0.18)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          _StepperButton(
+            icon: Icons.remove,
+            enabled: on,
+            onTap: onDecrement,
+            semanticLabel: '减少一份',
+          ),
+          SizedBox(
+            width: 22,
+            child: Text(
+              '$quantity',
+              textAlign: TextAlign.center,
+              style: text.labelLarge!.copyWith(
+                fontWeight: FontWeight.w900,
+                color: on ? CozyPalette.primary : CozyPalette.onSurfaceVariant,
+              ),
+            ),
+          ),
+          _StepperButton(
+            key: plusKey,
+            icon: Icons.add,
+            enabled: on,
+            onTap: onIncrement,
+            semanticLabel: '再加一份',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StepperButton extends StatelessWidget {
+  const _StepperButton({
+    super.key,
+    required this.icon,
+    required this.enabled,
+    required this.onTap,
+    required this.semanticLabel,
+  });
+
+  final IconData icon;
+  final bool enabled;
+  final VoidCallback onTap;
+  final String semanticLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: semanticLabel,
+      child: InkResponse(
+        onTap: enabled ? onTap : null,
+        radius: 18,
+        child: SizedBox(
+          width: 30,
+          height: 30,
+          child: Icon(
+            icon,
+            size: 17,
+            color: enabled ? CozyPalette.primary : CozyPalette.onSurfaceVariant,
+          ),
+        ),
       ),
     );
   }
@@ -1415,13 +1570,32 @@ class _OrderingDishDetailSheet extends StatelessWidget {
             ),
           ],
           const SizedBox(height: 14),
-          // 原生这里是 Row[ CozyPill(item.categoryId, CozyTerracotta), Text("小店在售") ]，
-          // Flutter 的 MenuItem 没有 categoryId 字段，故只保留后半句。
-          Text(
-            '小店在售',
-            style: text.bodyMedium!.copyWith(
-              color: CozyPalette.onSurfaceVariant,
-            ),
+          // 原生这里是 Row[ CozyPill(item.categoryId, CozyTerracotta), Text("小店在售") ]。
+          // 【真机修正】`MenuItem` 现在带上 `category` 了，把分类胶囊补回来。
+          Row(
+            children: <Widget>[
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: CozyPalette.primary.withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  item.category.trim().isEmpty ? '未分类' : item.category.trim(),
+                  style: text.labelMedium!.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: CozyPalette.primary,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                '小店在售',
+                style: text.bodyMedium!.copyWith(
+                  color: CozyPalette.onSurfaceVariant,
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 14),
           Text(

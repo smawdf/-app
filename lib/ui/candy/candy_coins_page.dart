@@ -167,7 +167,7 @@ class _CandyCoinsPageState extends State<CandyCoinsPage> {
               Expanded(
                 child: ListView.separated(
                   // 原版 contentPadding = PaddingValues(start 20, top 16, end 20, bottom 104)（:131）
-                  padding: const EdgeInsets.fromLTRB(20, 16, 20, CozyDock.clearance),
+                  padding: EdgeInsets.fromLTRB(20, 16, 20, CozyDock.clearanceOf(context)),
                   // 原版 verticalArrangement = Arrangement.spacedBy(16.dp)（:132）
                   separatorBuilder: (BuildContext context, int index) =>
                       const SizedBox(height: 16),

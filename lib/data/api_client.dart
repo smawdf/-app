@@ -306,12 +306,14 @@ class ApiClient {
     required double price,
     String description = '',
     String imageUrl = '',
+    String category = '',
   }) async {
     final data = await _post('/menu', {
       'name': name,
       'price': price,
       'description': description,
       'image_url': imageUrl,
+      'category': category,
     }) as Map<String, dynamic>;
     return MenuItem.fromJson(data);
   }

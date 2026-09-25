@@ -109,15 +109,12 @@ class _MenuManagementPageState extends State<MenuManagementPage> {
   final _MenuSortMode _sortMode = _MenuSortMode.newest;
   _DishDraft _editor = _DishDraft();
 
-  /// 【数据缺口】原生 `categories` 来自 `SingleShopRepository.getCategoryNames()`，
-  /// 由 `menu_dishes.category` 聚合而来；Flutter 的 `MenuItem` 还没有 category 字段
-  /// （见交付说明）。这里用页面本地清单承载「分类管理」的交互，等 AppState 补齐后替换。
+  /// 原生 `categories` 来自 `SingleShopRepository.getCategoryNames()`，
+  /// 由 `menu_dishes.category` 聚合而来。
+  /// 【真机修正】`MenuItem` 现在带 `category` 字段了，页面不再用会话内 map 顶替；
+  /// 这里只保留「本地新建、但还没有菜品挂靠」的分类，与云端聚合结果合并展示。
   List<String> _categories = <String>[];
   String _selectedCategory = '';
-
-  /// 【数据缺口】原生 `visibleDishes` 直接读 `dish.category`；这里按菜名记一份
-  /// 本次会话内的分类归属，等 MenuItem 有 category 字段后删除此 map。
-  final Map<String, String> _categoryByDishName = <String, String>{};
 
   /// 原生 `isBatchMode` / `selectedDishIds`（本页没有入口切换，与原生一致，
   /// 保留结构以便 Lead 后续接批量操作）。
@@ -184,13 +181,33 @@ class _MenuManagementPageState extends State<MenuManagementPage> {
     return filtered;
   }
 
-  String _categoryOf(MenuItem dish) => _categoryByDishName[dish.name] ?? '未分类';
+  /// 原生 `visibleDishes` 直接读 `dish.category`（MenuItem.category）。
+  /// 空分类兜底成「未分类」，与编辑器默认值一致。
+  String _categoryOf(MenuItem dish) {
+    final String c = dish.category.trim();
+    return c.isEmpty ? '未分类' : c;
+  }
+
+  /// 「分类管理」展示的清单 = 云端菜品聚合出的分类 ∪ 本次会话新建的分类。
+  /// 原生 `getCategoryNames()` 正是从 `menu_dishes.category` 聚合的；此前 Flutter
+  /// 只用了会话内 map，导致冷启动后分类区恒为空（只有「新增分类」虚线卡）。
+  List<String> _allCategories(List<MenuItem> dishes) {
+    final Set<String> merged = <String>{};
+    for (final MenuItem dish in dishes) {
+      final String c = dish.category.trim();
+      if (c.isNotEmpty) merged.add(c);
+    }
+    merged.addAll(_categories.where((String c) => c.trim().isNotEmpty));
+    final List<String> list = merged.toList()..sort();
+    return list;
+  }
 
   /// 原生 `newDish()`（MenuManagementViewModel.kt:304）
   void _newDish() {
+    final List<String> known = _allCategories(AppState.instance.menu);
     final String category = _selectedCategory.isNotEmpty
         ? _selectedCategory
-        : (_categories.isNotEmpty ? _categories.first : '未分类');
+        : (known.isNotEmpty ? known.first : '未分类');
     _editor = _DishDraft(category: category);
     _openDishEditorSheet();
   }
@@ -224,7 +241,9 @@ class _MenuManagementPageState extends State<MenuManagementPage> {
       ),
       builder: (BuildContext _) => _DishEditorSheet(
         initial: _editor.clone(),
-        categories: _categories,
+        // 分类候选 = 云端菜品聚合 ∪ 会话内新建，否则编辑已有菜时
+        // 看不到云端已有的分类（原生 getCategoryNames() 就是这个聚合）。
+        categories: _allCategories(AppState.instance.menu),
         onSave: _saveDish,
         onPickImage: () => _openImageSourcePicker('选择菜品图片'),
       ),
@@ -272,7 +291,7 @@ class _MenuManagementPageState extends State<MenuManagementPage> {
   }
 
   /// 原生 `renameCategory()`（MenuManagementViewModel.kt:260）
-  void _renameCategory(String oldName, String newName) {
+  Future<void> _renameCategory(String oldName, String newName) async {
     final String oldCategory = oldName.trim();
     final String newCategory = newName.trim();
     if (oldCategory.isEmpty || newCategory.isEmpty) return;
@@ -283,24 +302,29 @@ class _MenuManagementPageState extends State<MenuManagementPage> {
           .toSet()
           .toList();
       if (_selectedCategory == oldCategory) _selectedCategory = newCategory;
-      _categoryByDishName.updateAll(
-          (String _, String value) => value == oldCategory ? newCategory : value);
     });
+    // 【真机修正】分类名是菜品 `category` 列的聚合，改名必须落到菜品本身，
+    // 否则刷新后旧分类名会从菜品那边再长回来（原生走 menuRepository.renameCategory）。
+    await AppState.instance.renameDishCategory(oldCategory, newCategory);
   }
 
   /// 原生 `deleteCategory()`（MenuManagementViewModel.kt:284）
-  void _deleteCategory(String category) {
+  Future<void> _deleteCategory(String category) async {
     final String target = category.trim();
     if (target.isEmpty) return;
     final List<String> next = _categories.where((String c) => c != target).toList();
     final String fallback = next.isNotEmpty ? next.first : '未分类';
     final List<String> saved = next.isNotEmpty ? next : <String>[fallback];
+    // 原生先 take ids 再 moveToCategory，这里同样要在刷新把菜品列表换掉之前取。
+    final List<String> affected = AppState.instance.menu
+        .where((MenuItem d) => d.category.trim() == target)
+        .map((MenuItem d) => d.id)
+        .toList();
     setState(() {
       _categories = saved;
       if (_selectedCategory == target) _selectedCategory = fallback;
-      _categoryByDishName.updateAll(
-          (String _, String value) => value == target ? fallback : value);
     });
+    await AppState.instance.moveDishesToCategory(affected, fallback);
   }
 
   /// 原生 `saveDishInternal()`（MenuManagementViewModel.kt:388）。
@@ -328,17 +352,19 @@ class _MenuManagementPageState extends State<MenuManagementPage> {
       });
     }
     if (draft.id == null) {
-      // 原生 `menuRepository.saveDish(MenuDishDraft(...))` —— Flutter 侧目前只有 addDish
+      // 原生 `menuRepository.saveDish(MenuDishDraft(...))`
+      // category 必须原样传给数据层：早先 AppState.addDish 没有这个参数，
+      // 用户选的分类会被静默丢弃（服务端写死 '其他'）。
       final bool ok = await AppState.instance.addDish(
         name: draft.name.trim(),
         price: price,
         description: draft.description.trim(),
         emoji: '🍽️',
+        category: normalizedCategory,
       );
       if (!ok) return AppState.instance.error ?? '上架失败';
       if (!mounted) return null;
       setState(() {
-        _categoryByDishName[draft.name.trim()] = normalizedCategory;
         _editor = _DishDraft(category: normalizedCategory);
       });
       _showSuccessToast();
@@ -410,6 +436,8 @@ class _MenuManagementPageState extends State<MenuManagementPage> {
           builder: (BuildContext context, Widget? _) {
             final List<MenuItem> dishes = state.menu;
             final List<MenuItem> visible = _visibleDishes(dishes);
+            // 分类清单合并云端聚合，冷启动后也能列出已有分类。
+            final List<String> categories = _allCategories(dishes);
             final Map<String, int> dishCountByCategory = <String, int>{};
             for (final MenuItem dish in dishes) {
               final String category = _categoryOf(dish);
@@ -424,7 +452,7 @@ class _MenuManagementPageState extends State<MenuManagementPage> {
                     Expanded(
                       child: ListView(
                         padding:
-                            const EdgeInsets.fromLTRB(16, 10, 16, CozyDock.clearance),
+                            EdgeInsets.fromLTRB(16, 10, 16, CozyDock.clearanceOf(context)),
                         children: <Widget>[
                           _ShopSettingsStrip(
                             shopName: state.shop?.name ?? '',
@@ -434,7 +462,7 @@ class _MenuManagementPageState extends State<MenuManagementPage> {
                           ),
                           const SizedBox(height: 12),
                           _CategoryManagementBento(
-                            categories: _categories,
+                            categories: categories,
                             dishCountByCategory: dishCountByCategory,
                             onManageCategoriesClick: _openCategoryManager,
                             onCreateCategoryClick: _openNewCategoryDialog,
@@ -493,7 +521,8 @@ class _MenuManagementPageState extends State<MenuManagementPage> {
   void _openCategoryManager() {
     showCategoryManagerDialog(
       context,
-      categories: _categories,
+      // 同上：管理器必须列出云端已有分类，改名/删除才有对象。
+      categories: _allCategories(AppState.instance.menu),
       selectedCategory: _selectedCategory,
       onCreate: _createCategory,
       onRename: _renameCategory,
@@ -1395,7 +1424,11 @@ class _DishManageCard extends StatelessWidget {
         color: selected
             ? CozyPalette.primary.withValues(alpha: 0.06)
             : CozyPalette.surface,
-        padding: const EdgeInsets.all(12),
+        // 【度量】上下留白收到 7dp：卡片高 112dp ⇒ 内容区 98dp，
+        // 刚好容纳右侧动作列（22 + 5 + 32 + 5 + 32 = 96dp）。
+        // 原写法 all(12) 只给内容区 88dp，动作列 110dp 溢出 22dp，
+        // 删除按钮被卡片圆角裁掉一半。
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
         child: Row(
           children: <Widget>[
             if (isBatchMode) ...<Widget>[
@@ -1548,17 +1581,20 @@ class _DishActionArea extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // 【布局约束】卡片高 112dp、上下留白 7dp ⇒ 内容区 98dp。
+    // 本列合计必须 ≤ 98dp：22(开关) + 5 + 32 + 5 + 32 = 96dp。
+    // 原写法 22 + 8 + 36 + 8 + 36 = 110dp 塞进 88dp，末尾删除按钮被卡片圆角裁掉。
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
         _AvailabilitySwitch(checked: checked, onTap: onToggleAvailability),
-        const SizedBox(height: 8),
+        const SizedBox(height: 5),
         GestureDetector(
           behavior: HitTestBehavior.opaque,
           onTap: onEdit,
           child: Container(
-            width: 36,
-            height: 36,
+            width: 32,
+            height: 32,
             alignment: Alignment.center,
             decoration: const BoxDecoration(
               shape: BoxShape.circle,
@@ -1566,18 +1602,18 @@ class _DishActionArea extends StatelessWidget {
             ),
             child: const Icon(
               Icons.more_horiz,
-              size: 20,
+              size: 19,
               color: CozyPalette.primary,
             ),
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 5),
         GestureDetector(
           behavior: HitTestBehavior.opaque,
           onTap: onDelete,
           child: Container(
-            width: 36,
-            height: 36,
+            width: 32,
+            height: 32,
             alignment: Alignment.center,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
@@ -1588,7 +1624,7 @@ class _DishActionArea extends StatelessWidget {
             ),
             child: const Icon(
               Icons.delete_outline,
-              size: 19,
+              size: 18,
               color: CozyPalette.error,
             ),
           ),

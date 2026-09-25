@@ -92,10 +92,10 @@ class _PairScreenState extends State<PairScreen> {
           listenable: state,
           builder: (BuildContext context, Widget? _) {
             final bool isPaired = state.isPaired;
-            // `CouplePair` carries no partner display name yet, so the native
-            // `partnerName.ifBlank { "对方" }` fallback is always taken. Wiring
-            // the real name needs a new AppState/data-layer field.
-            const String partnerName = '';
+            // 【真机修正】`CouplePair.partnerName` 现在带着真实伴侣昵称了
+            // （`SupabaseApi.me()` 里同 pair 的另一行 profile 一起查出来），
+            // 原生 `partnerName.ifBlank { "对方" }` 的兜底只在真的取不到时生效。
+            final String partnerName = state.pair?.partnerName.trim() ?? '';
             final bool hasCode = _pairCode.isNotEmpty;
 
             return SingleChildScrollView(

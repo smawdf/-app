@@ -7,8 +7,10 @@ import '../menu/menu_management_page.dart';
 import '../theme/cozy_glass.dart';
 
 /// 原生 `BuildConfig.VERSION_NAME` 的等值常量。
-/// pubspec.yaml:17 → `version: 3.0.1+55`
-const String _appVersion = '3.0.1';
+/// 【真机修正】pubspec.yaml:17 实际是 `version: 2.0.0+56`，这里却写着 3.0.1，
+/// 「我的 → 版本与更新 / 关于」显示的是不存在的版本号。改回与 pubspec 一致；
+/// 以后改版本号时这两处必须同步（未引入 package_info_plus，避免多加依赖）。
+const String _appVersion = '2.0.0';
 
 /// Compose 的 `fontSize.sp + lineHeight.sp` 在 Flutter 里要换算成 `height` 倍率。
 /// 全页字号/行高一律走这里，字体族由全局 `ThemeData.textTheme` 提供（RomanticRound）。
@@ -123,7 +125,7 @@ class _ProfilePageState extends State<ProfilePage> {
             color: CozyPalette.primary,
             onRefresh: () => state.refreshAll(),
             child: ListView(
-                padding: const EdgeInsets.only(bottom: CozyDock.clearance),
+                padding: EdgeInsets.only(bottom: CozyDock.clearanceOf(context)),
                 children: <Widget>[
                   // ---- ImmersiveProfileHeader (ProfileScreen.kt:321) ----
                   Padding(
@@ -197,7 +199,13 @@ class _ProfilePageState extends State<ProfilePage> {
                         _ActionRow(
                           icon: Icons.person_add_alt_1,
                           title: state.isPaired ? '伴侣已绑定' : '邀请对方',
-                          trailingText: state.isPaired ? '对方' : null,
+                          // 【真机修正】原来写死「对方」，现在显示真实伴侣昵称
+                          // （`CouplePair.partnerName`）。
+                          trailingText: state.isPaired
+                              ? (state.pair?.partnerName.isNotEmpty == true
+                                  ? state.pair!.partnerName
+                                  : '对方')
+                              : null,
                           onTap: _openPairDialog,
                         ),
                         const SizedBox(height: 12),
@@ -943,6 +951,9 @@ class _PairManagementDialogState extends State<_PairManagementDialog> {
         final state = AppState.instance;
         final bool paired = state.isPaired;
         final String inviteCode = state.pair?.inviteCode ?? '';
+        // 【真机修正】原来写死「已和 对方 绑定」，现在用真实伴侣昵称。
+        final String partnerName = state.pair?.partnerName.trim() ?? '';
+        final String displayPartnerName = partnerName.isNotEmpty ? partnerName : '对方';
 
         return AlertDialog(
           backgroundColor: CozyPalette.surface,
@@ -959,7 +970,7 @@ class _PairManagementDialogState extends State<_PairManagementDialog> {
                 children: <Widget>[
                   Text(
                     paired
-                        ? '已和 对方 绑定。你们正在共享情侣资料、店铺、菜单和订单。'
+                        ? '已和 $displayPartnerName 绑定。你们正在共享情侣资料、店铺、菜单和订单。'
                         : '请先在首页选择身份。饲养员邀请对方去点餐；吃货邀请对方去做饭，确认后才会绑定。',
                     textAlign: TextAlign.center,
                     style: _ts(15, 22, FontWeight.w400, CozyPalette.onSurfaceVariant),

@@ -121,12 +121,13 @@ class _AnniversaryPageState extends State<AnniversaryPage> {
                           _sweetMomentOrders(AppState.instance.orders);
                       // 原生 :206-224：verticalScroll + padding(horizontal = 20.dp)
                       // + Arrangement.spacedBy(16.dp)，首尾各一个 Spacer。
-                      // 底部留白按已批准偏离改用 CozyDock.clearance（原版 60.dp）。
+                      // 底部留白按已批准偏离改用 CozyDock.clearanceOf（原版 60.dp），
+                      // 补上系统导航栏 inset，避免末尾内容被悬浮底栏压住。
                       return ListView(
-                        padding: const EdgeInsets.only(
+                        padding: EdgeInsets.only(
                           left: 20,
                           right: 20,
-                          bottom: CozyDock.clearance,
+                          bottom: CozyDock.clearanceOf(context),
                         ),
                         children: <Widget>[
                           const SizedBox(height: 24),

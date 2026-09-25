@@ -170,8 +170,9 @@ class _DiscoverPageState extends State<DiscoverPage> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         padding: EdgeInsets.zero,
-        // 原生 bottom = 172.dp；底栏收敛后用 CozyDock.clearance，与外壳 toast 的 130 对齐
-        margin: const EdgeInsets.fromLTRB(20, 0, 20, CozyDock.clearance + 26),
+        // 原生 bottom = 172.dp；底栏收敛后用 CozyDock.clearanceOf，
+        // 与外壳 toast 的 130 对齐（并补上系统导航栏 inset，见 CozyDock.clearanceOf）
+        margin: EdgeInsets.fromLTRB(20, 0, 20, CozyDock.clearanceOf(context) + 26),
         duration: const Duration(milliseconds: 2200),
         content: _ToastBody(
           message: message,
@@ -300,7 +301,7 @@ class _DiscoverPageState extends State<DiscoverPage> {
           final items = _buildItems(context);
           return ListView.separated(
             // 原生 contentPadding(start 20, top 24, end 20, bottom 172) → 底栏收敛为 clearance
-            padding: const EdgeInsets.fromLTRB(20, 24, 20, CozyDock.clearance),
+            padding: EdgeInsets.fromLTRB(20, 24, 20, CozyDock.clearanceOf(context)),
             // 原生 verticalArrangement = Arrangement.spacedBy(24.dp)
             separatorBuilder: (_, _) => const SizedBox(height: 24),
             itemCount: items.length,
