@@ -687,14 +687,22 @@ class _CheckoutDialogState extends State<CheckoutDialog> {
 
   /// 原生 `CheckoutScreen.kt:367-426` CheckoutBottomAction
   ///
-  /// 原生用 Material3 Button 配 #FF9FB7 / #FFDCE6 / #E7E2DC；按 PORT_BRIEF §1.5
-  /// 「颜色一律 CozyPalette.*」用 primaryContainer / secondaryContainer /
-  /// surfaceVariant 近似（后两者与原色一致或几乎一致），且原生此处没有按下缩放。
+  /// 【暗色主题修正】原生这里是浅色底 `#FF9FB7` 实底 + 近白文字，换成暗色
+  /// palette 后 `primaryContainer(#3B2A1E)` 当底、`surface(#201A17)` 当字，
+  /// 变成深底深字，真机上按钮几乎读不出来（证据 `C8-checkout.png`）。
+  /// 暗色下主操作统一用「亮琥珀实底 + 深字」，与底栏选中态、空态按钮一致。
   Widget _bottomAction(BuildContext context) {
     final text = Theme.of(context).textTheme;
     final bool enough = _enough;
     // 原生 enabled = !cart.isEmpty && !isSubmitting（CheckoutScreen.kt:385）
     final bool enabled = !_isEmpty;
+
+    final Color fill = !enabled
+        ? CozyPalette.surfaceVariant
+        : (enough ? CozyPalette.primary : CozyPalette.secondaryContainer);
+    final Color label = !enabled
+        ? CozyPalette.onSurfaceVariant
+        : (enough ? CozyPalette.surface : CozyPalette.onSurface);
 
     return Container(
       width: double.infinity,
@@ -708,11 +716,7 @@ class _CheckoutDialogState extends State<CheckoutDialog> {
           child: Container(
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              color: !enabled
-                  ? CozyPalette.surfaceVariant
-                  : (enough
-                      ? CozyPalette.primaryContainer
-                      : CozyPalette.secondaryContainer),
+              color: fill,
               borderRadius: BorderRadius.circular(999),
             ),
             child: Text(
@@ -720,9 +724,7 @@ class _CheckoutDialogState extends State<CheckoutDialog> {
                   ? '提交点菜 · 消耗 ${widget.coinCost} 糖糖币'
                   : '糖糖币不足 · 需要 ${widget.coinCost} 枚',
               style: text.titleMedium!.copyWith(
-                color: !enabled
-                    ? CozyPalette.surface
-                    : (enough ? CozyPalette.surface : CozyPalette.onSurface),
+                color: label,
                 fontWeight: FontWeight.w900,
               ),
             ),

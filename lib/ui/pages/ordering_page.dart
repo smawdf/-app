@@ -233,6 +233,12 @@ class _OrderingPageState extends State<OrderingPage> {
   }
 
   /// 菜品详情弹层（原生 `OrderingDishDetailSheet`）
+  ///
+  /// 【真机修正】这里原本没开 `isScrollControlled`，`showModalBottomSheet` 默认
+  /// 只给 9/16 屏高，而弹层内容约 490dp（图 210 + 文案 + 价格 + 两个按钮），
+  /// 结果「加入购物篮」整行被挤到屏幕外，点不到（证据 `C5-cart.png`：截图底部
+  /// 停在「暖心硬菜 / 小店在售」，价格与按钮全在屏外）。开成可滚动 + 包一层
+  /// 滚动容器后，内容按需撑高、超出时可滚，按钮永远可达。
   void _openDishDetail(MenuItem item) {
     HapticFeedback.selectionClick();
     final bool isEater = !AppState.instance.isCaretaker;
@@ -240,6 +246,7 @@ class _OrderingPageState extends State<OrderingPage> {
       context: context,
       backgroundColor: CozyPalette.surfaceContainerLow,
       showDragHandle: true,
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
@@ -1536,30 +1543,32 @@ class _OrderingDishDetailSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final TextTheme text = Theme.of(context).textTheme;
-    return Padding(
-      padding: const EdgeInsets.only(left: 20, right: 20, bottom: 28),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          _DishImage(
-            imageUrl: item.imageUrl,
-            name: item.name,
-            backgroundAlpha: 1,
-            radius: 24,
-            height: 210,
-            fit: BoxFit.contain,
-            iconSize: 44,
-            placeholderGap: 8,
-          ),
-          const SizedBox(height: 14),
-          Text(
-            item.name,
-            style: text.headlineSmall!.copyWith(
-              fontWeight: FontWeight.w900,
-              color: CozyPalette.onSurface,
+    return SafeArea(
+      top: false,
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.only(left: 20, right: 20, bottom: 28),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            _DishImage(
+              imageUrl: item.imageUrl,
+              name: item.name,
+              backgroundAlpha: 1,
+              radius: 24,
+              height: 210,
+              fit: BoxFit.contain,
+              iconSize: 44,
+              placeholderGap: 8,
             ),
-          ),
+            const SizedBox(height: 14),
+            Text(
+              item.name,
+              style: text.headlineSmall!.copyWith(
+                fontWeight: FontWeight.w900,
+                color: CozyPalette.onSurface,
+              ),
+            ),
           if (showDescription) ...<Widget>[
             const SizedBox(height: 14),
             Text(
@@ -1631,7 +1640,8 @@ class _OrderingDishDetailSheet extends StatelessWidget {
               ),
             ],
           ),
-        ],
+          ],
+        ),
       ),
     );
   }
