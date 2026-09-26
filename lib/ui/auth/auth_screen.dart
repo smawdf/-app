@@ -1,4 +1,8 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../data/app_state.dart';
 import '../theme/cozy_glass.dart';
@@ -37,6 +41,14 @@ class _AuthScreenState extends State<AuthScreen> {
 
   /// Register flow step: 1 = account credentials, 2 = profile.
   int _step = 1;
+
+  /// 注册第二步选的头像（`data:image/jpeg;base64,…`）。
+  ///
+  /// 注册时 profile 行还不存在，所以先在本地攒着，`register()` 里随昵称一起
+  /// 写进 `profiles.avatar_url`。存 data URI 而不是 storage URL 的原因见
+  /// `SupabaseApi.updateProfile` 注释（这个项目一个 storage 桶都没有）。
+  String _avatarDataUri = '';
+  bool _pickingAvatar = false;
 
   /// `AuthScreen.kt` `rememberCredentials`.
   bool _remember = true;
@@ -109,16 +121,41 @@ class _AuthScreenState extends State<AuthScreen> {
       password: _password.text,
       nickname: _nickname.text.trim(),
       role: '',
+      avatarUrl: _avatarDataUri,
     );
     if (!ok && mounted) {
       setState(() => _error = state.error ?? '请求失败，请检查网络或稍后重试');
     }
   }
 
-  void _showAvatarNotice() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('头像上传暂未接入云端，可稍后在「我的」页更换')),
-    );
+  /// 选头像：压到 256×256 / q72（≈9 KB），转成 data URI 存本地待提交。
+  Future<void> _pickAvatar() async {
+    if (_pickingAvatar) return;
+    setState(() => _pickingAvatar = true);
+    try {
+      final XFile? picked = await ImagePicker().pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 256,
+        maxHeight: 256,
+        imageQuality: 72,
+      );
+      if (picked == null) return; // 用户取消
+      final Uint8List bytes = await picked.readAsBytes();
+      if (bytes.isEmpty) {
+        if (mounted) setState(() => _error = '这张图片读不出来，换一张试试');
+        return;
+      }
+      if (mounted) {
+        setState(() {
+          _avatarDataUri = 'data:image/jpeg;base64,${base64Encode(bytes)}';
+          _error = null;
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() => _error = '打开相册失败：$e');
+    } finally {
+      if (mounted) setState(() => _pickingAvatar = false);
+    }
   }
 
   // ------------------------------------------------------------------ build
@@ -340,7 +377,7 @@ class _AuthScreenState extends State<AuthScreen> {
               children: <Widget>[
                 GestureDetector(
                   behavior: HitTestBehavior.opaque,
-                  onTap: _showAvatarNotice,
+                  onTap: _pickAvatar,
                   child: Container(
                     width: 128,
                     height: 128,
@@ -348,15 +385,21 @@ class _AuthScreenState extends State<AuthScreen> {
                       shape: BoxShape.circle,
                       color: AuthColors.primaryEnd.withValues(alpha: 0.06),
                     ),
-                    child: const DashedAvatarPlaceholder(size: 128),
+                    child: ClipOval(
+                      child: CozyAvatar(
+                        url: _avatarDataUri,
+                        size: 128,
+                        fallback: const DashedAvatarPlaceholder(size: 128),
+                      ),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 26),
                 GestureDetector(
                   behavior: HitTestBehavior.opaque,
-                  onTap: _showAvatarNotice,
+                  onTap: _pickAvatar,
                   child: Text(
-                    '选择头像照片',
+                    _avatarDataUri.isEmpty ? '选择头像照片' : '换一张头像',
                     style: CozyType.textTheme.titleSmall!.copyWith(
                       color: AuthColors.primaryEnd,
                       fontWeight: FontWeight.w900,

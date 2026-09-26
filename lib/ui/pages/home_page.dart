@@ -493,15 +493,14 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  /// 座位里那张脸：对方换头像后，这里也要跟着变
+  /// （伴侣侧的 data URI 会经 `current_pair_snapshot.partner_avatar_url` 带回来）
   Widget _seatFill(String avatarUrl, IconData? fallbackIcon, String? fallbackText) {
-    if (avatarUrl.isNotEmpty) {
-      return Image.network(
-        avatarUrl,
-        fit: BoxFit.cover,
-        errorBuilder: (_, _, _) => _seatFallback(fallbackIcon, fallbackText),
-      );
-    }
-    return _seatFallback(fallbackIcon, fallbackText);
+    return CozyAvatar(
+      url: avatarUrl,
+      size: 84,
+      fallback: _seatFallback(fallbackIcon, fallbackText),
+    );
   }
 
   Widget _seatFallback(IconData? fallbackIcon, String? fallbackText) {

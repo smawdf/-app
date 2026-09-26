@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
@@ -918,4 +920,67 @@ class CozyInk {
   static const Color terracotta = CozyPalette.tertiary;
   static const Color terracottaSoft = CozyPalette.tertiaryContainer;
   static const Color border = CozyPalette.outlineVariant;
+}
+
+/// ⑥ 头像 —— 三种来源统一处理（首页两个座位 / 我的页 / 编辑弹层 / 注册页都用它）
+///
+/// ① 空串          → `fallback`（调用方给爪子、餐具等兜底图标）
+/// ② `data:image/…` → `Image.memory`：本地选的头像，base64 存在 `profiles.avatar_url`
+/// ③ `http(s)://…`  → `Image.network`：历史字段与将来的 storage 桶 URL
+///
+/// 为什么头像会以 data URI 形式存在库里：这个 Supabase 项目
+/// `GET /storage/v1/bucket` 返回空数组（一个桶都没有），建桶必须 service_role，
+/// 而 service_role 不能出现在客户端。详见 `SupabaseApi.updateProfile` 注释。
+/// 这里统一解码，是因为伴侣侧读到的 `partner_avatar_url` 也可能是 data URI。
+class CozyAvatar extends StatelessWidget {
+  const CozyAvatar({
+    super.key,
+    required this.url,
+    required this.size,
+    required this.fallback,
+    this.fit = BoxFit.cover,
+  });
+
+  final String url;
+  final double size;
+  final Widget fallback;
+  final BoxFit fit;
+
+  static bool isDataUri(String value) => value.startsWith('data:image');
+
+  static Uint8List? decodeDataUri(String value) {
+    if (!isDataUri(value)) return null;
+    final int comma = value.indexOf(',');
+    if (comma < 0) return null;
+    try {
+      return base64Decode(value.substring(comma + 1));
+    } catch (_) {
+      return null;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final Uint8List? bytes = decodeDataUri(url);
+    if (bytes != null && bytes.isNotEmpty) {
+      return Image.memory(
+        bytes,
+        width: size,
+        height: size,
+        fit: fit,
+        gaplessPlayback: true,
+        errorBuilder: (_, _, _) => fallback,
+      );
+    }
+    if (url.startsWith('http')) {
+      return Image.network(
+        url,
+        width: size,
+        height: size,
+        fit: fit,
+        errorBuilder: (_, _, _) => fallback,
+      );
+    }
+    return fallback;
+  }
 }

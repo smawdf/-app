@@ -176,6 +176,7 @@ class SupabaseApi {
     required String password,
     required String nickname,
     required String role,
+    String avatarUrl = '',
   }) async {
     final res = await _auth.signUp(email: email.trim(), password: password);
     final uid = res.user?.id;
@@ -200,7 +201,7 @@ class SupabaseApi {
       'user_id': uid,
       'pair_id': kEmptyPairId,
       'nickname': nickname.trim().isEmpty ? email.split('@').first : nickname.trim(),
-      'avatar_url': '',
+      'avatar_url': avatarUrl,
       'selected_role': role,
       'candy_coins': 66,
       'session_id': '',
@@ -211,7 +212,7 @@ class SupabaseApi {
       id: uid,
       username: email.trim(),
       nickname: nickname.trim().isEmpty ? email.split('@').first : nickname.trim(),
-      avatarUrl: '',
+      avatarUrl: avatarUrl,
       role: role,
       pairId: kEmptyPairId,
     );
@@ -443,6 +444,22 @@ class SupabaseApi {
   Future<void> updateRole(String role) async {
     if (_userId.isEmpty) return;
     await _db.from('profiles').update({'selected_role': role}).eq('user_id', _userId);
+  }
+
+  /// 更新资料（昵称 / 头像）。
+  ///
+  /// 头像没有走 Supabase Storage：这个项目 `GET /storage/v1/bucket` 返回空数组，
+  /// 一个桶都没有，而建桶需要 service_role（客户端绝不能带），所以头像以
+  /// `data:image/jpeg;base64,…` 形式存进 `profiles.avatar_url`（text 列）。
+  /// 实测：128×128 q72 ≈ 2.9 KB、256×256 q72 ≈ 9.0 KB，PATCH 200、回读一致，
+  /// 且伴侣侧经 `current_pair_snapshot.partner_avatar_url` 能同步读到。
+  Future<void> updateProfile({String? nickname, String? avatarUrl}) async {
+    if (_userId.isEmpty) return;
+    final Map<String, dynamic> patch = <String, dynamic>{};
+    if (nickname != null) patch['nickname'] = nickname;
+    if (avatarUrl != null) patch['avatar_url'] = avatarUrl;
+    if (patch.isEmpty) return;
+    await _db.from('profiles').update(patch).eq('user_id', _userId);
   }
 
   // ---------------- 小店设置 ----------------

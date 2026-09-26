@@ -159,12 +159,14 @@ class AppState extends ChangeNotifier {
     required String password,
     required String nickname,
     required String role,
+    String avatarUrl = '',
   }) async {
     final res = await _guard(() => _api.register(
           email: username,
           password: password,
           nickname: nickname,
           role: role,
+          avatarUrl: avatarUrl,
         ));
     if (res == null) return false;
     _api.setSession(token: res.token, userId: res.user.id, pairId: res.user.pairId);
@@ -388,6 +390,25 @@ class AppState extends ChangeNotifier {
     if (ok != true) return false;
     if (user != null) {
       user = user!.copyWithRole(role);
+    }
+    notifyListeners();
+    return true;
+  }
+
+  /// 改昵称 / 头像（存 `profiles.nickname` 与 `profiles.avatar_url`）。
+  ///
+  /// `avatarUrl` 可以是 `data:image/jpeg;base64,…`：这个项目没有任何 storage
+  /// 桶（建桶要 service_role），所以头像直接进 text 列，见
+  /// `SupabaseApi.updateProfile` 的注释。写成功后本地 copyWith 立即刷新，
+  /// 不再回读一次云端。
+  Future<bool> updateProfile({String? nickname, String? avatarUrl}) async {
+    final ok = await _guard(() async {
+      await _api.updateProfile(nickname: nickname, avatarUrl: avatarUrl);
+      return true;
+    });
+    if (ok != true) return false;
+    if (user != null) {
+      user = user!.copyWith(nickname: nickname, avatarUrl: avatarUrl);
     }
     notifyListeners();
     return true;

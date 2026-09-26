@@ -43,6 +43,19 @@ class AppUser {
         pairId: pairId,
       );
 
+  /// 只改资料的 copyWith（昵称 / 头像）。
+  ///
+  /// 资料写云端后不再回读一次，靠这个本地更新界面，所以参数语义要和
+  /// `profiles.nickname` / `profiles.avatar_url` 对齐。
+  AppUser copyWith({String? nickname, String? avatarUrl}) => AppUser(
+        id: id,
+        username: username,
+        nickname: nickname ?? this.nickname,
+        avatarUrl: avatarUrl ?? this.avatarUrl,
+        role: role,
+        pairId: pairId,
+      );
+
   factory AppUser.fromJson(Map<String, dynamic> j) => AppUser(
         id: j['id'] ?? '',
         username: j['username'] ?? '',

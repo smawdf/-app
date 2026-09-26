@@ -1,5 +1,8 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../data/app_state.dart';
 import '../candy/candy_coins_page.dart';
@@ -459,16 +462,9 @@ class _ProfileHeader extends StatelessWidget {
     );
   }
 
-  Widget _avatar(String url, double iconSize) {
-    if (url.isNotEmpty) {
-      return Image.network(
-        url,
-        fit: BoxFit.cover,
-        errorBuilder: (_, _, _) => _paw(iconSize),
-      );
-    }
-    return _paw(iconSize);
-  }
+  /// 头像（云端可能是 http URL，也可能是本地选图后存的 data URI）
+  Widget _avatar(String url, double iconSize) =>
+      CozyAvatar(url: url, size: 96, fallback: _paw(iconSize));
 
   Widget _paw(double size) => Container(
         color: const Color(0xFFFFFCF8),
@@ -705,7 +701,12 @@ class _ProfileEditDialog extends StatefulWidget {
 
 class _ProfileEditDialogState extends State<_ProfileEditDialog> {
   late final TextEditingController _name = TextEditingController(text: widget.name);
+
+  /// 当前生效的头像（打开时=云端值；选图后=刚选的那张 data URI）
+  late String _avatarUrl = widget.avatarUrl;
+  bool _saving = false;
   String? _message;
+  bool _failed = false;
 
   @override
   void dispose() {
@@ -721,10 +722,65 @@ class _ProfileEditDialogState extends State<_ProfileEditDialog> {
     return null;
   }
 
-  void _notWired() {
+  bool get _avatarChanged => _avatarUrl != widget.avatarUrl;
+
+  /// 选一张本地照片 → 压到 256×256 / q72（≈9 KB）→ 转 data URI 存
+  /// `profiles.avatar_url`。项目没有 storage 桶，见 `SupabaseApi.updateProfile`。
+  Future<void> _pickAvatar() async {
+    try {
+      final XFile? picked = await ImagePicker().pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 256,
+        maxHeight: 256,
+        imageQuality: 72,
+      );
+      if (picked == null) return; // 用户取消
+      final Uint8List bytes = await picked.readAsBytes();
+      if (bytes.isEmpty) {
+        setState(() {
+          _failed = true;
+          _message = '这张图片读不出来，换一张试试';
+        });
+        return;
+      }
+      final String uri = 'data:image/jpeg;base64,${base64Encode(bytes)}';
+      setState(() {
+        _avatarUrl = uri;
+        _failed = false;
+        _message = '已选好新头像（${(bytes.length / 1024).toStringAsFixed(1)} KB），点「保存资料」同步给小饭桌';
+      });
+    } catch (e) {
+      setState(() {
+        _failed = true;
+        _message = '打开相册失败：$e';
+      });
+    }
+  }
+
+  Future<void> _save() async {
+    if (_nameError != null || _saving) return;
     setState(() {
-      _message = '暂未接入云端资料接口（需要 AppState.updateNickname / updateAvatar）';
+      _saving = true;
+      _failed = false;
+      _message = null;
     });
+    final bool ok = await AppState.instance.updateProfile(
+      nickname: _trimmed,
+      avatarUrl: _avatarChanged ? _avatarUrl : null,
+    );
+    if (!mounted) return;
+    if (!ok) {
+      setState(() {
+        _saving = false;
+        _failed = true;
+        _message = AppState.instance.error ?? '保存失败，请检查网络或稍后重试';
+      });
+      return;
+    }
+    Navigator.of(context).pop();
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('资料已同步，伴侣那边也能看到新头像')),
+    );
   }
 
   @override
@@ -759,17 +815,11 @@ class _ProfileEditDialogState extends State<_ProfileEditDialog> {
                           ),
                         ),
                         child: ClipOval(
-                          child: widget.avatarUrl.isNotEmpty
-                              ? Image.network(
-                                  widget.avatarUrl,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (_, _, _) => const Icon(
-                                    Icons.local_dining,
-                                    size: 42,
-                                    color: CozyInk.rose,
-                                  ),
-                                )
-                              : const Icon(Icons.local_dining, size: 42, color: CozyInk.rose),
+                          child: CozyAvatar(
+                            url: _avatarUrl,
+                            size: 100,
+                            fallback: const Icon(Icons.local_dining, size: 42, color: CozyInk.rose),
+                          ),
                         ),
                       ),
                     ),
@@ -777,7 +827,7 @@ class _ProfileEditDialogState extends State<_ProfileEditDialog> {
                       right: 0,
                       bottom: 0,
                       child: GestureDetector(
-                        onTap: _notWired,
+                        onTap: _saving ? null : _pickAvatar,
                         child: Container(
                           width: 48,
                           height: 48,
@@ -794,13 +844,18 @@ class _ProfileEditDialogState extends State<_ProfileEditDialog> {
                   ],
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 8),
               TextButton(
-                onPressed: _notWired,
+                onPressed: _saving ? null : _pickAvatar,
                 child: Text(
                   '更换头像',
                   style: _ts(14, 18, FontWeight.w900, CozyInk.rose),
                 ),
+              ),
+              Text(
+                '从相册选一张，会自动裁成小图存到你们的小饭桌',
+                textAlign: TextAlign.center,
+                style: _ts(11, 16, FontWeight.w400, CozyPalette.onSurfaceVariant),
               ),
               const SizedBox(height: 16),
               TextField(
@@ -818,12 +873,25 @@ class _ProfileEditDialogState extends State<_ProfileEditDialog> {
                   style: _ts(12, 18, FontWeight.w400, CozyPalette.onSurfaceVariant),
                 ),
               ],
+              if (_saving) ...<Widget>[
+                const SizedBox(height: 16),
+                const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              ],
               if (_message != null) ...<Widget>[
                 const SizedBox(height: 16),
                 Text(
                   _message!,
                   textAlign: TextAlign.center,
-                  style: _ts(12, 18, FontWeight.w400, CozyPalette.error),
+                  style: _ts(
+                    12,
+                    18,
+                    FontWeight.w400,
+                    _failed ? CozyPalette.error : CozyPalette.onSurfaceVariant,
+                  ),
                 ),
               ],
             ],
@@ -832,11 +900,11 @@ class _ProfileEditDialogState extends State<_ProfileEditDialog> {
       ),
       actions: <Widget>[
         TextButton(
-          onPressed: () => Navigator.of(context).pop(),
+          onPressed: _saving ? null : () => Navigator.of(context).pop(),
           child: Text('取消', style: _ts(14, 18, FontWeight.w500, CozyPalette.onSurfaceVariant)),
         ),
         FilledButton(
-          onPressed: _nameError == null ? _notWired : null,
+          onPressed: _nameError == null && !_saving ? _save : null,
           style: FilledButton.styleFrom(
             backgroundColor: CozyPalette.primary,
             foregroundColor: Colors.white,
