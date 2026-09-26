@@ -41,12 +41,68 @@ class ProfilePage extends StatefulWidget {
 class _ProfilePageState extends State<ProfilePage> {
   static const String _versionLabel = _appVersion;
 
+  /// 云端 `anniversaries.anniversary_at`（与首页同一口径），用来把身份卡第二行
+  /// 换成「已绑定小饭桌 · 一起吃饭 N 天」这种用户真看得懂的信息。
+  DateTime? _anniversaryDate;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       AppState.instance.refreshTransactions();
     });
+    _loadAnniversary();
+  }
+
+  Future<void> _loadAnniversary() async {
+    final Map<String, dynamic>? info = await AppState.instance.loadAnniversary();
+    if (!mounted) return;
+    setState(() {
+      _anniversaryDate = _parseDateSafely((info?['anniversary_at'] as String?) ?? '');
+    });
+  }
+
+  /// 一起吃饭的天数：起始日当天算第 1 天（与纪念日页口径一致）。
+  int? get _daysTogether {
+    final DateTime? start = _anniversaryDate;
+    if (start == null) return null;
+    final DateTime now = DateTime.now();
+    final DateTime today = DateTime(now.year, now.month, now.day);
+    final int days = today.difference(start).inDays + 1;
+    return days < 1 ? 1 : days;
+  }
+
+  /// 原生 `CozyMainTopBar`（与「订单」「发现」等页同一规格）。
+  Widget _topBar() {
+    return CozyMainTopBar(
+      title: const Text(
+        '我的 - 小饭桌与设置',
+        textAlign: TextAlign.center,
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          fontSize: 20,
+          height: 24 / 20,
+          fontWeight: FontWeight.w900,
+          letterSpacing: 0,
+          color: CozyPalette.primary,
+        ),
+      ),
+      leading: SizedBox(
+        width: 44,
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: Icon(Icons.favorite, size: 26, color: CozyPalette.primary.withValues(alpha: 0.82)),
+        ),
+      ),
+      trailing: const SizedBox(
+        width: 44,
+        child: Align(
+          alignment: Alignment.centerRight,
+          child: Icon(Icons.notifications, size: 24, color: CozyPalette.onSurfaceVariant),
+        ),
+      ),
+    );
   }
 
   void _snack(String message) {
@@ -120,119 +176,125 @@ class _ProfilePageState extends State<ProfilePage> {
         };
         final int balance = state.candyCoins;
 
+        // 身份卡第二行：不再露 uuid 尾巴和无信息量的「资料已同步」，
+        // 换成「绑没绑小饭桌 + 一起吃了多少天」这种用户真在意的事。
+        final int? days = _daysTogether;
+        final String partnerName = (state.pair?.partnerName ?? '').trim();
+        final String headerSubtitle = state.isPaired
+            ? (days != null
+                ? '已绑定小饭桌 · 一起吃饭 $days 天'
+                : (partnerName.isNotEmpty ? '已和 $partnerName 绑定小饭桌' : '已绑定小饭桌'))
+            : '还没有绑定小饭桌 · 去「邀请对方」看看';
+
         return CozyPage(
-          child: RefreshIndicator(
-            color: CozyPalette.primary,
-            onRefresh: () => state.refreshAll(),
-            child: ListView(
-                padding: EdgeInsets.only(bottom: CozyDock.clearanceOf(context)),
-                children: <Widget>[
-                  // ---- ImmersiveProfileHeader (ProfileScreen.kt:321) ----
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
-                    child: Column(
-                      children: <Widget>[
-                        _ProfileHeader(
+          child: Column(
+            children: <Widget>[
+              _topBar(),
+              Expanded(
+                child: RefreshIndicator(
+                  color: CozyPalette.primary,
+                  onRefresh: () => state.refreshAll(),
+                  child: ListView(
+                    padding: EdgeInsets.only(bottom: CozyDock.clearanceOf(context)),
+                    children: <Widget>[
+                      // ---- ImmersiveProfileHeader (ProfileScreen.kt:321) ----
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+                        child: _ProfileHeader(
                           name: displayName,
                           avatarUrl: state.user?.avatarUrl ?? '',
-                          userId: state.user?.id ?? '',
-                          isSynced: state.isLoggedIn,
+                          subtitle: headerSubtitle,
                           roleText: roleText,
                           onTap: _openProfileEditor,
                         ),
-                        const SizedBox(height: 16),
-                        Row(
+                      ),
+                      const SizedBox(height: 10),
+                      // ---- SimulatedCurrencyBalanceCard (ProfileScreen.kt:509) ----
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: _BalanceCard(balance: balance),
+                      ),
+                      const SizedBox(height: 10),
+                      // ---- ProfileActionRow 列表 (ProfileScreen.kt:268) ----
+                      // 「我的店铺 / 订单记录」原来是与下面同类的两张 155×155 巨卡，
+                      // 现在统一成同规格的列表行，整页只剩一种入口样式。
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: Column(
                           children: <Widget>[
-                            Expanded(
-                              child: _FeatureTile(
-                                icon: Icons.storefront,
-                                title: '我的店铺',
-                                onTap: _openDishManage,
-                              ),
+                            _ActionRow(
+                              icon: Icons.storefront,
+                              title: '我的店铺',
+                              onTap: _openDishManage,
                             ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: _FeatureTile(
-                                icon: Icons.receipt_long_outlined,
-                                title: '订单记录',
-                                onTap: _openOrdersTab,
+                            const SizedBox(height: 12),
+                            _ActionRow(
+                              icon: Icons.receipt_long_outlined,
+                              title: '订单记录',
+                              onTap: _openOrdersTab,
+                            ),
+                            const SizedBox(height: 12),
+                            _ActionRow(
+                              icon: Icons.settings,
+                              title: '账号设置',
+                              onTap: _openProfileEditor,
+                            ),
+                            const SizedBox(height: 12),
+                            if (roleKey == 'caretaker')
+                              _ActionRow(
+                                icon: Icons.pets,
+                                title: '糖糖币专属管理',
+                                trailingText: '吃货 $balance 枚',
+                                onTap: _openCandyCoins,
+                              )
+                            else
+                              _ActionRow(
+                                icon: Icons.pets,
+                                title: '糖糖币明细',
+                                // 余额上面那张卡已经显示过一次，这里不再重复数字。
+                                onTap: _openCandyCoins,
                               ),
+                            const SizedBox(height: 12),
+                            _ActionRow(
+                              icon: Icons.person_add_alt_1,
+                              title: state.isPaired ? '伴侣已绑定' : '邀请对方',
+                              // 【真机修正】原来写死「对方」，现在显示真实伴侣昵称
+                              // （`CouplePair.partnerName`）。
+                              trailingText: state.isPaired
+                                  ? (state.pair?.partnerName.isNotEmpty == true
+                                      ? state.pair!.partnerName
+                                      : '对方')
+                                  : null,
+                              onTap: _openPairDialog,
+                            ),
+                            const SizedBox(height: 12),
+                            _ActionRow(
+                              icon: Icons.info,
+                              title: '版本与更新',
+                              trailingText: _versionLabel,
+                              onTap: _openVersionDialog,
+                            ),
+                            const SizedBox(height: 12),
+                            _ActionRow(
+                              icon: Icons.support_agent,
+                              title: '帮助与客服',
+                              onTap: _openHelpDialog,
                             ),
                           ],
                         ),
-                      ],
-                    ),
+                      ),
+                      const SizedBox(height: 10),
+                      // ---- LogoutButton (ProfileScreen.kt:813) ----
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: _LogoutButton(onTap: _openLogoutConfirm),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 10),
-                  // ---- SimulatedCurrencyBalanceCard (ProfileScreen.kt:509) ----
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: _BalanceCard(balance: balance),
-                  ),
-                  const SizedBox(height: 10),
-                  // ---- ProfileActionRow 列表 (ProfileScreen.kt:268) ----
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: Column(
-                      children: <Widget>[
-                        _ActionRow(
-                          icon: Icons.settings,
-                          title: '账号设置',
-                          onTap: _openProfileEditor,
-                        ),
-                        const SizedBox(height: 12),
-                        if (roleKey == 'caretaker')
-                          _ActionRow(
-                            icon: Icons.pets,
-                            title: '糖糖币专属管理',
-                            trailingText: '吃货 $balance 枚',
-                            onTap: _openCandyCoins,
-                          )
-                        else
-                          _ActionRow(
-                            icon: Icons.pets,
-                            title: '糖糖币明细',
-                            trailingText: '$balance 枚',
-                            onTap: _openCandyCoins,
-                          ),
-                        const SizedBox(height: 12),
-                        _ActionRow(
-                          icon: Icons.person_add_alt_1,
-                          title: state.isPaired ? '伴侣已绑定' : '邀请对方',
-                          // 【真机修正】原来写死「对方」，现在显示真实伴侣昵称
-                          // （`CouplePair.partnerName`）。
-                          trailingText: state.isPaired
-                              ? (state.pair?.partnerName.isNotEmpty == true
-                                  ? state.pair!.partnerName
-                                  : '对方')
-                              : null,
-                          onTap: _openPairDialog,
-                        ),
-                        const SizedBox(height: 12),
-                        _ActionRow(
-                          icon: Icons.info,
-                          title: '版本与更新',
-                          trailingText: _versionLabel,
-                          onTap: _openVersionDialog,
-                        ),
-                        const SizedBox(height: 12),
-                        _ActionRow(
-                          icon: Icons.support_agent,
-                          title: '帮助与客服',
-                          onTap: _openHelpDialog,
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  // ---- LogoutButton (ProfileScreen.kt:813) ----
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: _LogoutButton(onTap: _openLogoutConfirm),
-                  ),
-                ],
+                ),
               ),
-            ),
+            ],
+          ),
         );
       },
     );
@@ -258,59 +320,62 @@ class _ProfileHeader extends StatelessWidget {
   const _ProfileHeader({
     required this.name,
     required this.avatarUrl,
-    required this.userId,
-    required this.isSynced,
+    required this.subtitle,
     required this.roleText,
     required this.onTap,
   });
 
   final String name;
   final String avatarUrl;
-  final String userId;
-  final bool isSynced;
+
+  /// 第二行信息（已绑定小饭桌 / 一起吃饭 N 天 …）。
+  /// 【真机修正】原来这里是 `ID: d20eeab`（uuid 尾巴）和「资料已同步」——
+  /// 前者是调试信息，后者用户无法验证，已按用户反馈替换。
+  final String subtitle;
   final String roleText;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final String trimmedId = userId.trim();
-    final String displayUserId = trimmedId.isEmpty
-        ? '未同步'
-        : trimmedId.substring(trimmedId.length >= 7 ? trimmedId.length - 7 : 0);
-    final String syncText = isSynced ? '资料已同步' : '等待云端同步';
-
     return CozyCard(
       onTap: onTap,
       radius: 18,
       padding: EdgeInsets.zero,
       color: const Color(0xFFFFF8FA).withValues(alpha: 0.72),
       borderColor: Colors.white.withValues(alpha: 0.62),
-      child: Stack(
-        children: <Widget>[
-          Positioned(
-            left: -36,
-            top: -38,
-            child: Container(
-              width: 132,
-              height: 132,
-              decoration: BoxDecoration(
-                color: CozyPalette.secondaryContainer.withValues(alpha: 0.16),
-                borderRadius: BorderRadius.circular(48),
+      // 【真机修正】CozyCard 不撑满宽度：里面是 Column + Stack，会缩到最宽子项
+      // （身份胶囊 ≈206 逻辑 px），导致这张卡比全页其他卡（328）窄一大截、
+      // 居中悬在页面上。这里显式撑满。
+      child: SizedBox(
+        width: double.infinity,
+        child: Stack(
+          children: <Widget>[
+            // 【真机修正】原来左上角是 132×132 + radius 48 的**圆角方**，
+            // 压到卡片圆角上会露出直角边（截图里那道月牙 + 硬边）。改成正圆。
+            Positioned(
+              left: -46,
+              top: -48,
+              child: Container(
+                width: 132,
+                height: 132,
+                decoration: BoxDecoration(
+                  color: CozyPalette.secondaryContainer.withValues(alpha: 0.16),
+                  shape: BoxShape.circle,
+                ),
               ),
             ),
-          ),
-          Positioned(
-            right: -44,
-            bottom: -42,
-            child: Container(
-              width: 160,
-              height: 160,
-              decoration: BoxDecoration(
-                color: CozyPalette.primaryContainer.withValues(alpha: 0.10),
-                shape: BoxShape.circle,
+            Positioned(
+              right: -44,
+              bottom: -42,
+              child: Container(
+                width: 160,
+                height: 160,
+                decoration: BoxDecoration(
+                  color: CozyPalette.primaryContainer.withValues(alpha: 0.10),
+                  shape: BoxShape.circle,
+                ),
               ),
             ),
-          ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 22),
             child: Column(
@@ -359,12 +424,11 @@ class _ProfileHeader extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'ID: $displayUserId',
-                  style: _ts(14, 21, FontWeight.w400, CozyPalette.onSurfaceVariant),
-                ),
-                Text(
-                  syncText,
-                  style: _ts(11, 14, FontWeight.w400, CozyPalette.onSurfaceVariant),
+                  subtitle,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: _ts(13, 19, FontWeight.w400, CozyPalette.onSurfaceVariant),
                 ),
                 const SizedBox(height: 10),
                 Container(
@@ -389,7 +453,8 @@ class _ProfileHeader extends StatelessWidget {
               ],
             ),
           ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -415,49 +480,9 @@ class _ProfileHeader extends StatelessWidget {
 // ---------------------------------------------------------------------------
 // ProfileFeatureTile (ProfileScreen.kt:713-735)
 // ---------------------------------------------------------------------------
-
-class _FeatureTile extends StatelessWidget {
-  const _FeatureTile({required this.icon, required this.title, required this.onTap});
-
-  final IconData icon;
-  final String title;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return AspectRatio(
-      aspectRatio: 1,
-      child: CozyCard(
-        onTap: onTap,
-        radius: 16,
-        padding: EdgeInsets.zero,
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: <Widget>[
-              Container(
-                width: 52,
-                height: 52,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: CozyPalette.primaryContainer.withValues(alpha: 0.72),
-                ),
-                child: Icon(icon, size: 28, color: CozyPalette.primary),
-              ),
-              const SizedBox(height: 10),
-              Text(
-                title,
-                style: _ts(14, 20, FontWeight.w900, CozyPalette.onSurface),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
+// 【真机修正】原生这两张 155×155 巨卡已被换成与下方同规格的 `_ActionRow`
+// （用户反馈：同页两种入口样式、且和首页/底栏入口重复）。原来的 `_FeatureTile`
+// 一并删除，避免留一个没人用的私有类。
 
 // ---------------------------------------------------------------------------
 // SimulatedCurrencyBalanceCard (ProfileScreen.kt:509-559)
@@ -484,12 +509,12 @@ class _BalanceCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
                     Text(
-                      '模拟货币余额',
+                      '糖糖币余额',
                       style: _ts(16, 22, FontWeight.w900, CozyPalette.onSurface),
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '糖糖币不是金币，但点菜时会真实扣减',
+                      '点菜时真实扣减，是你们小饭桌的专属币',
                       style: _ts(12, 18, FontWeight.w400, CozyPalette.onSurfaceVariant),
                     ),
                   ],
@@ -576,18 +601,21 @@ class _ActionRow extends StatelessWidget {
               ),
               if (trailing != null && trailing.isNotEmpty)
                 Container(
+                  // 【真机修正】原色是琥珀黄（0xFFFFE6A7 / 边 0xFFE8BE63），
+                  // 是全局调色板里没有的第三种强调色，且和上面余额卡同一个数据的
+                  // 粉色胶囊对不上。统一到 secondaryContainer。
                   decoration: BoxDecoration(
-                    color: const Color(0xFFFFE6A7).withValues(alpha: 0.78),
+                    color: CozyPalette.secondaryContainer.withValues(alpha: 0.72),
                     borderRadius: BorderRadius.circular(999),
                     border: Border.all(
-                      color: const Color(0xFFE8BE63).withValues(alpha: 0.38),
+                      color: CozyPalette.outlineVariant.withValues(alpha: 0.62),
                       width: 1,
                     ),
                   ),
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                   child: Text(
                     trailing,
-                    style: _ts(12, 16, FontWeight.w900, const Color(0xFF7A5320)),
+                    style: _ts(12, 16, FontWeight.w900, CozyPalette.secondary),
                   ),
                 )
               else
@@ -1178,4 +1206,15 @@ class _LogoutConfirmDialog extends StatelessWidget {
       ],
     );
   }
+}
+
+/// 与首页/纪念日页同一口径的日期解析（`anniversary_at` 可能带时间部分）。
+DateTime? _parseDateSafely(String value) {
+  if (value.isEmpty) return null;
+  final DateTime? iso = DateTime.tryParse(value);
+  if (iso != null) return DateTime(iso.year, iso.month, iso.day);
+  final String head = value.length > 10 ? value.substring(0, 10) : value;
+  final DateTime? dateOnly = DateTime.tryParse(head);
+  if (dateOnly == null) return null;
+  return DateTime(dateOnly.year, dateOnly.month, dateOnly.day);
 }
