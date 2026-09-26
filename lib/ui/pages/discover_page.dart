@@ -302,8 +302,8 @@ class _DiscoverPageState extends State<DiscoverPage> {
           return ListView.separated(
             // 原生 contentPadding(start 20, top 24, end 20, bottom 172) → 底栏收敛为 clearance
             padding: EdgeInsets.fromLTRB(20, 24, 20, CozyDock.clearanceOf(context)),
-            // 原生 verticalArrangement = Arrangement.spacedBy(24.dp)
-            separatorBuilder: (_, _) => const SizedBox(height: 24),
+            // 原生 verticalArrangement = Arrangement.spacedBy(24.dp)，这里收到 16 让一屏装得下
+            separatorBuilder: (_, _) => const SizedBox(height: 16),
             itemCount: items.length,
             itemBuilder: (_, index) => items[index],
           );
@@ -348,19 +348,19 @@ class _DiscoverPageState extends State<DiscoverPage> {
           '发现 - 探索新菜谱',
           style: TextStyle(
             color: _discoverPrimary,
-            fontSize: 29,
-            height: 37 / 29,
+            fontSize: 26,
+            height: 34 / 26,
             fontWeight: FontWeight.w900,
             letterSpacing: 0,
           ),
         ),
-        SizedBox(height: 9),
+        SizedBox(height: 6),
         Text(
           '搜一搜，给你们的小饭桌加点新菜',
           style: TextStyle(
             color: CozyPalette.onSurfaceVariant,
-            fontSize: 17,
-            height: 25 / 17,
+            fontSize: 15,
+            height: 22 / 15,
           ),
         ),
       ],
@@ -374,7 +374,7 @@ class _DiscoverPageState extends State<DiscoverPage> {
         : _kSearchPlaceholder;
 
     return Container(
-      height: 60,
+      height: 54,
       decoration: BoxDecoration(
         color: _discoverInput,
         borderRadius: BorderRadius.circular(999),
@@ -471,11 +471,11 @@ class _DiscoverPageState extends State<DiscoverPage> {
     ];
   }
 
-  // 原生 DiscoverSearchPrompt（L669-705）
+  // 原生 DiscoverSearchPrompt（L669-705）：原生是竖排居中大卡，太占高度，这里改横排一行
   Widget _buildSearchPrompt(ThemeData theme) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: _discoverCreamCard.withValues(alpha: 0.84),
         borderRadius: BorderRadius.circular(16),
@@ -484,33 +484,39 @@ class _DiscoverPageState extends State<DiscoverPage> {
           width: 2,
         ),
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
+      child: Row(
         children: [
           Container(
-            width: 72,
-            height: 72,
+            width: 48,
+            height: 48,
             alignment: Alignment.center,
             decoration: BoxDecoration(
               color: _kSoftPinkBg,
-              borderRadius: BorderRadius.circular(26),
+              borderRadius: BorderRadius.circular(18),
             ),
-            child: const Icon(Icons.search, size: 32, color: _discoverPrimary),
+            child: const Icon(Icons.search, size: 24, color: _discoverPrimary),
           ),
-          const SizedBox(height: 10),
-          Text(
-            '搜一搜新菜谱',
-            style: theme.textTheme.titleMedium?.copyWith(
-              color: CozyPalette.onSurface,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            '输入菜名、食材或做法，找到合适的菜后加入我的小店。',
-            textAlign: TextAlign.center,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: CozyPalette.onSurfaceVariant,
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '搜一搜新菜谱',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    color: CozyPalette.onSurface,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  '输入菜名、食材或做法，找到合适的菜后加入我的小店。',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: CozyPalette.onSurfaceVariant,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -518,12 +524,12 @@ class _DiscoverPageState extends State<DiscoverPage> {
     );
   }
 
-  // 原生 DiscoverEmptyState（L707-747）
+  // 原生 DiscoverEmptyState（L707-747）：同样由竖排大卡改横排，省掉约 120dp 高度
   Widget _buildEmptyState(ThemeData theme) {
     final query = _query.trim();
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: _discoverCreamCard.withValues(alpha: 0.92),
         borderRadius: BorderRadius.circular(16),
@@ -535,40 +541,51 @@ class _DiscoverPageState extends State<DiscoverPage> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
-            width: 68,
-            height: 68,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: _kSoftPinkBg,
-              borderRadius: BorderRadius.circular(24),
-            ),
-            child: Text(
-              '菜',
-              style: theme.textTheme.bodyLarge?.copyWith(
-                color: _discoverPrimary,
-                fontWeight: FontWeight.w900,
+          Row(
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: _kSoftPinkBg,
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                child: Text(
+                  '菜',
+                  style: theme.textTheme.bodyLarge?.copyWith(
+                    color: _discoverPrimary,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
               ),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            '没有找到相关菜品',
-            style: theme.textTheme.titleMedium?.copyWith(
-              color: CozyPalette.onSurface,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            '换个更准确的菜名试试，或者直接加入我的小店后再编辑',
-            textAlign: TextAlign.center,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: CozyPalette.onSurfaceVariant,
-            ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '没有找到相关菜品',
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        color: CozyPalette.onSurface,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      '换个更准确的菜名试试，或者直接加入我的小店后再编辑',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: CozyPalette.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
           if (query.isNotEmpty) ...[
-            const SizedBox(height: 4),
+            const SizedBox(height: 10),
             _RecipeVideoLinkIcons(
               query: query,
               compact: false,
@@ -600,8 +617,8 @@ class _DiscoverPageState extends State<DiscoverPage> {
         child: Row(
           children: [
             SizedBox(
-              width: 100,
-              height: 100,
+              width: 84,
+              height: 84,
               child: Container(
                 clipBehavior: Clip.antiAlias,
                 decoration: BoxDecoration(
@@ -612,14 +629,14 @@ class _DiscoverPageState extends State<DiscoverPage> {
                 child: _DishImageOrPlaceholder(
                   recipe: recipe,
                   fit: BoxFit.cover,
-                  emojiSize: 38,
+                  emojiSize: 34,
                 ),
               ),
             ),
-            const SizedBox(width: 16),
+            const SizedBox(width: 14),
             Expanded(
               child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8),
+                padding: const EdgeInsets.symmetric(vertical: 6),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -630,12 +647,12 @@ class _DiscoverPageState extends State<DiscoverPage> {
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         color: CozyPalette.onPrimaryContainer,
-                        fontSize: 22,
-                        height: 29 / 22,
+                        fontSize: 19,
+                        height: 25 / 19,
                         fontWeight: FontWeight.w900,
                       ),
                     ),
-                    const SizedBox(height: 7),
+                    const SizedBox(height: 6),
                     Row(
                       children: [
                         _DiscoverSourceChip(text: _displaySourceName(recipe)),
@@ -652,13 +669,13 @@ class _DiscoverPageState extends State<DiscoverPage> {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 11),
+                    const SizedBox(height: 8),
                     _SquishyDiscoverButton(
                       text: added ? '已在我的小店' : '加入我的小店',
                       enabled: !added,
                       onTap: () => _addToShop(recipe),
                     ),
-                    const SizedBox(height: 9),
+                    const SizedBox(height: 7),
                     _RecipeVideoLinkIcons(
                       query: name,
                       compact: true,
@@ -713,7 +730,7 @@ class _DiscoverPageState extends State<DiscoverPage> {
       onTap: () => _showDishDetail(recipe),
       child: Container(
         width: double.infinity,
-        constraints: const BoxConstraints(minHeight: 292),
+        constraints: const BoxConstraints(minHeight: 214),
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
           color: _discoverCreamCard.withValues(alpha: 0.96),
@@ -729,7 +746,7 @@ class _DiscoverPageState extends State<DiscoverPage> {
           children: [
             Container(
               width: double.infinity,
-              height: 92,
+              height: 68,
               clipBehavior: Clip.antiAlias,
               decoration: BoxDecoration(
                 color: _kThumbBg,
@@ -742,58 +759,61 @@ class _DiscoverPageState extends State<DiscoverPage> {
               child: _DishImageOrPlaceholder(
                 recipe: recipe,
                 fit: BoxFit.cover,
-                emojiSize: 34,
+                emojiSize: 30,
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
             Text(
               recommendation.title,
-              maxLines: 2,
+              maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: theme.textTheme.labelLarge?.copyWith(
                 color: _discoverPrimary,
                 fontWeight: FontWeight.w900,
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
             Text(
               name,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
                 color: CozyPalette.onSurface,
-                fontSize: 16,
-                height: 21 / 16,
+                fontSize: 15,
+                height: 20 / 15,
                 fontWeight: FontWeight.w900,
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
             Text(
               recommendation.subtitle,
-              maxLines: 2,
+              maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: theme.textTheme.labelSmall?.copyWith(
                 color: CozyPalette.onSurfaceVariant,
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
             _SquishyDiscoverButton(
               text: added ? '已在店铺' : '加入店铺',
               enabled: !added,
               onTap: () => _addToShop(recipe),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
             // 原生 RecommendationVideoLinks：文案「抖音」/「哔站」，间距 6
+            // 卡片只有 ~140dp 内宽，用 dense 让两个 chip 排在一行而不是折成两行
             Wrap(
               spacing: 6,
               runSpacing: 6,
               children: [
                 _VideoSearchChip(
                   text: '抖音',
+                  dense: true,
                   onTap: () => _openVideo('抖音', name),
                 ),
                 _VideoSearchChip(
                   text: '哔站',
+                  dense: true,
                   onTap: () => _openVideo('哔站', name),
                 ),
               ],
@@ -1034,9 +1054,9 @@ class _SquishyDiscoverButton extends StatelessWidget {
       onTap: enabled ? onTap : null,
       pressedScale: 0.96,
       child: Container(
-        constraints: const BoxConstraints(minHeight: 38),
+        constraints: const BoxConstraints(minHeight: 34),
         alignment: Alignment.center,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
         decoration: BoxDecoration(
           color: enabled ? _discoverPrimary : _kDisabledBg,
           borderRadius: BorderRadius.circular(999),
@@ -1088,10 +1108,15 @@ class _RecipeVideoLinkIcons extends StatelessWidget {
 }
 
 class _VideoSearchChip extends StatelessWidget {
-  const _VideoSearchChip({required this.text, required this.onTap});
+  const _VideoSearchChip({
+    required this.text,
+    required this.onTap,
+    this.dense = false,
+  });
 
   final String text;
   final VoidCallback onTap;
+  final bool dense;
 
   @override
   Widget build(BuildContext context) {
@@ -1099,7 +1124,10 @@ class _VideoSearchChip extends StatelessWidget {
       behavior: HitTestBehavior.opaque,
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+        padding: EdgeInsets.symmetric(
+          horizontal: dense ? 7 : 10,
+          vertical: dense ? 4 : 7,
+        ),
         decoration: BoxDecoration(
           color: CozyPalette.surface,
           borderRadius: BorderRadius.circular(999),
@@ -1111,18 +1139,18 @@ class _VideoSearchChip extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(
+            Icon(
               Icons.play_circle_outline,
-              size: 15,
+              size: dense ? 12 : 15,
               color: _discoverPrimary,
             ),
-            const SizedBox(width: 5),
+            SizedBox(width: dense ? 3 : 5),
             Text(
               text,
               maxLines: 1,
-              style: const TextStyle(
+              style: TextStyle(
                 color: _discoverPrimary,
-                fontSize: 12,
+                fontSize: dense ? 10 : 12,
                 fontWeight: FontWeight.w700,
               ),
             ),
