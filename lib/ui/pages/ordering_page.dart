@@ -840,7 +840,7 @@ class _DishList extends StatelessWidget {
       ),
       itemCount: items.length,
       separatorBuilder: (BuildContext context, int index) =>
-          const SizedBox(height: 18),
+          const SizedBox(height: 12),
       itemBuilder: (BuildContext context, int index) {
         final MenuItem item = items[index];
         final GlobalKey key = addKeys.putIfAbsent(item.id, () => GlobalKey());
@@ -894,51 +894,69 @@ class _SingleShopDishCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final TextTheme text = Theme.of(context).textTheme;
+    // 紧凑横排：小缩略图 + 文案，价格与加减单独占一行铺满卡片宽度
+    // （卡片只有 ~204dp 宽，缩略图 92dp 时右侧仅剩 80dp，¥16 与加减器并排放不下会挤成两行）
     return CozyCard(
-      radius: 18,
-      padding: const EdgeInsets.all(12),
+      radius: 16,
+      padding: const EdgeInsets.all(10),
       onTap: onClick,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          _DishImage(
-            imageUrl: item.imageUrl,
-            name: item.name,
-            backgroundAlpha: 0.62,
-            radius: 14,
-            aspectRatio: 1,
-            fit: BoxFit.cover,
-            iconSize: 40,
-          ),
-          const SizedBox(height: 11),
-          Text(
-            item.name,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            // 原生 fontSize 17.sp / lineHeight 24.sp
-            style: text.titleLarge!.copyWith(
-              fontSize: 17,
-              height: 24 / 17,
-              fontWeight: FontWeight.w900,
-              color: CozyPalette.onSurface,
-            ),
-          ),
-          if (showDescription) ...<Widget>[
-            const SizedBox(height: 4),
-            Text(
-              item.description.trim().isEmpty
-                  ? '今天也很适合点这一道'
-                  : item.description.trim(),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: text.labelSmall!.copyWith(
-                color: CozyPalette.onSurfaceVariant,
-              ),
-            ),
-          ],
-          const SizedBox(height: 4),
           Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              SizedBox(
+                width: 64,
+                height: 64,
+                child: _DishImage(
+                  imageUrl: item.imageUrl,
+                  name: item.name,
+                  backgroundAlpha: 0.62,
+                  radius: 12,
+                  fit: BoxFit.cover,
+                  iconSize: 26,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      item.name,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      // 原生 fontSize 17.sp / lineHeight 24.sp
+                      style: text.titleLarge!.copyWith(
+                        fontSize: 17,
+                        height: 24 / 17,
+                        fontWeight: FontWeight.w900,
+                        color: CozyPalette.onSurface,
+                      ),
+                    ),
+                    if (showDescription) ...<Widget>[
+                      const SizedBox(height: 2),
+                      Text(
+                        item.description.trim().isEmpty
+                            ? '今天也很适合点这一道'
+                            : item.description.trim(),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: text.labelSmall!.copyWith(
+                          color: CozyPalette.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: <Widget>[
               Expanded(
                 child: Text(
@@ -981,7 +999,6 @@ class _DishImage extends StatelessWidget {
     required this.backgroundAlpha,
     required this.radius,
     this.height,
-    this.aspectRatio,
     this.fit = BoxFit.cover,
     this.iconSize = 40,
     this.placeholderGap = 6,
@@ -992,7 +1009,6 @@ class _DishImage extends StatelessWidget {
   final double backgroundAlpha;
   final double radius;
   final double? height;
-  final double? aspectRatio;
   final BoxFit fit;
   final double iconSize;
   final double placeholderGap;
@@ -1028,9 +1044,6 @@ class _DishImage extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       child: content,
     );
-    if (aspectRatio != null) {
-      box = AspectRatio(aspectRatio: aspectRatio!, child: box);
-    }
     if (height != null) {
       box = SizedBox(width: double.infinity, height: height, child: box);
     }
