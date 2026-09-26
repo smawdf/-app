@@ -203,6 +203,11 @@ class _DiscoverPageState extends State<DiscoverPage> {
 
     await showModalBottomSheet<void>(
       context: context,
+      // 【真机修正】这里原本没开 `isScrollControlled`，`showModalBottomSheet` 默认
+      // 只给 9/16 屏高，而弹层内容（图 190 + 菜名 + 描述 + 售价 + 两个按钮）约 460dp，
+      // 于是底部「关闭 / 加入我的小店」被挤出屏外，而且弹层到顶就只能回缩、不能上拉。
+      // 开成可滚动 + 包一层滚动容器后，内容按需撑高、超出时可滚，按钮永远可达。
+      isScrollControlled: true,
       backgroundColor: CozyPalette.surfaceContainerLow,
       showDragHandle: true,
       shape: const RoundedRectangleBorder(
@@ -213,9 +218,11 @@ class _DiscoverPageState extends State<DiscoverPage> {
           listenable: AppState.instance,
           builder: (context, _) {
             final added = _isAdded(recipe);
-            return Padding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 28),
-              child: Column(
+            return SafeArea(
+              top: false,
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 28),
+                child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -282,6 +289,7 @@ class _DiscoverPageState extends State<DiscoverPage> {
                     ],
                   ),
                 ],
+                ),
               ),
             );
           },
