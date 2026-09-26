@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../data/app_state.dart';
+import '../../data/food_images.dart';
 import '../../data/models.dart';
 import '../theme/cozy_glass.dart';
 
@@ -234,22 +235,10 @@ class CartDetailSheet extends StatelessWidget {
       padding: const EdgeInsets.all(18),
       child: Row(
         children: [
-          // 原生清单卡片没有缩略图；Flutter 侧 MenuItem.imageUrl 存的是菜品 emoji
-          // （AppState.addDish 写入），这里沿用 44×44 / 圆角 16 的图标底
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: CozyPalette.secondaryContainer.withValues(alpha: 0.62),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Center(
-              child: Text(
-                item.imageUrl.isNotEmpty ? item.imageUrl : '🍽️',
-                style: const TextStyle(fontSize: 22),
-              ),
-            ),
-          ),
+          // 【图片适配】以前这里只渲染 `MenuItem.imageUrl` 里的 emoji（数据层
+          // 历史上就是拿 emoji 当图）。现在数据层会把菜名解析成真实菜品照片，
+          // 所以能拿到图片地址时优先显示照片，拿不到再退回 emoji。
+          _CartThumb(imageUrl: item.imageUrl, name: item.name),
           const SizedBox(width: 12), // 原生 spacedBy(12.dp)
           Expanded(
             child: Column(
@@ -738,5 +727,42 @@ class _CheckoutDialogState extends State<CheckoutDialog> {
     HapticFeedback.mediumImpact();
     Navigator.pop(context);
     widget.onConfirm(_noteCtrl.text.trim());
+  }
+}
+
+/// 购物车清单缩略图：有真实图片地址就显示照片，否则退回菜名解析出的照片，
+/// 再不行才显示 emoji / 餐具占位。44×44、圆角 16，与原生 `.size(44.dp)` 一致。
+class _CartThumb extends StatelessWidget {
+  const _CartThumb({required this.imageUrl, required this.name});
+
+  final String imageUrl;
+  final String name;
+
+  @override
+  Widget build(BuildContext context) {
+    final String photo =
+        isUsableDishPhoto(imageUrl) ? imageUrl.trim() : resolveDishImage(name, current: imageUrl);
+    final Widget fallback = Center(
+      child: Text(
+        imageUrl.isNotEmpty && imageUrl.length <= 4 ? imageUrl : '🍽️',
+        style: const TextStyle(fontSize: 22),
+      ),
+    );
+    return Container(
+      width: 44,
+      height: 44,
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: CozyPalette.secondaryContainer.withValues(alpha: 0.62),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: isUsableDishPhoto(photo)
+          ? Image.network(
+              photo,
+              fit: BoxFit.cover,
+              errorBuilder: (_, _, _) => fallback,
+            )
+          : fallback,
+    );
   }
 }

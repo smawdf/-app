@@ -3,6 +3,7 @@ import 'dart:math';
 
 import 'package:supabase_flutter/supabase_flutter.dart' as sb;
 
+import 'food_images.dart';
 import 'local_store.dart';
 import 'models.dart';
 
@@ -466,19 +467,55 @@ class SupabaseApi {
         .eq('is_available', true)
         .order('sort_order');
 
-    return (rows as List).map((e) {
+    final List<MenuItem> items = <MenuItem>[];
+    final List<Map<String, String>> imageBackfill = <Map<String, String>>[];
+    for (final dynamic e in (rows as List)) {
       final m = e as Map<String, dynamic>;
-      return MenuItem(
+      final String name = (m['name'] as String?) ?? '';
+      final String rawImage = (m['image_url'] as String?) ?? '';
+      // 【图片适配】库里历史数据是拿 emoji 当图（长度 ≤ 4），或者干脆是
+      // picsum 那类随机占位图，所以真机上菜品卡要么只有 emoji、要么图不对题。
+      // 这里在**读取时**就补成真实菜品照片，并顺手回写云端
+      // （见 _backfillDishImages），下次直接读到的就是图片地址。
+      final String image = isUsableDishPhoto(rawImage)
+          ? rawImage
+          : resolveDishImageOrFallback(name, current: rawImage);
+      if (image != rawImage && image.isNotEmpty) {
+        imageBackfill.add(<String, String>{
+          'id': (m['id'] as String?) ?? '',
+          'image_url': image,
+        });
+      }
+      items.add(MenuItem(
         id: (m['id'] as String?) ?? '',
-        name: (m['name'] as String?) ?? '',
+        name: name,
         description: (m['description'] as String?) ?? '',
         price: ((m['price'] as num?) ?? 0).toDouble(),
-        imageUrl: (m['image_url'] as String?) ?? '',
+        imageUrl: image,
         salesCount: (m['monthly_sales'] as int?) ?? 0,
         isAvailable: (m['is_available'] as bool?) ?? true,
         category: (m['category'] as String?) ?? '',
-      );
-    }).toList();
+      ));
+    }
+    unawaited(_backfillDishImages(imageBackfill));
+    return items;
+  }
+
+  /// 把补出来的图片地址回写 `menu_dishes`，让每道菜只补一次。
+  /// 失败静默：离线或 RLS 拒绝都不该影响点菜主流程。
+  Future<void> _backfillDishImages(List<Map<String, String>> rows) async {
+    if (rows.isEmpty || _pairId.isEmpty || _pairId == kEmptyPairId) return;
+    for (final Map<String, String> r in rows) {
+      final String id = r['id'] ?? '';
+      if (id.isEmpty) continue;
+      try {
+        await _db
+            .from('menu_dishes')
+            .update(<String, String>{'image_url': r['image_url'] ?? ''})
+            .eq('id', id)
+            .eq('pair_id', _pairId);
+      } catch (_) {}
+    }
   }
 
   Future<MenuItem> createMenuItem({
@@ -496,13 +533,16 @@ class SupabaseApi {
     // 分类用调用方给的真实值；早先这里写死 '其他'，用户在编辑器里
     // 选的分类会被静默丢弃（分类管理区/点餐分类栏因此永远是空的）。
     final String normalizedCategory = category.trim().isEmpty ? '未分类' : category.trim();
+    // 【图片适配】编辑器允许留空（历史上留空就是没图，卡片只剩 emoji）。
+    // 这里统一在写库前把菜名解析成一张真实菜品照片。
+    final String photo = resolveDishImage(name, current: imageUrl);
     final id = _newRecordId();
     await _db.from('menu_dishes').insert({
       'id': id,
       'pair_id': _pairId,
       'name': name,
       'price': price,
-      'image_url': imageUrl,
+      'image_url': photo,
       'category': normalizedCategory,
       'description': description,
       'is_available': true,
@@ -515,7 +555,7 @@ class SupabaseApi {
       name: name,
       description: description,
       price: price,
-      imageUrl: imageUrl,
+      imageUrl: photo,
       salesCount: 0,
       isAvailable: true,
       category: normalizedCategory,
@@ -845,11 +885,21 @@ class SupabaseApi {
 
   Future<List<Map<String, dynamic>>> searchRecipes(String keyword) async {
     final kw = keyword.trim().toLowerCase();
-    if (kw.isEmpty) return _recipeLibrary;
-    return _recipeLibrary.where((r) {
-      final name = (r['name'] as String).toLowerCase();
-      final desc = (r['desc'] as String).toLowerCase();
-      return name.contains(kw) || desc.contains(kw);
+    final List<Map<String, dynamic>> hits = kw.isEmpty
+        ? _recipeLibrary
+        : _recipeLibrary.where((r) {
+            final name = (r['name'] as String).toLowerCase();
+            final desc = (r['desc'] as String).toLowerCase();
+            return name.contains(kw) || desc.contains(kw);
+          }).toList();
+    // 【图片适配】内置菜谱库只有 emoji（字段 'emoji'），这里统一补上真实菜品
+    // 照片；'imageUrl' 正是发现页 _DishImageOrPlaceholder 读的键。
+    return hits.map((Map<String, dynamic> r) {
+      final String name = (r['name'] as String?) ?? '';
+      return <String, dynamic>{
+        ...r,
+        'imageUrl': resolveDishImage(name, current: (r['imageUrl'] as String?) ?? ''),
+      };
     }).toList();
   }
 

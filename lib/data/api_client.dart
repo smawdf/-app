@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 
+import 'food_images.dart';
 import 'local_store.dart';
 import 'models.dart';
 export 'models.dart' show ApiException;
@@ -296,9 +297,23 @@ class ApiClient {
 
   Future<List<MenuItem>> menu() async {
     final data = await _get('/menu') as Map<String, dynamic>;
+    // 【图片适配】服务端历史数据是拿 emoji 当图（`catalog_service.go:201`
+    // 的 `ImageURL: d.emoji`），这里在读取时按菜名补成真实菜品照片。
     return ((data['items'] as List?) ?? const [])
-        .map((e) => MenuItem.fromJson(e as Map<String, dynamic>))
-        .toList();
+        .map((e) => e as Map<String, dynamic>)
+        .map((Map<String, dynamic> j) {
+      final MenuItem item = MenuItem.fromJson(j);
+      return MenuItem(
+        id: item.id,
+        name: item.name,
+        description: item.description,
+        price: item.price,
+        imageUrl: resolveDishImageOrFallback(item.name, current: item.imageUrl),
+        salesCount: item.salesCount,
+        isAvailable: item.isAvailable,
+        category: item.category,
+      );
+    }).toList();
   }
 
   Future<MenuItem> createMenuItem({
@@ -312,7 +327,7 @@ class ApiClient {
       'name': name,
       'price': price,
       'description': description,
-      'image_url': imageUrl,
+      'image_url': resolveDishImage(name, current: imageUrl),
       'category': category,
     }) as Map<String, dynamic>;
     return MenuItem.fromJson(data);
@@ -390,7 +405,20 @@ class ApiClient {
 
   Future<List<Map<String, dynamic>>> searchRecipes(String keyword) async {
     final data = await _get('/recipes/search?keyword=$keyword') as Map<String, dynamic>;
-    return ((data['recipes'] as List?) ?? const []).cast<Map<String, dynamic>>();
+    final List<Map<String, dynamic>> hits =
+        ((data['recipes'] as List?) ?? const []).cast<Map<String, dynamic>>();
+    // 【图片适配】Go 侧内置菜谱库同样只有 emoji（`extra_services.go:94-103`
+    // 的 `RecipeItem.Emoji`），这里按菜名补一张真实菜品照片。
+    return hits.map((Map<String, dynamic> r) {
+      final String name = (r['name'] as String?) ?? '';
+      return <String, dynamic>{
+        ...r,
+        'imageUrl': resolveDishImage(
+          name,
+          current: (r['imageUrl'] ?? r['image_url'] ?? '') as String,
+        ),
+      };
+    }).toList();
   }
 
   // ---------------- 小店设置 ----------------

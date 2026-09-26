@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../data/app_state.dart';
+import '../../data/food_images.dart';
 import '../../data/models.dart';
 import '../theme/cozy_glass.dart';
 
@@ -465,6 +466,11 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
   Widget _itemRow(TextTheme text, OrderItem item) {
     return Row(
       children: <Widget>[
+        // 【图片适配】明细行原本只有菜名 + 价格，没有任何图片。这里补一个
+        // 与购物车一致的 44×44 菜品照片（下单前的菜品图是 emoji 时，
+        // 用菜名现解析一张真实照片）。
+        _DishThumb(imageUrl: item.imageUrl, name: item.name),
+        const SizedBox(width: 12),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -495,10 +501,46 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
   }
 }
 
+/// 订单明细行里的 44×44 菜品照片。有图片地址就用，没有就用菜名解析一张，
+/// 再不行退回 emoji / 餐具占位。
+class _DishThumb extends StatelessWidget {
+  const _DishThumb({required this.imageUrl, required this.name});
+
+  final String imageUrl;
+  final String name;
+
+  @override
+  Widget build(BuildContext context) {
+    final String photo =
+        isUsableDishPhoto(imageUrl) ? imageUrl.trim() : resolveDishImage(name, current: imageUrl);
+    final Widget fallback = Center(
+      child: Text(
+        imageUrl.isNotEmpty && imageUrl.length <= 4 ? imageUrl : '🍽️',
+        style: const TextStyle(fontSize: 20),
+      ),
+    );
+    return Container(
+      width: 44,
+      height: 44,
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: CozyPalette.secondaryContainer.withValues(alpha: 0.62),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: isUsableDishPhoto(photo)
+          ? Image.network(
+              photo,
+              fit: BoxFit.cover,
+              errorBuilder: (_, _, _) => fallback,
+            )
+          : fallback,
+    );
+  }
+}
+
 /// 原生 `OrderSummaryCard` 里的 52dp 店铺封面（OrderDetailScreen.kt:180-200），
 /// 兜底图 `R.drawable.shop_banner_stitch`（OrderDetailScreen.kt:186）已打包为资源。
-class _ShopCover extends StatelessWidget {
-  const _ShopCover({required this.coverUrl, required this.shopName});
+class _ShopCover extends StatelessWidget {  const _ShopCover({required this.coverUrl, required this.shopName});
 
   final String coverUrl;
   final String shopName;
