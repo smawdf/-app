@@ -9,10 +9,11 @@
 // 数据层沿用工程现有的 `AppState.instance`：
 //   searchRemoteRecipes(keyword)（本地内置菜谱库）+ addDish(...)，未新增任何 AppState 能力。
 //
-// 【搜一搜】用户要求「搜索直接出结果，只放成品图 + 名称」：
-//   下厨房 robots 禁 `/*keyword=*` 与 `/search/`，所以不用它的搜索接口，
-//   改为抓类目页生成**本地大索引**（lib/data/dish_index.dart，菜名 + 成品图直链），
-//   搜索在本地做，输入即出结果；索引没命中时才回退内置菜谱库。
+// 【搜一搜】用户要求「搜索直接出结果，只放成品图 + 名称」+「实时爬取，不要手机缓存」：
+//   搜索时**实时**请求下厨房搜索页（lib/data/xiachufang_client.dart），拿回
+//   「成品图 + 名称」直接展示；手机本地不落任何索引/缓存。
+//   索引没命中 / 站点限流时才回退内置菜谱库（保持离线可用与老行为）。
+//   加入我的小店 → 仍然写进云端（Supabase menu_dishes），这是唯一的落库动作。
 
 import 'dart:async';
 
@@ -20,7 +21,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../data/app_state.dart';
-import '../../data/dish_index.dart';
+import '../../data/xiachufang_client.dart';
 import '../theme/cozy_glass.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -59,6 +60,12 @@ class _DiscoverPageState extends State<DiscoverPage> {
   String _query = '';
   bool _isSearching = false;
 
+  /// 并发搜索的代次：用户改词后，旧的响应直接丢掉，避免「后到的旧结果」覆盖新结果。
+  int _searchSeq = 0;
+
+  /// 上一次真正搜过的关键词（同一个词不重复请求站点）。
+  String _lastKeyword = '';
+
   /// 原生 `DiscoverUiState.errorMessage != null`（网络部分失败提示条）
   bool _partialError = false;
 
@@ -88,8 +95,7 @@ class _DiscoverPageState extends State<DiscoverPage> {
   }
 
   Future<void> _loadLibrary() async {
-    // 本地大索引（下厨房菜名 + 成品图）与内置菜谱库一起准备好，搜索才「输入即有结果」。
-    await DishIndex.ensureLoaded();
+    // 首屏空查询时的推荐位用内置菜谱库；搜索走实时抓取，不需要预热任何索引。
     final list = await AppState.instance.searchRemoteRecipes('');
     if (!mounted) return;
     setState(() => _library = list);
@@ -110,8 +116,11 @@ class _DiscoverPageState extends State<DiscoverPage> {
 
   // 对应原生 performSearch / clearResults
   Future<void> _performSearch(String keyword) async {
-    if (keyword.trim().isEmpty) {
+    final String q = keyword.trim();
+    if (q.isEmpty) {
       if (!mounted) return;
+      _searchSeq++; // 让还在飞的请求作废
+      _lastKeyword = '';
       setState(() {
         _results = <Map<String, dynamic>>[];
         _isSearching = false;
@@ -120,41 +129,48 @@ class _DiscoverPageState extends State<DiscoverPage> {
       return;
     }
 
+    // 同一个词已经搜过就不重复打扰站点（「实时」= 每次新关键词都真去抓，而不是每次都重复抓同一个词）。
+    if (q == _lastKeyword && _results.isNotEmpty) return;
+
+    final int seq = ++_searchSeq;
     setState(() => _isSearching = true);
 
-    // ① 本地大索引（下厨房 菜名 + 成品图）：不走网络，输入即有结果。
-    await DishIndex.ensureLoaded();
-    final hits = DishIndex.search(keyword);
+    // ① 实时抓下厨房搜索页：只取「成品图 + 名称」，手机里不落任何缓存。
+    final List<XiachufangDish> hits = await XiachufangClient.search(q);
+    if (!mounted || seq != _searchSeq) return; // 用户又改了关键词，丢掉这次结果
+
     if (hits.isNotEmpty) {
-      if (!mounted) return;
       setState(() {
         _results = <Map<String, dynamic>>[
-          for (final e in hits) _indexRecipe(e),
+          for (final XiachufangDish dish in hits) _liveRecipe(dish),
         ];
+        _lastKeyword = q;
         _isSearching = false;
         _partialError = false;
       });
       return;
     }
 
-    // ② 索引没命中：回退内置菜谱库（保持老行为）
-    final list = await AppState.instance.searchRemoteRecipes(keyword);
-    if (!mounted) return;
+    // ② 站点限流 / 没命中：回退内置菜谱库（保持离线可用与老行为）
+    final list = await AppState.instance.searchRemoteRecipes(q);
+    if (!mounted || seq != _searchSeq) return;
     setState(() {
       _results = list;
+      _lastKeyword = q;
       _isSearching = false;
-      _partialError = list.isEmpty && AppState.instance.error != null;
+      _partialError = (list.isEmpty && AppState.instance.error != null) ||
+          XiachufangClient.lastSearchFailed;
     });
   }
 
-  /// 索引条目 → 结果卡用的菜谱 Map（只带成品图与菜名，价格按类目推算）。
-  static Map<String, dynamic> _indexRecipe(DishIndexEntry entry) {
+  /// 实时抓来的菜 → 结果卡用的菜谱 Map（只带成品图与菜名，价格按时长/主料推算）。
+  static Map<String, dynamic> _liveRecipe(XiachufangDish dish) {
     return <String, dynamic>{
-      'name': entry.name,
-      'imageUrl': entry.image,
-      'category': entry.category,
-      'price': entry.suggestedPrice,
-      'desc': entry.category,
+      'name': dish.name,
+      'imageUrl': dish.imageUrl,
+      'category': '下厨房',
+      'price': suggestDishPrice(dish.name),
+      'desc': '来自下厨房的实时结果',
       'source': 'xiachufang',
       'fromIndex': true,
     };
