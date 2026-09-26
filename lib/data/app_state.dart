@@ -133,7 +133,15 @@ class AppState extends ChangeNotifier {
     // 异步快速探测，不阻塞启动首帧
     unawaited(_api.probeReachableHost());
 
-    final saved = await _api.restoreSession();
+    // 云端未初始化（例如缺少配置的构建、或单测直接 pumpWidget）时不要抛出未捕获异常，
+    // 按「没有可恢复的会话」处理，直接落在登录页。
+    ({String token, String userId, String pairId, AppUser? user})? saved;
+    try {
+      saved = await _api.restoreSession();
+    } catch (error) {
+      debugPrint('bootstrap: 恢复登录态失败，按未登录处理 —— $error');
+      saved = null;
+    }
     if (saved == null) {
       notifyListeners();
       return;

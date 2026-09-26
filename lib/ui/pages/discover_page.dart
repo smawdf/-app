@@ -8,6 +8,11 @@
 //
 // 数据层沿用工程现有的 `AppState.instance`：
 //   searchRemoteRecipes(keyword)（本地内置菜谱库）+ addDish(...)，未新增任何 AppState 能力。
+//
+// 【搜一搜】用户要求「搜索直接出结果，只放成品图 + 名称」：
+//   下厨房 robots 禁 `/*keyword=*` 与 `/search/`，所以不用它的搜索接口，
+//   改为抓类目页生成**本地大索引**（lib/data/dish_index.dart，菜名 + 成品图直链），
+//   搜索在本地做，输入即出结果；索引没命中时才回退内置菜谱库。
 
 import 'dart:async';
 
@@ -15,6 +20,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../data/app_state.dart';
+import '../../data/dish_index.dart';
 import '../theme/cozy_glass.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -82,6 +88,8 @@ class _DiscoverPageState extends State<DiscoverPage> {
   }
 
   Future<void> _loadLibrary() async {
+    // 本地大索引（下厨房菜名 + 成品图）与内置菜谱库一起准备好，搜索才「输入即有结果」。
+    await DishIndex.ensureLoaded();
     final list = await AppState.instance.searchRemoteRecipes('');
     if (!mounted) return;
     setState(() => _library = list);
@@ -113,6 +121,23 @@ class _DiscoverPageState extends State<DiscoverPage> {
     }
 
     setState(() => _isSearching = true);
+
+    // ① 本地大索引（下厨房 菜名 + 成品图）：不走网络，输入即有结果。
+    await DishIndex.ensureLoaded();
+    final hits = DishIndex.search(keyword);
+    if (hits.isNotEmpty) {
+      if (!mounted) return;
+      setState(() {
+        _results = <Map<String, dynamic>>[
+          for (final e in hits) _indexRecipe(e),
+        ];
+        _isSearching = false;
+        _partialError = false;
+      });
+      return;
+    }
+
+    // ② 索引没命中：回退内置菜谱库（保持老行为）
     final list = await AppState.instance.searchRemoteRecipes(keyword);
     if (!mounted) return;
     setState(() {
@@ -120,6 +145,19 @@ class _DiscoverPageState extends State<DiscoverPage> {
       _isSearching = false;
       _partialError = list.isEmpty && AppState.instance.error != null;
     });
+  }
+
+  /// 索引条目 → 结果卡用的菜谱 Map（只带成品图与菜名，价格按类目推算）。
+  static Map<String, dynamic> _indexRecipe(DishIndexEntry entry) {
+    return <String, dynamic>{
+      'name': entry.name,
+      'imageUrl': entry.image,
+      'category': entry.category,
+      'price': entry.suggestedPrice,
+      'desc': entry.category,
+      'source': 'xiachufang',
+      'fromIndex': true,
+    };
   }
 
   bool _isAdded(Map<String, dynamic> recipe) {
@@ -605,8 +643,72 @@ class _DiscoverPageState extends State<DiscoverPage> {
     );
   }
 
+  /// 【搜一搜】本地索引的结果卡：只有**成品图 + 菜名**（用户要求），
+  /// 点一下进菜品详情，在那里决定要不要加入我的小店。
+  Widget _buildIndexResultCard(
+    BuildContext context,
+    Map<String, dynamic> recipe,
+  ) {
+    final name = _name(recipe);
+    return _Pressable(
+      onTap: () => _showDishDetail(recipe),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: _discoverCard,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: _discoverCardBorder, width: 2),
+        ),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 96,
+              height: 96,
+              child: Container(
+                clipBehavior: Clip.antiAlias,
+                decoration: BoxDecoration(
+                  color: _kThumbBg,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: _discoverCardBorder, width: 2),
+                ),
+                child: _DishImageOrPlaceholder(
+                  recipe: recipe,
+                  fit: BoxFit.cover,
+                  emojiSize: 34,
+                ),
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 6),
+                child: Text(
+                  name,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: CozyPalette.onPrimaryContainer,
+                    fontSize: 18,
+                    height: 24 / 18,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   // 原生 DiscoverResultCard（L418-515）
   Widget _buildResultCard(BuildContext context, Map<String, dynamic> recipe) {
+    // 【搜一搜】索引结果只放成品图 + 名称（用户要求），点卡片进详情再决定要不要加店铺。
+    if (recipe['fromIndex'] == true) {
+      return _buildIndexResultCard(context, recipe);
+    }
+
     final theme = Theme.of(context);
     final name = _name(recipe);
     final subtitle = _subtitle(recipe);

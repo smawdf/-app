@@ -76,6 +76,10 @@ flutter:
   #   ic_launcher_orderdisk_dogs_cropped.png → DeviceSwitchScreen.kt:75
   assets:
     - assets/images/
+    # 发现页「搜一搜」用的本地菜谱索引（菜名 + 成品图直链）。
+    # 生成：_tools/crawl_xiachufang_index.ps1 → _tools/gen_dish_index_asset.ps1
+    # 读取：lib/data/dish_index.dart
+    - assets/data/dish_index.json
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

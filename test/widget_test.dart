@@ -10,9 +10,9 @@ void main() {
     await tester.pumpWidget(const OrderDiskApp());
     await tester.pump();
 
-    // 登录页标题
-    expect(find.text('高糖小食'), findsOneWidget);
-    // 演示账号快捷入口
-    expect(find.text('吃货 小马'), findsOneWidget);
+    // 登录页标题与主按钮（改版后的实际文案）
+    expect(find.text('欢迎回来'), findsOneWidget);
+    expect(find.text('今天也一起好好吃饭吧'), findsOneWidget);
+    expect(find.text('去注册'), findsOneWidget);
   });
 }
