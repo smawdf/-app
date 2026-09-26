@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:dio/dio.dart';
 
+import 'xiachufang_photos.dart';
+
 /// 菜品图片适配层：把「没有图 / 只有 emoji」的菜品补成真实菜品照片。
 ///
 /// 背景：`menu_dishes.image_url` 与内置菜谱库在历史上都拿 emoji 当图
@@ -10,13 +12,16 @@ import 'package:dio/dio.dart';
 ///
 /// 这里给出一条**离线、确定、无 key** 的「菜名 → 真实照片」映射：
 /// 1. [kCuratedDishPhotos]：内置菜谱库那 8 道菜，精确菜名直配；
-/// 2. [kKeywordDishPhotos]：中文关键词兜底（肉/鸡/鱼/蛋/菜/汤/面/饭/甜品/饮品…），
+/// 2. [kXiachufangDishPhotos]：从下厨房公开类目页抓来的中文菜名 + 真图
+///    （见 `_lookupXiachufang`，支持「标题包含菜名 / 菜名包含标题」双向匹配）；
+/// 3. [kKeywordDishPhotos]：中文关键词兜底（肉/鸡/鱼/蛋/菜/汤/面/饭/甜品/饮品…），
 ///    覆盖绝大多数家常菜名；
-/// 3. [kFallbackDishPhotoUrl]：菜名完全判断不出来时的通用家常菜照片；
-/// 4. [searchDishPhotoRemote]：以上都没命中时，用 TheMealDB 免费接口按菜名在线找一张。
+/// 4. [kFallbackDishPhotoUrl]：菜名完全判断不出来时的通用家常菜照片；
+/// 5. [searchDishPhotoRemote]：以上都没命中时，用 TheMealDB 免费接口按菜名在线找一张。
 ///
-/// 图源 TheMealDB（https://www.themealdb.com），免费、无需 key、
-/// 提供真实菜品照片；实测雷电模拟器与宿主机均可直连（ping 178ms / HTTP 200）。
+/// 图源：TheMealDB（https://www.themealdb.com，免费、无需 key，实测雷电模拟器
+/// 与宿主机均可直连 ping 178ms / HTTP 200）与下厨房（图片走 i*.chuimg.com 直链，
+/// 实测不带 Referer / UA 也返回 200）。
 
 /// 判断一个值是不是可以直接交给 `Image.network` 的图片地址。
 /// emoji（`🍲`）、空串、本地路径都返回 false。
@@ -169,6 +174,40 @@ final List<MapEntry<String, String>> _keywords = <MapEntry<String, String>>[
 /// 菜名完全判断不出来时的通用家常菜照片（最后兜底，保证「每个菜都有图」）。
 final String kFallbackDishPhotoUrl = _stirFryBeef;
 
+// ---------------------------------------------------------------------------
+// 下厨房词典（中文菜名 → 真实菜品照）
+// ---------------------------------------------------------------------------
+
+/// 词典 key 按长度升序的索引（「最短命中优先」用，懒构建一次）。
+List<String>? _xfKeysByLength;
+
+List<String> get _xfKeysByLengthSorted =>
+    _xfKeysByLength ??= (kXiachufangDishPhotos.keys.toList()
+      ..sort((String a, String b) => a.length.compareTo(b.length)));
+
+/// 在下厨房词典里找一张真实菜品照：
+/// 1. 与 key 完全同名；
+/// 2. **站点标题更长、包含我们的菜名**（取最短命中的那个标题 —— 越短越贴切，
+///    例如「番茄牛腩」命中「砂锅番茄牛腩」而不是「番茄牛腩的十种做法大全」）；
+/// 3. 我们的菜名更长、包含站点标题（取最长命中的标题）。
+String? _lookupXiachufang(String name) {
+  if (name.length < 2) return null;
+  final String? exact = kXiachufangDishPhotos[name];
+  if (exact != null) return exact;
+  final List<String> keys = _xfKeysByLengthSorted;
+  for (final String key in keys) {
+    if (key.length >= name.length && key.contains(name)) {
+      return kXiachufangDishPhotos[key];
+    }
+  }
+  for (final String key in keys.reversed) {
+    if (key.length < name.length && name.contains(key)) {
+      return kXiachufangDishPhotos[key];
+    }
+  }
+  return null;
+}
+
 /// 离线解析：菜名 → 真实照片 URL。命中不了返回空串。
 ///
 /// [current] 是库里已有的值（可能是 emoji，也可能是 picsum 这类随机占位图），
@@ -179,6 +218,8 @@ String resolveDishImage(String name, {String current = ''}) {
   if (n.isEmpty) return '';
   final String? exact = _curated[n];
   if (exact != null) return exact;
+  final String? xiachufang = _lookupXiachufang(n);
+  if (xiachufang != null) return xiachufang;
   for (final MapEntry<String, String> e in _keywords) {
     if (n.contains(e.key)) return e.value;
   }
