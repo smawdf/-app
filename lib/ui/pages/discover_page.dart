@@ -772,34 +772,46 @@ class _DiscoverPageState extends State<DiscoverPage> {
                 fontWeight: FontWeight.w900,
               ),
             ),
-            const SizedBox(height: 6),
-            Text(
-              name,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: CozyPalette.onSurface,
-                fontSize: 15,
-                height: 20 / 15,
-                fontWeight: FontWeight.w900,
+            const SizedBox(height: 5),
+            // 固定两行菜名位：两张推荐卡菜名长短不一（「法式巴斯克乳酪蛋糕」两行 /
+            // 「暖胃浓汤番茄牛腩」一行），留出同样高度的槽位，按钮与 chip 才能左右对齐
+            SizedBox(
+              height: 40,
+              child: Text(
+                name,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: CozyPalette.onSurface,
+                  fontSize: 15,
+                  height: 20 / 15,
+                  fontWeight: FontWeight.w900,
+                ),
               ),
             ),
-            const SizedBox(height: 6),
-            Text(
-              recommendation.subtitle,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.labelSmall?.copyWith(
-                color: CozyPalette.onSurfaceVariant,
+            const SizedBox(height: 2),
+            // 固定一行副标题位，同上
+            SizedBox(
+              height: 18,
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  recommendation.subtitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: CozyPalette.onSurfaceVariant,
+                  ),
+                ),
               ),
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 10),
             _SquishyDiscoverButton(
               text: added ? '已在店铺' : '加入店铺',
               enabled: !added,
               onTap: () => _addToShop(recipe),
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 8),
             // 原生 RecommendationVideoLinks：文案「抖音」/「哔站」，间距 6
             // 卡片只有 ~140dp 内宽，用 dense 让两个 chip 排在一行而不是折成两行
             Wrap(
