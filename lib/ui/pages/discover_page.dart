@@ -22,8 +22,10 @@ import 'package:flutter/services.dart';
 
 import '../../data/app_state.dart';
 import '../../data/category_placement.dart';
+import '../../data/image_cache.dart';
 import '../../data/xiachufang_client.dart';
 import '../theme/cozy_glass.dart';
+import '../widgets/cozy_dish_photo.dart';
 import '../widgets/cozy_skeletons.dart';
 import '../widgets/cozy_toast.dart';
 
@@ -150,6 +152,7 @@ class _DiscoverPageState extends State<DiscoverPage> {
         _isSearching = false;
         _partialError = false;
       });
+      _warmThumbs(_results);
       return;
     }
 
@@ -163,6 +166,24 @@ class _DiscoverPageState extends State<DiscoverPage> {
       _partialError = (list.isEmpty && AppState.instance.error != null) ||
           XiachufangClient.lastSearchFailed;
     });
+    _warmThumbs(list);
+  }
+
+  /// 结果一落地就把前几张图预热进磁盘缓存：用户翻到卡片时图已经在本地。
+  ///
+  /// 图床单张图要 2–10 s（实测），如果等卡片自己懒加载，就得一张一张排队；
+  /// 并发预热 3 张，前几张基本能「先占位、随即淡入」。
+  void _warmThumbs(List<Map<String, dynamic>> list) {
+    final double dpr = MediaQuery.maybeOf(context)?.devicePixelRatio ?? 3;
+    final List<String> urls = <String>[];
+    for (final Map<String, dynamic> recipe in list) {
+      final Object? raw = recipe['imageUrl'] ?? recipe['image_url'];
+      if (raw is! String || raw.trim().isEmpty) continue;
+      urls.add(CozyDishPhoto.thumbUrl(raw, cssWidth: 84, dpr: dpr));
+      if (urls.length >= 8) break;
+    }
+    if (urls.isEmpty) return;
+    unawaited(CozyImageCache.instance.prefetch(urls, concurrency: 3));
   }
 
   /// 实时抓来的菜 → 结果卡用的菜谱 Map（只带成品图与菜名，价格按时长/主料推算）。
@@ -292,6 +313,7 @@ class _DiscoverPageState extends State<DiscoverPage> {
                     child: _DishImageOrPlaceholder(
                       recipe: recipe,
                       fit: BoxFit.cover,
+                      cssWidth: 320,
                       emojiSize: 56,
                     ),
                   ),
@@ -680,6 +702,7 @@ class _DiscoverPageState extends State<DiscoverPage> {
                 child: _DishImageOrPlaceholder(
                   recipe: recipe,
                   fit: BoxFit.cover,
+                  cssWidth: 96,
                   emojiSize: 34,
                 ),
               ),
@@ -744,6 +767,7 @@ class _DiscoverPageState extends State<DiscoverPage> {
                 child: _DishImageOrPlaceholder(
                   recipe: recipe,
                   fit: BoxFit.cover,
+                  cssWidth: 96,
                   emojiSize: 34,
                 ),
               ),
@@ -874,6 +898,7 @@ class _DiscoverPageState extends State<DiscoverPage> {
               child: _DishImageOrPlaceholder(
                 recipe: recipe,
                 fit: BoxFit.cover,
+                cssWidth: 200,
                 emojiSize: 30,
               ),
             ),
@@ -1298,11 +1323,15 @@ class _DishImageOrPlaceholder extends StatelessWidget {
     required this.recipe,
     required this.fit,
     required this.emojiSize,
+    this.cssWidth = 84,
   });
 
   final Map<String, dynamic> recipe;
   final BoxFit fit;
   final double emojiSize;
+
+  /// 控件在界面上占的宽度（dp）—— 交给 [CozyDishPhoto] 决定要多大、解码多大。
+  final double cssWidth;
 
   @override
   Widget build(BuildContext context) {
@@ -1310,10 +1339,14 @@ class _DishImageOrPlaceholder extends StatelessWidget {
     final emoji = (recipe['emoji'] as String?) ?? '';
 
     if (url != null && (url.startsWith('http://') || url.startsWith('https://'))) {
-      return Image.network(
-        url,
+      // 走带磁盘缓存 / 按尺寸取图 / 先占位后淡入的统一入口（见 CozyDishPhoto）。
+      // 占位色用容器自己的米色，避免「图没到时先闪一块别的颜色」。
+      return CozyDishPhoto(
+        url: url,
+        cssWidth: cssWidth,
         fit: fit,
-        errorBuilder: (context, error, stackTrace) => _placeholder(context),
+        placeholderColor: _kThumbBg,
+        fallback: _placeholder(context),
       );
     }
     if (emoji.trim().isNotEmpty) {

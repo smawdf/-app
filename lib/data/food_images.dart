@@ -57,6 +57,27 @@ bool isPlaceholderPhotoUrl(String value) {
 /// 这张图能不能当菜品图用：必须是真图片地址，且不是随机占位图。
 bool isUsableDishPhoto(String value) => isPhotoUrl(value) && !isPlaceholderPhotoUrl(value);
 
+/// 按**显示尺寸**取缩略图地址。
+///
+/// 下厨房图床（`i*.chuimg.com`）支持 `imageView2` 实时裁图：PC 实测同一张图
+/// `w/400/h/400/interlace/1/q/80` = 43 KB，`w/300/h/300/q/75/format/webp` = 23 KB，
+/// `w/200/h/200/q/70/format/webp` = 12.5 KB。搜索卡只有 84–96 dp（≈250–290 px），
+/// 却每次都拉 400×400，白下 2.5 倍字节 —— 这里按实际需要要图。
+///
+/// 其它图源（TheMealDB 等）不认这套参数，原样返回；GIF/WebP 也原样返回，
+/// 免得把动图压成静态图。
+String dishThumbUrl(String url, {int px = 240}) {
+  final String v = url.trim();
+  if (!isPhotoUrl(v)) return v;
+  if (!v.contains('chuimg.com')) return v;
+  final int size = px < 120 ? 120 : (px > 1080 ? 1080 : px);
+  final int query = v.indexOf('?');
+  final String base = query >= 0 ? v.substring(0, query) : v;
+  final String lower = base.toLowerCase();
+  if (lower.endsWith('.gif') || lower.endsWith('.webp')) return v;
+  return '$base?imageView2/1/w/$size/h/$size/interlace/1/q/72/format/webp';
+}
+
 // ---------------------------------------------------------------------------
 // 图源常量
 // ---------------------------------------------------------------------------
