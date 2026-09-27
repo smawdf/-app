@@ -57,12 +57,10 @@ class CartDetailSheet extends StatelessWidget {
     ];
     final bool isEmpty = entries.isEmpty;
 
-    return Container(
-      decoration: const BoxDecoration(
-        // 原生 CartSheet.kt:50 `background(Color(0xFFFFFFFF))`
-        color: CozyPalette.background,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-      ),
+    // 【玻璃】原来是白底 Container（原生 CartSheet.kt:50），现在换成玻璃外壳；
+    // 外层把手由这一层自己的 Column 画，所以 showHandle: false，避免两条把手。
+    return CozyGlassSheet(
+      showHandle: false,
       // 原生 CartSheet.kt:52 `padding(start = 20, top = 10, end = 20, bottom = 20)`
       padding: EdgeInsets.fromLTRB(
         20,

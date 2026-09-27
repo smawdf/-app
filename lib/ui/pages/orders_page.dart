@@ -114,16 +114,22 @@ class _OrdersPageState extends State<OrdersPage> {
         final bool firstLoad = state.orders.isEmpty && state.busy;
 
         return CozyPage(
-          child: Column(
+          // 玻璃顶栏是浮层：内容从 y=0 开始滚，从玻璃下面穿过（顶部用
+          // `CozyGlassTopBar.reserved` 让开头不被压住），这样玻璃才有东西可折。
+          child: Stack(
             children: <Widget>[
-              _topBar(context),
-              Expanded(
+              Positioned.fill(
                 child: RefreshIndicator(
                   color: CozyPalette.primary,
                   onRefresh: () => state.refreshOrders(),
                   child: ListView.separated(
                     physics: const AlwaysScrollableScrollPhysics(),
-                    padding: EdgeInsets.fromLTRB(20, 20, 20, CozyDock.clearanceOf(context)),
+                    padding: EdgeInsets.fromLTRB(
+                      20,
+                      20 + CozyGlassTopBar.reserved,
+                      20,
+                      CozyDock.clearanceOf(context),
+                    ),
                     itemCount: firstLoad ? 2 : (visible.isEmpty ? 2 : 1 + visible.length),
                     separatorBuilder: (BuildContext context, int index) => const SizedBox(height: 12),
                     itemBuilder: (BuildContext context, int index) {
@@ -136,6 +142,7 @@ class _OrdersPageState extends State<OrdersPage> {
                   ),
                 ),
               ),
+              Positioned(left: 0, right: 0, top: 0, child: _topBar(context)),
             ],
           ),
         );
@@ -143,9 +150,9 @@ class _OrdersPageState extends State<OrdersPage> {
     );
   }
 
-  /// 原生 `CozyMainTopBar`（StitchNativeComponents.kt:175-223）
+  /// 原生 `CozyMainTopBar`（StitchNativeComponents.kt:175-223），这里用玻璃浮层版
   Widget _topBar(BuildContext context) {
-    return CozyMainTopBar(
+    return CozyGlassTopBar(
       title: const Text(
         '订单 - 甜蜜点菜记录',
         textAlign: TextAlign.center,

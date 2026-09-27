@@ -264,19 +264,25 @@ class _MenuManagementPageState extends State<MenuManagementPage> {
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: CozyPalette.background,
+      // 【玻璃】底色交给 `CozyGlassSheet`（半径 30 与原 shape 一致），这里必须透明。
+      backgroundColor: Colors.transparent,
       // 原生 M3 ModalBottomSheet 的 scrim = colorScheme.scrim @ 32%
       barrierColor: Colors.black.withValues(alpha: 0.32),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
       ),
-      builder: (BuildContext _) => _DishEditorSheet(
-        initial: _editor.clone(),
-        // 分类候选 = 云端菜品聚合 ∪ 会话内新建，否则编辑已有菜时
-        // 看不到云端已有的分类（原生 getCategoryNames() 就是这个聚合）。
-        categories: _allCategories(AppState.instance.menu),
-        onSave: _saveDish,
-        onPickImage: () => _openImageSourcePicker('选择菜品图片'),
+      builder: (BuildContext _) => CozyGlassSheet(
+        radius: 30,
+        // 编辑弹层自己画了把手（56×6，比原生默认 32×4 宽），别再画一条。
+        showHandle: false,
+        child: _DishEditorSheet(
+          initial: _editor.clone(),
+          // 分类候选 = 云端菜品聚合 ∪ 会话内新建，否则编辑已有菜时
+          // 看不到云端已有的分类（原生 getCategoryNames() 就是这个聚合）。
+          categories: _allCategories(AppState.instance.menu),
+          onSave: _saveDish,
+          onPickImage: () => _openImageSourcePicker('选择菜品图片'),
+        ),
       ),
     );
   }
@@ -477,14 +483,17 @@ class _MenuManagementPageState extends State<MenuManagementPage> {
             }
             return Stack(
               children: <Widget>[
-                Column(
-                  children: <Widget>[
-                    const _StoreTopBar(),
-                    Expanded(
-                      child: ListView(
-                        controller: _listCtrl,
-                        padding:
-                            EdgeInsets.fromLTRB(16, 10, 16, CozyDock.clearanceOf(context)),
+                // 玻璃顶栏是浮层：列表从 y=0 起滚、内容穿过玻璃（顶部预留
+                // `CozyGlassTopBar.reserved`），这样玻璃才有东西可折。
+                Positioned.fill(
+                  child: ListView(
+                    controller: _listCtrl,
+                    padding: EdgeInsets.fromLTRB(
+                      16,
+                      10 + CozyGlassTopBar.reserved,
+                      16,
+                      CozyDock.clearanceOf(context),
+                    ),
                         children: <Widget>[
                           _ShopSettingsStrip(
                             shopName: state.shop?.name ?? '',
@@ -525,7 +534,11 @@ class _MenuManagementPageState extends State<MenuManagementPage> {
                         ],
                       ),
                     ),
-                  ],
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  top: 0,
+                  child: const _StoreTopBar(),
                 ),
                 Positioned(
                   right: 20,
@@ -586,7 +599,7 @@ class _StoreTopBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return CozyMainTopBar(
+    return CozyGlassTopBar(
       title: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 4),
         child: Text(

@@ -80,9 +80,9 @@ class _ProfilePageState extends State<ProfilePage> {
     return days < 1 ? 1 : days;
   }
 
-  /// 原生 `CozyMainTopBar`（与「订单」「发现」等页同一规格）。
+  /// 原生 `CozyMainTopBar`（与「订单」「发现」等页同一规格），玻璃浮层版。
   Widget _topBar() {
-    return CozyMainTopBar(
+    return CozyGlassTopBar(
       title: const Text(
         '我的 - 小饭桌与设置',
         textAlign: TextAlign.center,
@@ -196,15 +196,19 @@ class _ProfilePageState extends State<ProfilePage> {
             (state.isPaired && days != null) ? '一起吃饭 $days 天' : null;
 
         return CozyPage(
-          child: Column(
+          // 玻璃顶栏做成浮层：列表从 y=0 起滚、内容穿过玻璃（顶部预留
+          // `CozyGlassTopBar.reserved`），否则玻璃背后永远是白底、看不出玻璃。
+          child: Stack(
             children: <Widget>[
-              _topBar(),
-              Expanded(
+              Positioned.fill(
                 child: RefreshIndicator(
                   color: CozyPalette.primary,
                   onRefresh: () => state.refreshAll(),
                   child: ListView(
-                    padding: EdgeInsets.only(bottom: CozyDock.clearanceOf(context)),
+                    padding: EdgeInsets.only(
+                      top: CozyGlassTopBar.reserved,
+                      bottom: CozyDock.clearanceOf(context),
+                    ),
                     children: <Widget>[
                       // ---- ImmersiveProfileHeader (ProfileScreen.kt:321) ----
                       Padding(
@@ -309,6 +313,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   ),
                 ),
               ),
+              Positioned(left: 0, right: 0, top: 0, child: _topBar()),
             ],
           ),
         );

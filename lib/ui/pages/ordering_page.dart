@@ -250,22 +250,26 @@ class _OrderingPageState extends State<OrderingPage> {
     final bool isEater = !AppState.instance.isCaretaker;
     showModalBottomSheet<void>(
       context: context,
-      backgroundColor: CozyPalette.surfaceContainerLow,
-      showDragHandle: true,
+      // 【玻璃】弹层底色交给 `CozyGlassSheet` 画，这里必须透明，否则白底会盖住玻璃。
+      backgroundColor: Colors.transparent,
+      showDragHandle: false,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
-      builder: (BuildContext sheetContext) => _OrderingDishDetailSheet(
-        item: item,
-        canOrder: isEater,
-        showDescription: isEater,
-        onAdd: () {
-          // 原生：`if (viewModel.addToCart(item)) detailItem = null`
-          Navigator.of(sheetContext).pop();
-          _add(item);
-        },
-        onClose: () => Navigator.of(sheetContext).pop(),
+      builder: (BuildContext sheetContext) => CozyGlassSheet(
+        padding: const EdgeInsets.only(left: 20, right: 20, bottom: 28),
+        child: _OrderingDishDetailSheet(
+          item: item,
+          canOrder: isEater,
+          showDescription: isEater,
+          onAdd: () {
+            // 原生：`if (viewModel.addToCart(item)) detailItem = null`
+            Navigator.of(sheetContext).pop();
+            _add(item);
+          },
+          onClose: () => Navigator.of(sheetContext).pop(),
+        ),
       ),
     );
   }
@@ -1598,7 +1602,8 @@ class _OrderingDishDetailSheet extends StatelessWidget {
     return SafeArea(
       top: false,
       child: SingleChildScrollView(
-        padding: const EdgeInsets.only(left: 20, right: 20, bottom: 28),
+        // 【玻璃】左右 20 + 底 28 的内边距已经交给外层 `CozyGlassSheet` 的
+        // padding，这里不能再加一遍，否则内容会被挤窄两倍。
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,

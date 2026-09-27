@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show HapticFeedback;
+import 'package:liquid_glass_widgets/liquid_glass_widgets.dart';
 
 // ══════════════════════════════════════════════════════════════════════════════
 //  高糖小食 · 纯白底光影设计系统
@@ -466,6 +467,126 @@ class CozyMainTopBar extends StatelessWidget {
           Expanded(child: Center(child: title)),
           ?trailing,
         ],
+      ),
+    );
+  }
+}
+
+/// 全局玻璃配方 —— 与底栏 `CozyGlassDock`、点菜页购物车条、糖糖币分段行同一套参数。
+///
+/// 单独抽出来是为了让「顶栏 / 弹层 / 底栏 / 分段」看起来是同一块玻璃，
+/// 而不是四块参数各写一遍的白板。
+const LiquidGlassSettings kCozyGlassSettings = LiquidGlassSettings(
+  glassColor: Color(0x1FFFFFFF),
+  blur: 8.0,
+  thickness: 24.0,
+  refractiveIndex: 1.25,
+  chromaticAberration: 0.03,
+  saturation: 1.20,
+  lightIntensity: 0.65,
+  ambientRim: 0.0,
+);
+
+/// 玻璃弹层外壳 —— 把原来的白底圆角弹层换成液态玻璃。
+///
+/// 只做「外壳」：上圆角 + 玻璃 + 可选拖拽把手，内部布局完全交给调用方。
+/// 用法：`showModalBottomSheet(backgroundColor: Colors.transparent)`，
+/// 内容根包一层 `CozyGlassSheet`（原来的白底不能留，否则会盖住玻璃）。
+class CozyGlassSheet extends StatelessWidget {
+  const CozyGlassSheet({
+    super.key,
+    required this.child,
+    this.radius = 28,
+    this.padding = EdgeInsets.zero,
+    this.showHandle = true,
+  });
+
+  final Widget child;
+  final double radius;
+  final EdgeInsetsGeometry padding;
+  final bool showHandle;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      // 玻璃自己画的是四角圆角，这里裁成「只圆上面两角」，底部与屏幕齐平
+      borderRadius: BorderRadius.vertical(top: Radius.circular(radius)),
+      child: GlassContainer(
+        quality: GlassQuality.premium,
+        clipBehavior: Clip.antiAlias,
+        shape: LiquidRoundedSuperellipse(borderRadius: radius),
+        settings: kCozyGlassSettings,
+        child: Padding(
+          padding: padding,
+          child: showHandle
+              ? Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    // 原生 ModalBottomSheet 默认把手：32 × 4，两侧留白
+                    Container(
+                      width: 32,
+                      height: 4,
+                      margin: const EdgeInsets.only(top: 10, bottom: 12),
+                      decoration: BoxDecoration(
+                        color: CozyPalette.onSurfaceVariant.withValues(alpha: 0.4),
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                    // `Flexible` 必须留着：Column 的主轴约束是「无上限」，直接把
+                    // 可滚动内容塞进 Column 会报 `Vertical viewport was given
+                    // unbounded height`。
+                    Flexible(child: child),
+                  ],
+                )
+              : child,
+        ),
+      ),
+    );
+  }
+}
+
+/// 玻璃顶栏 —— 悬浮在内容之上，滚动时内容从它下面穿过并被它折射。
+///
+/// 与 `CozyMainTopBar` 的区别：那个是「占位白条」（内容从它下面开始，玻璃没有
+/// 东西可折，看起来仍是白的）；这个是浮层 —— 页面滚动区顶部留出
+/// [CozyGlassTopBar.reserved]，内容一滚就从玻璃下面过。
+class CozyGlassTopBar extends StatelessWidget {
+  const CozyGlassTopBar({
+    super.key,
+    required this.title,
+    this.leading,
+    this.trailing,
+    this.height = 72,
+  });
+
+  /// 滚动区顶部要预留的距离 = 顶栏高 72 + 上边距 6 + 一点呼吸。
+  static const double reserved = 94;
+
+  final Widget title;
+  final Widget? leading;
+  final Widget? trailing;
+  final double height;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 6, 12, 0),
+      child: GlassContainer(
+        quality: GlassQuality.premium,
+        clipBehavior: Clip.antiAlias,
+        shape: const LiquidRoundedSuperellipse(borderRadius: 28),
+        settings: kCozyGlassSettings,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: SizedBox(
+          height: height,
+          child: Row(
+            children: <Widget>[
+              ?leading,
+              Expanded(child: Center(child: title)),
+              ?trailing,
+            ],
+          ),
+        ),
       ),
     );
   }
