@@ -89,6 +89,16 @@ class OrderDiskApp extends StatelessWidget {
               foregroundColor: CozyPalette.surface,
             ),
           ),
+          // 【动效】路由转场：M3 默认的 `ZoomPageTransitionsBuilder` 是「放大淡入」，
+          // 与这个小饭桌的柔和气质不合；换成 SDK 自带的 M3 新规格 FadeForwards
+          //（淡入 + 轻微前移），不需要任何第三方依赖。
+          // 只覆盖 Android：其余平台保持 SDK 默认（Cupertino 转场由 SDK 在
+          // cupertino 层提供，material 层的 builders 表里写不到它）。
+          pageTransitionsTheme: const PageTransitionsTheme(
+            builders: <TargetPlatform, PageTransitionsBuilder>{
+              TargetPlatform.android: FadeForwardsPageTransitionsBuilder(),
+            },
+          ),
         ),
         home: const _RootRouter(),
       ),
@@ -126,29 +136,47 @@ class _RootRouterState extends State<_RootRouter> {
     final state = AppState.instance;
 
     if (_booting) {
-      return const Scaffold(
+      return Scaffold(
         backgroundColor: CozyTheme.pureWhite,
         body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text('🍲', style: TextStyle(fontSize: 52)),
-              SizedBox(height: 18),
-              Text(
-                '高糖小食',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.w900,
-                  color: CozyTheme.sweetCocoa,
+          // 【动效】启动页淡入 + 轻微上移，别再是「啪」地一下整屏出现
+          child: TweenAnimationBuilder<double>(
+            tween: Tween<double>(begin: 0, end: 1),
+            duration: const Duration(milliseconds: 520),
+            curve: Curves.easeOutCubic,
+            builder: (BuildContext context, double t, Widget? child) {
+              return Opacity(
+                opacity: t,
+                child: Transform.translate(
+                  offset: Offset(0, (1 - t) * 12),
+                  child: child,
                 ),
-              ),
-              SizedBox(height: 22),
-              SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2, color: CozyTheme.primaryPink),
-              ),
-            ],
+              );
+            },
+            child: const Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text('🍲', style: TextStyle(fontSize: 52)),
+                SizedBox(height: 18),
+                Text(
+                  '高糖小食',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w900,
+                    color: CozyTheme.sweetCocoa,
+                  ),
+                ),
+                SizedBox(height: 22),
+                SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: CozyTheme.primaryPink,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       );

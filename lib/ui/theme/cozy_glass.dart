@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show HapticFeedback;
 
 // ══════════════════════════════════════════════════════════════════════════════
 //  高糖小食 · 纯白底光影设计系统
@@ -720,6 +721,57 @@ class CozyTopBar extends StatelessWidget {
   }
 }
 
+/// 统一按压反馈：按下缩到 [scale]（默认 0.96），120ms 回弹。
+///
+/// 全 App 里「看起来能点」的自绘控件都过这一层，避免有的按下去有反应、
+/// 有的完全没动静（[CozyPill] 之前就是纯 GestureDetector，一点手感都没有）。
+class CozyPressable extends StatefulWidget {
+  const CozyPressable({
+    super.key,
+    required this.child,
+    this.onTap,
+    this.scale = 0.96,
+    this.haptic = false,
+  });
+
+  final Widget child;
+  final VoidCallback? onTap;
+  final double scale;
+
+  /// 是否顺手补一次轻触反馈（默认关，需要的地方显式开）。
+  final bool haptic;
+
+  @override
+  State<CozyPressable> createState() => _CozyPressableState();
+}
+
+class _CozyPressableState extends State<CozyPressable> {
+  bool _down = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final bool enabled = widget.onTap != null;
+    return AnimatedScale(
+      scale: _down && enabled ? widget.scale : 1.0,
+      duration: const Duration(milliseconds: 120),
+      curve: Curves.easeOut,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTapDown: enabled ? (_) => setState(() => _down = true) : null,
+        onTapUp: enabled ? (_) => setState(() => _down = false) : null,
+        onTapCancel: enabled ? () => setState(() => _down = false) : null,
+        onTap: enabled
+            ? () {
+                if (widget.haptic) HapticFeedback.selectionClick();
+                widget.onTap!();
+              }
+            : null,
+        child: widget.child,
+      ),
+    );
+  }
+}
+
 /// 原生 `CozyPill`（StitchNativeComponents.kt:259）
 class CozyPill extends StatelessWidget {
   const CozyPill({
@@ -755,11 +807,8 @@ class CozyPill extends StatelessWidget {
       ),
     );
     if (onTap == null) return pill;
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: onTap,
-      child: pill,
-    );
+    // 统一按压反馈：之前这里只有裸 GestureDetector，按下去毫无手感
+    return CozyPressable(onTap: onTap!, child: pill);
   }
 }
 

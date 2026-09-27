@@ -2,10 +2,12 @@ import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/material.dart';
+import 'package:liquid_glass_widgets/liquid_glass_widgets.dart';
 
 import '../../data/app_state.dart';
 import '../../data/models.dart';
 import '../theme/cozy_glass.dart';
+import '../widgets/cozy_count_up.dart';
 
 /// 糖糖币管理页 —— 1:1 对照原生 `ui/candy/CandyCoinsScreen.kt`（共 448 行）
 ///
@@ -264,8 +266,9 @@ class _CandyHeroCard extends StatelessWidget {
                   isCaretaker ? '吃货糖糖币余额' : '我的糖糖币余额',
                   style: text.bodySmall!.copyWith(color: CozyPalette.onSurfaceVariant),
                 ),
-                Text(
-                  '$balance 枚',
+                CozyCountUp(
+                  value: balance,
+                  suffix: ' 枚',
                   // 原版 fontSize = 30.sp / lineHeight = 36.sp / FontWeight.Black
                   style: text.bodyLarge!.copyWith(
                     fontSize: 30,
@@ -546,42 +549,60 @@ class _SegmentedRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final TextTheme text = Theme.of(context).textTheme;
-    return Row(
-      spacing: 8,
-      children: <Widget>[
-        for (int index = 0; index < labels.length; index++)
-          Expanded(
-            child: GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: () => onSelected(index),
-              child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 9),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(999),
-                  color: isSelected(index)
-                      ? CozyPalette.primary
-                      : Colors.white.withValues(alpha: 0.70),
-                  border: Border.all(
+    // 【本轮改动】原来是 4 个各自实心的白胶囊；用户要求「玻璃铺开」，这里换成
+    // 一整条玻璃轨道 + 选中片玫瑰实心（参数与底部 dock / 购物车条同一套，
+    // 见 `cozy_glass_dock.dart` 与 `ordering_page.dart` 的 GlassContainer）。
+    // 保留 isSelected 谓词：4 片里可以同时高亮「图形」与「周期」两片。
+    return GlassContainer(
+      shape: const LiquidRoundedSuperellipse(
+        borderRadius: GlassDefaults.capsuleRadius,
+      ),
+      quality: GlassQuality.premium,
+      clipBehavior: Clip.antiAlias,
+      padding: const EdgeInsets.all(4),
+      settings: const LiquidGlassSettings(
+        glassColor: Color(0x1FFFFFFF),
+        blur: 8.0,
+        thickness: 24.0,
+        refractiveIndex: 1.25,
+        chromaticAberration: 0.03,
+        saturation: 1.20,
+        lightIntensity: 0.65,
+        ambientRim: 0.0,
+      ),
+      child: Row(
+        spacing: 4,
+        children: <Widget>[
+          for (int index = 0; index < labels.length; index++)
+            Expanded(
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => onSelected(index),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 180),
+                  curve: Curves.easeOut,
+                  padding: const EdgeInsets.symmetric(vertical: 9),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(999),
                     color: isSelected(index)
                         ? CozyPalette.primary
-                        : CozyPalette.outlineVariant,
-                    width: 1,
+                        : Colors.transparent,
                   ),
-                ),
-                child: Text(
-                  labels[index],
-                  textAlign: TextAlign.center,
-                  style: text.bodyLarge!.copyWith(
-                    fontWeight: FontWeight.w900,
-                    color: isSelected(index)
-                        ? CozyPalette.surface
-                        : CozyPalette.onSurface,
+                  child: Text(
+                    labels[index],
+                    textAlign: TextAlign.center,
+                    style: text.bodyLarge!.copyWith(
+                      fontWeight: FontWeight.w900,
+                      color: isSelected(index)
+                          ? CozyPalette.surface
+                          : CozyPalette.onSurface,
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
-      ],
+        ],
+      ),
     );
   }
 }

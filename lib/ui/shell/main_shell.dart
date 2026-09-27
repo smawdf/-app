@@ -8,6 +8,7 @@ import '../pages/ordering_page.dart';
 import '../pages/orders_page.dart';
 import '../pages/profile_page.dart';
 import '../theme/cozy_glass.dart';
+import '../widgets/cozy_toast.dart';
 import 'cozy_glass_dock.dart';
 
 /// 主界面外壳
@@ -25,9 +26,27 @@ class MainShell extends StatefulWidget {
   State<MainShell> createState() => _MainShellState();
 }
 
-class _MainShellState extends State<MainShell> {
+class _MainShellState extends State<MainShell>
+    with SingleTickerProviderStateMixin {
   int _tab = 0;
   String? _lastToast;
+
+  /// 【动效】切 tab 时让正文淡入 + 轻微上移。
+  /// 用 IndexedStack 保活五个页面，所以不能换成 AnimatedSwitcher（会丢状态），
+  /// 改成「同一个 Stack 整体重播一次入场动画」。
+  late final AnimationController _bodyCtrl = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 260),
+    value: 1,
+  );
+  late final Animation<double> _bodyCurve =
+      CurvedAnimation(parent: _bodyCtrl, curve: Curves.easeOutCubic);
+
+  @override
+  void dispose() {
+    _bodyCtrl.dispose();
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -38,7 +57,9 @@ class _MainShellState extends State<MainShell> {
   }
 
   void _onTabTap(int index) {
+    final bool changed = index != _tab;
     setState(() => _tab = index);
+    if (changed) _bodyCtrl.forward(from: 0);
     final state = AppState.instance;
     if (index == 0) state.loadMe();
     if (index == 1) state.refreshMenu();
@@ -59,15 +80,7 @@ class _MainShellState extends State<MainShell> {
           _lastToast = toast;
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (!mounted) return;
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(toast, style: const TextStyle(fontWeight: FontWeight.w700)),
-                backgroundColor: CozyPalette.onSurface,
-                behavior: SnackBarBehavior.floating,
-                margin: const EdgeInsets.fromLTRB(20, 0, 20, 130),
-                duration: const Duration(seconds: 3),
-              ),
-            );
+            showCozyToast(context, toast, duration: const Duration(seconds: 3));
             AppState.instance.clearToast();
           });
         }
@@ -95,7 +108,16 @@ class _MainShellState extends State<MainShell> {
             type: MaterialType.transparency,
             child: SafeArea(
               bottom: false,
-              child: IndexedStack(index: _tab, children: pages),
+              child: FadeTransition(
+                opacity: _bodyCurve,
+                child: SlideTransition(
+                  position: Tween<Offset>(
+                    begin: const Offset(0, 0.012),
+                    end: Offset.zero,
+                  ).animate(_bodyCurve),
+                  child: IndexedStack(index: _tab, children: pages),
+                ),
+              ),
             ),
           ),
         );

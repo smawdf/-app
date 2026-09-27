@@ -1,8 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../data/app_state.dart';
 import '../theme/cozy_glass.dart';
+import '../widgets/cozy_celebration.dart';
+import '../widgets/cozy_toast.dart';
 
 /// Pairing surface, ported 1:1 from the native `PairManagementDialog` at
 /// `app/src/main/java/com/myorderapp/ui/profile/ProfileScreen.kt:839-991`.
@@ -60,7 +64,12 @@ class _PairScreenState extends State<PairScreen> {
     final AppState state = AppState.instance;
     final bool ok = await state.joinPair(_joinCode.text.trim());
     if (!mounted) return;
-    if (!ok && state.error != null) _snack(state.error!);
+    if (!ok && state.error != null) {
+      _snack(state.error!);
+    } else if (ok) {
+      // 绑定成功撒一次花
+      unawaited(showCozyConfetti(context));
+    }
   }
 
   /// `copyPairCode(context, code)` — clipboard + `Toast("已复制邀请码")`.
@@ -76,9 +85,7 @@ class _PairScreenState extends State<PairScreen> {
   }
 
   void _snack(String message) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+    showCozyToast(context, message);
   }
 
   @override

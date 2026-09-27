@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -8,6 +10,9 @@ import '../../data/models.dart';
 import '../cart/cart_sheet.dart';
 import '../menu/menu_management_page.dart';
 import '../theme/cozy_glass.dart';
+import '../widgets/cozy_celebration.dart';
+import '../widgets/cozy_skeletons.dart';
+import '../widgets/cozy_toast.dart';
 
 // ══════════════════════════════════════════════════════════════════════════════
 //  常量 —— 1:1 对齐原生 `OrderingScreen.kt:109-115`
@@ -289,18 +294,15 @@ class _OrderingPageState extends State<OrderingPage> {
         _cart.clear();
         _qty.clear();
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(buyerNote.isNotEmpty
-              ? '点单成功！悄悄话已传递给伴侣 💕'
-              : (state.toast ?? '点单成功')),
-          backgroundColor: CozyTheme.sweetCocoa,
-        ),
+      // 下单成功撒一次品牌色纸屑（overlay 层，不改变页面结构）
+      unawaited(showCozyConfetti(context));
+      showCozyToast(
+        context,
+        buyerNote.isNotEmpty ? '点单成功！悄悄话已传递给伴侣 💕' : (state.toast ?? '点单成功'),
+        duration: const Duration(seconds: 3),
       );
     } else if (state.error != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(state.error!), backgroundColor: const Color(0xFFD64545)),
-      );
+      showCozyToast(context, state.error!, error: true, duration: const Duration(seconds: 3));
     }
   }
 
@@ -403,6 +405,7 @@ class _OrderingPageState extends State<OrderingPage> {
                                           canOrder: isEater,
                                           showDescription: isEater,
                                           bottomClearance: bottomClearance,
+                                          loading: state.busy && items.isEmpty,
                                           addKeys: _addKeys,
                                           quantities: _qty,
                                           onAdd: (MenuItem item, GlobalKey key) =>
@@ -806,6 +809,7 @@ class _DishList extends StatelessWidget {
     required this.onDecrement,
     required this.onDishClick,
     required this.onManageMenuClick,
+    this.loading = false,
   });
 
   final List<MenuItem> items;
@@ -813,6 +817,10 @@ class _DishList extends StatelessWidget {
   final bool showDescription;
   final double bottomClearance;
   final Map<String, GlobalKey> addKeys;
+
+  /// 首页/冷启动拉菜单期间为 true：列表还是空的，但先铺骨架屏，
+  /// 不要立刻弹「还没添加菜品」的空态（那会让用户以为真的一道菜都没有）。
+  final bool loading;
 
   /// 【真机修正】菜品 id -> 购物篮数量。> 0 时卡片右侧渲染 `- n +` 步进器
   /// （对齐 docs/demos 设计稿），而不是只留一个「+」。
@@ -826,6 +834,9 @@ class _DishList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (items.isEmpty) {
+      if (loading) {
+        return CozyDishSkeletonList(bottomClearance: bottomClearance);
+      }
       return _EmptyMenu(
         bottomClearance: bottomClearance,
         onManageMenuClick: onManageMenuClick,

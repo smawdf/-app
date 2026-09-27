@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -8,6 +9,9 @@ import '../../data/app_state.dart';
 import '../candy/candy_coins_page.dart';
 import '../menu/menu_management_page.dart';
 import '../theme/cozy_glass.dart';
+import '../widgets/cozy_celebration.dart';
+import '../widgets/cozy_count_up.dart';
+import '../widgets/cozy_toast.dart';
 import 'avatar_crop_page.dart';
 
 /// 原生 `BuildConfig.VERSION_NAME` 的等值常量。
@@ -110,7 +114,7 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   void _snack(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    showCozyToast(context, message);
   }
 
   Future<void> _openProfileEditor() async {
@@ -591,8 +595,9 @@ class _BalanceCard extends StatelessWidget {
                   children: <Widget>[
                     const _CandyCoinIcon(size: 24),
                     const SizedBox(width: 5),
-                    Text(
-                      '$balance 枚',
+                    CozyCountUp(
+                      value: balance,
+                      suffix: ' 枚',
                       style: _ts(15, 22, FontWeight.w900, CozyPalette.primary),
                     ),
                   ],
@@ -906,9 +911,7 @@ class _ProfileEditDialogState extends State<_ProfileEditDialog> {
       return;
     }
     Navigator.of(context).pop();
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('资料已同步，伴侣那边也能看到新头像')),
-    );
+    showCozyToast(context, '资料已同步，伴侣那边也能看到新头像', duration: const Duration(seconds: 3));
   }
 
   /// 头像操作小胶囊（更换 / 裁剪 / 删除 / 恢复默认）
@@ -1225,6 +1228,8 @@ class _PairManagementDialogState extends State<_PairManagementDialog> {
     if (!ok && state.error != null) {
       setState(() => _message = state.error);
     } else {
+      // 绑定成功：撒一次花再关弹层（这一下是全 App 最值得庆祝的时刻）
+      unawaited(showCozyConfetti(context));
       Navigator.of(context).pop();
     }
   }
@@ -1232,7 +1237,7 @@ class _PairManagementDialogState extends State<_PairManagementDialog> {
   void _copyCode(String code) {
     if (code.isEmpty) return;
     Clipboard.setData(ClipboardData(text: code));
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('已复制邀请码')));
+    showCozyToast(context, '已复制邀请码');
   }
 
   @override
@@ -1403,9 +1408,7 @@ class _UnpairConfirmDialog extends StatelessWidget {
         TextButton(
           onPressed: () {
             Navigator.of(context).pop();
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('解除绑定需要 AppState.unpair（尚未接入）')),
-            );
+            showCozyToast(context, '解除绑定需要 AppState.unpair（尚未接入）', error: true);
           },
           child: Text(
             '确认解除',

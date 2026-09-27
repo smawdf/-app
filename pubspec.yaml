@@ -35,6 +35,13 @@ dependencies:
   flutter_animate: ^4.5.0
   # 社区下载量第一（71k+/月）、pub points 满分，且有已上架 App 生产验证
   liquid_glass_widgets: ^1.7.2
+  # 官方 Material 动效包（FadeThrough 等）。**必须钉 2.2.0**：
+  # 3.0.0 要求 Flutter >= 3.44 且会带进运行时依赖 material_ui，2.2.0 只依赖 Flutter SDK。
+  animations: ^2.2.0
+  # 骨架屏：把 loading 态渲染成灰块占位，避免整页裸转圈。运行时只依赖 Flutter。
+  skeletonizer: ^3.0.0
+  # 下单成功撒花。0.8.0（2024-09）sdk >=2.17 <4.0 / flutter >=3.0，运行时只多一个 vector_math。
+  confetti: ^0.8.0
   supabase_flutter: ^2.17.2
   image_picker: ^1.2.3
   image: ^4.10.1

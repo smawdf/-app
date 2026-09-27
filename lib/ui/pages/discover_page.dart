@@ -23,6 +23,8 @@ import 'package:flutter/services.dart';
 import '../../data/app_state.dart';
 import '../../data/xiachufang_client.dart';
 import '../theme/cozy_glass.dart';
+import '../widgets/cozy_skeletons.dart';
+import '../widgets/cozy_toast.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 原生同名的页内私有常量（DiscoverScreen.kt L85-91）
@@ -41,7 +43,6 @@ const Color _kPlaceholderBg = Color(0xFFFFF6EF); // 「暂无图片」底
 const Color _kSheetImageBg = Color(0xFFFFDDE7); // 详情弹层图底
 const Color _kDisabledBg = Color(0xFFF0ECE4); // Squishy 按钮 disabled
 const Color _kDisabledText = Color(0xFF8B7164); // Squishy 按钮 disabled 文字
-const Color _kToastBadge = Color(0xFFFFD1DC); // toast 圆形徽底
 
 class DiscoverPage extends StatefulWidget {
   final VoidCallback onGoToOrdering;
@@ -216,29 +217,16 @@ class _DiscoverPageState extends State<DiscoverPage> {
     }
   }
 
-  // 原生 DiscoverToastSnackbar（L382-416）：奶白胶囊 + 圆形 ✓ 徽 + 消息
+  // 原生 DiscoverToastSnackbar（L382-416）→ 统一改走玻璃 Toast：
+  // 原生自绘的奶白胶囊 + 圆形 ✓ 徽，现在由 `showCozyToast` + GlassToastAction
+  // 承担（底部同样的 dock 净空、同样的自动消失节奏），全 App 一套材质。
   void _showToast(String message, {String? actionLabel}) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        behavior: SnackBarBehavior.floating,
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        padding: EdgeInsets.zero,
-        // 原生 bottom = 172.dp；底栏收敛后用 CozyDock.clearanceOf，
-        // 与外壳 toast 的 130 对齐（并补上系统导航栏 inset，见 CozyDock.clearanceOf）
-        margin: EdgeInsets.fromLTRB(20, 0, 20, CozyDock.clearanceOf(context) + 26),
-        duration: const Duration(milliseconds: 2200),
-        content: _ToastBody(
-          message: message,
-          actionLabel: actionLabel,
-          onAction: actionLabel == null
-              ? null
-              : () {
-                  ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                  widget.onGoToOrdering();
-                },
-        ),
-      ),
+    showCozyToast(
+      context,
+      message,
+      duration: const Duration(milliseconds: 2200),
+      actionLabel: actionLabel,
+      onAction: actionLabel == null ? null : widget.onGoToOrdering,
     );
   }
 
@@ -494,28 +482,15 @@ class _DiscoverPageState extends State<DiscoverPage> {
 
     if (_isSearching) {
       return <Widget>[
-        Padding(
-          padding: const EdgeInsets.only(top: 2),
-          child: Row(
-            children: [
-              const SizedBox(
-                width: 18,
-                height: 18,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: _discoverPrimary,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Text(
-                '正在搜索菜品...',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: CozyPalette.onSurfaceVariant,
-                ),
-              ),
-            ],
+        Text(
+          '正在搜索菜品...',
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: CozyPalette.onSurfaceVariant,
           ),
         ),
+        const SizedBox(height: 12),
+        // 搜索期间铺骨架屏（形状对齐结果卡），比一行转圈更不像「卡住了」
+        const CozySearchSkeletonList(),
       ];
     }
 
@@ -1350,80 +1325,3 @@ class _DishImageOrPlaceholder extends StatelessWidget {
   }
 }
 
-/// 原生 DiscoverToastSnackbar（L382-416）
-class _ToastBody extends StatelessWidget {
-  const _ToastBody({
-    required this.message,
-    this.actionLabel,
-    this.onAction,
-  });
-
-  final String message;
-  final String? actionLabel;
-  final VoidCallback? onAction;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
-        decoration: BoxDecoration(
-          color: CozyPalette.surface,
-          borderRadius: BorderRadius.circular(999),
-          border: Border.all(
-            color: _discoverCardBorder.withValues(alpha: 0.42),
-            width: 1,
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 24,
-              height: 24,
-              alignment: Alignment.center,
-              decoration: const BoxDecoration(
-                color: _kToastBadge,
-                shape: BoxShape.circle,
-              ),
-              child: const Text(
-                '✓',
-                style: TextStyle(
-                  color: _discoverPrimary,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-            ),
-            const SizedBox(width: 9),
-            Flexible(
-              child: Text(
-                message,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: CozyPalette.onSurface,
-                      fontWeight: FontWeight.w700,
-                    ),
-              ),
-            ),
-            if (onAction != null && actionLabel != null) ...[
-              const SizedBox(width: 10),
-              GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: onAction,
-                child: Text(
-                  actionLabel!,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: _discoverPrimary,
-                        fontWeight: FontWeight.w900,
-                      ),
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-}

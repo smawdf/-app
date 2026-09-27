@@ -6,6 +6,8 @@ import '../../data/app_state.dart';
 import '../../data/models.dart';
 import '../orders/order_detail_page.dart';
 import '../theme/cozy_glass.dart';
+import '../widgets/cozy_skeletons.dart';
+import '../widgets/cozy_toast.dart';
 
 /// 订单列表 —— 1:1 移植原生 `OrdersScreen.kt`
 ///
@@ -91,7 +93,6 @@ class _OrdersPageState extends State<OrdersPage> {
   /// 原生 `OrdersViewModel.advanceOrder`（OrdersViewModel.kt:59-79）失败文案走 message，
   /// Flutter 侧等价物是 `AppState.error`，沿用文件原有的 SnackBar 反馈。
   Future<void> _advance(Order order) async {
-    final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
     HapticFeedback.mediumImpact();
     setState(() => _updatingOrderId = order.id);
     final bool ok = await AppState.instance.advanceOrder(order);
@@ -99,9 +100,7 @@ class _OrdersPageState extends State<OrdersPage> {
     setState(() => _updatingOrderId = null);
     if (!ok) {
       final String? error = AppState.instance.error;
-      if (error != null) {
-        messenger.showSnackBar(SnackBar(content: Text(error)));
-      }
+      if (error != null) showCozyToast(context, error, error: true);
     }
   }
 
@@ -198,12 +197,9 @@ class _OrdersPageState extends State<OrdersPage> {
   }
 
   /// 首帧加载态：原生靠 5s 轮询（OrdersViewModel.kt:22）没有独立加载态，
-  /// Flutter 无轮询，首次拉取时给一个主色指示器。
+  /// Flutter 无轮询 —— 首次拉取时铺骨架屏而不是裸转圈，避免整页空一下再跳出来。
   Widget _loadingState() {
-    return const Padding(
-      padding: EdgeInsets.symmetric(vertical: 48),
-      child: Center(child: CircularProgressIndicator(color: CozyPalette.primary)),
-    );
+    return const CozyOrderSkeletonList();
   }
 
   /// 原生 `EmptyOrdersState`（253-270）→ `OrderGuidanceEmptyState`（OrderDesignSystem.kt:70-93）

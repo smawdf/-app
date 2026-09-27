@@ -8,6 +8,8 @@ import '../candy/candy_coins_page.dart';
 import '../couple/anniversary_page.dart';
 import '../menu/menu_management_page.dart';
 import '../theme/cozy_glass.dart';
+import '../widgets/cozy_count_up.dart';
+import '../widgets/cozy_toast.dart';
 
 /// 首页 —— 「我们的小饭桌」。
 ///
@@ -73,14 +75,10 @@ class _HomePageState extends State<HomePage> {
     final ok = await state.updateRole(newRole);
     if (!mounted) return;
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(ok
-            ? '已切换身份为【${state.user?.roleLabel ?? newRole}】'
-            : '身份切换失败，请检查网络'),
-        backgroundColor: ok ? CozyTheme.sweetCocoa : CozyPalette.error,
-        duration: const Duration(seconds: 2),
-      ),
+    showCozyToast(
+      context,
+      ok ? '已切换身份为【${state.user?.roleLabel ?? newRole}】' : '身份切换失败，请检查网络',
+      error: !ok,
     );
   }
 
@@ -342,6 +340,12 @@ class _HomePageState extends State<HomePage> {
 
   Widget _buildDaysBlock({required bool isPaired}) {
     final int? days = _daysTogether;
+    const TextStyle headlineStyle = TextStyle(
+      fontSize: 22,
+      fontWeight: FontWeight.w900,
+      color: CozyPalette.primary,
+      letterSpacing: -0.3,
+    );
 
     final String headline = !isPaired
         ? "等对方入座"
@@ -362,16 +366,21 @@ class _HomePageState extends State<HomePage> {
         ),
         child: Column(
           children: [
-            Text(
-              headline,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.w900,
-                color: CozyPalette.primary,
-                letterSpacing: -0.3,
+            // 一起吃饭 N 天：数字从 0 滚上来（未配对 / 没设纪念日时是整句文案，不滚）
+            if (isPaired && days != null)
+              CozyCountUp(
+                value: days,
+                prefix: "一起吃饭 ",
+                suffix: " 天",
+                textAlign: TextAlign.center,
+                style: headlineStyle,
+              )
+            else
+              Text(
+                headline,
+                textAlign: TextAlign.center,
+                style: headlineStyle,
               ),
-            ),
             const SizedBox(height: 3),
             Text(
               sub,
@@ -532,6 +541,16 @@ class _HomePageState extends State<HomePage> {
             child: _buildStatCard(
               caption: "糖糖币余额",
               value: "${state.candyCoins} 枚",
+              // 余额从 0 滚上来（语义树里仍是最终值，见 CozyCountUp）
+              valueOverride: CozyCountUp(
+                value: state.candyCoins,
+                suffix: " 枚",
+                style: const TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w900,
+                  color: CozyPalette.primary,
+                ),
+              ),
               hint: isPaired ? "点菜时会真实扣减" : "先绑定小饭桌",
               icon: Icons.monetization_on_rounded,
               // 【审查修正】原来用 Material 的 `$` 图标，和「我的 / 糖糖币管理」
@@ -571,6 +590,8 @@ class _HomePageState extends State<HomePage> {
     String? imageAsset,
     required Color accent,
     required VoidCallback onTap,
+    /// 传入后用它替换默认的数字文本（用于「数字滚动」）。
+    Widget? valueOverride,
   }) {
     return GestureDetector(
       onTap: () {
@@ -625,16 +646,17 @@ class _HomePageState extends State<HomePage> {
               ],
             ),
             const SizedBox(height: 10),
-            Text(
-              value,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 17,
-                fontWeight: FontWeight.w900,
-                color: accent,
-              ),
-            ),
+            valueOverride ??
+                Text(
+                  value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w900,
+                    color: accent,
+                  ),
+                ),
             const SizedBox(height: 3),
             Text(
               hint,

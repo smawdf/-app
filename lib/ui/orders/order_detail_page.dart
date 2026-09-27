@@ -5,6 +5,7 @@ import '../../data/app_state.dart';
 import '../../data/food_images.dart';
 import '../../data/models.dart';
 import '../theme/cozy_glass.dart';
+import '../widgets/cozy_toast.dart';
 
 /// 订单详情 —— 1:1 移植原生 `OrderDetailScreen.kt`
 ///
@@ -43,7 +44,6 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
   Future<void> _advanceOrder() async {
     final String? next = _currentOrder.nextStatus;
     if (next == null) return;
-    final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
     HapticFeedback.mediumImpact();
     setState(() => _updating = true);
     final bool ok = await AppState.instance.advanceOrder(_currentOrder);
@@ -52,15 +52,16 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
       _updating = false;
       if (ok) _currentOrder = _currentOrder.copyWithStatus(next);
     });
-    messenger.showSnackBar(
-      SnackBar(content: Text(ok ? '已推进做饭状态为：${_currentOrder.statusLabel}' : (AppState.instance.error ?? '推进失败'))),
+    showCozyToast(
+      context,
+      ok ? '已推进做饭状态为：${_currentOrder.statusLabel}' : (AppState.instance.error ?? '推进失败'),
+      error: !ok,
     );
   }
 
   /// 原生 `OrderDetailViewModel.cancelOrder`（OrderDetailViewModel.kt:94-120）：
   /// 仅 status 不在 (completed, cancelled) 时可取消。
   Future<void> _cancelOrder() async {
-    final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
     setState(() => _updating = true);
     final bool ok = await AppState.instance.cancelOrder(_currentOrder);
     if (!mounted) return;
@@ -68,8 +69,10 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
       _updating = false;
       if (ok) _currentOrder = _currentOrder.copyWithStatus('cancelled');
     });
-    messenger.showSnackBar(
-      SnackBar(content: Text(ok ? '订单已取消，糖币已退还！' : (AppState.instance.error ?? '取消失败'))),
+    showCozyToast(
+      context,
+      ok ? '订单已取消，糖币已退还！' : (AppState.instance.error ?? '取消失败'),
+      error: !ok,
     );
   }
 
