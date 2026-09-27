@@ -208,6 +208,8 @@ class _OrderingPageState extends State<OrderingPage> {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
+      // 遮罩调浅，否则玻璃面板背后是死黑、看不出玻璃（见 `kCozyGlassSheetSettings`）。
+      barrierColor: Colors.black.withValues(alpha: 0.18),
       isScrollControlled: true,
       builder: (_) => CartDetailSheet(
         cart: _cart,
@@ -252,13 +254,15 @@ class _OrderingPageState extends State<OrderingPage> {
       context: context,
       // 【玻璃】弹层底色交给 `CozyGlassSheet` 画，这里必须透明，否则白底会盖住玻璃。
       backgroundColor: Colors.transparent,
+      // 遮罩调浅：背后太黑 -> 玻璃没有东西可折，只会变灰雾。
+      barrierColor: Colors.black.withValues(alpha: 0.18),
       showDragHandle: false,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
       builder: (BuildContext sheetContext) => CozyGlassSheet(
-        padding: const EdgeInsets.only(left: 20, right: 20, bottom: 28),
+        padding: const EdgeInsets.fromLTRB(18, 4, 18, 20),
         child: _OrderingDishDetailSheet(
           item: item,
           canOrder: isEater,
@@ -1614,7 +1618,9 @@ class _OrderingDishDetailSheet extends StatelessWidget {
               backgroundAlpha: 1,
               radius: 24,
               height: 210,
-              fit: BoxFit.contain,
+              // 【好看】原来是 contain：竖图两侧露出粉底两条边（截图里很显眼）。
+              // 改成 cover 让图铺满整块 210 高的圆角框，和点菜列表里的菜品卡一致。
+              fit: BoxFit.cover,
               iconSize: 44,
               placeholderGap: 8,
             ),

@@ -63,9 +63,9 @@ class CartDetailSheet extends StatelessWidget {
       showHandle: false,
       // 原生 CartSheet.kt:52 `padding(start = 20, top = 10, end = 20, bottom = 20)`
       padding: EdgeInsets.fromLTRB(
-        20,
-        10,
-        20,
+        18,
+        12,
+        18,
         MediaQuery.of(context).padding.bottom + 20,
       ),
       child: Column(

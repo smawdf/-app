@@ -252,6 +252,8 @@ class _DiscoverPageState extends State<DiscoverPage> {
       isScrollControlled: true,
       // 【玻璃】弹层底色交给 `CozyGlassSheet`，这里必须透明。
       backgroundColor: Colors.transparent,
+      // 遮罩调浅：背后太黑 -> 玻璃没有东西可折，只会变灰雾。
+      barrierColor: Colors.black.withValues(alpha: 0.18),
       showDragHandle: false,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
@@ -262,7 +264,7 @@ class _DiscoverPageState extends State<DiscoverPage> {
           builder: (context, _) {
             final added = _isAdded(recipe);
             return CozyGlassSheet(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 28),
+              padding: const EdgeInsets.fromLTRB(18, 4, 18, 20),
               child: SafeArea(
                 top: false,
                 child: SingleChildScrollView(

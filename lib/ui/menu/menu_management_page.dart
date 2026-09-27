@@ -266,8 +266,8 @@ class _MenuManagementPageState extends State<MenuManagementPage> {
       isScrollControlled: true,
       // 【玻璃】底色交给 `CozyGlassSheet`（半径 30 与原 shape 一致），这里必须透明。
       backgroundColor: Colors.transparent,
-      // 原生 M3 ModalBottomSheet 的 scrim = colorScheme.scrim @ 32%
-      barrierColor: Colors.black.withValues(alpha: 0.32),
+      // 遮罩调浅：背后太黑 -> 玻璃没有东西可折，只会变灰雾（原值 0.32）。
+      barrierColor: Colors.black.withValues(alpha: 0.18),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
       ),

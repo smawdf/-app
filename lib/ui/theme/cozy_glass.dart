@@ -487,11 +487,30 @@ const LiquidGlassSettings kCozyGlassSettings = LiquidGlassSettings(
   ambientRim: 0.0,
 );
 
-/// 玻璃弹层外壳 —— 把原来的白底圆角弹层换成液态玻璃。
+/// 弹层专用的玻璃配方（比顶栏那块更亮、更厚）。
 ///
-/// 只做「外壳」：上圆角 + 玻璃 + 可选拖拽把手，内部布局完全交给调用方。
-/// 用法：`showModalBottomSheet(backgroundColor: Colors.transparent)`，
-/// 内容根包一层 `CozyGlassSheet`（原来的白底不能留，否则会盖住玻璃）。
+/// 【真机试出来的问题】弹层背后压着 `showModalBottomSheet` 的遮罩（默认
+/// 54% 黑），如果沿用顶栏那块 12% 白 + `blur 8` 的薄玻璃，面板会比页面本身更暗，
+/// 看起来像一层脏灰而不是玻璃。这里把白度、模糊、光照都提上去。
+const LiquidGlassSettings kCozyGlassSheetSettings = LiquidGlassSettings(
+  glassColor: Color(0x33FFFFFF),
+  blur: 18.0,
+  thickness: 30.0,
+  refractiveIndex: 1.25,
+  chromaticAberration: 0.03,
+  saturation: 1.25,
+  lightIntensity: 0.85,
+  ambientRim: 0.0,
+);
+
+/// 玻璃弹层外壳 —— 玻璃只当「镶边」，内容压在实底卡片上。
+///
+/// 两件事是本机试出来的：
+/// 1. 玻璃面板必须比页面更亮（见 [kCozyGlassSheetSettings]），否则配着弹层遮罩
+///    只会变成灰雾；
+/// 2. 文字/按钮/图片直接躺在玻璃上对比度会掉一档（「关闭」几乎和底色糊在一起），
+///    所以默认 [solidBody] = true：玻璃留一圈 10px 的边，内容装在一张不透明的
+///    圆角实底卡里（购物车弹层一直是这个结构，所以它比别的弹层好看）。
 class CozyGlassSheet extends StatelessWidget {
   const CozyGlassSheet({
     super.key,
@@ -499,46 +518,66 @@ class CozyGlassSheet extends StatelessWidget {
     this.radius = 28,
     this.padding = EdgeInsets.zero,
     this.showHandle = true,
+    this.solidBody = true,
+    this.sideMargin = 10,
   });
 
   final Widget child;
   final double radius;
   final EdgeInsetsGeometry padding;
   final bool showHandle;
+  final bool solidBody;
+  final double sideMargin;
 
   @override
   Widget build(BuildContext context) {
-    return ClipRRect(
-      // 玻璃自己画的是四角圆角，这里裁成「只圆上面两角」，底部与屏幕齐平
-      borderRadius: BorderRadius.vertical(top: Radius.circular(radius)),
-      child: GlassContainer(
-        quality: GlassQuality.premium,
-        clipBehavior: Clip.antiAlias,
-        shape: LiquidRoundedSuperellipse(borderRadius: radius),
-        settings: kCozyGlassSettings,
-        child: Padding(
-          padding: padding,
-          child: showHandle
-              ? Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: <Widget>[
-                    // 原生 ModalBottomSheet 默认把手：32 × 4，两侧留白
-                    Container(
-                      width: 32,
-                      height: 4,
-                      margin: const EdgeInsets.only(top: 10, bottom: 12),
-                      decoration: BoxDecoration(
-                        color: CozyPalette.onSurfaceVariant.withValues(alpha: 0.4),
-                        borderRadius: BorderRadius.circular(2),
+    final double rim = solidBody ? 10 : 0;
+    final Widget body = solidBody
+        ? Container(
+            decoration: BoxDecoration(
+              // 与页面同色的实底：对比度回到「白底纸片」的水平
+              color: CozyPalette.surface,
+              borderRadius: BorderRadius.circular(radius - 6),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: Padding(padding: padding, child: child),
+          )
+        : Padding(padding: padding, child: child);
+
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: sideMargin),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(radius),
+        child: GlassContainer(
+          quality: GlassQuality.premium,
+          clipBehavior: Clip.antiAlias,
+          shape: LiquidRoundedSuperellipse(borderRadius: radius),
+          settings: kCozyGlassSheetSettings,
+          child: Padding(
+            padding: EdgeInsets.all(rim),
+            child: showHandle
+                ? Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      // 原生 ModalBottomSheet 默认把手：32 × 4，画在玻璃镶边上
+                      Container(
+                        width: 32,
+                        height: 4,
+                        margin: const EdgeInsets.only(top: 2, bottom: 8),
+                        decoration: BoxDecoration(
+                          color:
+                              CozyPalette.onSurfaceVariant.withValues(alpha: 0.4),
+                          borderRadius: BorderRadius.circular(2),
+                        ),
                       ),
-                    ),
-                    // `Flexible` 必须留着：Column 的主轴约束是「无上限」，直接把
-                    // 可滚动内容塞进 Column 会报 `Vertical viewport was given
-                    // unbounded height`。
-                    Flexible(child: child),
-                  ],
-                )
-              : child,
+                      // `Flexible` 必须留着：Column 的主轴约束是「无上限」，直接把
+                      // 可滚动内容塞进 Column 会报 `Vertical viewport was given
+                      // unbounded height`。
+                      Flexible(child: body),
+                    ],
+                  )
+                : body,
+          ),
         ),
       ),
     );
