@@ -240,9 +240,12 @@ class _ProfilePageState extends State<ProfilePage> {
                               onTap: _openOrdersTab,
                             ),
                             const SizedBox(height: 12),
+                            // 【审查修正】这一行原来叫「账号设置」、图标是齿轮，但点开的是
+                            // 「编辑个人资料」弹层（原生 ProfileScreen.kt:273-277 也一样，
+                            // 属于原生就有的名不符实）。改成它真正做的事，齿轮 → 铅笔。
                             _ActionRow(
-                              icon: Icons.settings,
-                              title: '账号设置',
+                              icon: Icons.edit_outlined,
+                              title: '编辑资料',
                               onTap: _openProfileEditor,
                             ),
                             const SizedBox(height: 12),

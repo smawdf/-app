@@ -327,21 +327,28 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
   }
 
   /// 原生 `OrderActionRow` 里的取消 TextButton（contentColor = Color(0xFFB85C5C)，高 52，全圆角）。
-  /// 该色不在 CozyPalette 中，用 `CozyPalette.error` 替代。
+  /// 【审查修正】原来用 `CozyPalette.error`（#E54848）替代，比原生的 #B85C5C 亮一截，
+  /// 在浅底上显得刺眼。这里直接用原生那支色号。
   Widget _cancelButton(BuildContext context) {
     return SizedBox(
       height: 52,
       child: TextButton(
         onPressed: _updating ? null : _cancelOrder,
         style: TextButton.styleFrom(
-          foregroundColor: CozyPalette.error,
+          foregroundColor: const Color(0xFFB85C5C),
           shape: const RoundedRectangleBorder(
             borderRadius: BorderRadius.all(Radius.circular(999)),
           ),
         ),
         child: Text(
           '取消订单',
-          style: Theme.of(context).textTheme.labelLarge!.copyWith(fontWeight: FontWeight.w700),
+          style: Theme.of(context).textTheme.labelLarge!.copyWith(
+                fontWeight: FontWeight.w700,
+                // 注意：CozyType 把 onSurface 烤进了每个 TextStyle，子 Text 显式带上
+                // 颜色时会盖掉按钮的 foregroundColor；这里必须自己写一遍，
+                // 否则渲染出来是近黑色（真机实测 #1D1B18）。
+                color: const Color(0xFFB85C5C),
+              ),
         ),
       ),
     );

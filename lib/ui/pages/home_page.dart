@@ -534,6 +534,10 @@ class _HomePageState extends State<HomePage> {
               value: "${state.candyCoins} 枚",
               hint: isPaired ? "点菜时会真实扣减" : "先绑定小饭桌",
               icon: Icons.monetization_on_rounded,
+              // 【审查修正】原来用 Material 的 `$` 图标，和「我的 / 糖糖币管理」
+              // 页里的真币图 candy_coin.png 不是同一个图案，同一个币两套画法。
+              // 这里统一成同一枚币（透明底 PNG，直接铺在徽标底色上）。
+              imageAsset: 'assets/images/candy_coin.png',
               accent: CozyPalette.primary,
               onTap: _openCoins,
             ),
@@ -563,6 +567,8 @@ class _HomePageState extends State<HomePage> {
     required String value,
     required String hint,
     required IconData icon,
+    /// 传入后徽标位置改用这张图（糖糖币用它对齐「我的」页里的真币图）。
+    String? imageAsset,
     required Color accent,
     required VoidCallback onTap,
   }) {
@@ -591,7 +597,17 @@ class _HomePageState extends State<HomePage> {
                     color: accent.withValues(alpha: 0.14),
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: Icon(icon, color: accent, size: 17),
+                  child: imageAsset == null
+                      ? Icon(icon, color: accent, size: 17)
+                      : Padding(
+                          padding: const EdgeInsets.all(2),
+                          child: Image.asset(
+                            imageAsset,
+                            width: 26,
+                            height: 26,
+                            filterQuality: FilterQuality.high,
+                          ),
+                        ),
                 ),
                 const SizedBox(width: 8),
                 Expanded(

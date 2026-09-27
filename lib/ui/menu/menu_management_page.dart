@@ -1014,32 +1014,109 @@ class _SolidBorderPainter extends CustomPainter {
       oldDelegate.width != width;
 }
 
-/// 原生 `categoryIcon()`（MenuManagementScreen.kt:627）
+/// 原生 `categoryIcon()`（MenuManagementScreen.kt:627）只认三档：
+/// 披萨/主食、蛋糕/甜、饮/咖啡/茶，其余一律落到 `restaurant_outlined`，
+/// 所以「招牌必吃」「暖心硬菜」这类常见分类在原生里也是同一把叉勺。
+/// 【审查修正】这里把关键词铺细，未命中的再按名字哈希取一枚，避免整排卡片同图。
 IconData _categoryIcon(String category) {
-  if (category.contains('披萨') || category.contains('主食')) {
+  final String c = category.trim();
+  if (c.contains('披萨') || c.contains('主食')) {
     return Icons.local_pizza_outlined;
   }
-  if (category.contains('蛋糕') || category.contains('甜')) {
+  if (c.contains('面包') || c.contains('烘焙')) {
+    return Icons.bakery_dining_outlined;
+  }
+  if (c.contains('蛋糕') || c.contains('甜') || c.contains('点')) {
     return Icons.cake_outlined;
   }
-  if (category.contains('饮') || category.contains('咖啡') || category.contains('茶')) {
+  if (c.contains('饮') || c.contains('咖啡') || c.contains('茶') || c.contains('酒')) {
     return Icons.local_cafe_outlined;
   }
-  return Icons.restaurant_outlined;
+  if (c.contains('面') || c.contains('粉')) {
+    return Icons.ramen_dining_outlined;
+  }
+  if (c.contains('饭') || c.contains('中餐') || c.contains('家常')) {
+    return Icons.rice_bowl_outlined;
+  }
+  if (c.contains('汤') || c.contains('煲') || c.contains('炖') || c.contains('粥')) {
+    return Icons.soup_kitchen_outlined;
+  }
+  if (c.contains('火锅')) {
+    return Icons.local_fire_department_outlined;
+  }
+  if (c.contains('烧烤') || c.contains('烤') || c.contains('炸')) {
+    return Icons.outdoor_grill_outlined;
+  }
+  if (c.contains('海鲜') || c.contains('鱼') || c.contains('虾') || c.contains('蟹')) {
+    return Icons.set_meal_outlined;
+  }
+  if (c.contains('西餐') || c.contains('牛排') || c.contains('意')) {
+    return Icons.lunch_dining_outlined;
+  }
+  if (c.contains('素') || c.contains('凉') || c.contains('沙拉')) {
+    return Icons.eco_outlined;
+  }
+  if (c.contains('冰') || c.contains('雪糕')) {
+    return Icons.icecream_outlined;
+  }
+  if (c.contains('招牌') || c.contains('推荐') || c.contains('必吃')) {
+    return Icons.local_fire_department_outlined;
+  }
+  if (c.contains('硬菜') || c.contains('暖')) {
+    return Icons.soup_kitchen_outlined;
+  }
+  return _kFoodIcons[_categorySeed(c) % _kFoodIcons.length];
 }
 
-/// 原生 `categoryAccent()`（MenuManagementScreen.kt:634）
+/// 关键词都没命中时的备选图标（按名字哈希取一枚，同一名字永远同一枚）。
+const List<IconData> _kFoodIcons = <IconData>[
+  Icons.restaurant_outlined,
+  Icons.dinner_dining_outlined,
+  Icons.ramen_dining_outlined,
+  Icons.rice_bowl_outlined,
+  Icons.soup_kitchen_outlined,
+  Icons.local_pizza_outlined,
+  Icons.set_meal_outlined,
+  Icons.bakery_dining_outlined,
+  Icons.icecream_outlined,
+  Icons.local_cafe_outlined,
+];
+
+/// 分类名的稳定哈希（不随列表顺序变，同一分类每次渲染都同图同色）。
+int _categorySeed(String category) {
+  int seed = 7;
+  for (final int unit in category.trim().codeUnits) {
+    seed = (seed * 31 + unit) % 1000003;
+  }
+  return seed;
+}
+
+/// 原生 `categoryAccent()`（MenuManagementScreen.kt:634）同样只有三档。
+/// 【审查修正】这里跟着上面选出来的图标走：同类同色，未命中的按同一个哈希取色。
 Color _categoryAccent(String category) {
-  if (category.contains('披萨') || category.contains('主食')) {
-    return CozyPalette.primaryContainer;
+  final IconData icon = _categoryIcon(category);
+  if (icon == Icons.cake_outlined ||
+      icon == Icons.icecream_outlined ||
+      icon == Icons.bakery_dining_outlined ||
+      icon == Icons.local_cafe_outlined ||
+      icon == Icons.eco_outlined) {
+    return CozyPalette.secondaryContainer; // #FFD1DC
   }
-  if (category.contains('蛋糕') || category.contains('甜')) {
-    return CozyPalette.secondaryContainer;
+  if (icon == Icons.soup_kitchen_outlined ||
+      icon == Icons.outdoor_grill_outlined ||
+      icon == Icons.set_meal_outlined ||
+      icon == Icons.lunch_dining_outlined) {
+    return CozyPalette.tertiaryContainer; // #F8A98E
   }
-  if (category.contains('饮') || category.contains('咖啡') || category.contains('茶')) {
-    return CozyPalette.tertiaryContainer;
+  if (_kFoodIcons.contains(icon)) {
+    const List<Color> tints = <Color>[
+      CozyPalette.primaryContainer,
+      CozyPalette.secondaryContainer,
+      CozyPalette.tertiaryContainer,
+    ];
+    return tints[_categorySeed(category) % tints.length];
   }
-  return CozyPalette.primaryContainer;
+  return CozyPalette.primaryContainer; // #F4A7B9
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -1158,28 +1235,24 @@ class _FloatingAddDishButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return _PressScale(
       onTap: onTap,
-      child: Container(
-        height: 50,
-        padding: const EdgeInsets.symmetric(horizontal: 18),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(25),
-          // 原生 #FF9FB7，取设计系统最接近的 primaryContainer #F4A7B9（见交付说明）
-          color: CozyPalette.primaryContainer,
-          border: Border.all(
-            color: CozyPalette.tertiaryContainer.withValues(alpha: 0.32),
+      // 【审查修正】原来是宽约 378px 的文字胶囊（原生同款），悬浮在右下角时会
+      // 压住第二张分类卡的「N 款菜品」。改成 56×56 圆形 FAB：只占右下角一小块，
+      // 不再盖住任何文字；配色也从「粉底白字」换成应用主按钮同款的「玫瑰底白字」
+      // （对比度更高）。文字入口仍在它打开的「新增菜品」弹层标题上，另外补一条
+      // 语义标签，让图标按钮在无障碍/自动化里仍然叫得出名字。
+      child: Semantics(
+        label: '新增菜品',
+        button: true,
+        child: Container(
+          width: 56,
+          height: 56,
+          alignment: Alignment.center,
+          decoration: const BoxDecoration(
+            shape: BoxShape.circle,
+            color: CozyPalette.primary,
+            boxShadow: CozyLight.cardShadow,
           ),
-        ),
-        child: Row(
-          children: <Widget>[
-            const Icon(Icons.add, size: 20, color: CozyPalette.surface),
-            const SizedBox(width: 8),
-            Text(
-              '新增菜品',
-              style:
-                  _fit(Theme.of(context).textTheme.titleLarge, 15, 20, FontWeight.bold)
-                      .copyWith(color: CozyPalette.surface),
-            ),
-          ],
+          child: const Icon(Icons.add, size: 26, color: CozyPalette.surface),
         ),
       ),
     );
@@ -2142,6 +2215,10 @@ class _DishEditorSheetState extends State<_DishEditorSheet> {
               ),
             ),
             // 底部双按钮（原生 weight 1f / 1.55f，高 58）
+            // 【审查修正】这里原来只给「保存菜品」写了 `flex: 155`，没给「取消」写
+            // `flex: 100`，于是 Flutter 按 1 : 155 分配宽度 —— 真机上「取消」被压成
+            // 6px 宽、两个字竖着叠在一起，还被右边的胶囊盖住，等于点不到。
+            // 补上 100 之后才和原生一样是 1 : 1.55（≈336px : 522px）。
             Container(
               width: double.infinity,
               color: CozyPalette.surface.withValues(alpha: 0.96),
@@ -2149,6 +2226,7 @@ class _DishEditorSheetState extends State<_DishEditorSheet> {
               child: Row(
                 children: <Widget>[
                   Expanded(
+                    flex: 100,
                     child: _PressScale(
                       onTap: () => Navigator.of(context).pop(),
                       child: Container(
