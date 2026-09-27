@@ -1146,79 +1146,31 @@ class _DishManagementHeader extends StatelessWidget {
           scrollDirection: Axis.horizontal,
           child: Row(
             children: <Widget>[
-              _FilterChip(
-                title: '全部',
+              // 【自查修正】原来这三个筛选用本文件自绘的 _FilterChip（带 7×7
+              // 前导圆点、选中是 12% 淡底 + 彩字），订单页却用共享的 CozyPill
+              // （无圆点、选中是实心 + 白字）。同一件事两种长相，统一到 CozyPill。
+              CozyPill(
+                text: '全部',
                 selected: selectedFilter == _MenuFilter.all,
-                accent: CozyPalette.primary,
                 onTap: () => onFilterSelected(_MenuFilter.all),
               ),
               const SizedBox(width: 8),
-              _FilterChip(
-                title: '已上架',
+              CozyPill(
+                text: '已上架',
                 selected: selectedFilter == _MenuFilter.available,
-                accent: CozyPalette.primary,
                 onTap: () => onFilterSelected(_MenuFilter.available),
               ),
               const SizedBox(width: 8),
-              _FilterChip(
-                title: '已下架',
+              CozyPill(
+                text: '已下架',
                 selected: selectedFilter == _MenuFilter.unavailable,
-                accent: CozyPalette.onSurfaceVariant,
+                color: CozyPalette.onSurfaceVariant,
                 onTap: () => onFilterSelected(_MenuFilter.unavailable),
               ),
             ],
           ),
         ),
       ],
-    );
-  }
-}
-
-/// 原生 `FilterChip`（MenuManagementScreen.kt:698）—— 自绘 Surface，非 CozyPill
-class _FilterChip extends StatelessWidget {
-  const _FilterChip({
-    required this.title,
-    required this.selected,
-    required this.accent,
-    required this.onTap,
-  });
-
-  final String title;
-  final bool selected;
-  final Color accent;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(999),
-          color: selected ? accent.withValues(alpha: 0.12) : CozyPalette.surface,
-          border: Border.all(
-            color: selected ? accent : CozyPalette.outlineVariant,
-          ),
-        ),
-        child: Row(
-          children: <Widget>[
-            Container(
-              width: 7,
-              height: 7,
-              decoration: BoxDecoration(shape: BoxShape.circle, color: accent),
-            ),
-            const SizedBox(width: 6),
-            Text(
-              title,
-              style: _fit(Theme.of(context).textTheme.labelLarge, 13, 18,
-                      selected ? FontWeight.bold : FontWeight.normal)
-                  .copyWith(color: selected ? accent : CozyPalette.onSurface),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

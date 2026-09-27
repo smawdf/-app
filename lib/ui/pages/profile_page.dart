@@ -229,7 +229,7 @@ class _ProfilePageState extends State<ProfilePage> {
                         child: Column(
                           children: <Widget>[
                             _ActionRow(
-                              icon: Icons.storefront,
+                              icon: Icons.storefront_outlined,
                               title: '我的店铺',
                               onTap: _openDishManage,
                             ),
@@ -249,23 +249,26 @@ class _ProfilePageState extends State<ProfilePage> {
                               onTap: _openProfileEditor,
                             ),
                             const SizedBox(height: 12),
+                            // 【自查修正】这一列入口原来是 filled/outlined 混着用（原生也
+                            // 混），统一成 outlined，和「帮助与客服」（原生 Outlined.
+                            // SupportAgent）一致。
                             if (roleKey == 'caretaker')
                               _ActionRow(
-                                icon: Icons.pets,
+                                icon: Icons.pets_outlined,
                                 title: '糖糖币专属管理',
                                 trailingText: '吃货 $balance 枚',
                                 onTap: _openCandyCoins,
                               )
                             else
                               _ActionRow(
-                                icon: Icons.pets,
+                                icon: Icons.pets_outlined,
                                 title: '糖糖币明细',
                                 // 余额上面那张卡已经显示过一次，这里不再重复数字。
                                 onTap: _openCandyCoins,
                               ),
                             const SizedBox(height: 12),
                             _ActionRow(
-                              icon: Icons.person_add_alt_1,
+                              icon: Icons.person_add_alt_1_outlined,
                               title: state.isPaired ? '伴侣已绑定' : '邀请对方',
                               // 【真机修正】原来写死「对方」，现在显示真实伴侣昵称
                               // （`CouplePair.partnerName`）。
@@ -278,14 +281,14 @@ class _ProfilePageState extends State<ProfilePage> {
                             ),
                             const SizedBox(height: 12),
                             _ActionRow(
-                              icon: Icons.info,
+                              icon: Icons.info_outlined,
                               title: '版本与更新',
                               trailingText: _versionLabel,
                               onTap: _openVersionDialog,
                             ),
                             const SizedBox(height: 12),
                             _ActionRow(
-                              icon: Icons.support_agent,
+                              icon: Icons.support_agent_outlined,
                               title: '帮助与客服',
                               onTap: _openHelpDialog,
                             ),

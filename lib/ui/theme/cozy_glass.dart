@@ -54,13 +54,18 @@ class CozyType {
   /// 与 pubspec.yaml 的 `fonts: family:` 一致
   static const String family = 'RomanticRound';
 
+  /// 【自查修正】这里原来还写了 `color: CozyPalette.onSurface`，等于把颜色「烤」
+  /// 进每一条 TextStyle。后果：按钮里写 `Text(style: labelLarge.copyWith(...))`
+  /// 时，子 Text 自带的颜色会盖掉按钮的 `foregroundColor`（真机上「取消订单」
+  /// 就是这么渲染成近黑的，见 order_detail_page.dart 的注释）。
+  /// 现在留 null：普通文字的颜色由 ThemeData 从 ColorScheme.onSurface 补齐
+  /// （main.dart 的 colorScheme，值仍是 #1D1B18），按钮文字则能正常继承前景色。
   static TextStyle _s(double size, double lineHeight, FontWeight weight) =>
       TextStyle(
         fontFamily: family,
         fontSize: size,
         height: lineHeight / size,
         fontWeight: weight,
-        color: CozyPalette.onSurface,
       );
 
   static final TextTheme textTheme = TextTheme(

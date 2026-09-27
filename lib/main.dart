@@ -40,9 +40,55 @@ class OrderDiskApp extends StatelessWidget {
           scaffoldBackgroundColor: CozyTheme.pureWhite, // 纯白极简底色
           useMaterial3: true,
           splashFactory: NoSplash.splashFactory,
+          // 【自查修正】原来一个 colorScheme 都没给，Material 默认件（对话框按钮、
+          // 开关、输入光标、日期选择器…）全落在 M3 基线紫上。页面里的粉/玫瑰色都
+          // 来自 CozyPalette，这里只是把「默认值」也换成同一套品牌色板。
+          colorScheme: const ColorScheme.light().copyWith(
+            primary: CozyPalette.primary,
+            onPrimary: CozyPalette.surface,
+            primaryContainer: CozyPalette.primaryContainer,
+            onPrimaryContainer: CozyPalette.onPrimaryContainer,
+            secondary: CozyPalette.secondary,
+            secondaryContainer: CozyPalette.secondaryContainer,
+            tertiary: CozyPalette.tertiary,
+            tertiaryContainer: CozyPalette.tertiaryContainer,
+            error: CozyPalette.error,
+            errorContainer: CozyPalette.errorContainer,
+            surface: CozyPalette.surface,
+            onSurface: CozyPalette.onSurface,
+            onSurfaceVariant: CozyPalette.onSurfaceVariant,
+            outline: CozyPalette.outline,
+            outlineVariant: CozyPalette.outlineVariant,
+          ),
           // 「浪漫雅圆」+ 与原生 Type.kt 逐条对齐的字号/行高
           fontFamily: CozyType.family,
           textTheme: CozyType.textTheme,
+          // 【自查修正】对话框统一成品牌规格：原来只有「编辑个人资料」是自绘的，
+          // 其余 AlertDialog 走 Material 默认的 40px 内边距 + 紫色调阴影。
+          dialogTheme: DialogThemeData(
+            backgroundColor: CozyPalette.surface,
+            surfaceTintColor: Colors.transparent,
+            insetPadding:
+                const EdgeInsets.symmetric(horizontal: 36, vertical: 24),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+            titleTextStyle: CozyType.textTheme.titleLarge!.copyWith(
+              fontWeight: FontWeight.w900,
+              color: CozyPalette.onSurface,
+            ),
+            contentTextStyle: CozyType.textTheme.bodyMedium!.copyWith(
+              color: CozyPalette.onSurfaceVariant,
+            ),
+          ),
+          // 【自查修正】漏网的按钮也有品牌色兜底，不会再出现 Material 紫。
+          textButtonTheme: TextButtonThemeData(
+            style: TextButton.styleFrom(foregroundColor: CozyPalette.primary),
+          ),
+          filledButtonTheme: FilledButtonThemeData(
+            style: FilledButton.styleFrom(
+              backgroundColor: CozyPalette.primary,
+              foregroundColor: CozyPalette.surface,
+            ),
+          ),
         ),
         home: const _RootRouter(),
       ),
