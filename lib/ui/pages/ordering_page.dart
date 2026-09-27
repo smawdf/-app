@@ -742,7 +742,7 @@ class _CategoryRail extends StatelessWidget {
   Widget build(BuildContext context) {
     final TextTheme text = Theme.of(context).textTheme;
     return SizedBox(
-      width: 96,
+      width: 84,
       child: ListView.separated(
         // 原生：外层 padding(top=8, bottom=8) + contentPadding(top=4, bottom=clearance)
         padding: EdgeInsets.only(top: 12, bottom: bottomClearance + 8),
@@ -841,7 +841,7 @@ class _DishList extends StatelessWidget {
       ),
       itemCount: items.length,
       separatorBuilder: (BuildContext context, int index) =>
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
       itemBuilder: (BuildContext context, int index) {
         final MenuItem item = items[index];
         final GlobalKey key = addKeys.putIfAbsent(item.id, () => GlobalKey());
@@ -896,10 +896,11 @@ class _SingleShopDishCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final TextTheme text = Theme.of(context).textTheme;
     // 紧凑横排：小缩略图 + 文案，价格与加减单独占一行铺满卡片宽度
-    // （卡片只有 ~204dp 宽，缩略图 92dp 时右侧仅剩 80dp，¥16 与加减器并排放不下会挤成两行）
+    // （卡片只有 ~216dp 宽，价格与加减器并排放不下，会挤成两行）
+    // 密度：缩略图 48dp + 8dp 内边距 + 菜名 16sp 一行 ⇒ 整卡 ~100dp，一页能放 3 道以上
     return CozyCard(
       radius: 16,
-      padding: const EdgeInsets.all(10),
+      padding: const EdgeInsets.all(8),
       onTap: onClick,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -908,18 +909,18 @@ class _SingleShopDishCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
               SizedBox(
-                width: 64,
-                height: 64,
+                width: 48,
+                height: 48,
                 child: _DishImage(
                   imageUrl: item.imageUrl,
                   name: item.name,
                   backgroundAlpha: 0.62,
-                  radius: 12,
+                  radius: 10,
                   fit: BoxFit.cover,
-                  iconSize: 26,
+                  iconSize: 22,
                 ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 8),
               Expanded(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -929,10 +930,11 @@ class _SingleShopDishCard extends StatelessWidget {
                       item.name,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      // 原生 fontSize 17.sp / lineHeight 24.sp
+                      // 原生 17.sp；这里收到 16.sp，让「黄金蜜蜂脆皮炸鸡」这类 8 字菜名
+                      // 在 Rail 84dp 后的卡片里保持一行，一页能多放一道
                       style: text.titleLarge!.copyWith(
-                        fontSize: 17,
-                        height: 24 / 17,
+                        fontSize: 16,
+                        height: 22 / 16,
                         fontWeight: FontWeight.w900,
                         color: CozyPalette.onSurface,
                       ),
@@ -955,16 +957,16 @@ class _SingleShopDishCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: <Widget>[
               Expanded(
                 child: Text(
                   _priceYuanText(item.price),
-                  // 原生 fontSize 19.sp
+                  // 原生 fontSize 19.sp；与 16.sp 的菜名同比例收到 17.sp
                   style: text.titleLarge!.copyWith(
-                    fontSize: 19,
+                    fontSize: 17,
                     fontWeight: FontWeight.w900,
                     color: CozyPalette.primary,
                   ),
