@@ -1,32 +1,10 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 
 import 'models.dart';
+import 'order_errors.dart';
 import 'supabase_api.dart';
-
-/// 把底层网络异常翻译成与原生一致的文案。
-///
-/// 这里以前直接把 `e.toString()` 交给界面，于是注册/登录一旦遇到瞬时网络抖动，
-/// 用户看到的是整段
-/// `AuthRetryableFetchException(message: ClientException with SocketException:
-///  Connection reset by peer (OS Error: Connection reset by peer, errno = 104) ...)`。
-/// 原生 `AuthViewModel.kt:164` / `OnboardingViewModel.kt:183` 都只给一句人话。
-String _friendlyError(Object e) {
-  if (e is SocketException || e is HandshakeException || e is TimeoutException) {
-    return '网络连接失败，请检查网络后重试。';
-  }
-  final String text = e.toString();
-  if (text.contains('SocketException') ||
-      text.contains('HandshakeException') ||
-      text.contains('Connection reset') ||
-      text.contains('Connection terminated') ||
-      (text.contains('ClientException') && text.contains('Socket'))) {
-    return '网络连接失败，请检查网络后重试。';
-  }
-  return '请求失败，请检查网络或稍后重试';
-}
 
 /// 全局应用状态：承担 Session、数据缓存与云端实时同步（Supabase）
 class AppState extends ChangeNotifier {
@@ -118,7 +96,7 @@ class AppState extends ChangeNotifier {
       error = e.message;
       return null;
     } catch (e) {
-      error = _friendlyError(e);
+      error = friendlyErrorText(e);
       return null;
     } finally {
       if (!silent) _setBusy(false);
@@ -217,7 +195,7 @@ class AppState extends ChangeNotifier {
     if (user != null) {
       // 未配对时 pair 为 null，但绝不能把会话里的 pair_id 清成空串：
       // 空串会让后续所有写入（菜单/店铺/订单）撞上 menu_dishes 的 RLS 42501，
-      // 再被 _friendlyError 兜底成「请求失败，请检查网络或稍后重试」，看不出真因。
+      // 再被 friendlyErrorText 兜底成「请求失败，请检查网络或稍后重试」，看不出真因。
       // 注册/登录写的是哨兵值 kEmptyPairId，这里必须沿用同一哨兵（_api.pairId）。
       final String pairId = (pair?.id.isNotEmpty ?? false) ? pair!.id : _api.pairId;
       _api.setSession(token: _api.token, userId: user!.id, pairId: pairId);
@@ -287,6 +265,21 @@ class AppState extends ChangeNotifier {
   Future<bool> submitOrder({required List<MenuItem> dishes, String note = ''}) async {
     if (dishes.isEmpty) {
       error = '还没有选菜哦';
+      notifyListeners();
+      return false;
+    }
+    // 【真机修正】原生 `CheckoutViewModel.kt:87-99` 的两道前置校验，Flutter 侧漏了：
+    // ① 只有吃货能下单；② 糖币不够先拦下。少了②，请求一路打到
+    // `spend_eater_candy_coins` 被拒（`insufficient candy coins`），
+    // 界面只看到 `friendlyErrorText` 的兜底网络文案。
+    final int cost = dishes.fold<double>(0, (sum, d) => sum + d.price).ceil();
+    final String? blocked = orderSubmitBlockedReason(
+      isCaretaker: isCaretaker,
+      candyBalance: candyCoins,
+      candyCost: cost,
+    );
+    if (blocked != null) {
+      error = blocked;
       notifyListeners();
       return false;
     }

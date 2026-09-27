@@ -297,6 +297,16 @@ class SupabaseApi {
     final paired = pairId.isNotEmpty && pairId != kEmptyPairId;
 
     // 伴侣信息 + 糖币余额：优先用云端权威快照函数
+    //
+    // 【真机修正】「糖糖币余额」= 吃货那一侧的余额，和原生
+    // `SupabaseProfileRepository.refreshCandyWalletBalance()`
+    // （`SupabaseProfileRepository.kt:52-76`）一致：
+    //   饲养员（caretaker）看的是伴侣（吃货）的余额 -> `partner_candy_coins`；
+    //   吃货（eater）看的就是自己 `profiles.candy_coins`。
+    // 旧代码不分角色一律盖成伴侣余额，于是吃货（自己 5 枚）在首页 / 购物车看到
+    // 饲养员的 66 枚，点「提交点菜」被 `spend_eater_candy_coins`
+    // （`table/34_eater_only_ordering.sql:42-48`）以 `insufficient candy coins` 拒绝。
+    final bool walletIsPartner = role == 'caretaker';
     String partnerId = '';
     String partnerName = '';
     String partnerAvatarUrl = '';
@@ -318,7 +328,8 @@ class SupabaseApi {
           // 「伴侣资料同步中」、我的页恒显示「对方」。
           partnerName = ((p['nickname'] as String?) ?? '').trim();
           partnerAvatarUrl = (p['avatar_url'] as String?) ?? '';
-          candy = (p['candy_coins'] as int?) ?? candy;
+          // 只有饲养员这一侧才把余额换成伴侣（吃货）的。
+          if (walletIsPartner) candy = (p['candy_coins'] as int?) ?? candy;
         }
       } catch (_) {}
 
@@ -327,8 +338,8 @@ class SupabaseApi {
         final snap = await _db.rpc('current_pair_snapshot');
         final s = _firstRow(snap);
         if (s != null) {
-          final sharedCandy = s['partner_candy_coins'];
-          if (sharedCandy is int) candy = sharedCandy;
+          final partnerCandy = s['partner_candy_coins'];
+          if (walletIsPartner && partnerCandy is int) candy = partnerCandy;
 
           final notice = (s['notice_message'] as String?) ?? '';
           if (notice.isNotEmpty) _pendingNotice = notice;
