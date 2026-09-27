@@ -8,6 +8,7 @@ import '../../data/app_state.dart';
 import '../candy/candy_coins_page.dart';
 import '../menu/menu_management_page.dart';
 import '../theme/cozy_glass.dart';
+import 'avatar_crop_page.dart';
 
 /// 原生 `BuildConfig.VERSION_NAME` 的等值常量。
 /// 【真机修正】pubspec.yaml:17 实际是 `version: 2.0.0+56`，这里却写着 3.0.1，
@@ -181,13 +182,14 @@ class _ProfilePageState extends State<ProfilePage> {
 
         // 身份卡第二行：不再露 uuid 尾巴和无信息量的「资料已同步」，
         // 换成「绑没绑小饭桌 + 一起吃了多少天」这种用户真在意的事。
+        // 天数单独做成小胶囊，和身份胶囊并排（Wrap 自适应，窄屏换行不溢出）。
         final int? days = _daysTogether;
         final String partnerName = (state.pair?.partnerName ?? '').trim();
         final String headerSubtitle = state.isPaired
-            ? (days != null
-                ? '已绑定小饭桌 · 一起吃饭 $days 天'
-                : (partnerName.isNotEmpty ? '已和 $partnerName 绑定小饭桌' : '已绑定小饭桌'))
+            ? (partnerName.isNotEmpty ? '已和 $partnerName 绑定小饭桌' : '已绑定小饭桌')
             : '还没有绑定小饭桌 · 去「邀请对方」看看';
+        final String? headerDays =
+            (state.isPaired && days != null) ? '一起吃饭 $days 天' : null;
 
         return CozyPage(
           child: Column(
@@ -208,6 +210,7 @@ class _ProfilePageState extends State<ProfilePage> {
                           avatarUrl: state.user?.avatarUrl ?? '',
                           subtitle: headerSubtitle,
                           roleText: roleText,
+                          daysText: headerDays,
                           onTap: _openProfileEditor,
                         ),
                       ),
@@ -326,26 +329,30 @@ class _ProfileHeader extends StatelessWidget {
     required this.subtitle,
     required this.roleText,
     required this.onTap,
+    this.daysText,
   });
 
   final String name;
   final String avatarUrl;
 
-  /// 第二行信息（已绑定小饭桌 / 一起吃饭 N 天 …）。
+  /// 第三行信息（绑没绑小饭桌）。
   /// 【真机修正】原来这里是 `ID: d20eeab`（uuid 尾巴）和「资料已同步」——
   /// 前者是调试信息，后者用户无法验证，已按用户反馈替换。
   final String subtitle;
   final String roleText;
+
+  /// 「一起吃饭 N 天」小胶囊（未绑定时为 null，不占位）
+  final String? daysText;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     return CozyCard(
       onTap: onTap,
-      radius: 18,
+      radius: 24,
       padding: EdgeInsets.zero,
-      color: const Color(0xFFFFF8FA).withValues(alpha: 0.72),
-      borderColor: Colors.white.withValues(alpha: 0.62),
+      color: Colors.white.withValues(alpha: 0.70),
+      borderColor: Colors.white.withValues(alpha: 0.66),
       // 【真机修正】CozyCard 不撑满宽度：里面是 Column + Stack，会缩到最宽子项
       // （身份胶囊 ≈206 逻辑 px），导致这张卡比全页其他卡（328）窄一大截、
       // 居中悬在页面上。这里显式撑满。
@@ -353,118 +360,168 @@ class _ProfileHeader extends StatelessWidget {
         width: double.infinity,
         child: Stack(
           children: <Widget>[
+            // 淡粉斜向渐变：让白卡有层次，不再是「一块白纸」
+            Positioned.fill(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: <Color>[
+                      CozyPalette.secondaryContainer.withValues(alpha: 0.34),
+                      CozyPalette.primaryContainer.withValues(alpha: 0.16),
+                      Colors.white.withValues(alpha: 0.0),
+                    ],
+                    stops: const <double>[0.0, 0.55, 1.0],
+                  ),
+                ),
+              ),
+            ),
             // 【真机修正】原来左上角是 132×132 + radius 48 的**圆角方**，
             // 压到卡片圆角上会露出直角边（截图里那道月牙 + 硬边）。改成正圆。
+            Positioned(left: -54, top: -58, child: _glow(150, CozyPalette.secondaryContainer, 0.20)),
+            Positioned(right: -46, bottom: -56, child: _glow(170, CozyPalette.primaryContainer, 0.14)),
+            // 右下角爪印水印（和首页小饭桌卡同一套语言）
             Positioned(
-              left: -46,
-              top: -48,
-              child: Container(
-                width: 132,
-                height: 132,
-                decoration: BoxDecoration(
-                  color: CozyPalette.secondaryContainer.withValues(alpha: 0.16),
-                  shape: BoxShape.circle,
-                ),
+              right: -26,
+              bottom: -30,
+              child: Icon(
+                Icons.pets,
+                size: 156,
+                color: Colors.white.withValues(alpha: 0.30),
               ),
             ),
-            Positioned(
-              right: -44,
-              bottom: -42,
-              child: Container(
-                width: 160,
-                height: 160,
-                decoration: BoxDecoration(
-                  color: CozyPalette.primaryContainer.withValues(alpha: 0.10),
-                  shape: BoxShape.circle,
-                ),
-              ),
-            ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 22),
-            child: Column(
-              children: <Widget>[
-                SizedBox(
-                  width: 102,
-                  height: 102,
-                  child: Stack(
-                    children: <Widget>[
-                      Container(
-                        width: 96,
-                        height: 96,
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Colors.white,
-                          border: Border.all(color: const Color(0xFFFFFCF8), width: 3),
-                        ),
-                        child: ClipOval(child: _avatar(avatarUrl, 42)),
-                      ),
-                      Positioned(
-                        right: 0,
-                        bottom: 0,
-                        child: Container(
-                          width: 32,
-                          height: 32,
-                          alignment: Alignment.center,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: CozyPalette.primary,
-                            border: Border.all(color: CozyPalette.outlineVariant, width: 1),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 24, 20, 22),
+              child: Column(
+                children: <Widget>[
+                  // 头像：白色渐变圆 + 玫瑰细边 + 右下编辑徽标
+                  SizedBox(
+                    width: 118,
+                    height: 118,
+                    child: Stack(
+                      children: <Widget>[
+                        Positioned.fill(
+                          child: Container(
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              gradient: LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: <Color>[
+                                  Colors.white,
+                                  CozyPalette.primaryContainer.withValues(alpha: 0.55),
+                                ],
+                              ),
+                              boxShadow: CozyLight.cardShadow,
+                            ),
                           ),
-                          child: const Icon(Icons.edit, size: 18, color: Colors.white),
                         ),
+                        Positioned.fill(
+                          child: Padding(
+                            padding: const EdgeInsets.all(9),
+                            child: ClipOval(child: _avatar(avatarUrl, 46)),
+                          ),
+                        ),
+                        Positioned(
+                          right: 2,
+                          bottom: 2,
+                          child: Container(
+                            width: 34,
+                            height: 34,
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: CozyPalette.primary,
+                              border: Border.all(color: Colors.white, width: 3),
+                            ),
+                            child: const Icon(Icons.edit, size: 16, color: Colors.white),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  // 窄屏 / 平板都收在 420 内居中，不会拉成一条长线（适配）
+                  Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 420),
+                      child: Column(
+                        children: <Widget>[
+                          Text(
+                            name,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.center,
+                            style: _ts(26, 34, FontWeight.w900, CozyPalette.onSurface),
+                          ),
+                          const SizedBox(height: 10),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            alignment: WrapAlignment.center,
+                            children: <Widget>[
+                              _chip(Icons.pets, '当前身份：$roleText', filled: true),
+                              if (daysText != null)
+                                _chip(Icons.favorite, daysText!, filled: false),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          Text(
+                            subtitle,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.center,
+                            style: _ts(12.5, 18, FontWeight.w400, CozyPalette.onSurfaceVariant),
+                          ),
+                        ],
                       ),
-                    ],
+                    ),
                   ),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  name,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.center,
-                  style: _ts(24, 32, FontWeight.w900, CozyPalette.onSurface),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  subtitle,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.center,
-                  style: _ts(13, 19, FontWeight.w400, CozyPalette.onSurfaceVariant),
-                ),
-                const SizedBox(height: 10),
-                Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.62),
-                    borderRadius: BorderRadius.circular(999),
-                    border: Border.all(color: CozyPalette.outlineVariant, width: 1),
-                  ),
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: <Widget>[
-                      const Icon(Icons.pets, size: 18, color: CozyPalette.primary),
-                      const SizedBox(width: 6),
-                      Text(
-                        '当前身份：$roleText',
-                        style: _ts(12, 16, FontWeight.w900, CozyPalette.onSurface),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
           ],
         ),
       ),
     );
   }
 
-  /// 头像（云端可能是 http URL，也可能是本地选图后存的 data URI）
+  Widget _glow(double size, Color color, double alpha) => Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: color.withValues(alpha: alpha),
+        ),
+      );
+
+  /// 信息小胶囊（身份 / 一起吃饭 N 天）
+  Widget _chip(IconData icon, String text, {required bool filled}) => Container(
+        decoration: BoxDecoration(
+          color: filled
+              ? Colors.white.withValues(alpha: 0.66)
+              : CozyPalette.primaryContainer.withValues(alpha: 0.34),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: CozyPalette.outlineVariant, width: 1),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Icon(icon, size: 15, color: CozyPalette.primary),
+            const SizedBox(width: 5),
+            Text(
+              text,
+              style: _ts(12, 16, FontWeight.w900, CozyPalette.onSurface),
+            ),
+          ],
+        ),
+      );
+
+  /// 头像（云端可能是 http URL、data URI，或内置默认头像的 asset 标记）
   Widget _avatar(String url, double iconSize) =>
-      CozyAvatar(url: url, size: 96, fallback: _paw(iconSize));
+      CozyAvatar(url: url, size: 100, fallback: _paw(iconSize));
 
   Widget _paw(double size) => Container(
         color: const Color(0xFFFFFCF8),
@@ -724,31 +781,34 @@ class _ProfileEditDialogState extends State<_ProfileEditDialog> {
 
   bool get _avatarChanged => _avatarUrl != widget.avatarUrl;
 
-  /// 选一张本地照片 → 压到 256×256 / q72（≈9 KB）→ 转 data URI 存
-  /// `profiles.avatar_url`。项目没有 storage 桶，见 `SupabaseApi.updateProfile`。
+  /// 选图 / 裁剪期间禁止重复点击（保存另有 `_saving`）
+  bool _picking = false;
+
+  bool get _locked => _saving || _picking;
+
+  /// 相册选图 → 裁剪页（方形取景 + 圆形预览，可拖可缩放）→ 256×256 JPEG q72
+  /// → data URI 存 `profiles.avatar_url`（项目没有 storage 桶，
+  /// 见 `SupabaseApi.updateProfile` 的说明）。
   Future<void> _pickAvatar() async {
+    if (_locked) return;
     try {
       final XFile? picked = await ImagePicker().pickImage(
         source: ImageSource.gallery,
-        maxWidth: 256,
-        maxHeight: 256,
-        imageQuality: 72,
+        // 先在系统侧限一下尺寸（相册里动辄 4000px，裁剪页只用到 1600）
+        maxWidth: 2000,
+        maxHeight: 2000,
+        imageQuality: 88,
       );
       if (picked == null) return; // 用户取消
-      final Uint8List bytes = await picked.readAsBytes();
-      if (bytes.isEmpty) {
+      final Uint8List raw = await picked.readAsBytes();
+      if (raw.isEmpty) {
         setState(() {
           _failed = true;
           _message = '这张图片读不出来，换一张试试';
         });
         return;
       }
-      final String uri = 'data:image/jpeg;base64,${base64Encode(bytes)}';
-      setState(() {
-        _avatarUrl = uri;
-        _failed = false;
-        _message = '已选好新头像（${(bytes.length / 1024).toStringAsFixed(1)} KB），点「保存资料」同步给小饭桌';
-      });
+      await _crop(raw);
     } catch (e) {
       setState(() {
         _failed = true;
@@ -757,8 +817,70 @@ class _ProfileEditDialogState extends State<_ProfileEditDialog> {
     }
   }
 
+  /// 直接裁剪「当前这张」（刚选的 data URI，或云端存过的 data URI）。
+  /// 默认头像 / 旧 http 图没有可裁的本地字节，这时给一句提示。
+  Future<void> _cropCurrent() async {
+    if (_locked) return;
+    final String url = _avatarUrl;
+    if (!CozyAvatar.isDataUri(url)) {
+      setState(() {
+        _failed = false;
+        _message = '先点「更换」选一张照片，再裁剪';
+      });
+      return;
+    }
+    final Uint8List? bytes = CozyAvatar.decodeDataUri(url);
+    if (bytes == null) {
+      setState(() {
+        _failed = true;
+        _message = '这张头像解不开，请重新「更换」一张';
+      });
+      return;
+    }
+    await _crop(bytes);
+  }
+
+  Future<void> _crop(Uint8List raw) async {
+    setState(() => _picking = true);
+    Uint8List? result;
+    try {
+      result = await Navigator.of(context).push<Uint8List>(
+        MaterialPageRoute<Uint8List>(
+          builder: (_) => AvatarCropPage(bytes: raw),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _picking = false);
+    }
+    if (result == null || result.isEmpty) return; // 裁剪页取消
+    final Uint8List cropped = result;
+    setState(() {
+      _avatarUrl = 'data:image/jpeg;base64,${base64Encode(cropped)}';
+      _failed = false;
+      _message = '已裁好新头像（${(cropped.length / 1024).toStringAsFixed(1)} KB），点「保存资料」同步给小饭桌';
+    });
+  }
+
+  /// 删除头像：写空串，全 App 回退成小爪印
+  void _removeAvatar() {
+    setState(() {
+      _avatarUrl = '';
+      _failed = false;
+      _message = '保存后就只剩小爪印啦';
+    });
+  }
+
+  /// 恢复默认：换成随 App 打包的默认头像（写 `asset:` 标记，双方都能显示）
+  void _useDefaultAvatar() {
+    setState(() {
+      _avatarUrl = CozyAvatar.defaultAvatarMark;
+      _failed = false;
+      _message = '保存后用小饭桌的默认头像';
+    });
+  }
+
   Future<void> _save() async {
-    if (_nameError != null || _saving) return;
+    if (_nameError != null || _locked) return;
     setState(() {
       _saving = true;
       _failed = false;
@@ -783,24 +905,72 @@ class _ProfileEditDialogState extends State<_ProfileEditDialog> {
     );
   }
 
+  /// 头像操作小胶囊（更换 / 裁剪 / 删除 / 恢复默认）
+  Widget _avatarAction(IconData icon, String label, VoidCallback onTap) {
+    final bool on = !_locked;
+    return GestureDetector(
+      onTap: on ? onTap : null,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+        decoration: BoxDecoration(
+          color: CozyPalette.secondaryContainer.withValues(alpha: on ? 0.34 : 0.14),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(
+            color: CozyPalette.outlineVariant.withValues(alpha: on ? 0.7 : 0.35),
+            width: 1,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Icon(icon, size: 14, color: CozyInk.rose),
+            const SizedBox(width: 5),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                height: 16 / 12,
+                fontWeight: FontWeight.w900,
+                color: on ? CozyInk.rose : CozyInk.rose.withValues(alpha: 0.45),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
+    // 标题 / 头像 / 四个操作 / 昵称 / 提示 / 按钮全部放进同一个滚动容器。
+    // 曾用 AlertDialog 的 content + actions：内容一长（提示文案换成两行）时，
+    // 最后一个 Text 的布局盒会压到 actions 之上并吃掉点击 —— 真机实测
+    // 「保存资料 / 取消」在 y 1512~1599 全部点不动、y≥1600 才有反应。
+    // 内容与按钮同处一个 SingleChildScrollView 后不再有兄弟节点重叠，
+    // 并且弹层高度恒定：提示固定占一个 40px 槽、计数恒定显示、
+    // 昵称错误也走提示槽（不用会撑高输入框的 errorText）、转圈挪进头像里。
+    // 高度一变，真机上布局几何与绘制几何就会错位约 80px，按钮便点不动。
+    return Dialog(
       backgroundColor: CozyPalette.surface,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-      title: Text(
-        '编辑个人资料',
-        textAlign: TextAlign.center,
-        style: _ts(18, 24, FontWeight.w900, CozyPalette.onSurface),
-      ),
-      content: SizedBox(
-        width: double.maxFinite,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 36, vertical: 24),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 420),
         child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(24, 22, 24, 14),
           child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: <Widget>[
+              Text(
+                '编辑个人资料',
+                textAlign: TextAlign.center,
+                style: _ts(18, 24, FontWeight.w900, CozyPalette.onSurface),
+              ),
+              const SizedBox(height: 10),
+              // 头像：白圆底 + 玫瑰描边；点右下角小铅笔 = 更换（选图 → 裁剪）
               SizedBox(
-                width: 104,
-                height: 104,
+                width: 112,
+                height: 112,
                 child: Stack(
                   children: <Widget>[
                     Positioned.fill(
@@ -808,17 +978,17 @@ class _ProfileEditDialogState extends State<_ProfileEditDialog> {
                         alignment: Alignment.center,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: CozyInk.cherry,
+                          color: Colors.white,
                           border: Border.all(
-                            color: CozyInk.rose.withValues(alpha: 0.26),
-                            width: 2,
+                            color: CozyPalette.primaryContainer.withValues(alpha: 0.72),
+                            width: 3,
                           ),
                         ),
                         child: ClipOval(
                           child: CozyAvatar(
                             url: _avatarUrl,
-                            size: 100,
-                            fallback: const Icon(Icons.local_dining, size: 42, color: CozyInk.rose),
+                            size: 112,
+                            fallback: const Icon(Icons.pets, size: 46, color: CozyPalette.primary),
                           ),
                         ),
                       ),
@@ -827,33 +997,54 @@ class _ProfileEditDialogState extends State<_ProfileEditDialog> {
                       right: 0,
                       bottom: 0,
                       child: GestureDetector(
-                        onTap: _saving ? null : _pickAvatar,
+                        onTap: _locked ? null : _pickAvatar,
                         child: Container(
-                          width: 48,
-                          height: 48,
+                          width: 38,
+                          height: 38,
                           alignment: Alignment.center,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             color: CozyInk.rose,
-                            border: Border.all(color: CozyPalette.surface, width: 3),
+                            border: Border.all(color: Colors.white, width: 3),
                           ),
-                          child: const Icon(Icons.edit, size: 18, color: Colors.white),
+                          child: const Icon(Icons.edit, size: 17, color: Colors.white),
                         ),
                       ),
                     ),
+                    // 选图 / 裁剪 / 保存共用同一个转圈覆盖层：放进头像里，
+                    // 弹层高度不会因为「正在保存」而变化（高度一变，按钮就会跳）。
+                    if (_picking || _saving)
+                      const Positioned.fill(
+                        child: ColoredBox(
+                          color: Color(0x33FFFFFF),
+                          child: Center(
+                            child: SizedBox(
+                              width: 22,
+                              height: 22,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               ),
-              const SizedBox(height: 8),
-              TextButton(
-                onPressed: _saving ? null : _pickAvatar,
-                child: Text(
-                  '更换头像',
-                  style: _ts(14, 18, FontWeight.w900, CozyInk.rose),
-                ),
+              const SizedBox(height: 12),
+              // 四个头像操作：窄屏自动换行，不会挤出弹层（用户反馈过「适配」）
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                alignment: WrapAlignment.center,
+                children: <Widget>[
+                  _avatarAction(Icons.photo_library_outlined, '更换', _pickAvatar),
+                  _avatarAction(Icons.crop, '裁剪', _cropCurrent),
+                  _avatarAction(Icons.delete_outline, '删除', _removeAvatar),
+                  _avatarAction(Icons.restore, '恢复默认', _useDefaultAvatar),
+                ],
               ),
+              const SizedBox(height: 8),
               Text(
-                '从相册选一张，会自动裁成小图存到你们的小饭桌',
+                '从相册选一张，拖动裁剪成头像；头像存在你们的小饭桌里',
                 textAlign: TextAlign.center,
                 style: _ts(11, 16, FontWeight.w400, CozyPalette.onSurfaceVariant),
               ),
@@ -861,58 +1052,57 @@ class _ProfileEditDialogState extends State<_ProfileEditDialog> {
               TextField(
                 controller: _name,
                 onChanged: (_) => setState(() => _message = null),
-                decoration: cozyInputDecoration(
-                  labelText: '昵称',
-                  errorText: _nameError,
-                ),
+                decoration: cozyInputDecoration(labelText: '昵称'),
               ),
-              if (_nameError == null) ...<Widget>[
-                const SizedBox(height: 6),
-                Text(
-                  '${_trimmed.length}/12',
-                  style: _ts(12, 18, FontWeight.w400, CozyPalette.onSurfaceVariant),
-                ),
-              ],
-              if (_saving) ...<Widget>[
-                const SizedBox(height: 16),
-                const SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-              ],
-              if (_message != null) ...<Widget>[
-                const SizedBox(height: 16),
-                Text(
-                  _message!,
-                  textAlign: TextAlign.center,
-                  style: _ts(
-                    12,
-                    18,
-                    FontWeight.w400,
-                    _failed ? CozyPalette.error : CozyPalette.onSurfaceVariant,
+              const SizedBox(height: 6),
+              // 字数恒定显示：不再用 errorText（它会撑高输入框，连带把按钮顶下去）
+              Text(
+                '${_trimmed.length}/12',
+                style: _ts(12, 18, FontWeight.w400, CozyPalette.onSurfaceVariant),
+              ),
+              // 固定高度的提示槽：昵称错误 / 操作反馈都写在这里，
+              // 出现与消失都不会改变弹层高度 ⇒ 按钮位置始终不变（真机点击才可靠）。
+              SizedBox(
+                height: 40,
+                child: Center(
+                  child: Text(
+                    _nameError ?? _message ?? '',
+                    maxLines: 2,
+                    textAlign: TextAlign.center,
+                    style: _ts(
+                      12,
+                      18,
+                      FontWeight.w400,
+                      _nameError != null || _failed
+                          ? CozyPalette.error
+                          : CozyPalette.onSurfaceVariant,
+                    ),
                   ),
                 ),
-              ],
+              ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: <Widget>[
+                  TextButton(
+                    onPressed: _locked ? null : () => Navigator.of(context).pop(),
+                    child: Text('取消', style: _ts(14, 18, FontWeight.w500, CozyPalette.onSurfaceVariant)),
+                  ),
+                  const SizedBox(width: 10),
+                  FilledButton(
+                    onPressed: _nameError == null && !_locked ? _save : null,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: CozyPalette.primary,
+                      foregroundColor: Colors.white,
+                      shape: const StadiumBorder(),
+                    ),
+                    child: const Text('保存资料'),
+                  ),
+                ],
+              ),
             ],
           ),
         ),
       ),
-      actions: <Widget>[
-        TextButton(
-          onPressed: _saving ? null : () => Navigator.of(context).pop(),
-          child: Text('取消', style: _ts(14, 18, FontWeight.w500, CozyPalette.onSurfaceVariant)),
-        ),
-        FilledButton(
-          onPressed: _nameError == null && !_saving ? _save : null,
-          style: FilledButton.styleFrom(
-            backgroundColor: CozyPalette.primary,
-            foregroundColor: Colors.white,
-            shape: const StadiumBorder(),
-          ),
-          child: const Text('保存资料'),
-        ),
-      ],
     );
   }
 }

@@ -37,6 +37,7 @@ dependencies:
   liquid_glass_widgets: ^1.7.2
   supabase_flutter: ^2.17.2
   image_picker: ^1.2.3
+  image: ^4.10.1
 
 dev_dependencies:
   flutter_test:

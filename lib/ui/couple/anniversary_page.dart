@@ -13,6 +13,8 @@ import '../theme/cozy_glass.dart';
 //    :229-259   AnniversaryBackground / drawNoodleBowl
 //    :261-290   AnniversaryHeader
 //    :292-370   AnniversaryHeroCard / FloatingHeart（描边心）
+//               视觉重写：hero 改成渐变主角卡，描边心只留一枚且独占右侧一列，
+//               不再像原版那样三枚半透明心随机压在文字上（见 _AnniversaryHeroCard）
 //    :372-413   NextAnniversaryCard（下一站浪漫 + 点击编辑配对日期）
 //    :415-604   CalendarCard / CalendarTypeToggle / CalendarGrid / CalendarDayCell
 //    :606-721   SweetMomentsTimeline / SweetMomentItem
@@ -271,67 +273,199 @@ class _AnniversaryHeroCard extends StatelessWidget {
   Widget build(BuildContext context) {
     // 原生 StitchGlassCard(containerColor = #FFEFF3 @0.46, radius = 18,
     // contentPadding = h28/v16)（:294-301）；描边/投影走已批准的偏离。
-    return CozyCard(
-      color: const Color(0xFFFFEFF3).withValues(alpha: 0.46),
-      radius: 18,
-      padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
-      child: SizedBox(
-        width: double.infinity,
-        height: 126,
-        child: Stack(
-          children: <Widget>[
-            Positioned(
-              left: 20,
-              top: 6,
-              child: _FloatingHeart(
-                size: 34,
-                color: CozyPalette.primary.withValues(alpha: 0.54),
-              ),
-            ),
-            Positioned(
-              right: 54,
-              top: 28,
-              child: _FloatingHeart(
-                size: 44,
-                color: CozyPalette.secondaryContainer.withValues(alpha: 0.38),
-              ),
-            ),
-            Positioned(
-              right: 22,
-              bottom: 18,
-              child: _FloatingHeart(
-                size: 20,
-                color: CozyPalette.tertiary.withValues(alpha: 0.64),
-              ),
-            ),
-            Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: <Widget>[
-                  Text(
-                    '恋爱第 ${state.days} 天',
-                    style: TextStyle(
-                      fontSize: 21,
-                      height: 29 / 21,
-                      fontWeight: FontWeight.w900,
-                      color: CozyPalette.primary,
-                    ),
-                  ),
-                  const SizedBox(height: 15),
-                  Text(
-                    '每一次心跳，都在为你倒数',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 19,
-                      height: 28 / 19,
-                      color: CozyPalette.secondary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
+    //
+    // 【视觉重写】原版把三枚 FloatingHeart（alpha .54/.38/.64）自由飘在卡面上，
+    // 半透明描边直接压住「恋爱第 N 天」和「每一次心跳…」两行字，卡面显脏。
+    // 这里改成首页 `home_page.dart:210 _buildTableHero()` 的「渐变主角卡」写法：
+    //   · LinearGradient(secondaryContainer → primaryContainer) + 圆角 28
+    //   · 描边心只留一枚，放进右侧独立一列（宽度由 Row 分配，物理上不可能压字）
+    //   · 内部层级：眉标胶囊 → 超大天数 → 副标题 → CozyLight.hairline → 起始日期
+    // 文字全部左对齐，长句不设 maxLines，窄屏自然换行。
+    return Container(
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: <Color>[
+            CozyPalette.secondaryContainer,
+            CozyPalette.primaryContainer,
           ],
         ),
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(
+          color: CozyPalette.primary.withValues(alpha: 0.30),
+          width: 1.3,
+        ),
+        boxShadow: CozyLight.cardShadow,
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(28),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(22, 18, 16, 18),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: <Widget>[
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    // 眉标：给卡面一个视觉起点，也说明「这是纪念日卡」
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: CozyPalette.background.withValues(alpha: 0.74),
+                        borderRadius: BorderRadius.circular(999),
+                        border: Border.all(
+                          color: CozyPalette.primary.withValues(alpha: 0.18),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: <Widget>[
+                          const Icon(
+                            Icons.favorite,
+                            size: 12,
+                            color: CozyPalette.primary,
+                          ),
+                          const SizedBox(width: 5),
+                          // Flexible + ellipsis：窄屏 + 系统大字体下眉标也不会撑破卡片
+                          Flexible(
+                            child: Text(
+                              '恋爱纪念日',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 11.5,
+                                height: 16 / 11.5,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 0.8,
+                                color: CozyPalette.primary,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    _HeroDaysLine(days: state.days),
+                    const SizedBox(height: 6),
+                    Text(
+                      '每一次心跳，都在为你倒数',
+                      style: TextStyle(
+                        fontSize: 14.5,
+                        height: 22 / 14.5,
+                        color: CozyPalette.onPrimaryContainer,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    // 卡片内分隔线：与首页主角卡同款发丝线
+                    Container(height: 1, color: CozyLight.hairline),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: <Widget>[
+                        Icon(
+                          Icons.event_available,
+                          size: 14,
+                          color: CozyPalette.primary.withValues(alpha: 0.85),
+                        ),
+                        const SizedBox(width: 6),
+                        Flexible(
+                          child: Text(
+                            '从 ${_formatDate(state.startDate)} 开始',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 12.5,
+                              height: 17 / 12.5,
+                              fontWeight: FontWeight.w700,
+                              color: CozyPalette.primary,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 10),
+              // 唯一一枚描边心：放进右侧专属列，外面再套一枚白色半透明圆盘，
+              // 让它「落在」卡面上而不是随机飘着 —— 彻底去掉原版三枚水印压字的脏感。
+              Container(
+                width: 74,
+                height: 74,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: CozyPalette.background.withValues(alpha: 0.42),
+                  border: Border.all(
+                    color: CozyPalette.background.withValues(alpha: 0.55),
+                  ),
+                ),
+                child: _FloatingHeart(
+                  size: 42,
+                  color: CozyPalette.primary.withValues(alpha: 0.55),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// hero 卡里的「恋爱第 524 天」一行。
+///
+/// 数字放大到 34、单位收到 15，靠字号差做层级；
+/// 外面套 `FittedBox(scaleDown)`：逻辑宽 320dp 或系统开大字体时整体等比缩回去，
+/// 既不折行、也不会出现黄黑溢出条纹（原版是固定尺寸 Stack，字一长就顶出卡外）。
+class _HeroDaysLine extends StatelessWidget {
+  const _HeroDaysLine({required this.days});
+
+  final int days;
+
+  @override
+  Widget build(BuildContext context) {
+    return FittedBox(
+      fit: BoxFit.scaleDown,
+      alignment: Alignment.centerLeft,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        // baseline 对齐：34 的数字与 15 的「天」坐在同一条基线上
+        crossAxisAlignment: CrossAxisAlignment.baseline,
+        textBaseline: TextBaseline.alphabetic,
+        children: <Widget>[
+          Text(
+            '恋爱第',
+            style: TextStyle(
+              fontSize: 15,
+              height: 20 / 15,
+              fontWeight: FontWeight.w800,
+              color: CozyPalette.primary,
+            ),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            '$days',
+            style: const TextStyle(
+              fontSize: 34,
+              height: 40 / 34,
+              fontWeight: FontWeight.w900,
+              color: CozyPalette.onPrimaryContainer,
+            ),
+          ),
+          const SizedBox(width: 4),
+          Text(
+            '天',
+            style: TextStyle(
+              fontSize: 15,
+              height: 20 / 15,
+              fontWeight: FontWeight.w800,
+              color: CozyPalette.primary,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -396,79 +530,185 @@ class _NextAnniversaryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     // 原生 Surface(onClick, RoundedCornerShape(18.dp), #FFE7EC @0.54,
     // border 1.5dp softPink@0.34, shadowElevation 0)（:377-384）
+    //
+    // 【视觉重写】三件事：
+    //  ① 底色从「几乎等于白」的 #FFE7EC@.54 提到 secondaryContainer@.34 + 粉色描边，
+    //     这样「渐变主卡 > 粉色倒计时卡 > 纯白记录卡」的层级才立得住；
+    //  ② 左侧「2周年纪念日 / 距离下一站浪漫」仍分两行，但字重/字号拉开差（17 w900 vs 13.5 常规），
+    //     每行外套 FittedBox(scaleDown)：窄屏是整体等比缩小，不会把「浪漫」硬折到第二行；
+    //  ③ 右侧「206 天」收进一枚胶囊做视觉落点，数字与「天」用 baseline 对齐，
+    //     整行 crossAxisAlignment 居中 ⇒ 不再出现「数字和左侧文字错基线」的松垮感。
+    //  ④ LayoutBuilder：卡宽 < 300（对应逻辑宽 ≈320dp 的窄屏）时切紧凑度量，
+    //     让左侧文字拿到更多宽度，减少 FittedBox 的缩放幅度。
     return CozyCard(
       onTap: onTap,
-      color: const Color(0xFFFFE7EC).withValues(alpha: 0.54),
-      radius: 18,
+      color: CozyPalette.secondaryContainer.withValues(alpha: 0.34),
+      borderColor: CozyPalette.primaryContainer.withValues(alpha: 0.55),
+      radius: 22,
       padding: EdgeInsets.zero,
-      child: Container(
-        constraints: const BoxConstraints(minHeight: 114),
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-        child: Row(
-          children: _rowSpaced(<Widget>[
-            // Surface(CircleShape, primary@0.10, size 54) + Icon(Cake, 28)（:392-396）
-            Container(
-              width: 54,
-              height: 54,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: CozyPalette.primary.withValues(alpha: 0.10),
-              ),
-              child: const Center(
-                child: Icon(Icons.cake, size: 28, color: CozyPalette.primary),
-              ),
+      // 比另外两张白卡少一层主投影：它离 hero 最近，不该再抢一次注意力
+      shadows: const <BoxShadow>[CozyLight.ambient],
+      child: LayoutBuilder(
+        builder: (BuildContext context, BoxConstraints constraints) {
+          final bool compact = constraints.maxWidth < 300;
+          final double badge = compact ? 46 : 52;
+          final double gap = compact ? 12 : 14;
+          return Container(
+            constraints: const BoxConstraints(minHeight: 96),
+            padding: EdgeInsets.symmetric(
+              horizontal: compact ? 16 : 18,
+              vertical: compact ? 14 : 16,
             ),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: _columnSpaced(<Widget>[
-                  Text(
-                    state.nextAnniversaryTitle,
-                    style: TextStyle(
-                      fontSize: 18,
-                      height: 25 / 18,
-                      fontWeight: FontWeight.w700,
-                      color: CozyPalette.onSurfaceVariant,
-                    ),
-                  ),
-                  Text(
-                    '距离下一站浪漫',
-                    style: TextStyle(
-                      fontSize: 18,
-                      height: 25 / 18,
-                      color: CozyPalette.onSurface,
-                    ),
-                  ),
-                ], 4),
-              ),
-            ),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
+            child: Row(
               children: <Widget>[
-                Text(
-                  '${state.nextAnniversaryRemainingDays}',
-                  style: TextStyle(
-                    fontSize: 25,
-                    height: 29 / 25,
-                    fontWeight: FontWeight.w900,
-                    color: CozyPalette.primary,
+                // Surface(CircleShape, primary@0.10, size 54) + Icon(Cake, 28)（:392-396）
+                Container(
+                  width: badge,
+                  height: badge,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(compact ? 15 : 18),
+                    color: CozyPalette.background.withValues(alpha: 0.78),
+                    border: Border.all(
+                      color: CozyPalette.primaryContainer.withValues(alpha: 0.62),
+                    ),
+                  ),
+                  child: Center(
+                    child: Icon(
+                      Icons.cake,
+                      size: compact ? 23 : 26,
+                      color: CozyPalette.primary,
+                    ),
                   ),
                 ),
-                Padding(
-                  padding: const EdgeInsets.only(left: 4, bottom: 2),
-                  child: Text(
-                    '天',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                      color: CozyPalette.onSurfaceVariant,
+                SizedBox(width: gap),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: _columnSpaced(<Widget>[
+                      _ScaledLine(
+                        text: state.nextAnniversaryTitle,
+                        style: TextStyle(
+                          fontSize: 17,
+                          height: 23 / 17,
+                          fontWeight: FontWeight.w900,
+                          color: CozyPalette.onSurface,
+                        ),
+                      ),
+                      _ScaledLine(
+                        text: '距离下一站浪漫',
+                        style: TextStyle(
+                          fontSize: 13.5,
+                          height: 19 / 13.5,
+                          color: CozyPalette.onSurfaceVariant,
+                        ),
+                      ),
+                    ], 3),
+                  ),
+                ),
+                SizedBox(width: gap),
+                // 倒计时胶囊：数字 + 天，baseline 对齐
+                Container(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: compact ? 10 : 12,
+                    vertical: compact ? 6 : 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: CozyPalette.background.withValues(alpha: 0.84),
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(
+                      color: CozyPalette.primary.withValues(alpha: 0.22),
                     ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.baseline,
+                    textBaseline: TextBaseline.alphabetic,
+                    children: <Widget>[
+                      Text(
+                        '${state.nextAnniversaryRemainingDays}',
+                        style: TextStyle(
+                          fontSize: compact ? 21 : 24,
+                          height: (compact ? 25 : 28) / (compact ? 21 : 24),
+                          fontWeight: FontWeight.w900,
+                          color: CozyPalette.primary,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        '天',
+                        style: TextStyle(
+                          fontSize: 13.5,
+                          height: 18 / 13.5,
+                          fontWeight: FontWeight.w700,
+                          color: CozyPalette.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
             ),
-          ], 16),
+          );
+        },
+      ),
+    );
+  }
+}
+
+/// 单行文字 + `FittedBox(scaleDown)`：宽度不够时整行等比缩小，绝不折行/溢出。
+/// 左对齐用 `alignment: centerLeft`，缩小时文字仍贴左（不会跑到行中间）。
+class _ScaledLine extends StatelessWidget {
+  const _ScaledLine({required this.text, required this.style});
+
+  final String text;
+  final TextStyle style;
+
+  @override
+  Widget build(BuildContext context) {
+    return FittedBox(
+      fit: BoxFit.scaleDown,
+      alignment: Alignment.centerLeft,
+      child: Text(text, maxLines: 1, style: style),
+    );
+  }
+}
+
+/// 空态卡底部的两枚能力小胶囊。
+/// 文案直接取自原生空态说明（「默认显示菜品图片」/「可以换成你们自己的照片」），
+/// 不引入新语义；用 Wrap 排布，窄屏自动折行。
+class _MomentHintChip extends StatelessWidget {
+  const _MomentHintChip({required this.icon, required this.text});
+
+  final IconData icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: CozyPalette.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(
+          color: CozyPalette.outlineVariant.withValues(alpha: 0.55),
         ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Icon(icon, size: 13, color: CozyPalette.primary),
+          const SizedBox(width: 5),
+          Text(
+            text,
+            style: TextStyle(
+              fontSize: 11.5,
+              height: 16 / 11.5,
+              fontWeight: FontWeight.w700,
+              color: CozyPalette.onSurfaceVariant,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -490,46 +730,115 @@ class _SweetMomentsTimeline extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: _columnSpaced(<Widget>[
         // Row(Icon(HistoryEdu, 28) + "甜蜜时刻")（:612-615）
+        //
+        // 视觉重写：原版是「裸图标 + 裸文字」直接贴在卡片上方，没有段落感。
+        // 这里左侧插一根 4×18 的 primaryContainer 竖条当段落锚，图标收进 30×30 圆角底
+        // （secondaryContainer@.62 + 圆角 11），标题提到 19/w900；
+        // 标题用 Expanded + ellipsis，窄屏（逻辑宽 320dp）也不会出溢出条纹。
         Row(
-          children: _rowSpaced(<Widget>[
-            const Icon(Icons.history_edu, size: 28, color: CozyPalette.primary),
-            Text(
-              '甜蜜时刻',
-              style: TextStyle(
-                fontSize: 21,
-                height: 29 / 21,
-                color: CozyPalette.onSurface,
+          children: <Widget>[
+            Container(
+              width: 4,
+              height: 18,
+              decoration: BoxDecoration(
+                color: CozyPalette.primaryContainer,
+                borderRadius: BorderRadius.circular(2),
               ),
             ),
-          ], 12),
+            const SizedBox(width: 10),
+            Container(
+              width: 30,
+              height: 30,
+              decoration: BoxDecoration(
+                color: CozyPalette.secondaryContainer.withValues(alpha: 0.62),
+                borderRadius: BorderRadius.circular(11),
+              ),
+              child: const Icon(
+                Icons.history_edu,
+                size: 17,
+                color: CozyPalette.primary,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                '甜蜜时刻',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 19,
+                  height: 26 / 19,
+                  fontWeight: FontWeight.w900,
+                  color: CozyPalette.onSurface,
+                ),
+              ),
+            ),
+          ],
         ),
         if (orders.isEmpty)
           // 空态卡（:617-629）
+          //
+          // 视觉重写：原版是左上角两行字贴边，看着像没做完。
+          // 改成居中空态：72 圆形图示 → 标题 → 说明（居中、可换行）
+          // → CozyLight.hairline 分隔 → 两枚能力小胶囊（文案取自原说明，不引入新语义）。
+          // 胶囊用 Wrap 排布：320dp 窄屏自动折到第二行，不会溢出。
           CozyCard(
-            color: CozyPalette.surface.withValues(alpha: 0.72),
-            radius: 16,
-            padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 22),
+            color: CozyPalette.surface,
+            radius: 22,
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: _columnSpaced(<Widget>[
+                Center(
+                  child: Container(
+                    width: 72,
+                    height: 72,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: CozyPalette.secondaryContainer
+                          .withValues(alpha: 0.55),
+                      border: Border.all(
+                        color: CozyPalette.primaryContainer
+                            .withValues(alpha: 0.55),
+                      ),
+                    ),
+                    child: const Icon(
+                      Icons.ramen_dining,
+                      size: 32,
+                      color: CozyPalette.primary,
+                    ),
+                  ),
+                ),
                 Text(
                   '还没有记录',
+                  textAlign: TextAlign.center,
                   style: TextStyle(
-                    fontSize: 18,
-                    height: 26 / 18,
-                    fontWeight: FontWeight.w700,
+                    fontSize: 17,
+                    height: 24 / 17,
+                    fontWeight: FontWeight.w900,
                     color: CozyPalette.onSurface,
                   ),
                 ),
                 Text(
                   '完成一顿饭后，会默认显示菜品图片，也可以换成你们自己的照片。',
+                  textAlign: TextAlign.center,
                   style: TextStyle(
-                    fontSize: 16,
-                    height: 24 / 16,
+                    fontSize: 14,
+                    height: 22 / 14,
                     color: CozyPalette.onSurfaceVariant,
                   ),
                 ),
-              ], 8),
+                Container(height: 1, color: CozyLight.hairline),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  alignment: WrapAlignment.center,
+                  children: const <Widget>[
+                    _MomentHintChip(icon: Icons.auto_awesome, text: '自动配图'),
+                    _MomentHintChip(icon: Icons.edit, text: '可换成你们的照片'),
+                  ],
+                ),
+              ], 14),
             ),
           )
         else
@@ -568,13 +877,19 @@ class _SweetMomentItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // 原生 SweetMomentItem（:659-721）
+    //
+    // 视觉重写：原版卡片内边距 22、图片圆角 10、编辑徽标却是 48 的实心大圆，
+    // 徽标比图片本身还抢眼，整条时间线也和白底融在一起。
+    // 这里：内边距 22→18、图片 82→78 且圆角 10→14 并补一圈发丝边、
+    // 编辑徽标 48→34（图标 14）、日期加一枚 primaryContainer 小圆点当锚、
+    // 卡片改成不透明的 surface + CozyCard 默认发丝边（与空态卡同一层级）。
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
         // 时间线圆点 Surface(circle, dotColor, border 2dp primary@0.46,
         // padding(top = 15, start = 3), size 18)（:670-675）
         Padding(
-          padding: const EdgeInsets.only(top: 15, left: 3),
+          padding: const EdgeInsets.only(top: 18, left: 3),
           child: Container(
             width: 18,
             height: 18,
@@ -591,45 +906,53 @@ class _SweetMomentItem extends StatelessWidget {
         const SizedBox(width: 20),
         Expanded(
           child: CozyCard(
-            color: CozyPalette.surface.withValues(alpha: 0.86),
-            radius: 16,
-            padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 22),
+            color: CozyPalette.surface,
+            radius: 20,
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
             child: Row(
               children: _rowSpaced(<Widget>[
                 // Surface(onClick, RoundedCornerShape(10), pink, size 82)（:686-713）
                 GestureDetector(
                   onTap: onImageTap,
                   child: SizedBox(
-                    width: 82,
-                    height: 82,
+                    width: 78,
+                    height: 78,
                     child: Stack(
                       children: <Widget>[
                         Positioned.fill(
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(10),
-                            child: ColoredBox(
-                              color: CozyPalette.secondaryContainer,
-                              child: _momentImage(imageUrl, BoxFit.cover),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(color: CozyLight.hairline),
+                            ),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(14),
+                              child: ColoredBox(
+                                color: CozyPalette.secondaryContainer,
+                                child: _momentImage(imageUrl, BoxFit.cover),
+                              ),
                             ),
                           ),
                         ),
                         // 编辑徽标 Surface(circle, card@0.94, border 1dp border,
                         // align BottomEnd, padding 4, size 48)（:702-711）
+                        // 尺寸收到 34：它只是「可换图」的提示，不该压过照片本身。
                         Positioned(
                           right: 4,
                           bottom: 4,
                           child: Container(
-                            width: 48,
-                            height: 48,
+                            width: 34,
+                            height: 34,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
                               color: CozyPalette.surface.withValues(alpha: 0.94),
-                              border: Border.all(color: CozyPalette.outlineVariant),
+                              border:
+                                  Border.all(color: CozyPalette.outlineVariant),
                             ),
                             child: const Center(
                               child: Icon(
                                 Icons.edit,
-                                size: 15,
+                                size: 14,
                                 color: CozyPalette.primary,
                               ),
                             ),
@@ -643,26 +966,45 @@ class _SweetMomentItem extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: _columnSpaced(<Widget>[
-                      Text(
-                        date,
-                        style: TextStyle(
-                          fontSize: 18,
-                          height: 26 / 18,
-                          color: CozyPalette.onSurface,
-                        ),
+                      Row(
+                        children: _rowSpaced(<Widget>[
+                          Container(
+                            width: 6,
+                            height: 6,
+                            decoration: const BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: CozyPalette.primaryContainer,
+                            ),
+                          ),
+                          // Flexible + ellipsis：日期列被图片挤窄时也不会溢出
+                          Flexible(
+                            child: Text(
+                              date,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 12.5,
+                                height: 17 / 12.5,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 0.3,
+                                color: CozyPalette.primary,
+                              ),
+                            ),
+                          ),
+                        ], 6),
                       ),
                       Text(
                         text,
                         style: TextStyle(
-                          fontSize: 17,
-                          height: 28 / 17,
+                          fontSize: 14,
+                          height: 21 / 14,
                           color: CozyPalette.onSurface,
                         ),
                       ),
-                    ], 4),
+                    ], 5),
                   ),
                 ),
-              ], 18),
+              ], 14),
             ),
           ),
         ),
@@ -1328,9 +1670,11 @@ class _AnniversaryUiState {
 /// 原生 `anniversaryState(profile)`（:1074-1087）
 _AnniversaryUiState _anniversaryState(DateTime startDate) {
   final DateTime today = _today();
-  final int days = _daysBetween(startDate, today) < 0
-      ? 0
-      : _daysBetween(startDate, today);
+  // 与首页「一起吃饭 N 天」统一口径：开始当天算第 1 天。
+  // 之前这里用 ChronoUnit.DAYS.between（不含当天），首页是 inDays + 1，
+  // 同一对情侣在首页看到 526、在纪念日页看到 525，看起来很像个 bug。
+  final int elapsed = _daysBetween(startDate, today);
+  final int days = elapsed < 0 ? 0 : elapsed + 1;
   final DateTime next = _nextYearlyDate(startDate, today);
   final int remaining = _daysBetween(today, next) < 0 ? 0 : _daysBetween(today, next);
   final int years =

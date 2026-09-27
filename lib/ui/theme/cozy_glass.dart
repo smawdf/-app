@@ -922,11 +922,12 @@ class CozyInk {
   static const Color border = CozyPalette.outlineVariant;
 }
 
-/// ⑥ 头像 —— 三种来源统一处理（首页两个座位 / 我的页 / 编辑弹层 / 注册页都用它）
+/// ⑥ 头像 —— 四种来源统一处理（首页两个座位 / 我的页 / 编辑弹层 / 注册页都用它）
 ///
 /// ① 空串          → `fallback`（调用方给爪子、餐具等兜底图标）
 /// ② `data:image/…` → `Image.memory`：本地选的头像，base64 存在 `profiles.avatar_url`
 /// ③ `http(s)://…`  → `Image.network`：历史字段与将来的 storage 桶 URL
+/// ④ `asset:…`      → `Image.asset`：App 内置默认头像（「恢复默认」写的就是这个标记）
 ///
 /// 为什么头像会以 data URI 形式存在库里：这个 Supabase 项目
 /// `GET /storage/v1/bucket` 返回空数组（一个桶都没有），建桶必须 service_role，
@@ -947,6 +948,12 @@ class CozyAvatar extends StatelessWidget {
   final BoxFit fit;
 
   static bool isDataUri(String value) => value.startsWith('data:image');
+
+  /// 「恢复默认」写进云端的标记：内置默认头像由 asset 提供，
+  /// 这样两端（自己 / 伴侣）看到的是同一张图，且不占 profiles 行体积。
+  static const String defaultAvatarMark = 'asset:assets/images/default_avatar.png';
+
+  static bool isAssetUri(String value) => value.startsWith('asset:');
 
   static Uint8List? decodeDataUri(String value) {
     if (!isDataUri(value)) return null;
@@ -969,6 +976,15 @@ class CozyAvatar extends StatelessWidget {
         height: size,
         fit: fit,
         gaplessPlayback: true,
+        errorBuilder: (_, _, _) => fallback,
+      );
+    }
+    if (isAssetUri(url)) {
+      return Image.asset(
+        url.substring('asset:'.length),
+        width: size,
+        height: size,
+        fit: fit,
         errorBuilder: (_, _, _) => fallback,
       );
     }

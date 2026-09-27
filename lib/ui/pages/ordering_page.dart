@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:liquid_glass_widgets/liquid_glass_widgets.dart';
 
 import '../../data/app_state.dart';
 import '../../data/models.dart';
@@ -1313,70 +1314,95 @@ class _CartFloatingBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final TextTheme text = Theme.of(context).textTheme;
-    return CozyCard(
-      radius: 999,
+    // 【本轮改动】原来是一张不透明的 `CozyCard`（白底 + 圆角 999），压在菜品大图上
+    // 就是一块白板；用户要求做成液态玻璃。这里换成 `GlassContainer`，参数与底部
+    // Tab 胶囊（`lib/ui/shell/cozy_glass_dock.dart`）**逐项对齐**——同一块玻璃的观感
+    // 才是连着的：premium 档（才有折射与色散）+ iOS 26 级中性白雾 0x1FFFFFFF +
+    // blur 8 / thickness 24 / refractiveIndex 1.25 / chromaticAberration 0.03 /
+    // saturation 1.20 / lightIntensity 0.65 / ambientRim 0。
+    // 内容层（购物袋、价格、去结算）都是普通控件，不再套 Glass 控件
+    // （包文档明确禁止 Glass 套 Glass：内层会被降级成不折射）。
+    return GlassContainer(
       height: _kFloatingCartHeight,
-      padding: EdgeInsets.zero,
-      onTap: onCartClick,
-      child: Padding(
-        padding: const EdgeInsets.only(left: 26, right: 8),
-        child: Row(
-          children: <Widget>[
-            SizedBox(
-              key: basketKey,
-              width: 38,
-              height: 38,
-              child: Stack(
-                clipBehavior: Clip.none,
-                children: <Widget>[
-                  const Center(
-                    child: Icon(
-                      Icons.shopping_bag,
-                      color: CozyPalette.primary,
-                      size: 30,
-                      semanticLabel: '购物篮',
-                    ),
-                  ),
-                  Positioned(
-                    top: -5,
-                    right: -5,
-                    child: Container(
-                      width: 20,
-                      height: 20,
-                      alignment: Alignment.center,
-                      decoration: const BoxDecoration(
-                        shape: BoxShape.circle,
+      shape: const LiquidRoundedSuperellipse(
+        borderRadius: GlassDefaults.capsuleRadius,
+      ),
+      quality: GlassQuality.premium,
+      allowElevation: true,
+      clipBehavior: Clip.antiAlias,
+      settings: const LiquidGlassSettings(
+        glassColor: Color(0x1FFFFFFF),
+        blur: 8.0,
+        thickness: 24.0,
+        refractiveIndex: 1.25,
+        chromaticAberration: 0.03,
+        saturation: 1.20,
+        lightIntensity: 0.65,
+        ambientRim: 0.0,
+      ),
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onCartClick,
+        child: Padding(
+          padding: const EdgeInsets.only(left: 26, right: 8),
+          child: Row(
+            children: <Widget>[
+              SizedBox(
+                key: basketKey,
+                width: 38,
+                height: 38,
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: <Widget>[
+                    const Center(
+                      child: Icon(
+                        Icons.shopping_bag,
                         color: CozyPalette.primary,
+                        size: 30,
+                        semanticLabel: '购物篮',
                       ),
-                      child: Text(
-                        '$count',
-                        style: text.labelSmall!.copyWith(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w900,
-                          color: CozyPalette.background,
+                    ),
+                    Positioned(
+                      top: -5,
+                      right: -5,
+                      child: Container(
+                        width: 20,
+                        height: 20,
+                        alignment: Alignment.center,
+                        decoration: const BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: CozyPalette.primary,
+                        ),
+                        child: Text(
+                          '$count',
+                          style: text.labelSmall!.copyWith(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w900,
+                            color: CozyPalette.background,
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.only(left: 14),
-                child: Text(
-                  _priceYuanText(totalPrice),
-                  // 原生 fontSize 22.sp
-                  style: text.titleLarge!.copyWith(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w900,
-                    color: CozyPalette.onSurface,
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.only(left: 14),
+                  child: Text(
+                    _priceYuanText(totalPrice),
+                    // 原生 fontSize 22.sp
+                    style: text.titleLarge!.copyWith(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w900,
+                      color: CozyPalette.onSurface,
+                    ),
                   ),
                 ),
               ),
-            ),
-            _SquishyCheckoutButton(text: '去结算', onTap: onCheckoutClick),
-          ],
+              _SquishyCheckoutButton(text: '去结算', onTap: onCheckoutClick),
+            ],
+          ),
         ),
       ),
     );
