@@ -21,6 +21,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../data/app_state.dart';
+import '../../data/category_placement.dart';
 import '../../data/xiachufang_client.dart';
 import '../theme/cozy_glass.dart';
 import '../widgets/cozy_skeletons.dart';
@@ -197,12 +198,20 @@ class _DiscoverPageState extends State<DiscoverPage> {
 
     final state = AppState.instance;
     final rawPrice = (recipe['price'] as num?)?.toDouble() ?? 12.0;
+    // 原生 `DiscoverViewModel.kt:151-154` 的落位规则：菜谱分类能对上店铺已有分类就用它，
+    // 否则落进店铺的第一个分类（= 店铺页分类卡的第一张，加完立刻看得见），
+    // 一个分类都没有才用「未分类」。实现与来龙去脉见 `lib/data/category_placement.dart`。
+    final String category = resolveDishCategory(
+      shopCategories: state.menu.map((item) => item.category),
+      recipeCategory: (recipe['category'] as String?) ?? '',
+    );
     final ok = await state.addDish(
       name: name,
       // 原生：price <= 0 时用 12.0
       price: rawPrice <= 0 ? 12.0 : rawPrice,
       description: (recipe['desc'] as String?) ?? '',
       emoji: (recipe['emoji'] as String?) ?? '🍽️',
+      category: category,
     );
 
     if (!mounted) return;
@@ -210,8 +219,8 @@ class _DiscoverPageState extends State<DiscoverPage> {
       setState(() {
         _addedNames.add(name);
       });
-      // 原生："已加入我的小店：${item.name}"
-      _showToast('已加入我的小店：$name', actionLabel: '去点单');
+      // 原生："已加入我的小店：${item.name}"；补上分类名，用户不用去店铺里翻。
+      _showToast('已加入我的小店：$name · 分类「$category」', actionLabel: '去点单');
     } else {
       _showToast(state.error ?? '添加失败，请确认是否为饲养员身份');
     }
