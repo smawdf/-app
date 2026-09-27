@@ -493,15 +493,25 @@ class _ChartControlCard extends StatelessWidget {
               ),
             ],
           ),
+          // 【真机修正】原来是两行分段（柱状图/折线图 + 按周/按月），各占满宽度，
+          // 卡片上方被切成两大块；现在并成一行四段，两个维度各自高亮（见 `isSelected`）。
           _SegmentedRow(
-            labels: _ChartMode.values.map((_ChartMode e) => e.label).toList(growable: false),
-            selectedIndex: chartMode.index,
-            onSelected: (int index) => onChartModeChange(_ChartMode.values[index]),
-          ),
-          _SegmentedRow(
-            labels: _ChartPeriod.values.map((_ChartPeriod e) => e.label).toList(growable: false),
-            selectedIndex: period.index,
-            onSelected: (int index) => onPeriodChange(_ChartPeriod.values[index]),
+            labels: <String>[
+              ..._ChartMode.values.map((_ChartMode e) => e.label),
+              ..._ChartPeriod.values.map((_ChartPeriod e) => e.label),
+            ],
+            isSelected: (int index) => index < _ChartMode.values.length
+                ? index == chartMode.index
+                : index - _ChartMode.values.length == period.index,
+            onSelected: (int index) {
+              if (index < _ChartMode.values.length) {
+                onChartModeChange(_ChartMode.values[index]);
+              } else {
+                onPeriodChange(
+                  _ChartPeriod.values[index - _ChartMode.values.length],
+                );
+              }
+            },
           ),
           SizedBox(
             width: double.infinity,
@@ -520,15 +530,17 @@ class _ChartControlCard extends StatelessWidget {
 /// 原版 `private fun SegmentedRow(labels, selectedIndex, onSelected)`（:322-343）
 ///
 /// 每片等宽（weight 1f）、间距 8、全圆角、选中 CozyRose，文字上下留白 9。
+/// 【真机修正】`selectedIndex` 改为 `isSelected` 谓词：图表卡把「图形」与「周期」
+/// 两个维度并到同一行后，同一行里要能同时高亮两个互不相干的片段。
 class _SegmentedRow extends StatelessWidget {
   const _SegmentedRow({
     required this.labels,
-    required this.selectedIndex,
+    required this.isSelected,
     required this.onSelected,
   });
 
   final List<String> labels;
-  final int selectedIndex;
+  final bool Function(int index) isSelected;
   final ValueChanged<int> onSelected;
 
   @override
@@ -546,11 +558,11 @@ class _SegmentedRow extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(vertical: 9),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(999),
-                  color: selectedIndex == index
+                  color: isSelected(index)
                       ? CozyPalette.primary
                       : Colors.white.withValues(alpha: 0.70),
                   border: Border.all(
-                    color: selectedIndex == index
+                    color: isSelected(index)
                         ? CozyPalette.primary
                         : CozyPalette.outlineVariant,
                     width: 1,
@@ -561,7 +573,7 @@ class _SegmentedRow extends StatelessWidget {
                   textAlign: TextAlign.center,
                   style: text.bodyLarge!.copyWith(
                     fontWeight: FontWeight.w900,
-                    color: selectedIndex == index
+                    color: isSelected(index)
                         ? CozyPalette.surface
                         : CozyPalette.onSurface,
                   ),
@@ -598,6 +610,16 @@ class _CandyChartPainter extends CustomPainter {
 
     double yOf(_ChartPoint point) => bottom - (point.value / maxValue) * chartHeight;
 
+    // 【真机修正】横轴基线：原来 7 个零点只是悬空的小圆点，看起来像没渲染完，
+    // 先补一条发丝基线让它们「落」在轴上。
+    canvas.drawLine(
+      Offset(0, bottom),
+      Offset(size.width, bottom),
+      Paint()
+        ..color = CozyPalette.outlineVariant.withValues(alpha: 0.6)
+        ..strokeWidth = 1,
+    );
+
     for (int index = 0; index < points.length; index++) {
       final double x = slot * index + slot / 2;
       final double y = yOf(points[index]);
@@ -607,7 +629,11 @@ class _CandyChartPainter extends CustomPainter {
           Paint()..color = CozyPalette.primary.withValues(alpha: 0.72),
         );
       }
-      canvas.drawCircle(Offset(x, y), 4, Paint()..color = CozyPalette.primary);
+      // 【真机修正】值为 0 的点不再画圆点：按月的 30 天里绝大多数是 0，
+      // 30 个圆点挤成一条虚线，看起来像进度条而不像图表；有数据的日子才留标记。
+      if (points[index].value > 0) {
+        canvas.drawCircle(Offset(x, y), 4, Paint()..color = CozyPalette.primary);
+      }
     }
 
     if (mode == _ChartMode.line && points.isNotEmpty) {
@@ -629,6 +655,31 @@ class _CandyChartPainter extends CustomPainter {
           ..strokeWidth = 3
           ..strokeCap = StrokeCap.round,
       );
+    }
+
+    // 【真机修正】横轴日期：原版与移植版都没画字（`ChartPoint.label` 两边都空着），
+    // 只有柱子没有横轴标签。这里在格子够宽时补上 `M/d`：按周 7 点（slot≈40）全画，
+    // 按月 30 点（slot≈24）每隔 5 格画一个，既读得出日期又不会挤成一团。
+    if (points.isNotEmpty) {
+      for (int index = 0; index < points.length; index++) {
+        if (slot < 34 && index % 5 != 0) continue;
+        final TextPainter label = TextPainter(
+          text: TextSpan(
+            text: points[index].label,
+            style: const TextStyle(
+              fontSize: 10,
+              height: 1.1,
+              fontWeight: FontWeight.w600,
+              color: CozyPalette.onSurfaceVariant,
+            ),
+          ),
+          textDirection: TextDirection.ltr,
+        )..layout();
+        label.paint(
+          canvas,
+          Offset(slot * index + slot / 2 - label.width / 2, size.height - 15),
+        );
+      }
     }
   }
 

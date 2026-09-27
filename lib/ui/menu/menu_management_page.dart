@@ -134,17 +134,48 @@ class _MenuManagementPageState extends State<MenuManagementPage> {
   Timer? _refreshTimer;
   Timer? _successTimer;
 
+  /// 【真机修正】悬浮「新增菜品」胶囊（bottom 20 / 高 50，见本文件 :498）是浮在列表之上的，
+  /// 滚动到中途时它正好压住某张菜品卡右侧的上架开关 / ⋯ / 删除（原生同样如此，
+  /// 但真机上「想切开关却按到新增菜品」的误触很实在）。
+  /// 这里不搬动胶囊（保持与原生一致的位置与随时可点），改成滚动时自动让位：
+  /// 向下滚隐藏、向上滚或到达列表两端时重新出现。
+  final ScrollController _listCtrl = ScrollController();
+  bool _pillVisible = true;
+  double _lastListOffset = 0;
+
   @override
   void initState() {
     super.initState();
     // 原生 `LaunchedEffect(viewModel)` 的 10s 轮询（MenuManagementScreen.kt:131）
     _refreshTimer = Timer.periodic(_refreshInterval, (_) => _refreshShopAndMenu());
+    _listCtrl.addListener(_onListScroll);
+  }
+
+  /// 列表滚动时决定悬浮胶囊是否可见（见 `_pillVisible` 注释）。
+  void _onListScroll() {
+    if (!_listCtrl.hasClients) return;
+    final double offset = _listCtrl.offset;
+    final double delta = offset - _lastListOffset;
+    _lastListOffset = offset;
+    final double tail = _listCtrl.position.maxScrollExtent;
+    // 到顶部 / 到底部时始终显示：这两处不会遮住任何行的操作列。
+    final bool atEdge = offset <= 2 || offset >= tail - 2;
+    if (atEdge) {
+      if (!_pillVisible) setState(() => _pillVisible = true);
+      return;
+    }
+    if (delta > 2 && _pillVisible) {
+      setState(() => _pillVisible = false);
+    } else if (delta < -2 && !_pillVisible) {
+      setState(() => _pillVisible = true);
+    }
   }
 
   @override
   void dispose() {
     _refreshTimer?.cancel();
     _successTimer?.cancel();
+    _listCtrl.dispose();
     _shopNameCtrl.dispose();
     _shopAnnouncementCtrl.dispose();
     super.dispose();
@@ -451,6 +482,7 @@ class _MenuManagementPageState extends State<MenuManagementPage> {
                     const _StoreTopBar(),
                     Expanded(
                       child: ListView(
+                        controller: _listCtrl,
                         padding:
                             EdgeInsets.fromLTRB(16, 10, 16, CozyDock.clearanceOf(context)),
                         children: <Widget>[
@@ -498,7 +530,20 @@ class _MenuManagementPageState extends State<MenuManagementPage> {
                 Positioned(
                   right: 20,
                   bottom: 20 + MediaQuery.paddingOf(context).bottom,
-                  child: _FloatingAddDishButton(onTap: _newDish),
+                  // 向下滚动时让位（见 `_pillVisible`），避免压住菜品行的操作列。
+                  child: IgnorePointer(
+                    ignoring: !_pillVisible,
+                    child: AnimatedSlide(
+                      offset: _pillVisible ? Offset.zero : const Offset(0, 1.6),
+                      duration: const Duration(milliseconds: 180),
+                      curve: Curves.easeOut,
+                      child: AnimatedOpacity(
+                        opacity: _pillVisible ? 1 : 0,
+                        duration: const Duration(milliseconds: 180),
+                        child: _FloatingAddDishButton(onTap: _newDish),
+                      ),
+                    ),
+                  ),
                 ),
                 if (_showAddSuccess)
                   const Positioned.fill(

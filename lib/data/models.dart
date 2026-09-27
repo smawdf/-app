@@ -234,7 +234,9 @@ class Order {
 
   /// 做饭流程中文文案
   String get statusLabel => switch (status) {
-        'submitted' => '待饲养员接单',
+        // 与订单页胶囊（orders_page.dart:547）/ 原生 OrdersScreen.kt:435 统一为「待饲养员确认」，
+        // 首页「最近一餐」不再出现同一状态两种说法。
+        'submitted' => '待饲养员确认',
         'confirmed' => '已接单，准备开工',
         'preparing' => '正在下锅烹饪中',
         'delivering' => '马上端盘上桌啦',
