@@ -95,8 +95,9 @@ class _PairScreenState extends State<PairScreen> {
     return Scaffold(
       backgroundColor: CozyPalette.background,
       body: SafeArea(
+        // 【性能 Phase 1】只关心配对档案与生成/绑定按钮忙闲：订阅 auth+profile 域。
         child: ListenableBuilder(
-          listenable: state,
+          listenable: state.listenFor(const {Domain.auth, Domain.profile}),
           builder: (BuildContext context, Widget? _) {
             final bool isPaired = state.isPaired;
             // 【真机修正】`CouplePair.partnerName` 现在带着真实伴侣昵称了
@@ -180,7 +181,7 @@ class _PairScreenState extends State<PairScreen> {
                           SizedBox(
                             height: 44,
                             child: FilledButton(
-                              onPressed: state.busy ? null : _generate,
+                              onPressed: state.busyAuth ? null : _generate,
                               style: FilledButton.styleFrom(
                                 backgroundColor: CozyPalette.primary,
                                 shape: const StadiumBorder(),
@@ -271,7 +272,7 @@ class _PairScreenState extends State<PairScreen> {
                     SizedBox(
                       height: 48,
                       child: FilledButton(
-                        onPressed: _joinCode.text.length == 6 && !state.busy
+                        onPressed: _joinCode.text.length == 6 && !state.busyAuth
                             ? _confirmPair
                             : null,
                         style: FilledButton.styleFrom(

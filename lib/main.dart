@@ -182,8 +182,9 @@ class _RootRouterState extends State<_RootRouter> {
       );
     }
 
+    // 【性能 Phase 1】这里只关心登录态：只订阅 auth 域，别的域变动不再重建路由层。
     return ListenableBuilder(
-      listenable: state,
+      listenable: state.listenFor(const {Domain.auth}),
       builder: (context, _) {
         if (!state.isLoggedIn) return const AuthScreen();
         // 与原生的路由结构一致：`NavGraph.kt` 的 startDestination 是 HOME，

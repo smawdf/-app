@@ -106,12 +106,13 @@ class _OrdersPageState extends State<OrdersPage> {
 
   @override
   Widget build(BuildContext context) {
+    // 【性能 Phase 1】订单页只关心订单列表与加载位：只订阅 orders 域。
     return ListenableBuilder(
-      listenable: AppState.instance,
+      listenable: AppState.instance.listenFor(const {Domain.orders}),
       builder: (BuildContext context, Widget? _) {
         final AppState state = AppState.instance;
         final List<Order> visible = _visibleOrders(state.orders);
-        final bool firstLoad = state.orders.isEmpty && state.busy;
+        final bool firstLoad = state.orders.isEmpty && state.loadingOrders;
 
         return CozyPage(
           // 玻璃顶栏是浮层：内容从 y=0 开始滚，从玻璃下面穿过（顶部用

@@ -28,10 +28,8 @@ String _newRecordId() {
   return 'rec-${List.generate(20, (_) => chars[rnd.nextInt(chars.length)]).join()}';
 }
 
-/// Supabase 云端数据访问层。
-///
-/// 刻意与 [ApiClient] 保持**完全相同的方法签名**，这样上层 AppState 与所有页面
-/// 无需改动即可从自建 Go 后端切换到在线 Supabase。
+/// Supabase 云端数据访问层（Phase 0 起是项目**唯一**的数据通道：
+/// 自建 Go 后端的 ApiClient 已删除，Supabase 即事实后端）。
 class SupabaseApi {
   SupabaseApi._();
   static final SupabaseApi instance = SupabaseApi._();
@@ -933,12 +931,17 @@ class SupabaseApi {
 
   // ---------------- 实时订阅 ----------------
 
-  /// 订阅本情侣的订单/糖币/菜单变更，触发上层刷新。
-  /// 若云端未开启 Realtime 发布，上层还有兜底轮询，不会因此失联。
-  Stream<void> realtimeEvents() {
+  /// 订阅本情侣的订单/糖币/菜单/资料变更，触发上层刷新。
+  ///
+  /// 【Phase 0 修复】旧版返回 `Stream<void>` 且只 `add(null)`，事件类型在数据层
+  /// 就丢了——AppState 里 order_created / candy_changed / pair_joined 等分支
+  /// 全部不可达，伴侣点菜/撒糖时对方毫无感知。现在把「哪张表 + 影响的行」
+  /// 原样上抛，由 AppState 做 diff 判定语义。若云端未把表加入 Realtime
+  /// publication，上层还有兜底轮询，不会因此失联。
+  Stream<RealtimeEvent> realtimeEvents() {
     if (_pairId.isEmpty || _pairId == kEmptyPairId) return const Stream.empty();
 
-    final controller = StreamController<void>();
+    final controller = StreamController<RealtimeEvent>();
     final subs = <StreamSubscription>[];
 
     void listen(String table, String filterColumn, String filterValue) {
@@ -947,13 +950,18 @@ class SupabaseApi {
             .from(table)
             .stream(primaryKey: const ['id'])
             .eq(filterColumn, filterValue)
-            .listen((_) => controller.add(null), onError: (_) {});
+            .listen((rows) => controller.add(RealtimeEvent(table: table, rows: rows)),
+                onError: (_) {});
         subs.add(s);
       } catch (_) {}
     }
 
     listen('orders', 'pair_id', _pairId);
     listen('candy_coin_records', 'pair_id', _pairId);
+    // 菜单与资料变更过去完全不订阅：饲养员上新/改名，吃货端要等 8s 轮询之外
+    // 的下一次启动才看得到；profile 还承担「伴侣绑定完成」的感知。
+    listen('menu_dishes', 'pair_id', _pairId);
+    listen('profiles', 'pair_id', _pairId);
 
     controller.onCancel = () async {
       for (final s in subs) {
@@ -963,6 +971,17 @@ class SupabaseApi {
 
     return controller.stream;
   }
+}
+
+/// Realtime 推送的结构化事件：来自哪张表 + 受影响的行快照。
+class RealtimeEvent {
+  const RealtimeEvent({required this.table, required this.rows});
+
+  /// 'orders' | 'candy_coin_records' | 'menu_dishes' | 'profiles'
+  final String table;
+
+  /// 该表本次快照的行（Supabase v2 stream 元素类型）。
+  final List<Map<String, dynamic>> rows;
 }
 
 /// 生成 uuid v4（订单与明细主键为 uuid 类型）

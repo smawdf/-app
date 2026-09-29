@@ -115,8 +115,9 @@ class _AnniversaryPageState extends State<AnniversaryPage> {
               children: <Widget>[
                 _AnniversaryHeader(onBack: _handleBack),
                 Expanded(
+                  // 【性能 Phase 1】纪念日页只读订单里的甜蜜时刻：只订阅 orders 域。
                   child: ListenableBuilder(
-                    listenable: AppState.instance,
+                    listenable: AppState.instance.listenFor(const {Domain.orders}),
                     builder: (BuildContext context, Widget? _) {
                       final _AnniversaryUiState state = _anniversaryState(_startDate);
                       final List<Order> moments =

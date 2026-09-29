@@ -47,6 +47,205 @@ const Color _kSheetImageBg = Color(0xFFFFDDE7); // 详情弹层图底
 const Color _kDisabledBg = Color(0xFFF0ECE4); // Squishy 按钮 disabled
 const Color _kDisabledText = Color(0xFF8B7164); // Squishy 按钮 disabled 文字
 
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 16 道地道纯正中式家常菜品库（确保去除 2 道每日推荐后依然稳健有 10+ 道精选菜谱）
+// ─────────────────────────────────────────────────────────────────────────────
+const List<Map<String, dynamic>> _kChineseSeeds = [
+  {
+    'name': '经典秘制糖醋排骨',
+    'source': 'xiachufang',
+    'sourceLabel': '下厨房',
+    'score': '9.4',
+    'time': '25分钟',
+    'diff': '经典硬菜',
+    'category': '招牌热炒',
+    'desc': '酸甜浓郁，酥脆多汁，伴侣连吃三碗米饭的秘密法宝。',
+    'imageUrl': 'https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=500&q=80',
+    'price': 22.0,
+  },
+  {
+    'name': '家常可乐鸡翅',
+    'source': 'xiachufang',
+    'sourceLabel': '下厨房',
+    'score': '9.3',
+    'time': '20分钟',
+    'diff': '小白必会',
+    'category': '招牌热炒',
+    'desc': '可乐浓汁包裹，鸡翅软烂脱骨，咸甜适中超治愈。',
+    'imageUrl': 'https://images.unsplash.com/photo-1527477378370-17d47bf1b18d?auto=format&fit=crop&w=500&q=80',
+    'price': 20.0,
+  },
+  {
+    'name': '妈妈牌番茄炒蛋',
+    'source': 'xiachufang',
+    'sourceLabel': '下厨房',
+    'score': '9.6',
+    'time': '10分钟',
+    'diff': '国民家常',
+    'category': '招牌热炒',
+    'desc': '沙瓤番茄炒出浓郁红汤，土鸡蛋金黄蓬松，盖饭一绝。',
+    'imageUrl': 'https://images.unsplash.com/photo-1540420773420-3366772f4999?auto=format&fit=crop&w=500&q=80',
+    'price': 16.0,
+  },
+  {
+    'name': '鲜香浓郁麻婆豆腐',
+    'source': 'xiachufang',
+    'sourceLabel': '下厨房',
+    'score': '9.2',
+    'time': '15分钟',
+    'diff': '川味下饭',
+    'category': '招牌热炒',
+    'desc': '牛肉碎煸香，豆腐滑嫩如布丁，花椒面麻香扑鼻热气腾腾。',
+    'imageUrl': 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=500&q=80',
+    'price': 16.0,
+  },
+  {
+    'name': '暖胃玉米排骨汤',
+    'source': 'xiachufang',
+    'sourceLabel': '下厨房',
+    'score': '9.5',
+    'time': '45分钟',
+    'diff': '滋补温润',
+    'category': '暖心热汤',
+    'desc': '甜玉米清甜，胡萝卜软糯，慢炖排骨汤清甜暖胃。',
+    'imageUrl': 'https://images.unsplash.com/photo-1547592166-23ac45744acd?auto=format&fit=crop&w=500&q=80',
+    'price': 24.0,
+  },
+  {
+    'name': '浓香秘制红烧肉',
+    'source': 'xiachufang',
+    'sourceLabel': '下厨房',
+    'score': '9.4',
+    'time': '40分钟',
+    'diff': '招牌拿手',
+    'category': '招牌热炒',
+    'desc': '三层五花肉冰糖炒色，小火慢煨肥而不腻、入口即化。',
+    'imageUrl': 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=500&q=80',
+    'price': 26.0,
+  },
+  {
+    'name': '香辣水煮牛肉',
+    'source': 'xiachufang',
+    'sourceLabel': '下厨房',
+    'score': '9.3',
+    'time': '25分钟',
+    'diff': '爽辣过瘾',
+    'category': '招牌热炒',
+    'desc': '滑嫩牛肉片垫底豆芽，淋上一勺热滚滚的刀口辣椒油。',
+    'imageUrl': 'https://images.unsplash.com/photo-1555939594-58d7cb561ad1?auto=format&fit=crop&w=500&q=80',
+    'price': 28.0,
+  },
+  {
+    'name': '蒜蓉清炒时蔬',
+    'source': 'xiachufang',
+    'sourceLabel': '下厨房',
+    'score': '9.1',
+    'time': '8分钟',
+    'diff': '快手素菜',
+    'category': '素菜',
+    'desc': '翠绿时蔬大火爆炒，蒜粒金黄出香，清脆爽口又解腻。',
+    'imageUrl': 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=500&q=80',
+    'price': 14.0,
+  },
+  {
+    'name': '经典宫保鸡丁',
+    'source': 'xiachufang',
+    'sourceLabel': '下厨房',
+    'score': '9.2',
+    'time': '18分钟',
+    'diff': '酸甜微辣',
+    'category': '招牌热炒',
+    'desc': '鸡丁滑嫩入味，花生米香脆可口，糊辣荔枝味型超地道。',
+    'imageUrl': 'https://images.unsplash.com/photo-1603894584373-5ac82b2ae398?auto=format&fit=crop&w=500&q=80',
+    'price': 20.0,
+  },
+  {
+    'name': '爽口酸辣土豆丝',
+    'source': 'xiachufang',
+    'sourceLabel': '下厨房',
+    'score': '9.5',
+    'time': '10分钟',
+    'diff': '百吃不厌',
+    'category': '素菜',
+    'desc': '手切细丝爽脆可口，干辣椒香醋炝锅，酸辣开胃停不下来。',
+    'imageUrl': 'https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?auto=format&fit=crop&w=500&q=80',
+    'price': 12.0,
+  },
+  {
+    'name': '地道金汤酸菜鱼',
+    'source': 'xiachufang',
+    'sourceLabel': '下厨房',
+    'score': '9.4',
+    'time': '25分钟',
+    'diff': '开胃金汤',
+    'category': '招牌热炒',
+    'desc': '黑鱼片薄嫩如纸，老坛酸菜酸爽过瘾，金汤浓郁泡饭一绝。',
+    'imageUrl': 'https://images.unsplash.com/photo-1519708227418-c8fd9a32b7a2?auto=format&fit=crop&w=500&q=80',
+    'price': 28.0,
+  },
+  {
+    'name': '广式滑蛋牛肉',
+    'source': 'xiachufang',
+    'sourceLabel': '下厨房',
+    'score': '9.3',
+    'time': '12分钟',
+    'diff': '滑嫩鲜香',
+    'category': '招牌热炒',
+    'desc': '牛里脊鲜嫩多汁，蛋液滑嫩如果冻，清淡温和超营养。',
+    'imageUrl': 'https://images.unsplash.com/photo-1534422298391-e4f8c172dddb?auto=format&fit=crop&w=500&q=80',
+    'price': 24.0,
+  },
+  {
+    'name': '香菇慢炖土鸡',
+    'source': 'xiachufang',
+    'sourceLabel': '下厨房',
+    'score': '9.5',
+    'time': '50分钟',
+    'diff': '鲜美滋补',
+    'category': '暖心热汤',
+    'desc': '干香菇充分泡发，小火慢煨鸡肉香气扑鼻，汤清味厚。',
+    'imageUrl': 'https://images.unsplash.com/photo-1604908176997-125f25cc6f3d?auto=format&fit=crop&w=500&q=80',
+    'price': 32.0,
+  },
+  {
+    'name': '干煸肉末四季豆',
+    'source': 'xiachufang',
+    'sourceLabel': '下厨房',
+    'score': '9.2',
+    'time': '15分钟',
+    'diff': '焦香下饭',
+    'category': '素菜',
+    'desc': '四季豆煸出虎皮微皱，肉碎芽菜干香扑鼻，米饭绝配。',
+    'imageUrl': 'https://images.unsplash.com/photo-1587314168485-3236d6710814?auto=format&fit=crop&w=500&q=80',
+    'price': 18.0,
+  },
+  {
+    'name': '滋补山药牛腩煲',
+    'source': 'xiachufang',
+    'sourceLabel': '下厨房',
+    'score': '9.4',
+    'time': '45分钟',
+    'diff': '软烂浓香',
+    'category': '招牌热炒',
+    'desc': '牛腩软烂多汁，铁棍山药粉糯清甜，暖心暖胃一煲搞定。',
+    'imageUrl': 'https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?auto=format&fit=crop&w=500&q=80',
+    'price': 30.0,
+  },
+  {
+    'name': '下饭鱼香肉丝',
+    'source': 'xiachufang',
+    'sourceLabel': '下厨房',
+    'score': '9.3',
+    'time': '16分钟',
+    'diff': '经典川味',
+    'category': '招牌热炒',
+    'desc': '猪里脊肉丝滑嫩，木耳笋丝爽脆，酸甜微辣咸鲜回味无穷。',
+    'imageUrl': 'https://images.unsplash.com/photo-1541832676-9b763b0239ab?auto=format&fit=crop&w=500&q=80',
+    'price': 20.0,
+  },
+];
+
 class DiscoverPage extends StatefulWidget {
   final VoidCallback onGoToOrdering;
 
@@ -78,6 +277,8 @@ class _DiscoverPageState extends State<DiscoverPage> {
 
   /// 原生 `buildRecommendation()` 的取菜来源（发现页首屏空查询时的推荐位）
   List<Map<String, dynamic>> _library = [];
+  int _recOffset = 0;
+
 
   /// 原生 `addedMenuItemNames`。这里用本地集合记录，**不写回菜谱 Map**：
   /// `supabase_api.dart:855` 的 `_recipeLibrary` 是 `const`，其内层 Map 不可变，
@@ -99,10 +300,17 @@ class _DiscoverPageState extends State<DiscoverPage> {
   }
 
   Future<void> _loadLibrary() async {
-    // 首屏空查询时的推荐位用内置菜谱库；搜索走实时抓取，不需要预热任何索引。
-    final list = await AppState.instance.searchRemoteRecipes('');
+    // 直接注入 16 道纯正中式家常菜种子，免去网络与数据库延迟
     if (!mounted) return;
-    setState(() => _library = list);
+    setState(() => _library = List<Map<String, dynamic>>.from(_kChineseSeeds));
+  }
+
+  void _shuffleRecs() {
+    HapticFeedback.lightImpact();
+    setState(() {
+      _recOffset = (_recOffset + 2) % _kChineseSeeds.length;
+    });
+    _showToast('已更新今日小饭桌推荐，精选菜谱已联动去重 🎲');
   }
 
   // 对应原生 onQueryChanged：立即更新 query（清 errorMessage），300ms 后再搜。
@@ -429,8 +637,8 @@ class _DiscoverPageState extends State<DiscoverPage> {
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: const [
-        Text(
+      children: [
+        const Text(
           '发现 - 探索新菜谱',
           style: TextStyle(
             color: _discoverPrimary,
@@ -440,20 +648,98 @@ class _DiscoverPageState extends State<DiscoverPage> {
             letterSpacing: 0,
           ),
         ),
-        SizedBox(height: 6),
-        Text(
-          '搜一搜，给你们的小饭桌加点新菜',
-          style: TextStyle(
-            color: CozyPalette.onSurfaceVariant,
-            fontSize: 15,
-            height: 22 / 15,
-          ),
+        const SizedBox(height: 6),
+        Row(
+          children: [
+            const Text(
+              '搜一搜，给你们的小饭桌加点新菜 ',
+              style: TextStyle(
+                color: CozyPalette.onSurfaceVariant,
+                fontSize: 15,
+                height: 22 / 15,
+              ),
+            ),
+            Image.asset(
+              'assets/images/cooking.png',
+              width: 20,
+              height: 20,
+              errorBuilder: (context, error, stackTrace) => const Text('🍳'),
+            ),
+          ],
         ),
       ],
     );
   }
 
   // 原生 StitchDiscoverSearchField（L562-613）：60 高、全圆角、无清除按钮
+  
+  Widget _buildHotTags() {
+    final tags = [
+      ('糖醋排骨', 'assets/images/meat.png', '🍖'),
+      ('可乐鸡翅', 'assets/images/poultry.png', '🍗'),
+      ('番茄炒蛋', 'assets/images/tomato.png', '🍅'),
+      ('麻婆豆腐', 'assets/images/pepper.png', '🌶️'),
+      ('玉米排骨汤', 'assets/images/pot.png', '🍲'),
+    ];
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      physics: const BouncingScrollPhysics(),
+      child: Row(
+        children: [
+          const Text(
+            '灵感热搜：',
+            style: TextStyle(
+              color: CozyPalette.onSurfaceVariant,
+              fontSize: 11,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          for (final t in tags)
+            Padding(
+              padding: const EdgeInsets.only(right: 6),
+              child: GestureDetector(
+                onTap: () {
+                  _searchCtrl.text = t.$1;
+                  _onQueryChanged(t.$1);
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(
+                      color: _discoverCardBorder.withValues(alpha: 0.25),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        t.$1,
+                        style: const TextStyle(
+                          color: CozyPalette.onSurface,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Image.asset(
+                        t.$2,
+                        width: 14,
+                        height: 14,
+                        errorBuilder: (context, error, stackTrace) => Text(t.$3, style: const TextStyle(fontSize: 10)),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildSearchField(ThemeData theme) {
     final placeholder = _query.trim().isEmpty
         ? '想吃点什么？例如：糖醋排骨...'
@@ -513,7 +799,47 @@ class _DiscoverPageState extends State<DiscoverPage> {
     final theme = Theme.of(context);
 
     if (_query.trim().isEmpty) {
-      return <Widget>[_buildSearchPrompt(theme)];
+      // 1. 获取当前每日推荐的 2 道菜名，用于严格去重
+      final recs = _buildRecommendations();
+      final recNames = recs.map((r) => _name(r.recipe)).toSet();
+
+      // 2. 从 16 道种子库中彻底排除每日推荐中的 2 道菜，严格取 10 道精选菜谱！
+      final pool = _library.where((r) {
+        final img = r['imageUrl'] as String?;
+        final hasImg = img != null && img.trim().isNotEmpty;
+        final notInRec = !recNames.contains(_name(r));
+        return hasImg && notInRec;
+      }).toList();
+
+      final featuredTen = pool.take(10).toList();
+
+      return <Widget>[
+        // 常搜热搜词标签
+        _buildHotTags(),
+        _buildSearchPrompt(theme),
+        // 精选 10 道菜标题
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              '精选菜谱 (10道)',
+              style: TextStyle(
+                color: _discoverPrimary,
+                fontSize: 17,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            Text(
+              '下厨房精选 · 已去重',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: CozyPalette.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
+        for (final recipe in featuredTen)
+          _buildResultCard(context, recipe),
+      ];
     }
 
     if (_isSearching) {
@@ -847,12 +1173,62 @@ class _DiscoverPageState extends State<DiscoverPage> {
         ),
       );
     }
-    // 原生：只有一个推荐时补 Spacer(weight 1f)
     if (recommendations.length == 1) {
       children.add(const SizedBox(width: 12));
       children.add(const Expanded(child: SizedBox.shrink()));
     }
-    return Row(crossAxisAlignment: CrossAxisAlignment.start, children: children);
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              '🌟 今日小饭桌精选',
+              style: TextStyle(
+                color: CozyPalette.onSurface,
+                fontSize: 13,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            GestureDetector(
+              onTap: _shuffleRecs,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: CozyPalette.primary.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Image.asset(
+                      'assets/images/die.png',
+                      width: 14,
+                      height: 14,
+                      errorBuilder: (context, error, stackTrace) => const Text('🎲', style: TextStyle(fontSize: 10)),
+                    ),
+                    const SizedBox(width: 4),
+                    const Text(
+                      '换一换推荐',
+                      style: TextStyle(
+                        color: _discoverPrimary,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Row(crossAxisAlignment: CrossAxisAlignment.start, children: children),
+      ],
+    );
   }
 
   // 原生推荐卡（L313-361）
@@ -979,41 +1355,25 @@ class _DiscoverPageState extends State<DiscoverPage> {
   // 原生 DiscoverViewModel.buildRecommendation()：今日推荐 / 减脂推荐（空查询时展示）
   // Flutter 数据层没有对应接口，这里从本地菜谱库里就地取两条，文案与原生一致。
   List<_DiscoverRecommendation> _buildRecommendations() {
-    if (_library.isEmpty) return const <_DiscoverRecommendation>[];
+    final pool = _library.where((r) {
+      final img = r['imageUrl'] as String?;
+      return img != null && img.trim().isNotEmpty;
+    }).toList();
+    if (pool.length < 2) return const <_DiscoverRecommendation>[];
 
-    final pool = _library.where((recipe) => !_isAdded(recipe)).toList();
-    if (pool.isEmpty) return const <_DiscoverRecommendation>[];
-
-    final now = DateTime.now();
-    final day = now.difference(DateTime(now.year)).inDays;
-    final dailyIndex = day % pool.length;
-
-    if (pool.length == 1) {
-      return <_DiscoverRecommendation>[
-        _DiscoverRecommendation(
-          title: '今日推荐',
-          subtitle: '每日随机更新',
-          recipe: pool[dailyIndex],
-        ),
-      ];
-    }
-
-    var lightIndex = pool.indexWhere(
-      (recipe) => RegExp(r'沙拉|鸡胸|娃娃菜|蔬|汤|蒸|豆腐|虾|鱼').hasMatch(_name(recipe)),
-    );
-    if (lightIndex < 0) lightIndex = (dailyIndex + 1) % pool.length;
-    if (lightIndex == dailyIndex) lightIndex = (dailyIndex + 1) % pool.length;
+    final item1 = pool[_recOffset % pool.length];
+    final item2 = pool[(_recOffset + 1) % pool.length];
 
     return <_DiscoverRecommendation>[
       _DiscoverRecommendation(
         title: '今日推荐',
         subtitle: '每日随机更新',
-        recipe: pool[dailyIndex],
+        recipe: item1,
       ),
       _DiscoverRecommendation(
         title: '减脂推荐',
         subtitle: '轻一点，也很好吃',
-        recipe: pool[lightIndex],
+        recipe: item2,
       ),
     ];
   }
@@ -1370,5 +1730,6 @@ class _DishImageOrPlaceholder extends StatelessWidget {
       ),
     );
   }
-}
 
+  
+}

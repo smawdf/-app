@@ -103,7 +103,8 @@ class MenuManagementPage extends StatefulWidget {
   State<MenuManagementPage> createState() => _MenuManagementPageState();
 }
 
-class _MenuManagementPageState extends State<MenuManagementPage> {
+class _MenuManagementPageState extends State<MenuManagementPage>
+    with WidgetsBindingObserver {
   // ── 原生 ViewModel 的 uiState（MenuManagementViewModel.kt:46-68） ──
   _MenuFilter _selectedFilter = _MenuFilter.all;
   final _MenuSortMode _sortMode = _MenuSortMode.newest;
@@ -149,6 +150,22 @@ class _MenuManagementPageState extends State<MenuManagementPage> {
     // 原生 `LaunchedEffect(viewModel)` 的 10s 轮询（MenuManagementScreen.kt:131）
     _refreshTimer = Timer.periodic(_refreshInterval, (_) => _refreshShopAndMenu());
     _listCtrl.addListener(_onListScroll);
+    // 【Phase 0】前后台感知：后台不跑 10s 轮询（见 didChangeAppLifecycleState）。
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (!mounted) return;
+    if (state == AppLifecycleState.resumed) {
+      // 回前台：立即补刷一次再恢复轮询。
+      if (_refreshTimer == null || !_refreshTimer!.isActive) {
+        _refreshShopAndMenu();
+        _refreshTimer = Timer.periodic(_refreshInterval, (_) => _refreshShopAndMenu());
+      }
+    } else {
+      _refreshTimer?.cancel();
+    }
   }
 
   /// 列表滚动时决定悬浮胶囊是否可见（见 `_pillVisible` 注释）。
@@ -173,6 +190,7 @@ class _MenuManagementPageState extends State<MenuManagementPage> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _refreshTimer?.cancel();
     _successTimer?.cancel();
     _listCtrl.dispose();
@@ -185,6 +203,7 @@ class _MenuManagementPageState extends State<MenuManagementPage> {
 
   /// 原生 `refreshShopAndMenuFromCloud()`（MenuManagementViewModel.kt:110）
   Future<void> _refreshShopAndMenu() async {
+    if (!mounted) return;
     await AppState.instance.loadMe();
     await AppState.instance.refreshMenu(silent: true);
   }

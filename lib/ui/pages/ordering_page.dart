@@ -413,7 +413,7 @@ class _OrderingPageState extends State<OrderingPage> {
                                           canOrder: isEater,
                                           showDescription: isEater,
                                           bottomClearance: bottomClearance,
-                                          loading: state.busy && items.isEmpty,
+                                          loading: state.loadingMenu && items.isEmpty,
                                           addKeys: _addKeys,
                                           quantities: _qty,
                                           onAdd: (MenuItem item, GlobalKey key) =>
@@ -450,7 +450,7 @@ class _OrderingPageState extends State<OrderingPage> {
                   totalPrice: _total,
                   onCartClick: _openCartSheet,
                   onCheckoutClick: () {
-                    if (isEater && !state.busy) _openCheckoutDialog();
+                    if (isEater && !state.loadingOrders) _openCheckoutDialog();
                   },
                 ).animate().fadeIn(duration: 220.ms).slideY(begin: 0.3, end: 0),
               ),

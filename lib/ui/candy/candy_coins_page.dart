@@ -124,8 +124,9 @@ class _CandyCoinsPageState extends State<CandyCoinsPage> {
   Widget build(BuildContext context) {
     final AppState state = AppState.instance;
 
+    // 【性能 Phase 1】只关心糖币余额/流水与身份：订阅 candy+profile 域。
     return ListenableBuilder(
-      listenable: state,
+      listenable: state.listenFor(const {Domain.candy, Domain.profile}),
       builder: (BuildContext context, Widget? _) {
         // 原版：`selectedRole == "caretaker"`（:93）
         final bool isCaretaker = state.isCaretaker;

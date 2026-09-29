@@ -107,8 +107,10 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     final state = AppState.instance;
 
+    // 【性能 Phase 1】首页读 user/pair/糖币/订单：订阅 profile+orders+candy 域，
+    // 菜单变动（加菜/改价）不再让整页重建。
     return ListenableBuilder(
-      listenable: state,
+      listenable: state.listenFor(const {Domain.profile, Domain.orders, Domain.candy}),
       builder: (context, _) {
         final AppUser? user = state.user;
         final CouplePair? pair = state.pair;

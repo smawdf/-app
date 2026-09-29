@@ -162,8 +162,9 @@ class _AuthScreenState extends State<AuthScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // 【性能 Phase 1】登录/注册页只关心认证忙闲与登录态：只订阅 auth 域。
     return ListenableBuilder(
-      listenable: AppState.instance,
+      listenable: AppState.instance.listenFor(const {Domain.auth}),
       builder: (BuildContext context, Widget? _) {
         return Scaffold(
           backgroundColor: Colors.white,
@@ -177,7 +178,7 @@ class _AuthScreenState extends State<AuthScreen> {
   /// `AuthScreen.kt` — vertically centred login card over the decorated white
   /// background.
   Widget _buildLogin() {
-    final bool busy = AppState.instance.busy;
+    final bool busy = AppState.instance.busyAuth; // 【Phase 0】按域 loading：认证忙只锁认证按钮
 
     return AuthDecoratedBackground(
       child: _centeredScroll(
@@ -286,7 +287,7 @@ class _AuthScreenState extends State<AuthScreen> {
 
   /// `RegisterAccountScreen` — 账号 / 邮箱, 密码, 确认密码, 下一步.
   Widget _buildRegisterStep1() {
-    final bool busy = AppState.instance.busy;
+    final bool busy = AppState.instance.busyAuth; // 【Phase 0】按域 loading：认证忙只锁认证按钮
 
     return SafeArea(
       child: SingleChildScrollView(
@@ -360,7 +361,7 @@ class _AuthScreenState extends State<AuthScreen> {
 
   /// `Step2Profile` — avatar, 昵称, 开启甜蜜点菜之旅.
   Widget _buildRegisterStep2() {
-    final bool busy = AppState.instance.busy;
+    final bool busy = AppState.instance.busyAuth; // 【Phase 0】按域 loading：认证忙只锁认证按钮
 
     return SafeArea(
       child: SingleChildScrollView(
