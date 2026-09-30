@@ -7,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../data/app_state.dart';
 import '../candy/candy_coins_page.dart';
+import '../couple/anniversary_page.dart';
 import '../menu/menu_management_page.dart';
 import '../theme/cozy_glass.dart';
 import '../widgets/cozy_celebration.dart';
@@ -25,16 +26,16 @@ const String _appVersion = '2.0.0';
 TextStyle _ts(double size, double lineHeight, FontWeight weight, Color color) =>
     TextStyle(fontSize: size, height: lineHeight / size, fontWeight: weight, color: color);
 
-/// 个人与小店 —— 原生 `ui/profile/ProfileScreen.kt` 的 1:1 移植。
+/// 个人与小店 —— 结构对齐 `demo/index.html` 的 `#tab-profile`（原生行为全部保留）。
 ///
-/// 模块顺序（对照原生行号）：
-///   · `ImmersiveProfileHeader`       ProfileScreen.kt:321-374
-///   · `ProfileHeader`                ProfileScreen.kt:376-492
-///   · `SimulatedCurrencyBalanceCard` ProfileScreen.kt:509-559
-///   · 5 行 `ProfileActionRow`        ProfileScreen.kt:268-314
-///   · `LogoutButton`                 ProfileScreen.kt:813-837
-/// 弹窗：`ProfileEditDialog`:1185 / `HelpDialog`:1126 / `VersionInfoDialog`:1006 /
-///       `PairManagementDialog`:839 / 解除绑定确认:204 / `LogoutConfirmDialog`:1156
+/// 骨架顺序（1:1 照 demo 的三块）：
+///   · Profile Card           资料卡：头像 + 昵称 + 「编辑资料」 + 身份/糖糖币标签
+///   · Couple Connection Tile 伴侣邀请码 (Pair ID) + 复制
+///   · Settings List          我的店铺管理 / 纪念日日历 / 糖糖币充值·撒糖中心
+/// 之后是 demo 没有、页面本来就有的三个入口（订单记录 / 版本与更新 / 帮助与客服）
+/// 与「退出登录」，用同一套设置行样式收尾，功能一行不减。
+/// 弹窗：`ProfileEditDialog` / `HelpDialog` / `VersionInfoDialog` /
+///       `PairManagementDialog` / 解除绑定确认 / `LogoutConfirmDialog`（均未改动）
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key, this.onNavigateTab});
 
@@ -78,39 +79,6 @@ class _ProfilePageState extends State<ProfilePage> {
     final DateTime today = DateTime(now.year, now.month, now.day);
     final int days = today.difference(start).inDays + 1;
     return days < 1 ? 1 : days;
-  }
-
-  /// 原生 `CozyMainTopBar`（与「订单」「发现」等页同一规格），玻璃浮层版。
-  Widget _topBar() {
-    return CozyGlassTopBar(
-      title: const Text(
-        '我的 - 小饭桌与设置',
-        textAlign: TextAlign.center,
-        maxLines: 2,
-        overflow: TextOverflow.ellipsis,
-        style: TextStyle(
-          fontSize: 20,
-          height: 24 / 20,
-          fontWeight: FontWeight.w900,
-          letterSpacing: 0,
-          color: CozyPalette.primary,
-        ),
-      ),
-      leading: SizedBox(
-        width: 44,
-        child: Align(
-          alignment: Alignment.centerLeft,
-          child: Icon(Icons.favorite, size: 26, color: CozyPalette.primary.withValues(alpha: 0.82)),
-        ),
-      ),
-      trailing: const SizedBox(
-        width: 44,
-        child: Align(
-          alignment: Alignment.centerRight,
-          child: Icon(Icons.notifications, size: 24, color: CozyPalette.onSurfaceVariant),
-        ),
-      ),
-    );
   }
 
   void _snack(String message) {
@@ -167,37 +135,42 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
+  /// demo「纪念日日历」设置项：原页面没有这个入口（只在首页有），按 demo 补上。
+  void _openAnniversary() {
+    HapticFeedback.lightImpact();
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const AnniversaryPage()),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = AppState.instance;
 
+    // 本页只读 user / pair / 糖糖币：订阅 profile+candy 域（与首页同一套域订阅）。
     return ListenableBuilder(
-      listenable: state,
+      listenable: state.listenFor(const {Domain.profile, Domain.candy}),
       builder: (context, _) {
+        // 昵称：空就是空，用引导文案占住位置（不编「糯米小狗」这种假名字）。
         final String nickname = (state.user?.nickname ?? '').trim();
-        final String displayName = nickname.isEmpty ? '糯米小狗' : nickname;
+        final bool hasNickname = nickname.isNotEmpty;
         final String roleKey = state.user?.role ?? '';
         final String roleText = switch (roleKey) {
           'caretaker' => '饲养员',
           'eater' => '吃货',
-          _ => '待选择',
+          _ => '还没有选择身份',
         };
         final int balance = state.candyCoins;
-
-        // 身份卡第二行：不再露 uuid 尾巴和无信息量的「资料已同步」，
-        // 换成「绑没绑小饭桌 + 一起吃了多少天」这种用户真在意的事。
-        // 天数单独做成小胶囊，和身份胶囊并排（Wrap 自适应，窄屏换行不溢出）。
-        final int? days = _daysTogether;
-        final String partnerName = (state.pair?.partnerName ?? '').trim();
-        final String headerSubtitle = state.isPaired
-            ? (partnerName.isNotEmpty ? '已和 $partnerName 绑定小饭桌' : '已绑定小饭桌')
-            : '还没有绑定小饭桌 · 去「邀请对方」看看';
-        final String? headerDays =
-            (state.isPaired && days != null) ? '一起吃饭 $days 天' : null;
+        // 相守天数：原来挂在资料卡的身份胶囊旁（demo 的资料卡没有这一格），
+        // 结构对齐后挪到「纪念日日历」行的行尾；仍然是真实数据，没有就不显示。
+        final int? days = state.isPaired ? _daysTogether : null;
+        final String inviteCode = (state.pair?.inviteCode ?? '').trim();
 
         return CozyPage(
-          // 玻璃顶栏做成浮层：列表从 y=0 起滚、内容穿过玻璃（顶部预留
-          // `CozyGlassTopBar.reserved`），否则玻璃背后永远是白底、看不出玻璃。
+          // demo `#tab-profile` 没有页标题区：资料卡直接开场。
+          // 原先的液态玻璃浮层顶栏（含装饰性爱心/铃铛）已按 demo 移除，
+          // 顶部留白从 `CozyGlassTopBar.reserved` 收到 16。
           child: Stack(
             children: <Widget>[
               Positioned.fill(
@@ -206,104 +179,128 @@ class _ProfilePageState extends State<ProfilePage> {
                   onRefresh: () => state.refreshAll(),
                   child: ListView(
                     padding: EdgeInsets.only(
-                      top: CozyGlassTopBar.reserved,
+                      top: 16,
                       bottom: CozyDock.clearanceOf(context),
                     ),
                     children: <Widget>[
-                      // ---- ImmersiveProfileHeader (ProfileScreen.kt:321) ----
+                      // ---- demo「Profile Card」：头像 + 昵称 + 编辑资料 + 身份/糖糖币标签 ----
                       Padding(
-                        padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
-                        child: _ProfileHeader(
-                          name: displayName,
+                        padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                        child: _ProfileCard(
+                          nickname: nickname,
+                          hasNickname: hasNickname,
                           avatarUrl: state.user?.avatarUrl ?? '',
-                          subtitle: headerSubtitle,
+                          roleKey: roleKey,
                           roleText: roleText,
-                          daysText: headerDays,
+                          coins: balance,
                           onTap: _openProfileEditor,
                         ),
                       ),
-                      const SizedBox(height: 10),
-                      // ---- SimulatedCurrencyBalanceCard (ProfileScreen.kt:509) ----
+                      const SizedBox(height: 12),
+                      // ---- demo「Couple Connection Tile」（本页原先没有这一块）----
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 20),
-                        child: _BalanceCard(balance: balance),
+                        child: _PairTile(
+                          isPaired: state.isPaired,
+                          isFullyBound: state.pair?.isFullyBound ?? false,
+                          inviteCode: inviteCode,
+                          onTap: _openPairDialog,
+                        ),
                       ),
-                      const SizedBox(height: 10),
-                      // ---- ProfileActionRow 列表 (ProfileScreen.kt:268) ----
-                      // 「我的店铺 / 订单记录」原来是与下面同类的两张 155×155 巨卡，
-                      // 现在统一成同规格的列表行，整页只剩一种入口样式。
+                      const SizedBox(height: 12),
+                      // ---- demo「Settings List」：一张白卡 + 三行 ----
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 20),
-                        child: Column(
-                          children: <Widget>[
-                            _ActionRow(
-                              icon: Icons.storefront_outlined,
-                              title: '我的店铺',
+                        child: _SettingsCard(
+                          rows: <Widget>[
+                            _SettingRow(
+                              icon: _RowIcon(
+                                background: const Color(0xFFFDF0D5),
+                                child: _cozy3d('assets/images/shopping.png', 22, '🏪'),
+                              ),
+                              title: '我的店铺管理',
+                              subtitle: '编辑自营小饭桌的菜品、单价与分类',
                               onTap: _openDishManage,
                             ),
-                            const SizedBox(height: 12),
-                            _ActionRow(
-                              icon: Icons.receipt_long_outlined,
+                            _SettingRow(
+                              icon: _RowIcon(
+                                background: const Color(0xFFF0E9FB),
+                                child: _cozy3d('assets/images/heart.png', 22, '🎂'),
+                              ),
+                              title: '纪念日日历',
+                              subtitle: '恋爱情侣相守天数与里程碑提醒',
+                              trailing: days == null
+                                  ? null
+                                  : _TrailingPill(text: '一起 $days 天'),
+                              onTap: _openAnniversary,
+                            ),
+                            _SettingRow(
+                              icon: _RowIcon(
+                                background: const Color(0xFFFFE4EA),
+                                child: const _CandyCoinIcon(size: 22),
+                              ),
+                              title: '糖糖币充值 / 撒糖中心',
+                              subtitle: '饲养员可随时给对方补充额度',
+                              trailing: state.isPaired
+                                  ? _TrailingPill(text: '$balance 枚')
+                                  : null,
+                              onTap: _openCandyCoins,
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      // ---- demo 里没有、但原页面本来就有的入口 ----
+                      // 订单记录 / 版本与更新 / 帮助与客服：套同一套设置行样式收在第二组，
+                      // 功能一行不减（点菜页 / 订单页仍各有入口）。
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: _SettingsCard(
+                          rows: <Widget>[
+                            _SettingRow(
+                              icon: _RowIcon(
+                                background: CozyPalette.primaryContainer.withValues(alpha: 0.38),
+                                child: const Icon(
+                                  Icons.receipt_long_outlined,
+                                  size: 20,
+                                  color: CozyPalette.primary,
+                                ),
+                              ),
                               title: '订单记录',
+                              subtitle: '你们一起点过的每一顿',
                               onTap: _openOrdersTab,
                             ),
-                            const SizedBox(height: 12),
-                            // 【审查修正】这一行原来叫「账号设置」、图标是齿轮，但点开的是
-                            // 「编辑个人资料」弹层（原生 ProfileScreen.kt:273-277 也一样，
-                            // 属于原生就有的名不符实）。改成它真正做的事，齿轮 → 铅笔。
-                            _ActionRow(
-                              icon: Icons.edit_outlined,
-                              title: '编辑资料',
-                              onTap: _openProfileEditor,
-                            ),
-                            const SizedBox(height: 12),
-                            // 【自查修正】这一列入口原来是 filled/outlined 混着用（原生也
-                            // 混），统一成 outlined，和「帮助与客服」（原生 Outlined.
-                            // SupportAgent）一致。
-                            if (roleKey == 'caretaker')
-                              _ActionRow(
-                                icon: Icons.pets_outlined,
-                                title: '糖糖币专属管理',
-                                trailingText: '吃货 $balance 枚',
-                                onTap: _openCandyCoins,
-                              )
-                            else
-                              _ActionRow(
-                                icon: Icons.pets_outlined,
-                                title: '糖糖币明细',
-                                // 余额上面那张卡已经显示过一次，这里不再重复数字。
-                                onTap: _openCandyCoins,
+                            _SettingRow(
+                              icon: _RowIcon(
+                                background: CozyPalette.primaryContainer.withValues(alpha: 0.38),
+                                child: const Icon(
+                                  Icons.info_outline,
+                                  size: 20,
+                                  color: CozyPalette.primary,
+                                ),
                               ),
-                            const SizedBox(height: 12),
-                            _ActionRow(
-                              icon: Icons.person_add_alt_1_outlined,
-                              title: state.isPaired ? '伴侣已绑定' : '邀请对方',
-                              // 【真机修正】原来写死「对方」，现在显示真实伴侣昵称
-                              // （`CouplePair.partnerName`）。
-                              trailingText: state.isPaired
-                                  ? (state.pair?.partnerName.isNotEmpty == true
-                                      ? state.pair!.partnerName
-                                      : '对方')
-                                  : null,
-                              onTap: _openPairDialog,
-                            ),
-                            const SizedBox(height: 12),
-                            _ActionRow(
-                              icon: Icons.info_outlined,
                               title: '版本与更新',
-                              trailingText: _versionLabel,
+                              subtitle: '检查有没有新版本',
+                              trailing: const _TrailingPill(text: _versionLabel),
                               onTap: _openVersionDialog,
                             ),
-                            const SizedBox(height: 12),
-                            _ActionRow(
-                              icon: Icons.support_agent_outlined,
+                            _SettingRow(
+                              icon: _RowIcon(
+                                background: CozyPalette.primaryContainer.withValues(alpha: 0.38),
+                                child: const Icon(
+                                  Icons.support_agent_outlined,
+                                  size: 20,
+                                  color: CozyPalette.primary,
+                                ),
+                              ),
                               title: '帮助与客服',
+                              subtitle: '遇到问题找小饭桌管理员',
                               onTap: _openHelpDialog,
                             ),
                           ],
                         ),
                       ),
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 18),
                       // ---- LogoutButton (ProfileScreen.kt:813) ----
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -313,7 +310,6 @@ class _ProfilePageState extends State<ProfilePage> {
                   ),
                 ),
               ),
-              Positioned(left: 0, right: 0, top: 0, child: _topBar()),
             ],
           ),
         );
@@ -334,164 +330,107 @@ class _ProfilePageState extends State<ProfilePage> {
 }
 
 // ---------------------------------------------------------------------------
-// ProfileHeader (ProfileScreen.kt:376-492)
+// demo「Profile Card」资料卡（横排：头像 + 昵称/签名 + 编辑入口 + 两个标签）
 // ---------------------------------------------------------------------------
 
-class _ProfileHeader extends StatelessWidget {
-  const _ProfileHeader({
-    required this.name,
+/// 3D 图标（`assets/images/*.png`）+ emoji 兜底：资源缺失时不留空白。
+Widget _cozy3d(String asset, double size, String fallbackEmoji) => Image.asset(
+      asset,
+      width: size,
+      height: size,
+      filterQuality: FilterQuality.high,
+      errorBuilder: (_, _, _) =>
+          Text(fallbackEmoji, style: TextStyle(fontSize: size * 0.82)),
+    );
+
+class _ProfileCard extends StatelessWidget {
+  const _ProfileCard({
+    required this.nickname,
+    required this.hasNickname,
     required this.avatarUrl,
-    required this.subtitle,
+    required this.roleKey,
     required this.roleText,
+    required this.coins,
     required this.onTap,
-    this.daysText,
   });
 
-  final String name;
+  final String nickname;
+  final bool hasNickname;
   final String avatarUrl;
-
-  /// 第三行信息（绑没绑小饭桌）。
-  /// 【真机修正】原来这里是 `ID: d20eeab`（uuid 尾巴）和「资料已同步」——
-  /// 前者是调试信息，后者用户无法验证，已按用户反馈替换。
-  final String subtitle;
+  final String roleKey;
   final String roleText;
-
-  /// 「一起吃饭 N 天」小胶囊（未绑定时为 null，不占位）
-  final String? daysText;
+  final int coins;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return CozyCard(
-      onTap: onTap,
-      radius: 24,
-      padding: EdgeInsets.zero,
-      color: Colors.white.withValues(alpha: 0.70),
-      borderColor: Colors.white.withValues(alpha: 0.66),
-      // 【真机修正】CozyCard 不撑满宽度：里面是 Column + Stack，会缩到最宽子项
-      // （身份胶囊 ≈206 逻辑 px），导致这张卡比全页其他卡（328）窄一大截、
-      // 居中悬在页面上。这里显式撑满。
-      child: SizedBox(
-        width: double.infinity,
-        child: Stack(
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.lightImpact();
+        onTap();
+      },
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(
+            color: CozyPalette.outlineVariant.withValues(alpha: 0.72),
+          ),
+          boxShadow: CozyLight.cardShadow,
+        ),
+        child: Row(
           children: <Widget>[
-            // 淡粉斜向渐变：让白卡有层次，不再是「一块白纸」
-            Positioned.fill(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: <Color>[
-                      CozyPalette.secondaryContainer.withValues(alpha: 0.34),
-                      CozyPalette.primaryContainer.withValues(alpha: 0.16),
-                      Colors.white.withValues(alpha: 0.0),
-                    ],
-                    stops: const <double>[0.0, 0.55, 1.0],
-                  ),
-                ),
-              ),
-            ),
-            // 【真机修正】原来左上角是 132×132 + radius 48 的**圆角方**，
-            // 压到卡片圆角上会露出直角边（截图里那道月牙 + 硬边）。改成正圆。
-            Positioned(left: -54, top: -58, child: _glow(150, CozyPalette.secondaryContainer, 0.20)),
-            Positioned(right: -46, bottom: -56, child: _glow(170, CozyPalette.primaryContainer, 0.14)),
-            // 右下角爪印水印（和首页小饭桌卡同一套语言）
-            Positioned(
-              right: -26,
-              bottom: -30,
-              child: Icon(
-                Icons.pets,
-                size: 156,
-                color: Colors.white.withValues(alpha: 0.30),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 24, 20, 22),
+            _avatar(),
+            const SizedBox(width: 14),
+            Expanded(
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
-                  // 头像：白色渐变圆 + 玫瑰细边 + 右下编辑徽标
-                  SizedBox(
-                    width: 118,
-                    height: 118,
-                    child: Stack(
-                      children: <Widget>[
-                        Positioned.fill(
-                          child: Container(
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              gradient: LinearGradient(
-                                begin: Alignment.topCenter,
-                                end: Alignment.bottomCenter,
-                                colors: <Color>[
-                                  Colors.white,
-                                  CozyPalette.primaryContainer.withValues(alpha: 0.55),
-                                ],
-                              ),
-                              boxShadow: CozyLight.cardShadow,
-                            ),
+                  Row(
+                    children: <Widget>[
+                      Expanded(
+                        child: Text(
+                          // 空态：位置留给引导文案，不编假昵称。
+                          hasNickname ? nickname : '还没有设置昵称',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: _ts(
+                            16,
+                            24,
+                            FontWeight.w900,
+                            hasNickname
+                                ? CozyPalette.onSurface
+                                : CozyPalette.onSurfaceVariant,
                           ),
                         ),
-                        Positioned.fill(
-                          child: Padding(
-                            padding: const EdgeInsets.all(9),
-                            child: ClipOval(child: _avatar(avatarUrl, 46)),
-                          ),
-                        ),
-                        Positioned(
-                          right: 2,
-                          bottom: 2,
-                          child: Container(
-                            width: 34,
-                            height: 34,
-                            alignment: Alignment.center,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: CozyPalette.primary,
-                              border: Border.all(color: Colors.white, width: 3),
-                            ),
-                            child: const Icon(Icons.edit, size: 16, color: Colors.white),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  // 窄屏 / 平板都收在 420 内居中，不会拉成一条长线（适配）
-                  Center(
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 420),
-                      child: Column(
-                        children: <Widget>[
-                          Text(
-                            name,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            textAlign: TextAlign.center,
-                            style: _ts(26, 34, FontWeight.w900, CozyPalette.onSurface),
-                          ),
-                          const SizedBox(height: 10),
-                          Wrap(
-                            spacing: 8,
-                            runSpacing: 8,
-                            alignment: WrapAlignment.center,
-                            children: <Widget>[
-                              _chip(Icons.pets, '当前身份：$roleText', filled: true),
-                              if (daysText != null)
-                                _chip(Icons.favorite, daysText!, filled: false),
-                            ],
-                          ),
-                          const SizedBox(height: 10),
-                          Text(
-                            subtitle,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            textAlign: TextAlign.center,
-                            style: _ts(12.5, 18, FontWeight.w400, CozyPalette.onSurfaceVariant),
-                          ),
-                        ],
                       ),
-                    ),
+                      const SizedBox(width: 8),
+                      _editEntry(),
+                    ],
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '今天也要一起好好吃饭~',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: _ts(12, 18, FontWeight.w400, CozyPalette.onSurfaceVariant),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 6,
+                    children: <Widget>[
+                      _tag(
+                        text: '当前身份: $roleText',
+                        background: CozyPalette.primaryContainer,
+                        foreground: CozyPalette.primary,
+                        border: CozyPalette.primary.withValues(alpha: 0.18),
+                      ),
+                      _coinTag(),
+                    ],
                   ),
                 ],
               ),
@@ -502,200 +441,411 @@ class _ProfileHeader extends StatelessWidget {
     );
   }
 
-  Widget _glow(double size, Color color, double alpha) => Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: color.withValues(alpha: alpha),
-        ),
-      );
-
-  /// 信息小胶囊（身份 / 一起吃饭 N 天）
-  Widget _chip(IconData icon, String text, {required bool filled}) => Container(
-        decoration: BoxDecoration(
-          color: filled
-              ? Colors.white.withValues(alpha: 0.66)
-              : CozyPalette.primaryContainer.withValues(alpha: 0.34),
-          borderRadius: BorderRadius.circular(999),
-          border: Border.all(color: CozyPalette.outlineVariant, width: 1),
-        ),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            Icon(icon, size: 15, color: CozyPalette.primary),
-            const SizedBox(width: 5),
-            Text(
-              text,
-              style: _ts(12, 16, FontWeight.w900, CozyPalette.onSurface),
+  /// 头像：暖金→樱花粉渐变环 + 白边 + 右下角身份角标（demo `w-16 h-16` + `w-5 h-5`）。
+  Widget _avatar() {
+    return SizedBox(
+      width: 64,
+      height: 64,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: <Widget>[
+          Container(
+            width: 64,
+            height: 64,
+            decoration: const BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: <Color>[Color(0xFFF2B23E), CozyPalette.primaryContainer],
+              ),
+              boxShadow: CozyLight.cardShadow,
             ),
-          ],
+            child: Padding(
+              padding: const EdgeInsets.all(2),
+              child: Container(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 2),
+                ),
+                child: ClipOval(
+                  child: CozyAvatar(
+                    url: avatarUrl,
+                    size: 60,
+                    fallback: const ColoredBox(
+                      color: CozyPalette.surface,
+                      child: Center(
+                        child: Icon(Icons.pets, size: 28, color: CozyPalette.primary),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Positioned(bottom: 0, right: 0, child: _roleBadge()),
+        ],
+      ),
+    );
+  }
+
+  /// 身份角标：饲养员=厨师帽 / 吃货=瓷碗 / 还没选身份=`?`（三种状态都不留空）。
+  Widget _roleBadge() {
+    final Widget mark = switch (roleKey) {
+      'caretaker' => _cozy3d('assets/images/chef.png', 13, '🍳'),
+      'eater' => _cozy3d('assets/images/bowl.png', 13, '🍚'),
+      _ => const Text(
+          '?',
+          style: TextStyle(
+            fontSize: 11,
+            height: 1.1,
+            fontWeight: FontWeight.w900,
+            color: Colors.white,
+          ),
         ),
-      );
+    };
+    return Container(
+      width: 20,
+      height: 20,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: const Color(0xFFF2B23E),
+        border: Border.all(color: Colors.white, width: 1.4),
+      ),
+      child: mark,
+    );
+  }
 
-  /// 头像（云端可能是 http URL、data URI，或内置默认头像的 asset 标记）
-  Widget _avatar(String url, double iconSize) =>
-      CozyAvatar(url: url, size: 100, fallback: _paw(iconSize));
+  /// 「编辑资料」小按钮（demo `bg-cozy-bg` + `text-[10px]`）——
+  /// 整个资料卡都可点，这里只是把入口显式画出来，空态也在。
+  Widget _editEntry() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: CozyPalette.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: CozyPalette.outlineVariant.withValues(alpha: 0.72),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          const Icon(Icons.edit_outlined, size: 12, color: CozyPalette.primary),
+          const SizedBox(width: 3),
+          Text('编辑资料', style: _ts(10, 14, FontWeight.w900, CozyPalette.primary)),
+        ],
+      ),
+    );
+  }
 
-  Widget _paw(double size) => Container(
-        color: const Color(0xFFFFFCF8),
-        alignment: Alignment.center,
-        child: Icon(Icons.pets, size: size, color: CozyPalette.primary),
-      );
+  /// 小标签（demo `rounded-md px-2 py-0.5`）。
+  Widget _tag({
+    required String text,
+    required Color background,
+    required Color foreground,
+    Color? border,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: border ?? Colors.transparent),
+      ),
+      child: Text(text, style: _ts(11, 15, FontWeight.w700, foreground)),
+    );
+  }
+
+  /// 糖糖币标签（demo 的 amber-50/200/700），沿用首页糖糖币条的琥珀色。
+  Widget _coinTag() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFCEBCF),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: const Color(0xFFF5D7A8)),
+      ),
+      child: CozyCountUp(
+        value: coins,
+        prefix: '糖糖币 ',
+        suffix: ' 枚',
+        style: _ts(11, 15, FontWeight.w900, const Color(0xFFC77A14)),
+      ),
+    );
+  }
 }
 
 // ---------------------------------------------------------------------------
-// ProfileFeatureTile (ProfileScreen.kt:713-735)
-// ---------------------------------------------------------------------------
-// 【真机修正】原生这两张 155×155 巨卡已被换成与下方同规格的 `_ActionRow`
-// （用户反馈：同页两种入口样式、且和首页/底栏入口重复）。原来的 `_FeatureTile`
-// 一并删除，避免留一个没人用的私有类。
-
-// ---------------------------------------------------------------------------
-// SimulatedCurrencyBalanceCard (ProfileScreen.kt:509-559)
+// demo「Couple Connection Tile」伴侣绑定卡（邀请码 + 复制）
 // ---------------------------------------------------------------------------
 
-class _BalanceCard extends StatelessWidget {
-  const _BalanceCard({required this.balance});
+class _PairTile extends StatelessWidget {
+  const _PairTile({
+    required this.isPaired,
+    required this.isFullyBound,
+    required this.inviteCode,
+    required this.onTap,
+  });
 
-  final int balance;
+  final bool isPaired;
+  final bool isFullyBound;
+  final String inviteCode;
+  final VoidCallback onTap;
+
+  /// 邀请码行：有码显示码 + 真实绑定状态，没有码就是引导文案（块不消失）。
+  String get _codeLine {
+    if (inviteCode.isEmpty) return '还没有邀请码 · 点右侧生成一个';
+    if (!isPaired) return '#$inviteCode （等待绑定）';
+    return isFullyBound ? '#$inviteCode （双人绑定成功）' : '#$inviteCode （等待对方输入）';
+  }
+
+  void _copy(BuildContext context) {
+    if (inviteCode.isEmpty) {
+      onTap();
+      return;
+    }
+    Clipboard.setData(ClipboardData(text: inviteCode));
+    showCozyToast(context, '已复制伴侣邀请码');
+  }
 
   @override
   Widget build(BuildContext context) {
-    return CozyCard(
-      onTap: () {},
-      radius: 16,
-      padding: const EdgeInsets.all(18),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Row(
-            children: <Widget>[
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Text(
-                      '糖糖币余额',
-                      style: _ts(16, 22, FontWeight.w900, CozyPalette.onSurface),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '点菜时真实扣减，是你们小饭桌的专属币',
-                      style: _ts(12, 18, FontWeight.w400, CozyPalette.onSurfaceVariant),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 12),
-              Container(
-                decoration: BoxDecoration(
-                  color: CozyPalette.primaryContainer.withValues(alpha: 0.72),
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: <Widget>[
-                    const _CandyCoinIcon(size: 24),
-                    const SizedBox(width: 5),
-                    CozyCountUp(
-                      value: balance,
-                      suffix: ' 枚',
-                      style: _ts(15, 22, FontWeight.w900, CozyPalette.primary),
-                    ),
-                  ],
-                ),
-              ),
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.lightImpact();
+        onTap();
+      },
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
+        decoration: BoxDecoration(
+          // demo：`from-rose-50 to-pink-50` —— 极淡的一层粉压在纯白页面上。
+          gradient: LinearGradient(
+            begin: Alignment.centerLeft,
+            end: Alignment.centerRight,
+            colors: <Color>[
+              CozyPalette.secondaryContainer.withValues(alpha: 0.42),
+              CozyPalette.primaryContainer.withValues(alpha: 0.22),
             ],
           ),
-          const SizedBox(height: 8),
-          Text(
-            '余额不足时，需要饲养员增加糖糖币后才能提交点菜',
-            style: _ts(12, 18, FontWeight.w400, CozyPalette.onSurfaceVariant),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: CozyPalette.secondaryContainer.withValues(alpha: 0.90),
           ),
+        ),
+        child: Row(
+          children: <Widget>[
+            Container(
+              width: 40,
+              height: 40,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(13),
+                boxShadow: CozyLight.cardShadow,
+              ),
+              child: const Text('💑', style: TextStyle(fontSize: 18, height: 1.2)),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  Text(
+                    '伴侣邀请码 (Pair ID)',
+                    style: _ts(12, 16, FontWeight.w900, CozyPalette.onSurface),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    _codeLine,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: _ts(11, 16, FontWeight.w900, CozyPalette.primary)
+                        .copyWith(letterSpacing: 0.5),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            GestureDetector(
+              onTap: () => _copy(context),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: CozyPalette.secondaryContainer),
+                  boxShadow: CozyLight.cardShadow,
+                ),
+                child: Text(
+                  inviteCode.isEmpty ? '去生成' : '复制',
+                  style: _ts(12, 16, FontWeight.w900, CozyPalette.primary),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// demo「Settings List」：一张白卡 + divide-y 行
+// ---------------------------------------------------------------------------
+
+class _SettingsCard extends StatelessWidget {
+  const _SettingsCard({required this.rows});
+
+  final List<Widget> rows;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: CozyPalette.outlineVariant.withValues(alpha: 0.72),
+        ),
+        boxShadow: CozyLight.cardShadow,
+      ),
+      child: Column(
+        children: <Widget>[
+          for (int i = 0; i < rows.length; i++) ...<Widget>[
+            if (i > 0)
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 10),
+                child: Divider(height: 1, thickness: 1, color: CozyLight.hairline),
+              ),
+            rows[i],
+          ],
         ],
       ),
     );
   }
 }
 
-// ---------------------------------------------------------------------------
-// ProfileActionRow (ProfileScreen.kt:737-787)
-// ---------------------------------------------------------------------------
-
-class _ActionRow extends StatelessWidget {
-  const _ActionRow({
+class _SettingRow extends StatelessWidget {
+  const _SettingRow({
     required this.icon,
     required this.title,
-    this.trailingText,
+    required this.subtitle,
     required this.onTap,
+    this.trailing,
   });
 
-  final IconData icon;
+  final Widget icon;
   final String title;
-  final String? trailingText;
+  final String subtitle;
   final VoidCallback onTap;
+  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
-    final String? trailing = trailingText;
-    return SizedBox(
-      height: 68,
-      child: CozyCard(
-        onTap: onTap,
-        radius: 16,
-        padding: EdgeInsets.zero,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Row(
-            children: <Widget>[
-              Container(
-                width: 42,
-                height: 42,
-                alignment: Alignment.center,
-                decoration: const BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: CozyPalette.surfaceVariant,
-                ),
-                child: Icon(icon, size: 24, color: CozyPalette.onSurfaceVariant),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Text(
-                  title,
-                  style: _ts(16, 22, FontWeight.w700, CozyPalette.onSurface),
-                ),
-              ),
-              if (trailing != null && trailing.isNotEmpty)
-                Container(
-                  // 【真机修正】原色是琥珀黄（0xFFFFE6A7 / 边 0xFFE8BE63），
-                  // 是全局调色板里没有的第三种强调色，且和上面余额卡同一个数据的
-                  // 粉色胶囊对不上。统一到 secondaryContainer。
-                  decoration: BoxDecoration(
-                    color: CozyPalette.secondaryContainer.withValues(alpha: 0.72),
-                    borderRadius: BorderRadius.circular(999),
-                    border: Border.all(
-                      color: CozyPalette.outlineVariant.withValues(alpha: 0.62),
-                      width: 1,
-                    ),
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.lightImpact();
+        onTap();
+      },
+      behavior: HitTestBehavior.opaque,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+        child: Row(
+          children: <Widget>[
+            icon,
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: _ts(12.5, 17, FontWeight.w900, CozyPalette.onSurface),
                   ),
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                  child: Text(
-                    trailing,
-                    style: _ts(12, 16, FontWeight.w900, CozyPalette.secondary),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: _ts(10.5, 15, FontWeight.w400, CozyPalette.onSurfaceVariant),
                   ),
-                )
-              else
-                const Icon(Icons.keyboard_arrow_right, color: CozyPalette.onSurfaceVariant),
-            ],
-          ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            trailing ??
+                const Icon(
+                  Icons.chevron_right_rounded,
+                  size: 18,
+                  color: CozyPalette.onSurfaceVariant,
+                ),
+          ],
         ),
       ),
     );
   }
 }
+
+/// 行首 36×36 圆角图标位（demo `w-9 h-9 rounded-xl`）。
+class _RowIcon extends StatelessWidget {
+  const _RowIcon({required this.background, required this.child});
+
+  final Color background;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 36,
+      height: 36,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: child,
+    );
+  }
+}
+
+/// 行尾小胶囊：只装真实数值（相守天数 / 糖糖币 / 版本号）。
+class _TrailingPill extends StatelessWidget {
+  const _TrailingPill({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: CozyPalette.secondaryContainer.withValues(alpha: 0.72),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(
+          color: CozyPalette.outlineVariant.withValues(alpha: 0.62),
+        ),
+      ),
+      child: Text(text, style: _ts(12, 16, FontWeight.w900, CozyPalette.secondary)),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 糖糖币余额大卡 / 155×155 巨卡 / 68 高单行列表（原 ProfileActionRow）已按 demo
+// 结构移除：
+//   · 余额 → 资料卡的「糖糖币 N 枚」标签 + 「糖糖币充值 / 撒糖中心」行的行尾胶囊
+//   · 店铺 / 订单 / 编辑资料 / 邀请对方 → 收进上面的两组设置行（编辑资料进了资料卡）
+// 余额与流水本身仍在 `CandyCoinsPage`（该页未改动）。
+// ---------------------------------------------------------------------------
+
 
 // ---------------------------------------------------------------------------
 // CandyCoinIcon (ui/components/CandyCoinIcon.kt)
