@@ -22,6 +22,7 @@ import 'package:flutter/services.dart';
 
 import '../../data/app_state.dart';
 import '../../data/category_placement.dart';
+import '../../data/food_images.dart';
 import '../../data/image_cache.dart';
 import '../../data/xiachufang_client.dart';
 import '../theme/cozy_glass.dart';
@@ -61,7 +62,8 @@ const List<Map<String, dynamic>> _kChineseSeeds = [
     'diff': '经典硬菜',
     'category': '招牌热炒',
     'desc': '酸甜浓郁，酥脆多汁，伴侣连吃三碗米饭的秘密法宝。',
-    'imageUrl': 'https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=500&q=80',
+    'assetImage': 'assets/images/dishes/dish_101.jpg',
+    'imageUrl': 'https://www.themealdb.com/images/media/meals/lwsnkl1604181187.jpg',
     'price': 22.0,
   },
   {
@@ -73,7 +75,8 @@ const List<Map<String, dynamic>> _kChineseSeeds = [
     'diff': '小白必会',
     'category': '招牌热炒',
     'desc': '可乐浓汁包裹，鸡翅软烂脱骨，咸甜适中超治愈。',
-    'imageUrl': 'https://images.unsplash.com/photo-1527477378370-17d47bf1b18d?auto=format&fit=crop&w=500&q=80',
+    'assetImage': 'assets/images/dishes/dish_102.jpg',
+    'imageUrl': 'https://www.themealdb.com/images/media/meals/feh9k21784665694.jpg',
     'price': 20.0,
   },
   {
@@ -85,7 +88,8 @@ const List<Map<String, dynamic>> _kChineseSeeds = [
     'diff': '国民家常',
     'category': '招牌热炒',
     'desc': '沙瓤番茄炒出浓郁红汤，土鸡蛋金黄蓬松，盖饭一绝。',
-    'imageUrl': 'https://images.unsplash.com/photo-1540420773420-3366772f4999?auto=format&fit=crop&w=500&q=80',
+    'assetImage': 'assets/images/dishes/dish_103.jpg',
+    'imageUrl': 'https://www.themealdb.com/images/media/meals/47y6ii1765658818.jpg',
     'price': 16.0,
   },
   {
@@ -97,7 +101,8 @@ const List<Map<String, dynamic>> _kChineseSeeds = [
     'diff': '川味下饭',
     'category': '招牌热炒',
     'desc': '牛肉碎煸香，豆腐滑嫩如布丁，花椒面麻香扑鼻热气腾腾。',
-    'imageUrl': 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=500&q=80',
+    'assetImage': 'assets/images/dishes/dish_104.jpg',
+    'imageUrl': 'https://www.themealdb.com/images/media/meals/1525874812.jpg',
     'price': 16.0,
   },
   {
@@ -109,7 +114,8 @@ const List<Map<String, dynamic>> _kChineseSeeds = [
     'diff': '滋补温润',
     'category': '暖心热汤',
     'desc': '甜玉米清甜，胡萝卜软糯，慢炖排骨汤清甜暖胃。',
-    'imageUrl': 'https://images.unsplash.com/photo-1547592166-23ac45744acd?auto=format&fit=crop&w=500&q=80',
+    'assetImage': 'assets/images/dishes/dish_105.jpg',
+    'imageUrl': 'https://www.themealdb.com/images/media/meals/1529446137.jpg',
     'price': 24.0,
   },
   {
@@ -121,7 +127,8 @@ const List<Map<String, dynamic>> _kChineseSeeds = [
     'diff': '招牌拿手',
     'category': '招牌热炒',
     'desc': '三层五花肉冰糖炒色，小火慢煨肥而不腻、入口即化。',
-    'imageUrl': 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=500&q=80',
+    'assetImage': 'assets/images/dishes/dish_106.jpg',
+    'imageUrl': 'https://www.themealdb.com/images/media/meals/1529443236.jpg',
     'price': 26.0,
   },
   {
@@ -133,7 +140,8 @@ const List<Map<String, dynamic>> _kChineseSeeds = [
     'diff': '爽辣过瘾',
     'category': '招牌热炒',
     'desc': '滑嫩牛肉片垫底豆芽，淋上一勺热滚滚的刀口辣椒油。',
-    'imageUrl': 'https://images.unsplash.com/photo-1555939594-58d7cb561ad1?auto=format&fit=crop&w=500&q=80',
+    'assetImage': 'assets/images/dishes/dish_107.jpg',
+    'imageUrl': 'https://www.themealdb.com/images/media/meals/n1hcou1628770088.jpg',
     'price': 28.0,
   },
   {
@@ -145,7 +153,8 @@ const List<Map<String, dynamic>> _kChineseSeeds = [
     'diff': '快手素菜',
     'category': '素菜',
     'desc': '翠绿时蔬大火爆炒，蒜粒金黄出香，清脆爽口又解腻。',
-    'imageUrl': 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=500&q=80',
+    'assetImage': 'assets/images/dishes/dish_108.jpg',
+    'imageUrl': 'https://www.themealdb.com/images/media/meals/60oc3k1699009846.jpg',
     'price': 14.0,
   },
   {
@@ -157,7 +166,8 @@ const List<Map<String, dynamic>> _kChineseSeeds = [
     'diff': '酸甜微辣',
     'category': '招牌热炒',
     'desc': '鸡丁滑嫩入味，花生米香脆可口，糊辣荔枝味型超地道。',
-    'imageUrl': 'https://images.unsplash.com/photo-1603894584373-5ac82b2ae398?auto=format&fit=crop&w=500&q=80',
+    'assetImage': 'assets/images/dishes/dish_109.jpg',
+    'imageUrl': 'https://www.themealdb.com/images/media/meals/feh9k21784665694.jpg',
     'price': 20.0,
   },
   {
@@ -169,7 +179,8 @@ const List<Map<String, dynamic>> _kChineseSeeds = [
     'diff': '百吃不厌',
     'category': '素菜',
     'desc': '手切细丝爽脆可口，干辣椒香醋炝锅，酸辣开胃停不下来。',
-    'imageUrl': 'https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?auto=format&fit=crop&w=500&q=80',
+    'assetImage': 'assets/images/dishes/dish_110.jpg',
+    'imageUrl': 'https://www.themealdb.com/images/media/meals/60oc3k1699009846.jpg',
     'price': 12.0,
   },
   {
@@ -181,7 +192,8 @@ const List<Map<String, dynamic>> _kChineseSeeds = [
     'diff': '开胃金汤',
     'category': '招牌热炒',
     'desc': '黑鱼片薄嫩如纸，老坛酸菜酸爽过瘾，金汤浓郁泡饭一绝。',
-    'imageUrl': 'https://images.unsplash.com/photo-1519708227418-c8fd9a32b7a2?auto=format&fit=crop&w=500&q=80',
+    'assetImage': 'assets/images/dishes/dish_111.jpg',
+    'imageUrl': 'https://www.themealdb.com/images/media/meals/ysxwuq1487323065.jpg',
     'price': 28.0,
   },
   {
@@ -193,7 +205,8 @@ const List<Map<String, dynamic>> _kChineseSeeds = [
     'diff': '滑嫩鲜香',
     'category': '招牌热炒',
     'desc': '牛里脊鲜嫩多汁，蛋液滑嫩如果冻，清淡温和超营养。',
-    'imageUrl': 'https://images.unsplash.com/photo-1534422298391-e4f8c172dddb?auto=format&fit=crop&w=500&q=80',
+    'assetImage': 'assets/images/dishes/dish_112.jpg',
+    'imageUrl': 'https://www.themealdb.com/images/media/meals/1529443236.jpg',
     'price': 24.0,
   },
   {
@@ -205,7 +218,8 @@ const List<Map<String, dynamic>> _kChineseSeeds = [
     'diff': '鲜美滋补',
     'category': '暖心热汤',
     'desc': '干香菇充分泡发，小火慢煨鸡肉香气扑鼻，汤清味厚。',
-    'imageUrl': 'https://images.unsplash.com/photo-1604908176997-125f25cc6f3d?auto=format&fit=crop&w=500&q=80',
+    'assetImage': 'assets/images/dishes/dish_113.jpg',
+    'imageUrl': 'https://www.themealdb.com/images/media/meals/feh9k21784665694.jpg',
     'price': 32.0,
   },
   {
@@ -217,7 +231,8 @@ const List<Map<String, dynamic>> _kChineseSeeds = [
     'diff': '焦香下饭',
     'category': '素菜',
     'desc': '四季豆煸出虎皮微皱，肉碎芽菜干香扑鼻，米饭绝配。',
-    'imageUrl': 'https://images.unsplash.com/photo-1587314168485-3236d6710814?auto=format&fit=crop&w=500&q=80',
+    'assetImage': 'assets/images/dishes/dish_114.jpg',
+    'imageUrl': 'https://www.themealdb.com/images/media/meals/60oc3k1699009846.jpg',
     'price': 18.0,
   },
   {
@@ -229,7 +244,8 @@ const List<Map<String, dynamic>> _kChineseSeeds = [
     'diff': '软烂浓香',
     'category': '招牌热炒',
     'desc': '牛腩软烂多汁，铁棍山药粉糯清甜，暖心暖胃一煲搞定。',
-    'imageUrl': 'https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?auto=format&fit=crop&w=500&q=80',
+    'assetImage': 'assets/images/dishes/dish_115.jpg',
+    'imageUrl': 'https://www.themealdb.com/images/media/meals/ursuup1487348423.jpg',
     'price': 30.0,
   },
   {
@@ -241,7 +257,8 @@ const List<Map<String, dynamic>> _kChineseSeeds = [
     'diff': '经典川味',
     'category': '招牌热炒',
     'desc': '猪里脊肉丝滑嫩，木耳笋丝爽脆，酸甜微辣咸鲜回味无穷。',
-    'imageUrl': 'https://images.unsplash.com/photo-1541832676-9b763b0239ab?auto=format&fit=crop&w=500&q=80',
+    'assetImage': 'assets/images/dishes/dish_116.jpg',
+    'imageUrl': 'https://www.themealdb.com/images/media/meals/1529443236.jpg',
     'price': 20.0,
   },
 ];
@@ -1063,91 +1080,189 @@ class _DiscoverPageState extends State<DiscoverPage> {
       return _buildIndexResultCard(context, recipe);
     }
 
+    // 【1:1 对齐 demo】demo `index.html` → `renderDiscoverResults()`：
+    //   白底卡 + 96 方图（左上角来源角标）+ 15px 黑体菜名 + 评分 chip
+    //   + 单行描述 + 底行（抖音/哔站小 chip ┃ 加入我的小店胶囊）
+    // 旧版是「粉底大卡 + 19px 菜名 + 全宽加入按钮 + 抖音视频/哔站视频」，
+    // 与 demo 观感完全不同，故整块重写。
     final theme = Theme.of(context);
     final name = _name(recipe);
-    final subtitle = _subtitle(recipe);
+    final desc = _subtitle(recipe);
     final added = _isAdded(recipe);
+    final score = (recipe['score'] as String?)?.trim() ?? '';
+    final sourceLabel = _displaySourceName(recipe);
 
     return _Pressable(
       onTap: () => _showDishDetail(recipe),
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.all(8),
+        padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: _discoverCard,
+          color: Colors.white,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: _discoverCardBorder, width: 2),
+          border: Border.all(
+            color: _discoverCardBorder.withValues(alpha: 0.20),
+            width: 2,
+          ),
         ),
         child: Row(
-          children: [
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            // demo `w-[96px] h-[96px] rounded-xl` + 左上角来源角标
             SizedBox(
-              width: 84,
-              height: 84,
-              child: Container(
-                clipBehavior: Clip.antiAlias,
-                decoration: BoxDecoration(
-                  color: _kThumbBg,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: _discoverCardBorder, width: 2),
-                ),
-                child: _DishImageOrPlaceholder(
-                  recipe: recipe,
-                  fit: BoxFit.cover,
-                  cssWidth: 96,
-                  emojiSize: 34,
+              width: 96,
+              height: 96,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: <Widget>[
+                    Container(
+                      decoration: BoxDecoration(
+                        color: _kThumbBg,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: _DishImageOrPlaceholder(
+                        recipe: recipe,
+                        fit: BoxFit.cover,
+                        cssWidth: 96,
+                        emojiSize: 34,
+                      ),
+                    ),
+                    Positioned(
+                      top: 4,
+                      left: 4,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.60),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          sourceLabel,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 9,
+                            height: 1.2,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
-            const SizedBox(width: 14),
+            const SizedBox(width: 12),
             Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 6),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: CozyPalette.onPrimaryContainer,
-                        fontSize: 19,
-                        height: 25 / 19,
-                        fontWeight: FontWeight.w900,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Expanded(
+                        child: Text(
+                          name,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Color(0xFF1D1B18),
+                            fontSize: 15,
+                            height: 20 / 15,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 6),
-                    Row(
-                      children: [
-                        _DiscoverSourceChip(text: _displaySourceName(recipe)),
-                        const SizedBox(width: 8),
-                        Expanded(
+                      if (score.isNotEmpty) ...<Widget>[
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFFF0F2),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(
+                              color:
+                                  const Color(0xFFF4A7B9).withValues(alpha: 0.30),
+                            ),
+                          ),
                           child: Text(
-                            subtitle.isEmpty ? '暂无描述' : subtitle,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: CozyPalette.onSurfaceVariant,
+                            '$score分',
+                            style: const TextStyle(
+                              color: Color(0xFF894C5C),
+                              fontSize: 10,
+                              height: 1.2,
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
                         ),
                       ],
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    desc.isEmpty ? '暂无描述' : desc,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: CozyPalette.onSurfaceVariant,
+                      fontSize: 12,
                     ),
-                    const SizedBox(height: 8),
-                    _SquishyDiscoverButton(
-                      text: added ? '已在我的小店' : '加入我的小店',
-                      enabled: !added,
-                      onTap: () => _addToShop(recipe),
+                  ),
+                  const SizedBox(height: 10),
+                  Container(
+                    padding: const EdgeInsets.only(top: 8),
+                    decoration: BoxDecoration(
+                      border: Border(
+                        top: BorderSide(
+                          color: CozyPalette.outlineVariant.withValues(alpha: 0.40),
+                        ),
+                      ),
                     ),
-                    const SizedBox(height: 7),
-                    _RecipeVideoLinkIcons(
-                      query: name,
-                      compact: true,
-                      onOpen: _openVideo,
+                    child: Row(
+                      children: <Widget>[
+                        _SmallVideoChip(
+                          text: '抖音',
+                          onTap: () => _openVideo('抖音', name),
+                        ),
+                        const SizedBox(width: 6),
+                        _SmallVideoChip(
+                          text: '哔站',
+                          onTap: () => _openVideo('哔站', name),
+                        ),
+                        const Spacer(),
+                        if (added)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 5,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFEDE7E1),
+                              borderRadius: BorderRadius.circular(999),
+                            ),
+                            child: const Text(
+                              '✓ 已在小店',
+                              style: TextStyle(
+                                color: CozyPalette.onSurfaceVariant,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          )
+                        else
+                          _SmallAddButton(onTap: () => _addToShop(recipe)),
+                      ],
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ],
@@ -1387,26 +1502,30 @@ class _DiscoverPageState extends State<DiscoverPage> {
   }
 
   // 原生 String.displaySourceName()（L794-805）
+  // 【修正】数据层若已给出中文 `sourceLabel`（如「下厨房」），直接透传；
+  // 否则才按英文 source 标识映射。旧版把 `sourceLabel` 塞进 switch，
+  // 中文标签一律落到 `default: '天行'`，导致自家种子库全被标成「天行」。
   static String _displaySourceName(Map<String, dynamic> recipe) {
-    final source =
-        (recipe['sourceLabel'] as String?) ?? (recipe['source'] as String?) ?? 'builtin';
+    final label = (recipe['sourceLabel'] as String?)?.trim() ?? '';
+    if (label.isNotEmpty && RegExp(r'[\u4e00-\u9fff]').hasMatch(label)) {
+      return label;
+    }
+    final source = (label.isNotEmpty ? label : (recipe['source'] as String?) ?? '')
+        .toLowerCase();
     switch (source) {
-      case 'xiachufang':
-        return '下厨房';
       case 'bimissing':
         return '中文菜谱';
       case 'bing':
         return '网络图片';
-      case 'builtin':
-        return '下厨房';
       case 'tian':
         return '天行';
       case 'local':
-        return '我的小店';
       case 'menu':
         return '我的小店';
+      case 'builtin':
+      case 'xiachufang':
       default:
-        return '天行';
+        return '下厨房';
     }
   }
 }
@@ -1516,32 +1635,72 @@ class _CozyMotionVisibilityState extends State<_CozyMotionVisibility> {
   }
 }
 
-/// 原生 DiscoverSourceChip（L615-632）
-class _DiscoverSourceChip extends StatelessWidget {
-  const _DiscoverSourceChip({required this.text});
+/// demo `renderDiscoverResults` 底行左侧的「抖音 / 哔站」轻量 chip：
+/// 对应 `px-1.5 py-0.5 rounded text-[9px] font-bold bg-[#EFEBE6]`。
+class _SmallVideoChip extends StatelessWidget {
+  const _SmallVideoChip({required this.text, required this.onTap});
 
   final String text;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final isMine = text == '我的小店';
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: isMine ? CozyPalette.primaryContainer : _discoverPrimary,
-        borderRadius: BorderRadius.circular(999),
-        border: isMine
-            ? Border.all(color: _discoverPrimary, width: 1)
-            : null,
+    return _Pressable(
+      onTap: onTap,
+      pressedScale: 0.94,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        decoration: BoxDecoration(
+          color: const Color(0xFFEFEBE6),
+          borderRadius: BorderRadius.circular(4),
+        ),
+        child: Text(
+          text,
+          style: const TextStyle(
+            color: CozyPalette.onSurface,
+            fontSize: 9,
+            height: 1.2,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
       ),
-      child: Text(
-        text,
-        maxLines: 1,
-        style: TextStyle(
-          color: isMine ? CozyPalette.onPrimaryContainer : Colors.white,
-          fontSize: 10,
-          height: 14 / 10,
-          fontWeight: FontWeight.w900,
+    );
+  }
+}
+
+/// demo 底行右侧的「＋ 加入我的小店」胶囊：
+/// 对应 `px-3.5 py-1 rounded-full text-xs font-bold bg-cozy-primary`。
+class _SmallAddButton extends StatelessWidget {
+  const _SmallAddButton({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return _Pressable(
+      onTap: onTap,
+      pressedScale: 0.95,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+        decoration: BoxDecoration(
+          color: _discoverPrimary,
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Icon(Icons.add, size: 13, color: Colors.white),
+            SizedBox(width: 3),
+            Text(
+              '加入我的小店',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 12,
+                height: 1.2,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -1695,26 +1854,34 @@ class _DishImageOrPlaceholder extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final url = (recipe['imageUrl'] as String?) ?? (recipe['image_url'] as String?);
-    final emoji = (recipe['emoji'] as String?) ?? '';
+    final asset = recipe['assetImage'] as String?;
+    if (asset != null && asset.isNotEmpty) {
+      return Image.asset(
+        asset,
+        fit: fit,
+        errorBuilder: (context, error, stackTrace) => _placeholder(context),
+      );
+    }
 
-    if (url != null && (url.startsWith('http://') || url.startsWith('https://'))) {
-      // 走带磁盘缓存 / 按尺寸取图 / 先占位后淡入的统一入口（见 CozyDishPhoto）。
-      // 占位色用容器自己的米色，避免「图没到时先闪一块别的颜色」。
-      return CozyDishPhoto(
-        url: url,
+    final name = (recipe['name'] as String?) ?? '';
+    var url = (recipe['imageUrl'] as String?) ?? (recipe['image_url'] as String?);
+    if (url == null || url.trim().isEmpty || !url.startsWith('http')) {
+      url = resolveDishImageOrFallback(name);
+    }
+
+    return CozyDishPhoto(
+      url: url,
+      cssWidth: cssWidth,
+      fit: fit,
+      placeholderColor: _kThumbBg,
+      fallback: CozyDishPhoto(
+        url: resolveDishImageOrFallback(name),
         cssWidth: cssWidth,
         fit: fit,
         placeholderColor: _kThumbBg,
         fallback: _placeholder(context),
-      );
-    }
-    if (emoji.trim().isNotEmpty) {
-      return Center(
-        child: Text(emoji, style: TextStyle(fontSize: emojiSize)),
-      );
-    }
-    return _placeholder(context);
+      ),
+    );
   }
 
   Widget _placeholder(BuildContext context) {

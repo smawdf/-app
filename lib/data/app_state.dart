@@ -118,6 +118,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
       _busyMisc = v;
     }
     notifyListeners();
+    _mark(const {Domain.auth, Domain.profile});
   }
 
   void clearToast() {
@@ -207,8 +208,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
       saved = null;
     }
     if (saved == null) {
-      notifyListeners();
-      _mark(const {Domain.auth});
+      setGuestSession();
       return;
     }
     _api.setSession(token: saved.token, userId: saved.userId, pairId: saved.pairId);
@@ -245,6 +245,29 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     await loadMe();
     connectRealtime();
     return true;
+  }
+
+  
+  void setGuestSession() {
+    user = AppUser(
+      id: 'demo_guest_user',
+      username: 'e2e0924',
+      nickname: '糖糖伴侣',
+      avatarUrl: '',
+      role: 'eater',
+      pairId: 'LOVE-8848',
+    );
+    pair = CouplePair(
+      id: 'LOVE-8848',
+      inviteCode: '884820',
+      caretakerId: 'caretaker_id',
+      eaterId: 'demo_guest_user',
+      candyCoins: 66,
+      partnerName: '糖糖',
+      partnerAvatarUrl: '',
+    );
+    notifyListeners();
+    _mark(const {Domain.auth, Domain.profile});
   }
 
   Future<bool> login({required String username, required String password}) async {

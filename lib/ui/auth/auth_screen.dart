@@ -225,6 +225,20 @@ class _AuthScreenState extends State<AuthScreen> {
                   enabled: !busy,
                   onTap: _submitLogin,
                 ),
+                      const SizedBox(height: 14),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 48,
+                        child: OutlinedButton(
+                          onPressed: () => AppState.instance.setGuestSession(),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: CozyPalette.primary,
+                            side: const BorderSide(color: CozyPalette.primary, width: 1.5),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                          ),
+                          child: const Text('✨ 免密一键体验 (演示/测试)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                        ),
+                      ),
               ],
             ),
           ),

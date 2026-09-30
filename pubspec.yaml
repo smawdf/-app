@@ -85,6 +85,7 @@ flutter:
   #   ic_launcher_orderdisk_dogs_cropped.png → DeviceSwitchScreen.kt:75
   assets:
     - assets/images/
+    - assets/images/dishes/
     # 发现页「搜一搜」不打包任何菜谱数据：搜索时实时抓下厨房（见 lib/data/xiachufang_client.dart），
     # 只有用户点「加入我的小店」时才写进云端。
 
