@@ -8,7 +8,7 @@ import '../candy/candy_coins_page.dart';
 import '../couple/anniversary_page.dart';
 import '../menu/menu_management_page.dart';
 import '../theme/cozy_glass.dart';
-import '../widgets/cozy_count_up.dart';
+import '../widgets/cozy_dish_photo.dart';
 import '../widgets/cozy_toast.dart';
 
 /// 首页 —— 「我们的小饭桌」。
@@ -128,29 +128,28 @@ class _HomePageState extends State<HomePage> {
               children: [
                 _buildTopBar(),
 
-                const SizedBox(height: 6),
+                const SizedBox(height: 10),
 
-                // 1. 主角：我们的小饭桌
+                // 1. 主角：我们的小饭桌（含相守天数胶囊 / 纪念相册 / 角色切换栏）
                 _buildTableHero(user: user, pair: pair, isPaired: isPaired),
 
                 const SizedBox(height: 14),
 
-                // 2. 关系进行中的两个数字：糖糖币余额 / 最近一餐
-                _buildStatsRow(state: state, isPaired: isPaired),
+                // 2. 今日主厨进行中（没有进行中的订单时自动收起，不留空壳）
+                ..._buildLiveOrderBlock(state),
+
+                // 3. 三张快捷卡：我的菜单 / 小店管理 / 纪念日
+                _buildQuickActions(isCaretaker: state.isCaretaker),
 
                 const SizedBox(height: 14),
 
-                // 3. 两个小入口：我的店铺 / 去点菜
-                _buildEntryRow(isCaretaker: state.isCaretaker),
+                // 4. 糖糖币储备横条（含「投喂对方」）
+                _buildCoinsBar(state: state, isPaired: isPaired),
 
-                const SizedBox(height: 14),
+                const SizedBox(height: 18),
 
-                // 4. 今天谁在饭桌旁：饲养员 / 吃货
-                _buildRoleSwitcher(
-                  selectedRole: user?.role,
-                  onCaretakerClick: () => _switchRole('caretaker'),
-                  onEaterClick: () => _switchRole('eater'),
-                ),
+                // 5. 饲养员私房招牌（店内菜品 Top 2，对应 demo「糖糖最爱吃 Top 3」）
+                ..._buildChefPicks(state),
               ],
             ),
           ),
@@ -159,29 +158,99 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  /// 顶部：居中一句话 + 左心右铃（铃铛进糖糖币）
+  /// 顶部：左「OUR KITCHEN / 双人小饭桌」标签块 + 大标题 + 右铃铛
+  /// （对齐 demo `<!-- Romantic Top Header -->`：标签胶囊 + 副标 + 标题 + 🔔）
   Widget _buildTopBar() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+      padding: const EdgeInsets.fromLTRB(20, 6, 20, 0),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.favorite, color: CozyPalette.primary, size: 24),
-          const Expanded(
-            child: Text(
-              "今天也要一起好好吃饭",
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 21,
-                fontWeight: FontWeight.w900,
-                color: CozyPalette.onSurface,
-                letterSpacing: -0.5,
-              ),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: CozyPalette.primaryContainer,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: const Text(
+                        'OUR KITCHEN',
+                        style: TextStyle(
+                          fontSize: 10,
+                          height: 1.3,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 1.0,
+                          color: CozyPalette.primary,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    const Text(
+                      '双人小饭桌',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: CozyPalette.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    const Flexible(
+                      child: Text(
+                        '今天也要一起好好吃饭',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 21,
+                          height: 1.25,
+                          fontWeight: FontWeight.w900,
+                          color: CozyPalette.onSurface,
+                          letterSpacing: -0.5,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 5),
+                    Image.asset(
+                      'assets/images/cooking.png',
+                      width: 20,
+                      height: 20,
+                      filterQuality: FilterQuality.high,
+                      errorBuilder: (context, error, stackTrace) =>
+                          const Text('🍳', style: TextStyle(fontSize: 16)),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
+          const SizedBox(width: 8),
           GestureDetector(
             onTap: _openCoins,
-            child: const Icon(Icons.notifications_none_rounded,
-                color: CozyPalette.onSurfaceVariant, size: 24),
+            child: Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: CozyPalette.surface,
+                shape: BoxShape.circle,
+                border: Border.all(color: CozyPalette.outlineVariant),
+                boxShadow: CozyLight.cardShadow,
+              ),
+              child: const Icon(
+                Icons.notifications_none_rounded,
+                color: CozyPalette.secondary,
+                size: 20,
+              ),
+            ),
           ),
         ],
       ),
@@ -210,13 +279,19 @@ class _HomePageState extends State<HomePage> {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
+        // demo：`from-white via-cozy-pink-light/40 to-cozy-peach/30`
+        // 浅色雾面渐变（旧版是重粉实色，和 demo 观感差得明显）。
+        gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [CozyPalette.secondaryContainer, CozyPalette.primaryContainer],
+          colors: [
+            CozyPalette.surface,
+            CozyPalette.primaryContainer.withValues(alpha: 0.55),
+            CozyPalette.tertiaryContainer.withValues(alpha: 0.35),
+          ],
         ),
         borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: CozyPalette.primary.withValues(alpha: 0.30), width: 1.3),
+        border: Border.all(color: Colors.white, width: 1.3),
         boxShadow: CozyLight.cardShadow,
       ),
       child: ClipRRect(
@@ -224,7 +299,7 @@ class _HomePageState extends State<HomePage> {
         child: Stack(
           alignment: Alignment.center,
           children: [
-            // 爪印水印只当纸纹，不和「两个座位 + 天数」抢注意力
+            // 爪印水印只当纸纹
             Positioned(
               right: -30,
               bottom: -20,
@@ -235,31 +310,24 @@ class _HomePageState extends State<HomePage> {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 14, 20, 14),
+              padding: const EdgeInsets.fromLTRB(18, 14, 18, 12),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  // 顶部行：相守天数胶囊 + 右侧「纪念相册 ›」（未配对时给状态 chip）
                   Row(
                     children: [
-                      const Icon(Icons.table_restaurant,
-                          size: 15, color: CozyPalette.primary),
-                      const SizedBox(width: 6),
-                      const Text(
-                        "我们的小饭桌",
-                        style: TextStyle(
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 1.2,
-                          color: CozyPalette.primary,
-                        ),
-                      ),
+                      _buildDaysPill(isPaired: isPaired),
                       const Spacer(),
-                      _buildStatusChip(isPaired),
+                      if (isPaired)
+                        _buildAlbumLink()
+                      else
+                        _buildStatusChip(isPaired),
                     ],
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 16),
 
-                  // 两个座位 + 中间的心
+                  // 两个座位 + 中间跳动的心
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     crossAxisAlignment: CrossAxisAlignment.center,
@@ -270,6 +338,8 @@ class _HomePageState extends State<HomePage> {
                         name: myName,
                         tagText: myRole,
                         highlight: true,
+                        badgeAsset: 'assets/images/chef.png',
+                        badgeColor: CozyPalette.primary,
                       ),
                       Container(
                         width: 42,
@@ -292,27 +362,140 @@ class _HomePageState extends State<HomePage> {
                         name: partnerName,
                         tagText: partnerRole,
                         highlight: isPaired,
+                        badgeAsset: 'assets/images/bowl.png',
+                        badgeColor: CozyPalette.tertiary,
                         onTap: isPaired ? null : () => widget.onNavigateTab(4),
                       ),
                     ],
                   ),
                   const SizedBox(height: 14),
-
-                  // 一起吃饭 N 天（真机此前是写死的 520，现在按云端纪念日算）
-                  _buildDaysBlock(isPaired: isPaired),
-
-                  const SizedBox(height: 12),
                   Container(height: 1, color: CozyLight.hairline),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 6),
 
-                  // 纪念日入口（原「纪念日」长卡的位置，现在归到关系卡里）
-                  _buildAnniversaryRow(),
+                  // 角色切换栏（demo `Role Quick Switch Bar`）
+                  _buildRoleSwitchBar(user: user),
                 ],
               ),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  /// demo 顶部「❤️ 恋爱相守 N 天」胶囊。
+  Widget _buildDaysPill({required bool isPaired}) {
+    final int? days = _daysTogether;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+      decoration: BoxDecoration(
+        color: CozyPalette.surface.withValues(alpha: 0.92),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(
+          color: CozyPalette.outlineVariant.withValues(alpha: 0.60),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.favorite, size: 12, color: Color(0xFFE8385A)),
+          const SizedBox(width: 5),
+          const Text(
+            '恋爱相守',
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.bold,
+              color: CozyPalette.primary,
+            ),
+          ),
+          const SizedBox(width: 4),
+          Text(
+            isPaired && days != null ? '$days' : '—',
+            style: const TextStyle(
+              fontSize: 14,
+              height: 1.1,
+              fontWeight: FontWeight.w900,
+              color: CozyPalette.primary,
+            ),
+          ),
+          const SizedBox(width: 2),
+          const Text(
+            '天',
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.bold,
+              color: CozyPalette.primary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// demo 顶部右侧「纪念相册 ›」。
+  Widget _buildAlbumLink() {
+    return GestureDetector(
+      onTap: _openAnniversary,
+      child: const Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            '纪念相册',
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: CozyPalette.onSurfaceVariant,
+            ),
+          ),
+          Icon(Icons.chevron_right_rounded,
+              size: 15, color: CozyPalette.onSurfaceVariant),
+        ],
+      ),
+    );
+  }
+
+  /// demo `Role Quick Switch Bar`：一行「点击身份可切换体验角色 + 按钮」。
+  Widget _buildRoleSwitchBar({required AppUser? user}) {
+    final bool isCaretaker = user?.isCaretaker ?? false;
+    return Row(
+      children: [
+        const Expanded(
+          child: Text(
+            '点击身份可切换体验角色：',
+            style: TextStyle(fontSize: 11, color: CozyPalette.onSurfaceVariant),
+          ),
+        ),
+        GestureDetector(
+          onTap: () {
+            HapticFeedback.lightImpact();
+            _switchRole(isCaretaker ? 'eater' : 'caretaker');
+          },
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+            decoration: BoxDecoration(
+              color: CozyPalette.surface,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: CozyPalette.outlineVariant),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.refresh_rounded,
+                    size: 13, color: CozyPalette.primary),
+                const SizedBox(width: 4),
+                Text(
+                  isCaretaker ? '切换为吃货视角' : '切换为饲养员视角',
+                  style: const TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.bold,
+                    color: CozyPalette.primary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -340,108 +523,119 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildDaysBlock({required bool isPaired}) {
-    final int? days = _daysTogether;
-    const TextStyle headlineStyle = TextStyle(
-      fontSize: 22,
-      fontWeight: FontWeight.w900,
-      color: CozyPalette.primary,
-      letterSpacing: -0.3,
-    );
+  /// demo `Active Cooking Status`：进行中的订单才出现，没有就整块收起。
+  List<Widget> _buildLiveOrderBlock(AppState state) {
+    final List<Order> active = state.orders
+        .where((Order o) => o.isActive)
+        .toList()
+      ..sort((Order a, Order b) => b.createdAt.compareTo(a.createdAt));
+    if (active.isEmpty) return const <Widget>[];
 
-    final String headline = !isPaired
-        ? "等对方入座"
-        : (days != null ? "一起吃饭 $days 天" : "一起吃饭的第 1 天");
-    final String sub = !isPaired
-        ? "把邀请码发给 TA，就能一起开饭"
-        : (days != null ? "今天也想和你好好吃饭" : "纪念日还没设置，点下面去挑一天");
+    final Order live = active.first;
+    final String dish = live.items.isEmpty ? '一桌好菜' : live.items.first.name;
 
-    return GestureDetector(
-      onTap: _openAnniversary,
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-        decoration: BoxDecoration(
-          color: CozyPalette.surfaceContainerLow.withValues(alpha: 0.72),
-          borderRadius: BorderRadius.circular(999),
-          border: Border.all(color: CozyPalette.primary.withValues(alpha: 0.20)),
-        ),
-        child: Column(
-          children: [
-            // 一起吃饭 N 天：数字从 0 滚上来（未配对 / 没设纪念日时是整句文案，不滚）
-            if (isPaired && days != null)
-              CozyCountUp(
-                value: days,
-                prefix: "一起吃饭 ",
-                suffix: " 天",
-                textAlign: TextAlign.center,
-                style: headlineStyle,
-              )
-            else
-              Text(
-                headline,
-                textAlign: TextAlign.center,
-                style: headlineStyle,
-              ),
-            const SizedBox(height: 3),
-            Text(
-              sub,
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 11.5, color: CozyPalette.onSurfaceVariant),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildAnniversaryRow() {
-    final DateTime? date = _anniversaryDate;
-    final String label = date == null
-        ? "还没设纪念日"
-        : "纪念日 · ${date.month} 月 ${date.day} 日";
-
-    return GestureDetector(
-      onTap: _openAnniversary,
-      child: Row(
-        children: [
-          Container(
-            width: 30,
-            height: 30,
+    return <Widget>[
+      GestureDetector(
+        onTap: () => widget.onNavigateTab(3),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Container(
+            padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: CozyPalette.tertiary.withValues(alpha: 0.16),
-              borderRadius: BorderRadius.circular(11),
+              color: CozyPalette.surface,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: CozyPalette.outlineVariant.withValues(alpha: 0.72),
+              ),
+              boxShadow: CozyLight.cardShadow,
             ),
-            child: const Icon(Icons.event, color: CozyPalette.tertiary, size: 17),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            child: Row(
               children: [
-                const Text(
-                  "纪念日",
-                  style: TextStyle(
-                    fontSize: 13.5,
-                    fontWeight: FontWeight.w900,
-                    color: CozyPalette.onSurface,
+                Container(
+                  width: 40,
+                  height: 40,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: CozyPalette.tertiaryContainer.withValues(alpha: 0.55),
+                    borderRadius: BorderRadius.circular(13),
+                    border: Border.all(
+                      color: CozyPalette.tertiary.withValues(alpha: 0.35),
+                    ),
+                  ),
+                  child: Image.asset(
+                    'assets/images/cooking.png',
+                    width: 22,
+                    height: 22,
+                    filterQuality: FilterQuality.high,
+                    errorBuilder: (context, error, stackTrace) =>
+                        const Text('🍳', style: TextStyle(fontSize: 18)),
                   ),
                 ),
-                Text(
-                  label,
-                  style: const TextStyle(fontSize: 11, color: CozyPalette.onSurfaceVariant),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Text(
+                            '今日主厨进行中',
+                            style: TextStyle(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w900,
+                              color: CozyPalette.onSurface,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 1,
+                            ),
+                            decoration: BoxDecoration(
+                              color: CozyPalette.tertiaryContainer,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              live.statusLabel,
+                              style: const TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                color: CozyPalette.tertiary,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        '正在做「$dish」，共 ${live.items.length} 道菜 ~',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: CozyPalette.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const Icon(
+                  Icons.chevron_right_rounded,
+                  size: 18,
+                  color: CozyPalette.onSurfaceVariant,
                 ),
               ],
             ),
           ),
-          const Icon(Icons.chevron_right_rounded,
-              color: CozyPalette.onSurfaceVariant, size: 20),
-        ],
+        ),
       ),
-    );
+      const SizedBox(height: 14),
+    ];
   }
 
   /// 一个座位：真头像（有就显示）/ 兜底图标或文字 + 昵称 + 身份标签
+  /// `badgeAsset` 为右上角 Fluent 3D 身份角标（饲养员=厨师帽 / 吃货=瓷碗）。
   Widget _buildSeat({
     required String avatarUrl,
     IconData? fallbackIcon,
@@ -450,26 +644,61 @@ class _HomePageState extends State<HomePage> {
     required String tagText,
     bool highlight = false,
     VoidCallback? onTap,
+    String? badgeAsset,
+    Color? badgeColor,
   }) {
     return GestureDetector(
       onTap: onTap,
       child: Column(
         children: [
-          Container(
+          SizedBox(
             width: 76,
             height: 76,
-            decoration: BoxDecoration(
-              color: CozyPalette.surfaceContainer,
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: highlight
-                    ? CozyPalette.primary.withValues(alpha: 0.45)
-                    : CozyPalette.surfaceVariant,
-                width: 2,
-              ),
-              boxShadow: CozyLight.cardShadow,
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Container(
+                  width: 76,
+                  height: 76,
+                  decoration: BoxDecoration(
+                    color: CozyPalette.surfaceContainer,
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: highlight
+                          ? CozyPalette.primary.withValues(alpha: 0.45)
+                          : CozyPalette.surfaceVariant,
+                      width: 2,
+                    ),
+                    boxShadow: CozyLight.cardShadow,
+                  ),
+                  child:
+                      ClipOval(child: _seatFill(avatarUrl, fallbackIcon, fallbackText)),
+                ),
+                if (badgeAsset != null)
+                  Positioned(
+                    top: -2,
+                    right: -2,
+                    child: Container(
+                      width: 24,
+                      height: 24,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: badgeColor ?? CozyPalette.primary,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 1.2),
+                      ),
+                      child: Image.asset(
+                        badgeAsset,
+                        width: 16,
+                        height: 16,
+                        filterQuality: FilterQuality.high,
+                        errorBuilder: (context, error, stackTrace) =>
+                            const SizedBox.shrink(),
+                      ),
+                    ),
+                  ),
+              ],
             ),
-            child: ClipOval(child: _seatFill(avatarUrl, fallbackIcon, fallbackText)),
           ),
           const SizedBox(height: 6),
           Text(
@@ -529,142 +758,113 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  /// 关系进行中的两个数字：糖糖币余额 + 最近一餐
-  Widget _buildStatsRow({required AppState state, required bool isPaired}) {
-    final List<Order> orders = [...state.orders]
-      ..sort((Order a, Order b) => b.createdAt.compareTo(a.createdAt));
-    final Order? latest = orders.isEmpty ? null : orders.first;
-
+  /// demo `Candy Coins Fun Widget`：糖糖币储备横条 + 右侧「投喂对方」。
+  /// （旧版是「糖糖币余额 / 最近一餐」两张统计卡，和 demo 结构不同）
+  Widget _buildCoinsBar({required AppState state, required bool isPaired}) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Row(
-        children: [
-          Expanded(
-            child: _buildStatCard(
-              caption: "糖糖币余额",
-              value: "${state.candyCoins} 枚",
-              // 余额从 0 滚上来（语义树里仍是最终值，见 CozyCountUp）
-              valueOverride: CozyCountUp(
-                value: state.candyCoins,
-                suffix: " 枚",
-                style: const TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w900,
-                  color: CozyPalette.primary,
-                ),
-              ),
-              hint: isPaired ? "点菜时会真实扣减" : "先绑定小饭桌",
-              icon: Icons.monetization_on_rounded,
-              // 【审查修正】原来用 Material 的 `$` 图标，和「我的 / 糖糖币管理」
-              // 页里的真币图 candy_coin.png 不是同一个图案，同一个币两套画法。
-              // 这里统一成同一枚币（透明底 PNG，直接铺在徽标底色上）。
-              imageAsset: 'assets/images/candy_coin.png',
-              accent: CozyPalette.primary,
-              onTap: _openCoins,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: _buildStatCard(
-              caption: "最近一餐",
-              value: latest == null
-                  ? "还没开饭"
-                  : (latest.items.isNotEmpty ? latest.items.first.name : "一餐"),
-              hint: latest == null
-                  ? "点菜后这里会留下记录"
-                  : "${latest.statusLabel} · ${latest.candyCoinsSpent} 枚",
-              icon: Icons.ramen_dining_rounded,
-              accent: CozyPalette.tertiary,
-              onTap: () => widget.onNavigateTab(3),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatCard({
-    required String caption,
-    required String value,
-    required String hint,
-    required IconData icon,
-    /// 传入后徽标位置改用这张图（糖糖币用它对齐「我的」页里的真币图）。
-    String? imageAsset,
-    required Color accent,
-    required VoidCallback onTap,
-    /// 传入后用它替换默认的数字文本（用于「数字滚动」）。
-    Widget? valueOverride,
-  }) {
-    return GestureDetector(
-      onTap: () {
-        HapticFeedback.lightImpact();
-        onTap();
-      },
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: CozyPalette.surface,
-          borderRadius: BorderRadius.circular(22),
-          border: Border.all(color: CozyPalette.outlineVariant.withValues(alpha: 0.72)),
-          boxShadow: CozyLight.cardShadow,
+          gradient: const LinearGradient(
+            begin: Alignment.centerLeft,
+            end: Alignment.centerRight,
+            colors: [Color(0xFFFFF7ED), Color(0xFFFEF2F2)],
+          ),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: const Color(0xFFF5D7A8)),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: Row(
           children: [
-            Row(
-              children: [
-                Container(
-                  width: 30,
-                  height: 30,
-                  decoration: BoxDecoration(
-                    color: accent.withValues(alpha: 0.14),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: imageAsset == null
-                      ? Icon(icon, color: accent, size: 17)
-                      : Padding(
-                          padding: const EdgeInsets.all(2),
-                          child: Image.asset(
-                            imageAsset,
-                            width: 26,
-                            height: 26,
-                            filterQuality: FilterQuality.high,
+            Container(
+              width: 36,
+              height: 36,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: const Color(0xFFF2B23E),
+                borderRadius: BorderRadius.circular(13),
+              ),
+              child: Image.asset(
+                'assets/images/candy.png',
+                width: 22,
+                height: 22,
+                filterQuality: FilterQuality.high,
+                errorBuilder: (context, error, stackTrace) => const Icon(
+                  Icons.monetization_on_rounded,
+                  size: 20,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Text(
+                        '糖糖币储备',
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w900,
+                          color: Color(0xFF7A4A10),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 1,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFCEBCF),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Text(
+                          '${state.candyCoins} 币',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w900,
+                            color: Color(0xFFC77A14),
                           ),
                         ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    caption,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    isPaired ? '点菜消耗糖糖币 · 饲养员可撒糖投喂' : '先绑定小饭桌，才能开始点菜',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                      color: CozyPalette.onSurfaceVariant,
+                      color: Color(0xFF9A6A2E),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-            const SizedBox(height: 10),
-            valueOverride ??
-                Text(
-                  value,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+            const SizedBox(width: 8),
+            GestureDetector(
+              onTap: _openCoins,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFFE09A2B), Color(0xFFE8385A)],
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Text(
+                  '投喂对方',
                   style: TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w900,
-                    color: accent,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
                   ),
                 ),
-            const SizedBox(height: 3),
-            Text(
-              hint,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 10, color: CozyPalette.onSurfaceVariant),
+              ),
             ),
           ],
         ),
@@ -672,29 +872,40 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  /// 两个小入口：我的店铺 / 去点菜（原来它们是右侧两张扁卡 + 左侧纪念日长卡）
-  Widget _buildEntryRow({required bool isCaretaker}) {
+  /// demo `Quick Action Cards`：三张竖版快捷卡
+  /// 我的菜单（去点菜）/ 小店管理 / 纪念日。
+  Widget _buildQuickActions({required bool isCaretaker}) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Row(
         children: [
           Expanded(
-            child: _buildEntryCard(
-              title: "我的店铺",
-              subtitle: isCaretaker ? "上传菜单，整理菜品" : "看看饭桌上有什么",
-              icon: Icons.storefront,
-              accent: CozyPalette.primary,
+            child: _buildQuickCard(
+              emoji: '📋',
+              title: '我的菜单',
+              subtitle: '即刻点菜',
+              bg: const Color(0xFFFFE4EA),
+              onTap: () => widget.onNavigateTab(1),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: _buildQuickCard(
+              emoji: '🏪',
+              title: '小店管理',
+              subtitle: isCaretaker ? '菜品上下架' : '看看有什么',
+              bg: const Color(0xFFFDF0D5),
               onTap: _openShop,
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 10),
           Expanded(
-            child: _buildEntryCard(
-              title: "去点菜",
-              subtitle: "看看今天想吃什么",
-              icon: Icons.restaurant_menu,
-              accent: CozyPalette.tertiary,
-              onTap: () => widget.onNavigateTab(1),
+            child: _buildQuickCard(
+              emoji: '🎂',
+              title: '纪念日',
+              subtitle: '浪漫里程碑',
+              bg: const Color(0xFFF0E9FB),
+              onTap: _openAnniversary,
             ),
           ),
         ],
@@ -702,11 +913,11 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildEntryCard({
+  Widget _buildQuickCard({
+    required String emoji,
     required String title,
     required String subtitle,
-    required IconData icon,
-    required Color accent,
+    required Color bg,
     required VoidCallback onTap,
   }) {
     return GestureDetector(
@@ -715,152 +926,198 @@ class _HomePageState extends State<HomePage> {
         onTap();
       },
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 6),
         decoration: BoxDecoration(
-          color: accent.withValues(alpha: 0.10),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: accent.withValues(alpha: 0.28)),
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: CozyPalette.outlineVariant.withValues(alpha: 0.72),
+          ),
+          boxShadow: CozyLight.cardShadow,
         ),
+        child: Column(
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: bg,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(emoji, style: const TextStyle(fontSize: 18)),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w900,
+                color: CozyPalette.onSurface,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              subtitle,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 9.5,
+                color: CozyPalette.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// demo `Today's Chef Recommendation Reel`：饲养员私房招牌
+  /// （店内可售菜品前 2 道：成品图 + 菜名 + 糖糖币价 + 已点次数）。
+  List<Widget> _buildChefPicks(AppState state) {
+    final List<MenuItem> picks = state.menu
+        .where((MenuItem m) => m.isAvailable)
+        .take(2)
+        .toList();
+    if (picks.isEmpty) return const <Widget>[];
+
+    return <Widget>[
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20),
         child: Row(
           children: [
-            Icon(icon, color: accent, size: 22),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+            const Expanded(
+              child: Row(
                 children: [
                   Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 14,
+                    '🌟 饲养员私房招牌',
+                    style: TextStyle(
+                      fontSize: 12.5,
                       fontWeight: FontWeight.w900,
                       color: CozyPalette.onSurface,
                     ),
                   ),
-                  const SizedBox(height: 2),
+                  SizedBox(width: 5),
                   Text(
-                    subtitle,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 10, color: CozyPalette.onSurfaceVariant),
+                    '(拿手 Top 2)',
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: CozyPalette.onSurfaceVariant,
+                    ),
                   ),
+                ],
+              ),
+            ),
+            GestureDetector(
+              onTap: () => widget.onNavigateTab(1),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    '全部菜品',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: CozyPalette.primary,
+                    ),
+                  ),
+                  Icon(Icons.chevron_right_rounded,
+                      size: 14, color: CozyPalette.primary),
                 ],
               ),
             ),
           ],
         ),
       ),
-    );
-  }
-
-  /// 今天谁在饭桌旁：饲养员 / 吃货
-  Widget _buildRoleSwitcher({
-    required String? selectedRole,
-    required VoidCallback onCaretakerClick,
-    required VoidCallback onEaterClick,
-  }) {
-    final bool isCaretaker = selectedRole == 'caretaker';
-    final bool isEater = selectedRole == 'eater';
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Padding(
-            padding: EdgeInsets.only(left: 4, bottom: 10),
-            child: Text(
-              "今天谁在饭桌旁",
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w900,
-                color: CozyPalette.onSurface,
-              ),
-            ),
-          ),
-          Row(
-            children: [
-              Expanded(
-                child: _buildRoleCardItem(
-                  title: "饲养员",
-                  subtitle: "上传菜单，照顾小饭桌",
-                  icon: Icons.soup_kitchen,
-                  selected: isCaretaker,
-                  accent: CozyPalette.primary,
-                  onTap: onCaretakerClick,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _buildRoleCardItem(
-                  title: "吃货",
-                  subtitle: "浏览菜单，准备开饭",
-                  icon: Icons.restaurant,
-                  selected: isEater,
-                  accent: CozyPalette.tertiary,
-                  onTap: onEaterClick,
-                ),
-              ),
+      const SizedBox(height: 10),
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        child: Row(
+          children: [
+            for (int i = 0; i < picks.length; i++) ...[
+              if (i > 0) const SizedBox(width: 10),
+              Expanded(child: _buildPickCard(picks[i])),
             ],
-          ),
-        ],
+          ],
+        ),
       ),
-    );
+    ];
   }
 
-  Widget _buildRoleCardItem({
-    required String title,
-    required String subtitle,
-    required IconData icon,
-    required bool selected,
-    required Color accent,
-    required VoidCallback onTap,
-  }) {
+  Widget _buildPickCard(MenuItem dish) {
     return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.all(14),
+      onTap: () {
+        HapticFeedback.lightImpact();
+        widget.onNavigateTab(1);
+      },
+      child: Container(
+        padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
-          color: selected ? accent.withValues(alpha: 0.12) : CozyPalette.surface,
-          borderRadius: BorderRadius.circular(22),
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(18),
           border: Border.all(
-            color: selected
-                ? accent.withValues(alpha: 0.65)
-                : CozyPalette.outlineVariant.withValues(alpha: 0.72),
-            width: selected ? 1.5 : 1.0,
+            color: CozyPalette.outlineVariant.withValues(alpha: 0.72),
           ),
           boxShadow: CozyLight.cardShadow,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: SizedBox(
+                width: double.infinity,
+                height: 96,
+                child: CozyDishPhoto(
+                  url: dish.imageUrl,
+                  cssWidth: 160,
+                  fit: BoxFit.cover,
+                  placeholderColor: CozyPalette.surfaceVariant,
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              dish.name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w900,
+                color: CozyPalette.onSurface,
+              ),
+            ),
+            const SizedBox(height: 4),
             Row(
               children: [
-                Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    color: accent.withValues(alpha: 0.14),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(icon, color: accent, size: 20),
+                Image.asset(
+                  'assets/images/candy.png',
+                  width: 14,
+                  height: 14,
+                  filterQuality: FilterQuality.high,
+                  errorBuilder: (context, error, stackTrace) =>
+                      const SizedBox.shrink(),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 3),
                 Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 15,
+                  dish.price.toStringAsFixed(0),
+                  style: const TextStyle(
+                    fontSize: 12,
                     fontWeight: FontWeight.w900,
-                    color: selected ? accent : CozyPalette.onSurface,
+                    color: Color(0xFFE8385A),
+                  ),
+                ),
+                const Spacer(),
+                Text(
+                  '已点 ${dish.salesCount} 次',
+                  style: const TextStyle(
+                    fontSize: 10,
+                    color: CozyPalette.onSurfaceVariant,
                   ),
                 ),
               ],
-            ),
-            const SizedBox(height: 10),
-            Text(
-              subtitle,
-              style: const TextStyle(fontSize: 11, color: CozyPalette.onSurfaceVariant),
             ),
           ],
         ),
