@@ -72,12 +72,12 @@ class _AnniversaryPageState extends State<AnniversaryPage> {
   }
 
   /// 原生 `if (showEditor) AnniversaryEditorDialog(...)`（:184-196）：
-  /// 保存走 `profileRepository.saveProfile(profile.copy(pairedAt = date))`，
-  /// Flutter 侧对应 `AppState.instance.setAnniversary(...)`。
+  /// 升级为独立内嵌全屏页面，消除多层滑动与挤压弹窗。
   Future<void> _openEditor() async {
-    final DateTime? picked = await showDialog<DateTime>(
-      context: context,
-      builder: (BuildContext _) => _AnniversaryEditorDialog(initialDate: _startDate),
+    final DateTime? picked = await Navigator.of(context).push<DateTime>(
+      MaterialPageRoute<DateTime>(
+        builder: (BuildContext _) => _AnniversaryEditorPage(initialDate: _startDate),
+      ),
     );
     if (picked == null || !mounted) return;
     final bool ok = await AppState.instance.setAnniversary(_formatDate(picked));
@@ -272,254 +272,178 @@ class _AnniversaryHeroCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 原生 StitchGlassCard(containerColor = #FFEFF3 @0.46, radius = 18,
-    // contentPadding = h28/v16)（:294-301）；描边/投影走已批准的偏离。
-    //
-    // 【视觉重写】原版把三枚 FloatingHeart（alpha .54/.38/.64）自由飘在卡面上，
-    // 半透明描边直接压住「恋爱第 N 天」和「每一次心跳…」两行字，卡面显脏。
-    // 这里改成首页 `home_page.dart:210 _buildTableHero()` 的「渐变主角卡」写法：
-    //   · LinearGradient(secondaryContainer → primaryContainer) + 圆角 28
-    //   · 描边心只留一枚，放进右侧独立一列（宽度由 Row 分配，物理上不可能压字）
-    //   · 内部层级：眉标胶囊 → 超大天数 → 副标题 → CozyLight.hairline → 起始日期
-    // 文字全部左对齐，长句不设 maxLines，窄屏自然换行。
+    final String userNickname = AppState.instance.user?.nickname.trim().isNotEmpty == true
+        ? AppState.instance.user!.nickname.trim()
+        : '阿柴';
+    final String partnerNickname = '糖糖';
+
     return Container(
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: <Color>[
-            CozyPalette.secondaryContainer,
-            CozyPalette.primaryContainer,
+            Color(0xFFF43F5E), // rose-500
+            CozyPalette.primary, // cozy-primary
+            Color(0xFFC85A3F), // cozy-terracotta
           ],
         ),
-        borderRadius: BorderRadius.circular(28),
-        border: Border.all(
-          color: CozyPalette.primary.withValues(alpha: 0.30),
-          width: 1.3,
-        ),
-        boxShadow: CozyLight.cardShadow,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: const <BoxShadow>[
+          BoxShadow(
+            color: Color(0x38F43F5E),
+            blurRadius: 18,
+            offset: Offset(0, 8),
+          ),
+        ],
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(28),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(22, 18, 16, 18),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: <Widget>[
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: <Widget>[
-                    // 眉标：给卡面一个视觉起点，也说明「这是纪念日卡」
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: CozyPalette.background.withValues(alpha: 0.74),
-                        borderRadius: BorderRadius.circular(999),
-                        border: Border.all(
-                          color: CozyPalette.primary.withValues(alpha: 0.18),
+        borderRadius: BorderRadius.circular(24),
+        child: Stack(
+          children: <Widget>[
+            Positioned(
+              right: -16,
+              bottom: -16,
+              child: Icon(
+                Icons.favorite,
+                size: 110,
+                color: Colors.white.withValues(alpha: 0.14),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 22),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: <Widget>[
+                  // Top capsule: ANNIVERSARY · 恋爱相守
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.16),
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.25),
+                      ),
+                    ),
+                    child: const Text(
+                      'ANNIVERSARY · 恋爱相守',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1.2,
+                        color: Color(0xFFFFD6E0),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  // Days counter
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.baseline,
+                    textBaseline: TextBaseline.alphabetic,
+                    children: <Widget>[
+                      Text(
+                        '${state.days}',
+                        style: const TextStyle(
+                          fontSize: 48,
+                          height: 1.05,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: -1,
+                          color: Colors.white,
                         ),
                       ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: <Widget>[
-                          const Icon(
-                            Icons.favorite,
-                            size: 12,
-                            color: CozyPalette.primary,
-                          ),
-                          const SizedBox(width: 5),
-                          // Flexible + ellipsis：窄屏 + 系统大字体下眉标也不会撑破卡片
-                          Flexible(
-                            child: Text(
-                              '恋爱纪念日',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontSize: 11.5,
-                                height: 16 / 11.5,
-                                fontWeight: FontWeight.w900,
-                                letterSpacing: 0.8,
-                                color: CozyPalette.primary,
-                              ),
-                            ),
-                          ),
-                        ],
+                      const SizedBox(width: 4),
+                      Text(
+                        '天',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white.withValues(alpha: 0.85),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    '始于 ${_formatDate(state.startDate)} · 甜蜜进行中',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.white.withValues(alpha: 0.90),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  // Couple Avatars Touching
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.18),
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.28),
                       ),
                     ),
-                    const SizedBox(height: 12),
-                    _HeroDaysLine(days: state.days),
-                    const SizedBox(height: 6),
-                    Text(
-                      '每一次心跳，都在为你倒数',
-                      style: TextStyle(
-                        fontSize: 14.5,
-                        height: 22 / 14.5,
-                        color: CozyPalette.onPrimaryContainer,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    // 卡片内分隔线：与首页主角卡同款发丝线
-                    Container(height: 1, color: CozyLight.hairline),
-                    const SizedBox(height: 10),
-                    Row(
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
                       children: <Widget>[
-                        Icon(
-                          Icons.event_available,
-                          size: 14,
-                          color: CozyPalette.primary.withValues(alpha: 0.85),
+                        Container(
+                          width: 26,
+                          height: 26,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.white, width: 1.2),
+                            color: Colors.white.withValues(alpha: 0.3),
+                          ),
+                          clipBehavior: Clip.antiAlias,
+                          child: Image.asset(
+                            'assets/fluent3d/avocado.png',
+                            errorBuilder: (BuildContext context, Object error, StackTrace? stack) => const Icon(Icons.person, size: 16, color: Colors.white),
+                          ),
                         ),
                         const SizedBox(width: 6),
-                        Flexible(
-                          child: Text(
-                            '从 ${_formatDate(state.startDate)} 开始',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 12.5,
-                              height: 17 / 12.5,
-                              fontWeight: FontWeight.w700,
-                              color: CozyPalette.primary,
-                            ),
+                        Image.asset(
+                          'assets/fluent3d/heart.png',
+                          width: 16,
+                          height: 16,
+                          errorBuilder: (BuildContext context, Object error, StackTrace? stack) => const Icon(Icons.favorite, size: 14, color: Colors.white),
+                        ),
+                        const SizedBox(width: 6),
+                        Container(
+                          width: 26,
+                          height: 26,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.white, width: 1.2),
+                            color: Colors.white.withValues(alpha: 0.3),
+                          ),
+                          clipBehavior: Clip.antiAlias,
+                          child: Image.asset(
+                            'assets/fluent3d/strawberry.png',
+                            errorBuilder: (BuildContext context, Object error, StackTrace? stack) => const Icon(Icons.person, size: 16, color: Colors.white),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          '$userNickname & $partnerNickname',
+                          style: const TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white,
                           ),
                         ),
                       ],
                     ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 10),
-              // 唯一一枚描边心：放进右侧专属列，外面再套一枚白色半透明圆盘，
-              // 让它「落在」卡面上而不是随机飘着 —— 彻底去掉原版三枚水印压字的脏感。
-              Container(
-                width: 74,
-                height: 74,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: CozyPalette.background.withValues(alpha: 0.42),
-                  border: Border.all(
-                    color: CozyPalette.background.withValues(alpha: 0.55),
                   ),
-                ),
-                child: _FloatingHeart(
-                  size: 42,
-                  color: CozyPalette.primary.withValues(alpha: 0.55),
-                ),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
   }
 }
-
-/// hero 卡里的「恋爱第 524 天」一行。
-///
-/// 数字放大到 34、单位收到 15，靠字号差做层级；
-/// 外面套 `FittedBox(scaleDown)`：逻辑宽 320dp 或系统开大字体时整体等比缩回去，
-/// 既不折行、也不会出现黄黑溢出条纹（原版是固定尺寸 Stack，字一长就顶出卡外）。
-class _HeroDaysLine extends StatelessWidget {
-  const _HeroDaysLine({required this.days});
-
-  final int days;
-
-  @override
-  Widget build(BuildContext context) {
-    return FittedBox(
-      fit: BoxFit.scaleDown,
-      alignment: Alignment.centerLeft,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        // baseline 对齐：34 的数字与 15 的「天」坐在同一条基线上
-        crossAxisAlignment: CrossAxisAlignment.baseline,
-        textBaseline: TextBaseline.alphabetic,
-        children: <Widget>[
-          Text(
-            '恋爱第',
-            style: TextStyle(
-              fontSize: 15,
-              height: 20 / 15,
-              fontWeight: FontWeight.w800,
-              color: CozyPalette.primary,
-            ),
-          ),
-          const SizedBox(width: 6),
-          Text(
-            '$days',
-            style: const TextStyle(
-              fontSize: 34,
-              height: 40 / 34,
-              fontWeight: FontWeight.w900,
-              color: CozyPalette.onPrimaryContainer,
-            ),
-          ),
-          const SizedBox(width: 4),
-          Text(
-            '天',
-            style: TextStyle(
-              fontSize: 15,
-              height: 20 / 15,
-              fontWeight: FontWeight.w800,
-              color: CozyPalette.primary,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// 原生 `FloatingHeart(outline = true)`（:342-361）：描边心形，路径逐点照抄
-class _FloatingHeart extends StatelessWidget {
-  const _FloatingHeart({required this.size, required this.color});
-
-  final double size;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) => SizedBox(
-        width: size,
-        height: size,
-        child: CustomPaint(painter: _FloatingHeartPainter(color)),
-      );
-}
-
-class _FloatingHeartPainter extends CustomPainter {
-  const _FloatingHeartPainter(this.color);
-
-  final Color color;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final double w = size.width;
-    final double h = size.height;
-    final Path path = Path()
-      ..moveTo(w * 0.50, h * 0.86)
-      ..cubicTo(w * 0.06, h * 0.52, w * 0.06, h * 0.16, w * 0.30, h * 0.16)
-      ..cubicTo(w * 0.42, h * 0.16, w * 0.49, h * 0.25, w * 0.50, h * 0.34)
-      ..cubicTo(w * 0.51, h * 0.25, w * 0.58, h * 0.16, w * 0.70, h * 0.16)
-      ..cubicTo(w * 0.94, h * 0.16, w * 0.94, h * 0.52, w * 0.50, h * 0.86);
-    canvas.drawPath(
-      path,
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2.6
-        ..strokeCap = StrokeCap.round
-        ..color = color,
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant _FloatingHeartPainter oldDelegate) =>
-      oldDelegate.color != color;
-}
-
-// ══════════════════════════════════════════════════════════════════════════════
-//  下一站浪漫 —— AnniversaryScreen.kt:372-413
-// ══════════════════════════════════════════════════════════════════════════════
 
 class _NextAnniversaryCard extends StatelessWidget {
   const _NextAnniversaryCard({required this.state, required this.onTap});
@@ -529,151 +453,206 @@ class _NextAnniversaryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 原生 Surface(onClick, RoundedCornerShape(18.dp), #FFE7EC @0.54,
-    // border 1.5dp softPink@0.34, shadowElevation 0)（:377-384）
-    //
-    // 【视觉重写】三件事：
-    //  ① 底色从「几乎等于白」的 #FFE7EC@.54 提到 secondaryContainer@.34 + 粉色描边，
-    //     这样「渐变主卡 > 粉色倒计时卡 > 纯白记录卡」的层级才立得住；
-    //  ② 左侧「2周年纪念日 / 距离下一站浪漫」仍分两行，但字重/字号拉开差（17 w900 vs 13.5 常规），
-    //     每行外套 FittedBox(scaleDown)：窄屏是整体等比缩小，不会把「浪漫」硬折到第二行；
-    //  ③ 右侧「206 天」收进一枚胶囊做视觉落点，数字与「天」用 baseline 对齐，
-    //     整行 crossAxisAlignment 居中 ⇒ 不再出现「数字和左侧文字错基线」的松垮感。
-    //  ④ LayoutBuilder：卡宽 < 300（对应逻辑宽 ≈320dp 的窄屏）时切紧凑度量，
-    //     让左侧文字拿到更多宽度，减少 FittedBox 的缩放幅度。
-    return CozyCard(
-      onTap: onTap,
-      color: CozyPalette.secondaryContainer.withValues(alpha: 0.34),
-      borderColor: CozyPalette.primaryContainer.withValues(alpha: 0.55),
-      radius: 22,
-      padding: EdgeInsets.zero,
-      // 比另外两张白卡少一层主投影：它离 hero 最近，不该再抢一次注意力
-      shadows: const <BoxShadow>[CozyLight.ambient],
-      child: LayoutBuilder(
-        builder: (BuildContext context, BoxConstraints constraints) {
-          final bool compact = constraints.maxWidth < 300;
-          final double badge = compact ? 46 : 52;
-          final double gap = compact ? 12 : 14;
-          return Container(
-            constraints: const BoxConstraints(minHeight: 96),
-            padding: EdgeInsets.symmetric(
-              horizontal: compact ? 16 : 18,
-              vertical: compact ? 14 : 16,
+    final String hundredDateStr =
+        '${state.nextHundredDate.year}.${state.nextHundredDate.month.toString().padLeft(2, '0')}.${state.nextHundredDate.day.toString().padLeft(2, '0')}';
+    final String anniversaryDateStr =
+        '${state.nextAnniversaryDate.year}.${state.nextAnniversaryDate.month.toString().padLeft(2, '0')}.${state.nextAnniversaryDate.day.toString().padLeft(2, '0')}';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Row(
+          children: <Widget>[
+            const Text('⏳', style: TextStyle(fontSize: 13)),
+            const SizedBox(width: 6),
+            Text(
+              '下一个重要纪念日',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w800,
+                color: CozyPalette.onSurface,
+              ),
             ),
-            child: Row(
-              children: <Widget>[
-                // Surface(CircleShape, primary@0.10, size 54) + Icon(Cake, 28)（:392-396）
-                Container(
-                  width: badge,
-                  height: badge,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(compact ? 15 : 18),
-                    color: CozyPalette.background.withValues(alpha: 0.78),
-                    border: Border.all(
-                      color: CozyPalette.primaryContainer.withValues(alpha: 0.62),
-                    ),
-                  ),
-                  child: Center(
-                    child: Icon(
-                      Icons.cake,
-                      size: compact ? 23 : 26,
-                      color: CozyPalette.primary,
-                    ),
-                  ),
+            const Spacer(),
+            GestureDetector(
+              onTap: onTap,
+              child: Text(
+                '修改日期 >',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: CozyPalette.primary,
                 ),
-                SizedBox(width: gap),
-                Expanded(
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        Row(
+          children: <Widget>[
+            // Card 1: Next Hundred Days
+            Expanded(
+              child: GestureDetector(
+                onTap: onTap,
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: CozyPalette.surface,
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(color: CozyPalette.outlineVariant.withValues(alpha: 0.5)),
+                    boxShadow: const <BoxShadow>[CozyLight.ambient],
+                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: _columnSpaced(<Widget>[
-                      _ScaledLine(
-                        text: state.nextAnniversaryTitle,
-                        style: TextStyle(
-                          fontSize: 17,
-                          height: 23 / 17,
-                          fontWeight: FontWeight.w900,
-                          color: CozyPalette.onSurface,
-                        ),
-                      ),
-                      _ScaledLine(
-                        text: '距离下一站浪漫',
-                        style: TextStyle(
-                          fontSize: 13.5,
-                          height: 19 / 13.5,
-                          color: CozyPalette.onSurfaceVariant,
-                        ),
-                      ),
-                    ], 3),
-                  ),
-                ),
-                SizedBox(width: gap),
-                // 倒计时胶囊：数字 + 天，baseline 对齐
-                Container(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: compact ? 10 : 12,
-                    vertical: compact ? 6 : 8,
-                  ),
-                  decoration: BoxDecoration(
-                    color: CozyPalette.background.withValues(alpha: 0.84),
-                    borderRadius: BorderRadius.circular(999),
-                    border: Border.all(
-                      color: CozyPalette.primary.withValues(alpha: 0.22),
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.baseline,
-                    textBaseline: TextBaseline.alphabetic,
                     children: <Widget>[
-                      Text(
-                        '${state.nextAnniversaryRemainingDays}',
-                        style: TextStyle(
-                          fontSize: compact ? 21 : 24,
-                          height: (compact ? 25 : 28) / (compact ? 21 : 24),
-                          fontWeight: FontWeight.w900,
-                          color: CozyPalette.primary,
-                        ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: <Widget>[
+                          Flexible(
+                            child: Text(
+                              state.nextHundredTitle,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: CozyPalette.onSurfaceVariant,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            '${state.nextHundredRemainingDays} 天后',
+                            style: const TextStyle(
+                              fontSize: 10.5,
+                              color: Color(0xFFF43F5E),
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 4),
+                      const SizedBox(height: 8),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.baseline,
+                        textBaseline: TextBaseline.alphabetic,
+                        children: <Widget>[
+                          Text(
+                            '${state.nextHundredRemainingDays}',
+                            style: const TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.w900,
+                              color: CozyPalette.primary,
+                            ),
+                          ),
+                          const SizedBox(width: 3),
+                          Text(
+                            '天',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: CozyPalette.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
                       Text(
-                        '天',
-                        style: TextStyle(
-                          fontSize: 13.5,
-                          height: 18 / 13.5,
-                          fontWeight: FontWeight.w700,
-                          color: CozyPalette.onSurfaceVariant,
+                        hundredDateStr,
+                        style: const TextStyle(
+                          fontSize: 10,
+                          color: Color(0xFF9E9E9E),
                         ),
                       ),
                     ],
                   ),
                 ),
-              ],
+              ),
             ),
-          );
-        },
-      ),
+            const SizedBox(width: 10),
+            // Card 2: Next Yearly Anniversary
+            Expanded(
+              child: GestureDetector(
+                onTap: onTap,
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: CozyPalette.surface,
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(color: CozyPalette.outlineVariant.withValues(alpha: 0.5)),
+                    boxShadow: const <BoxShadow>[CozyLight.ambient],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: <Widget>[
+                          Flexible(
+                            child: Text(
+                              state.nextAnniversaryTitle,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: CozyPalette.onSurfaceVariant,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          const Text(
+                            '下个周年',
+                            style: TextStyle(
+                              fontSize: 10.5,
+                              color: Color(0xFFD97706),
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.baseline,
+                        textBaseline: TextBaseline.alphabetic,
+                        children: <Widget>[
+                          Text(
+                            '${state.nextAnniversaryRemainingDays}',
+                            style: const TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.w900,
+                              color: Color(0xFFD97706),
+                            ),
+                          ),
+                          const SizedBox(width: 3),
+                          Text(
+                            '天',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: CozyPalette.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        anniversaryDateStr,
+                        style: const TextStyle(
+                          fontSize: 10,
+                          color: Color(0xFF9E9E9E),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 }
 
-/// 单行文字 + `FittedBox(scaleDown)`：宽度不够时整行等比缩小，绝不折行/溢出。
-/// 左对齐用 `alignment: centerLeft`，缩小时文字仍贴左（不会跑到行中间）。
-class _ScaledLine extends StatelessWidget {
-  const _ScaledLine({required this.text, required this.style});
 
-  final String text;
-  final TextStyle style;
-
-  @override
-  Widget build(BuildContext context) {
-    return FittedBox(
-      fit: BoxFit.scaleDown,
-      alignment: Alignment.centerLeft,
-      child: Text(text, maxLines: 1, style: style),
-    );
-  }
-}
 
 /// 空态卡底部的两枚能力小胶囊。
 /// 文案直接取自原生空态说明（「默认显示菜品图片」/「可以换成你们自己的照片」），
@@ -738,39 +717,40 @@ class _SweetMomentsTimeline extends StatelessWidget {
         // 标题用 Expanded + ellipsis，窄屏（逻辑宽 320dp）也不会出溢出条纹。
         Row(
           children: <Widget>[
-            Container(
-              width: 4,
-              height: 18,
-              decoration: BoxDecoration(
-                color: CozyPalette.primaryContainer,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            const SizedBox(width: 10),
-            Container(
-              width: 30,
-              height: 30,
-              decoration: BoxDecoration(
-                color: CozyPalette.secondaryContainer.withValues(alpha: 0.62),
-                borderRadius: BorderRadius.circular(11),
-              ),
-              child: const Icon(
-                Icons.history_edu,
-                size: 17,
-                color: CozyPalette.primary,
-              ),
-            ),
-            const SizedBox(width: 10),
+            const Text('📖', style: TextStyle(fontSize: 14)),
+            const SizedBox(width: 6),
             Expanded(
               child: Text(
-                '甜蜜时刻',
+                '我们的专属美食恋爱回忆录',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  fontSize: 19,
-                  height: 26 / 19,
+                  fontSize: 14,
+                  height: 20 / 14,
                   fontWeight: FontWeight.w900,
                   color: CozyPalette.onSurface,
+                ),
+              ),
+            ),
+            GestureDetector(
+              onTap: () {
+                if (orders.isNotEmpty) {
+                  onEditImage(orders.first);
+                }
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: CozyPalette.primary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  '+ 记一笔',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    color: CozyPalette.primary,
+                  ),
                 ),
               ),
             ),
@@ -1192,20 +1172,19 @@ class _MomentImageOption extends StatelessWidget {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-//  设置纪念日弹窗 —— AnniversaryScreen.kt:852-949
+//  设置纪念日页面 —— 整体自适应页面，彻底消除多层滑动与弹窗挤压
 // ══════════════════════════════════════════════════════════════════════════════
 
-class _AnniversaryEditorDialog extends StatefulWidget {
-  const _AnniversaryEditorDialog({required this.initialDate});
+class _AnniversaryEditorPage extends StatefulWidget {
+  const _AnniversaryEditorPage({required this.initialDate});
 
   final DateTime initialDate;
 
   @override
-  State<_AnniversaryEditorDialog> createState() =>
-      _AnniversaryEditorDialogState();
+  State<_AnniversaryEditorPage> createState() => _AnniversaryEditorPageState();
 }
 
-class _AnniversaryEditorDialogState extends State<_AnniversaryEditorDialog> {
+class _AnniversaryEditorPageState extends State<_AnniversaryEditorPage> {
   late final TextEditingController _controller;
   _AnniversaryCalendarType _calendarType = _AnniversaryCalendarType.solar;
   late DateTime _visibleMonth;
@@ -1225,8 +1204,6 @@ class _AnniversaryEditorDialogState extends State<_AnniversaryEditorDialog> {
     super.dispose();
   }
 
-  /// 原生 `onValueChange = { dateText = it.take(11) }`（:892）
-  /// + `LaunchedEffect(parsedDate) { visibleMonth = YearMonth.from(it) }`（:863-865）
   void _onTextChanged(String value) {
     final DateTime? parsed = _parseAnniversaryInput(value, _calendarType);
     setState(() {
@@ -1237,8 +1214,6 @@ class _AnniversaryEditorDialogState extends State<_AnniversaryEditorDialog> {
     });
   }
 
-  /// 原生 CalendarTypeToggle 的 onChange（:882-889 / :915-922）：
-  /// 切换类型时原版会把输入框内容在阳历/农历间重写。
   void _onCalendarTypeChanged(_AnniversaryCalendarType type) {
     setState(() {
       _calendarType = type;
@@ -1254,7 +1229,6 @@ class _AnniversaryEditorDialogState extends State<_AnniversaryEditorDialog> {
     });
   }
 
-  /// 原生 supportingText（:896-906）
   String _supportingText() {
     if (_parsedDate == null) {
       return '请输入有效日期，例如 2026-05-20；农历闰月可写 闰04';
@@ -1270,107 +1244,142 @@ class _AnniversaryEditorDialogState extends State<_AnniversaryEditorDialog> {
     final DateTime selectedDate = _parsedDate ?? widget.initialDate;
     final bool invalid = _parsedDate == null;
 
-    return AlertDialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
-      backgroundColor: CozyPalette.surface, // AnniversaryCard
-      title: Text(
-        '设置纪念日',
-        style: TextStyle(
-          fontWeight: FontWeight.w900,
-          color: CozyPalette.onSurface,
-        ),
-      ),
-      content: SizedBox(
-        width: double.infinity,
-        child: ConstrainedBox(
-          // heightIn(max = 540.dp) + verticalScroll（:875-879）
-          constraints: const BoxConstraints(maxHeight: 540),
-          child: SingleChildScrollView(
+    return Scaffold(
+      backgroundColor: CozyPalette.background,
+      body: Stack(
+        children: <Widget>[
+          const Positioned.fill(
+            child: CustomPaint(painter: _AnniversaryBackgroundPainter()),
+          ),
+          SafeArea(
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              mainAxisSize: MainAxisSize.min,
-              children: _columnSpaced(<Widget>[
-                Text(
-                  '支持文字输入，也可以在日历里选择日期。',
-                  style: Theme.of(context).textTheme.bodyLarge!.copyWith(
-                        color: CozyPalette.onSurfaceVariant,
+              children: <Widget>[
+                // 顶部导航栏
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  child: Row(
+                    children: <Widget>[
+                      IconButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
+                        color: CozyPalette.onSurface,
                       ),
-                ),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: _CalendarTypeToggle(
-                    calendarType: _calendarType,
-                    onCalendarTypeChange: _onCalendarTypeChanged,
+                      const SizedBox(width: 4),
+                      Text(
+                        '设置恋爱纪念日',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w900,
+                          color: CozyPalette.onSurface,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                TextField(
-                  controller: _controller,
-                  maxLines: 1,
-                  onChanged: _onTextChanged,
-                  inputFormatters: <TextInputFormatter>[
-                    LengthLimitingTextInputFormatter(11),
-                  ],
-                  // 原生 anniversaryFieldColors()（:951-957）+ RoundedCornerShape(14.dp)
-                  decoration: InputDecoration(
-                    labelText: _calendarType.inputLabel,
-                    filled: true,
-                    fillColor: CozyPalette.surface,
-                    helper: _parsedDate == null
-                        ? null
-                        : Text(_supportingText(), maxLines: 2),
-                    error: invalid ? Text(_supportingText(), maxLines: 2) : null,
-                    border: _fieldBorder(CozyPalette.outlineVariant),
-                    enabledBorder: _fieldBorder(CozyPalette.outlineVariant),
-                    focusedBorder: _fieldBorder(CozyPalette.primary),
-                    errorBorder: _fieldBorder(CozyPalette.outlineVariant),
-                    focusedErrorBorder: _fieldBorder(CozyPalette.primary),
+                Expanded(
+                  child: ListView(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                    children: <Widget>[
+                      // 说明与输入卡片
+                      CozyCard(
+                        color: CozyPalette.surface,
+                        radius: 20,
+                        padding: const EdgeInsets.all(18),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: <Widget>[
+                            Text(
+                              '支持文字输入，也可以在日历里直接选择日期。',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: CozyPalette.onSurfaceVariant,
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+                            Align(
+                              alignment: Alignment.centerLeft,
+                              child: _CalendarTypeToggle(
+                                calendarType: _calendarType,
+                                onCalendarTypeChange: _onCalendarTypeChanged,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            TextField(
+                              controller: _controller,
+                              maxLines: 1,
+                              onChanged: _onTextChanged,
+                              inputFormatters: <TextInputFormatter>[
+                                LengthLimitingTextInputFormatter(11),
+                              ],
+                              decoration: InputDecoration(
+                                labelText: _calendarType.inputLabel,
+                                filled: true,
+                                fillColor: CozyPalette.surfaceVariant.withValues(alpha: 0.35),
+                                helper: _parsedDate == null
+                                    ? null
+                                    : Text(_supportingText(), maxLines: 2),
+                                error: invalid ? Text(_supportingText(), maxLines: 2) : null,
+                                border: _fieldBorder(CozyPalette.outlineVariant),
+                                enabledBorder: _fieldBorder(CozyPalette.outlineVariant),
+                                focusedBorder: _fieldBorder(CozyPalette.primary),
+                                errorBorder: _fieldBorder(CozyPalette.outlineVariant),
+                                focusedErrorBorder: _fieldBorder(CozyPalette.primary),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
+                      // 日历挑选卡片
+                      _CalendarCard(
+                        visibleMonth: _visibleMonth,
+                        selectedDate: selectedDate,
+                        calendarType: _calendarType,
+                        onCalendarTypeChange: _onCalendarTypeChanged,
+                        onPreviousMonth: () => setState(() {
+                          _visibleMonth =
+                              DateTime(_visibleMonth.year, _visibleMonth.month - 1, 1);
+                        }),
+                        onNextMonth: () => setState(() {
+                          _visibleMonth =
+                              DateTime(_visibleMonth.year, _visibleMonth.month + 1, 1);
+                        }),
+                        onDateSelected: _selectDate,
+                      ),
+                      const SizedBox(height: 28),
+
+                      // 保存按钮
+                      SizedBox(
+                        width: double.infinity,
+                        height: 52,
+                        child: FilledButton(
+                          onPressed: _parsedDate == null
+                              ? null
+                              : () => Navigator.of(context).pop(_parsedDate),
+                          style: FilledButton.styleFrom(
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            backgroundColor: CozyPalette.primary,
+                            foregroundColor: Colors.white,
+                            textStyle: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          child: const Text('保存纪念日'),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                    ],
                   ),
                 ),
-                _CalendarCard(
-                  visibleMonth: _visibleMonth,
-                  selectedDate: selectedDate,
-                  calendarType: _calendarType,
-                  onCalendarTypeChange: _onCalendarTypeChanged,
-                  onPreviousMonth: () => setState(() {
-                    _visibleMonth =
-                        DateTime(_visibleMonth.year, _visibleMonth.month - 1, 1);
-                  }),
-                  onNextMonth: () => setState(() {
-                    _visibleMonth =
-                        DateTime(_visibleMonth.year, _visibleMonth.month + 1, 1);
-                  }),
-                  onDateSelected: _selectDate,
-                ),
-              ], 14),
+              ],
             ),
           ),
-        ),
+        ],
       ),
-      // 原生 Button(shape = 999.dp, containerColor = primary)（:936-943）
-      actions: <Widget>[
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: Text(
-            '取消',
-            style: TextStyle(color: CozyPalette.onSurfaceVariant),
-          ),
-        ),
-        FilledButton(
-          onPressed: _parsedDate == null
-              ? null
-              : () => Navigator.of(context).pop(_parsedDate),
-          style: FilledButton.styleFrom(
-            shape: const StadiumBorder(),
-            backgroundColor: CozyPalette.primary,
-            foregroundColor: Colors.white,
-            textStyle: Theme.of(context)
-                .textTheme
-                .labelLarge!
-                .copyWith(fontWeight: FontWeight.w700),
-          ),
-          child: const Text('保存纪念日'),
-        ),
-      ],
     );
   }
 }
@@ -1660,31 +1669,47 @@ class _AnniversaryUiState {
     required this.days,
     required this.nextAnniversaryTitle,
     required this.nextAnniversaryRemainingDays,
+    required this.nextAnniversaryDate,
+    required this.nextHundredTitle,
+    required this.nextHundredRemainingDays,
+    required this.nextHundredDate,
   });
 
   final DateTime startDate;
   final int days;
   final String nextAnniversaryTitle;
   final int nextAnniversaryRemainingDays;
+  final DateTime nextAnniversaryDate;
+  final String nextHundredTitle;
+  final int nextHundredRemainingDays;
+  final DateTime nextHundredDate;
 }
 
 /// 原生 `anniversaryState(profile)`（:1074-1087）
 _AnniversaryUiState _anniversaryState(DateTime startDate) {
   final DateTime today = _today();
-  // 与首页「一起吃饭 N 天」统一口径：开始当天算第 1 天。
-  // 之前这里用 ChronoUnit.DAYS.between（不含当天），首页是 inDays + 1，
-  // 同一对情侣在首页看到 526、在纪念日页看到 525，看起来很像个 bug。
   final int elapsed = _daysBetween(startDate, today);
   final int days = elapsed < 0 ? 0 : elapsed + 1;
   final DateTime next = _nextYearlyDate(startDate, today);
   final int remaining = _daysBetween(today, next) < 0 ? 0 : _daysBetween(today, next);
   final int years =
       (next.year - startDate.year) < 1 ? 1 : next.year - startDate.year;
+
+  // 计算下一个整百天节点（如 520 天的下一个整百是 600 天）
+  final int currentHundred = (days ~/ 100) * 100;
+  final int nextHundred = currentHundred + 100;
+  final int hundredRemaining = nextHundred - days;
+  final DateTime hundredDate = today.add(Duration(days: hundredRemaining));
+
   return _AnniversaryUiState(
     startDate: startDate,
     days: days,
-    nextAnniversaryTitle: '$years周年纪念日',
+    nextAnniversaryTitle: '恋爱$years周年',
     nextAnniversaryRemainingDays: remaining,
+    nextAnniversaryDate: next,
+    nextHundredTitle: '相守 $nextHundred 天',
+    nextHundredRemainingDays: hundredRemaining,
+    nextHundredDate: hundredDate,
   );
 }
 

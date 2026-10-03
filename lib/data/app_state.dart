@@ -57,12 +57,14 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
   AppUser? user;
   CouplePair? pair;
   Shop? shop;
-  List<MenuItem> menu = [];
+  List<MenuItem> menu = List<MenuItem>.from(kDefaultSeedDishes);
   List<Order> orders = [];
   List<CandyTransaction> transactions = [];
 
   String? error;
   String? toast;
+
+  bool get isGuest => user == null || user!.id == 'demo_guest_user' || user!.username.startsWith('e2e');
 
   // ——【Phase 0】按域加载位，替代旧的全局 busy ——
   /// 登录 / 注册 / 配对请求进行中（只该锁认证相关按钮）。
@@ -89,6 +91,10 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
   /// 订单 id → 最近已知状态，Realtime 事件 diff 用。
   final Map<String, String> _lastKnownOrderStatus = <String, String>{};
 
+  /// 已知糖币记录 id 集合与初始化标志：防止启动或重连时把历史充值记录误判为新撒糖提醒。
+  final Set<String> _knownCandyRecordIds = <String>{};
+  bool _candyRecordsInitialized = false;
+
   bool get _justWroteOrderLocally =>
       DateTime.now().difference(_lastLocalOrderWrite) < const Duration(seconds: 5);
 
@@ -99,6 +105,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
   bool get isPaired => pair != null && (pair!.caretakerId.isNotEmpty || pair!.eaterId.isNotEmpty);
   bool get isCaretaker => user?.isCaretaker ?? false;
   int get candyCoins => pair?.candyCoins ?? 0;
+  int get candyBalance => candyCoins;
 
   StreamSubscription? _rtSub;
   Timer? _reconnectTimer;
@@ -130,6 +137,13 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   Future<bool> deleteDish(String itemId) async {
+    if (!isPaired) {
+      menu = menu.where((m) => m.id != itemId).toList();
+      _showToast('已移除菜品');
+      _mark(const {Domain.menu});
+      notifyListeners();
+      return true;
+    }
     final res = await _guard(() async {
       await _api.deleteMenuItem(itemId);
       return true;
@@ -208,7 +222,10 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
       saved = null;
     }
     if (saved == null) {
-      setGuestSession();
+      // 用户未登录：不注入模拟访客数据，直接展示登录/注册界面
+      user = null;
+      notifyListeners();
+      _mark(const {Domain.auth});
       return;
     }
     _api.setSession(token: saved.token, userId: saved.userId, pairId: saved.pairId);
@@ -266,8 +283,17 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
       partnerName: '糖糖',
       partnerAvatarUrl: '',
     );
+    shop = const Shop(
+      id: 'LOVE-8848',
+      name: '两只小狗的小饭桌',
+      announcement: '自营单店 · 饲养员专属掌厨菜单',
+      coverUrl: '',
+    );
+    if (menu.isEmpty) {
+      menu = List<MenuItem>.from(kDefaultSeedDishes);
+    }
     notifyListeners();
-    _mark(const {Domain.auth, Domain.profile});
+    _mark(const {Domain.auth, Domain.profile, Domain.menu});
   }
 
   Future<bool> login({required String username, required String password}) async {
@@ -287,6 +313,8 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
 
   Future<void> logout() async {
     _closeRealtime();
+    _knownCandyRecordIds.clear();
+    _candyRecordsInitialized = false;
     await _api.clearPersistedSession();
     _api.clearSession();
     user = null;
@@ -368,8 +396,13 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
   Future<void> refreshMenu({bool silent = false}) async {
     final list = await _guard(() => _api.menu(), silent: silent, domain: _BusyDomain.menu);
     // 【性能 Phase 1】轮询/Realtime 回来内容没变 → 不赋值不点亮，页面零重建。
-    if (list != null && !_sameMenu(menu, list)) {
-      menu = list;
+    if (list != null && list.isNotEmpty) {
+      if (!_sameMenu(menu, list)) {
+        menu = list;
+        _mark(const {Domain.menu});
+      }
+    } else if (menu.isEmpty) {
+      menu = List<MenuItem>.from(kDefaultSeedDishes);
       _mark(const {Domain.menu});
     }
   }
@@ -486,6 +519,23 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     String emoji = '🍽️',
     String category = '',
   }) async {
+    if (!isPaired) {
+      final newItem = MenuItem(
+        id: 'local_${DateTime.now().millisecondsSinceEpoch}',
+        name: name,
+        price: price,
+        description: description,
+        imageUrl: emoji,
+        category: category.trim().isEmpty ? '招牌私房' : category.trim(),
+        isAvailable: true,
+        salesCount: 0,
+      );
+      menu = [newItem, ...menu];
+      _showToast('已添加私房菜：$name');
+      _mark(const {Domain.menu});
+      notifyListeners();
+      return true;
+    }
     final item = await _guard(
       () => _api.createMenuItem(
         name: name,
@@ -705,25 +755,44 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     if (sawChange) refreshOrders(silent: true);
   }
 
-  /// 糖币记录 diff：只有「对方充值的记录」才弹撒糖提示；
-  /// 吃货的消费/退款记录静默刷新（订单 diff 已有提示，避免双重打扰）。
+  /// 糖币记录 diff：只有「对方真正新充值的记录」才弹撒糖提示；
+  /// 初次进入应用或重连拉取历史记录时仅记录 ID，杜绝启动误报。
   void _onCandyRecords(List<Map<String, dynamic>> rows) {
     if (rows.isEmpty) return;
     refreshTransactions(silent: true);
 
-    final bool hasPartnerRecharge = rows.any((r) {
+    // 首次收到快照（如启动或通道刚建立）：仅记录现有 ID，不弹提醒
+    if (!_candyRecordsInitialized) {
+      _candyRecordsInitialized = true;
+      for (final r in rows) {
+        final String id = (r['id'] as String?) ?? '';
+        if (id.isNotEmpty) _knownCandyRecordIds.add(id);
+      }
+      return;
+    }
+
+    bool hasNewPartnerRecharge = false;
+    for (final r in rows) {
+      final String id = (r['id'] as String?) ?? '';
+      if (id.isNotEmpty) {
+        if (_knownCandyRecordIds.contains(id)) continue;
+        _knownCandyRecordIds.add(id);
+      }
+
       final String type = (r['type'] as String?) ?? '';
       final bool isRecharge = type == 'recharge' || type == 'partner_recharge' || type == 'add';
-      if (!isRecharge) return false;
-      // 记录行尽量核对发起人：自己刚充的不提示（本地 toast 已覆盖）。
-      final dynamic actor = r['user_id'] ?? r['actor_id'] ?? r['created_by'];
-      if (actor is String && actor.isNotEmpty) {
-        return actor != (user?.id ?? '');
-      }
-      return !_justWroteCandyLocally;
-    });
+      if (!isRecharge) continue;
 
-    if (hasPartnerRecharge) {
+      final dynamic actor = r['user_id'] ?? r['actor_id'] ?? r['created_by'];
+      if (actor is String && actor.isNotEmpty && actor == (user?.id ?? '')) {
+        continue;
+      }
+      if (!_justWroteCandyLocally) {
+        hasNewPartnerRecharge = true;
+      }
+    }
+
+    if (hasNewPartnerRecharge) {
       _showToast('🍬 对方给你撒糖啦！');
       loadMe();
     }
@@ -819,3 +888,88 @@ bool _sameTransactions(List<CandyTransaction> a, List<CandyTransaction> b) {
   }
   return true;
 }
+
+/// 默认情侣私房菜预置清单：解决进入「我的店铺」和「点菜」空白问题。
+/// 8 道真实下厨房高分招牌私房菜，配备高清本地大图，冷启动即看即用。
+const List<MenuItem> kDefaultSeedDishes = <MenuItem>[
+  MenuItem(
+    id: 'seed-101',
+    name: '经典秘制糖醋排骨',
+    description: '酸甜浓郁，酥脆多汁，伴侣连吃三碗米饭的秘密法宝。',
+    price: 22.0,
+    imageUrl: 'assets/images/dishes/dish_101.jpg',
+    category: '招牌热炒',
+    salesCount: 88,
+    isAvailable: true,
+  ),
+  MenuItem(
+    id: 'seed-102',
+    name: '家常可乐鸡翅',
+    description: '可乐浓汁包裹，鸡翅软烂脱骨，咸甜适中超治愈。',
+    price: 20.0,
+    imageUrl: 'assets/images/dishes/dish_102.jpg',
+    category: '招牌热炒',
+    salesCount: 66,
+    isAvailable: true,
+  ),
+  MenuItem(
+    id: 'seed-103',
+    name: '妈妈牌番茄炒蛋',
+    description: '沙瓤番茄炒出浓郁红汤，土鸡蛋金黄蓬松，盖饭一绝。',
+    price: 16.0,
+    imageUrl: 'assets/images/dishes/dish_103.jpg',
+    category: '招牌热炒',
+    salesCount: 99,
+    isAvailable: true,
+  ),
+  MenuItem(
+    id: 'seed-104',
+    name: '鲜香浓郁麻婆豆腐',
+    description: '牛肉碎煸香，豆腐滑嫩如布丁，花椒面麻香扑鼻热气腾腾。',
+    price: 16.0,
+    imageUrl: 'assets/images/dishes/dish_104.jpg',
+    category: '招牌热炒',
+    salesCount: 52,
+    isAvailable: true,
+  ),
+  MenuItem(
+    id: 'seed-105',
+    name: '暖胃玉米排骨汤',
+    description: '慢炖两小时排骨浓白，甜玉米清甜回甘，暖心暖胃。',
+    price: 24.0,
+    imageUrl: 'assets/images/dishes/dish_105.jpg',
+    category: '暖心热汤',
+    salesCount: 45,
+    isAvailable: true,
+  ),
+  MenuItem(
+    id: 'seed-106',
+    name: '秘制浓油赤酱红烧肉',
+    description: '五花三层肥而不腻，入口即化，琥珀色浓油赤酱超满足。',
+    price: 28.0,
+    imageUrl: 'assets/images/dishes/dish_106.jpg',
+    category: '招牌热炒',
+    salesCount: 73,
+    isAvailable: true,
+  ),
+  MenuItem(
+    id: 'seed-107',
+    name: '川香水煮牛肉',
+    description: '刀口辣椒与热油浇淋，牛肉片滑嫩麻辣醇厚。',
+    price: 32.0,
+    imageUrl: 'assets/images/dishes/dish_107.jpg',
+    category: '招牌热炒',
+    salesCount: 61,
+    isAvailable: true,
+  ),
+  MenuItem(
+    id: 'seed-108',
+    name: '清爽白灼生菜时蔬',
+    description: '蒜香浓郁，时蔬翠绿爽脆，解腻又健康。',
+    price: 14.0,
+    imageUrl: 'assets/images/dishes/dish_108.jpg',
+    category: '清爽小炒',
+    salesCount: 38,
+    isAvailable: true,
+  ),
+];

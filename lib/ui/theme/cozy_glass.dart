@@ -5,6 +5,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show HapticFeedback;
 import 'package:liquid_glass_widgets/liquid_glass_widgets.dart';
+import 'couple_theme.dart';
 
 // ══════════════════════════════════════════════════════════════════════════════
 //  高糖小食 · 纯白底光影设计系统
@@ -298,8 +299,12 @@ class CozyPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: const BoxDecoration(color: CozyPalette.background),
+    final theme = context.coupleTheme;
+    return Container(
+      decoration: BoxDecoration(
+        color: theme.bgPage,
+        gradient: theme.pageGradient,
+      ),
       child: Stack(
         children: <Widget>[
           if (decorative) const Positioned.fill(child: IgnorePointer(child: CozyDecorations())),

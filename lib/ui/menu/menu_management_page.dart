@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../data/app_state.dart';
 import '../../data/models.dart';
@@ -147,6 +148,12 @@ class _MenuManagementPageState extends State<MenuManagementPage>
   @override
   void initState() {
     super.initState();
+    // 首次进入立即刷新，确保有菜品和店铺数据
+    _refreshShopAndMenu();
+    // 兜底：若仍为空，填充初始招牌预置菜
+    if (AppState.instance.menu.isEmpty) {
+      AppState.instance.menu = List<MenuItem>.from(kDefaultSeedDishes);
+    }
     // 原生 `LaunchedEffect(viewModel)` 的 10s 轮询（MenuManagementScreen.kt:131）
     _refreshTimer = Timer.periodic(_refreshInterval, (_) => _refreshShopAndMenu());
     _listCtrl.addListener(_onListScroll);
@@ -214,11 +221,16 @@ class _MenuManagementPageState extends State<MenuManagementPage>
   /// 「已下架沉底」这一半语义（服务端已按 sort_order 返回）。
   List<MenuItem> _visibleDishes(List<MenuItem> dishes) {
     final List<MenuItem> filtered = dishes
-        .where((MenuItem d) => switch (_selectedFilter) {
-              _MenuFilter.all => true,
-              _MenuFilter.available => d.isAvailable,
-              _MenuFilter.unavailable => !d.isAvailable,
-            })
+        .where((MenuItem d) {
+          if (_selectedCategory.isNotEmpty && _categoryOf(d) != _selectedCategory) {
+            return false;
+          }
+          return switch (_selectedFilter) {
+            _MenuFilter.all => true,
+            _MenuFilter.available => d.isAvailable,
+            _MenuFilter.unavailable => !d.isAvailable,
+          };
+        })
         .toList();
     if (_sortMode == _MenuSortMode.priceAsc) {
       filtered.sort((MenuItem a, MenuItem b) => a.price.compareTo(b.price));
@@ -486,11 +498,14 @@ class _MenuManagementPageState extends State<MenuManagementPage>
     final AppState state = AppState.instance;
     return Scaffold(
       backgroundColor: CozyPalette.background,
-      body: CozyPage(
+      body: SafeArea(
+        bottom: false,
         child: ListenableBuilder(
           listenable: state,
           builder: (BuildContext context, Widget? _) {
-            final List<MenuItem> dishes = state.menu;
+            final List<MenuItem> dishes = state.menu.isEmpty
+                ? List<MenuItem>.from(kDefaultSeedDishes)
+                : state.menu;
             final List<MenuItem> visible = _visibleDishes(dishes);
             // 分类清单合并云端聚合，冷启动后也能列出已有分类。
             final List<String> categories = _allCategories(dishes);
@@ -502,17 +517,18 @@ class _MenuManagementPageState extends State<MenuManagementPage>
             }
             return Stack(
               children: <Widget>[
-                // 玻璃顶栏是浮层：列表从 y=0 起滚、内容穿过玻璃（顶部预留
-                // `CozyGlassTopBar.reserved`），这样玻璃才有东西可折。
-                Positioned.fill(
-                  child: ListView(
-                    controller: _listCtrl,
-                    padding: EdgeInsets.fromLTRB(
-                      16,
-                      10 + CozyGlassTopBar.reserved,
-                      16,
-                      CozyDock.clearanceOf(context),
-                    ),
+                Column(
+                  children: <Widget>[
+                    _StoreTopBar(onRefresh: _refreshShopAndMenu),
+                    Expanded(
+                      child: ListView(
+                        controller: _listCtrl,
+                        padding: EdgeInsets.fromLTRB(
+                          16,
+                          12,
+                          16,
+                          80 + MediaQuery.paddingOf(context).bottom,
+                        ),
                         children: <Widget>[
                           _ShopSettingsStrip(
                             shopName: state.shop?.name ?? '',
@@ -524,14 +540,19 @@ class _MenuManagementPageState extends State<MenuManagementPage>
                           _CategoryManagementBento(
                             categories: categories,
                             dishCountByCategory: dishCountByCategory,
+                            selectedCategory: _selectedCategory,
+                            onSelectCategory: (String cat) =>
+                                setState(() => _selectedCategory = cat),
                             onManageCategoriesClick: _openCategoryManager,
                             onCreateCategoryClick: _openNewCategoryDialog,
                           ),
                           const SizedBox(height: 12),
                           _DishManagementHeader(
+                            dishCount: visible.length,
                             selectedFilter: _selectedFilter,
                             onFilterSelected: (_MenuFilter filter) =>
                                 setState(() => _selectedFilter = filter),
+                            onNewDish: _newDish,
                           ),
                           const SizedBox(height: 12),
                           _MenuContent(
@@ -553,15 +574,11 @@ class _MenuManagementPageState extends State<MenuManagementPage>
                         ],
                       ),
                     ),
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  top: 0,
-                  child: const _StoreTopBar(),
+                  ],
                 ),
                 Positioned(
                   right: 20,
-                  bottom: 20 + MediaQuery.paddingOf(context).bottom,
+                  bottom: 24 + MediaQuery.paddingOf(context).bottom,
                   // 向下滚动时让位（见 `_pillVisible`），避免压住菜品行的操作列。
                   child: IgnorePointer(
                     ignoring: !_pillVisible,
@@ -609,52 +626,116 @@ class _MenuManagementPageState extends State<MenuManagementPage>
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-//  StoreTopBar（MenuManagementScreen.kt:441）
-//  原生 `CozyMainTopBar(title = "我的店铺")` —— 后面那段 Row 在 return 之后，
-//  是死代码，这里只还原真正生效的那一行（StitchNativeComponents.kt:176）。
+//  StoreTopBar: 纯白高透导航顶栏（带原生返回键 + 标题 + 实时刷新）
 // ══════════════════════════════════════════════════════════════════════════════
 class _StoreTopBar extends StatelessWidget {
-  const _StoreTopBar();
+  const _StoreTopBar({this.onRefresh});
+
+  final VoidCallback? onRefresh;
 
   @override
   Widget build(BuildContext context) {
-    return CozyGlassTopBar(
-      title: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 4),
-        child: Text(
-          '我的店铺',
-          textAlign: TextAlign.center,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-          style: _fit(Theme.of(context).textTheme.headlineSmall, 20, 24,
-                  FontWeight.w900)
-              .copyWith(
-            color: CozyPalette.primary,
-            letterSpacing: 0,
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.96),
+        border: Border(
+          bottom: BorderSide(
+            color: CozyPalette.outlineVariant.withValues(alpha: 0.35),
+            width: 0.5,
           ),
         ),
+        boxShadow: <BoxShadow>[
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
-      leading: SizedBox(
-        width: 44,
-        child: Align(
-          alignment: Alignment.centerLeft,
-          child: Icon(
-            Icons.favorite,
-            size: 26,
-            color: CozyPalette.primary.withValues(alpha: 0.82),
+      child: Row(
+        children: <Widget>[
+          // Back button
+          _PressScale(
+            onTap: () {
+              HapticFeedback.selectionClick();
+              Navigator.of(context).maybePop();
+            },
+            child: Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: CozyPalette.surfaceContainerLow,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: CozyPalette.outlineVariant.withValues(alpha: 0.4),
+                  width: 0.5,
+                ),
+              ),
+              child: const Center(
+                child: Icon(
+                  Icons.arrow_back_ios_new_rounded,
+                  size: 18,
+                  color: CozyPalette.onSurface,
+                ),
+              ),
+            ),
           ),
-        ),
-      ),
-      trailing: const SizedBox(
-        width: 44,
-        child: Align(
-          alignment: Alignment.centerRight,
-          child: Icon(
-            Icons.notifications,
-            size: 24,
-            color: CozyPalette.onSurfaceVariant,
+          const SizedBox(width: 12),
+          // Center Title & Subtitle
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                Text(
+                  '我的店铺管理',
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w900,
+                    color: CozyPalette.onSurface,
+                    letterSpacing: -0.2,
+                  ),
+                ),
+                const SizedBox(height: 1),
+                Text(
+                  '自营私房菜 · 菜单与分类管理',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: CozyPalette.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
+          // Right: Refresh button
+          if (onRefresh != null)
+            _PressScale(
+              onTap: () {
+                HapticFeedback.selectionClick();
+                onRefresh!();
+              },
+              child: Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: CozyPalette.surfaceContainerLow,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: CozyPalette.outlineVariant.withValues(alpha: 0.4),
+                    width: 0.5,
+                  ),
+                ),
+                child: const Center(
+                  child: Icon(
+                    Icons.refresh_rounded,
+                    size: 20,
+                    color: CozyPalette.primary,
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -678,116 +759,102 @@ class _ShopSettingsStrip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final String displayName = shopName.trim().isNotEmpty ? shopName.trim() : '两只小狗的小饭桌';
+    final String displaySubtitle = announcement.trim().isNotEmpty ? announcement.trim() : '自营单店 · 饲养员专属掌厨菜单';
+
     return CozyCard(
       radius: 20,
       margin: const EdgeInsets.only(bottom: 10),
-      padding: EdgeInsets.zero,
-      child: Column(
+      padding: const EdgeInsets.all(14),
+      child: Row(
         children: <Widget>[
-          // 封面 154dp（AsyncImage + 兜底 painterResource）
-          SizedBox(
-            width: double.infinity,
-            height: 154,
-            child: shopImageUrl.isNotEmpty
-                ? Image.network(
-                    shopImageUrl,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, _, _) =>
-                        Image.asset(_shopBannerAsset, fit: BoxFit.cover),
-                  )
-                : Image.asset(_shopBannerAsset, fit: BoxFit.cover),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            child: Column(
-              children: <Widget>[
-                Row(
-                  children: <Widget>[
-                    Expanded(
-                      child: Text(
-                        shopName.isEmpty ? '我的小店' : shopName,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: _fit(Theme.of(context).textTheme.headlineMedium,
-                            21, 27, FontWeight.bold),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    // 原生这里是自绘 Surface（不是 CozyPill），按原生色值还原
-                    _PressScale(
-                      onTap: onEdit,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 8),
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(999),
-                          color: CozyPalette.primary.withValues(alpha: 0.10),
-                          border: Border.all(
-                            color: CozyPalette.primary.withValues(alpha: 0.22),
-                          ),
-                        ),
-                        child: Row(
-                          children: <Widget>[
-                            const Icon(
-                              Icons.edit_outlined,
-                              size: 17,
-                              color: CozyPalette.primary,
-                            ),
-                            const SizedBox(width: 6),
-                            Text(
-                              '编辑店铺',
-                              style: _fit(Theme.of(context).textTheme.labelLarge,
-                                      13, 18, FontWeight.bold)
-                                  .copyWith(color: CozyPalette.primary),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
+          // Left: 🏡 amber square
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: const Color(0xFFF59E0B), // amber-500
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: const <BoxShadow>[
+                BoxShadow(
+                  color: Color(0x33F59E0B),
+                  blurRadius: 8,
+                  offset: Offset(0, 3),
                 ),
-                const SizedBox(height: 12),
-                // 公告条（原生 #FFF0F4，取设计系统最接近的软粉令牌）
-                Container(
-                  width: double.infinity,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(14),
-                    color: CozyTheme.softPink,
-                    border: Border.all(
-                      color: CozyPalette.primary.withValues(alpha: 0.12),
-                    ),
+              ],
+            ),
+            child: const Center(
+              child: Text(
+                '🏡',
+                style: TextStyle(fontSize: 22),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          // Middle: Title & Subtitle
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                Text(
+                  displayName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w900,
+                    color: CozyPalette.onSurface,
                   ),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      const Padding(
-                        padding: EdgeInsets.only(top: 1),
-                        child: Icon(
-                          Icons.campaign,
-                          size: 18,
-                          color: CozyPalette.primary,
-                        ),
-                      ),
-                      const SizedBox(width: 9),
-                      Expanded(
-                        child: Text(
-                          announcement.isEmpty ? '欢迎光临' : announcement,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style:
-                              _fit(Theme.of(context).textTheme.bodyMedium, 14, 20)
-                                  .copyWith(
-                            color: CozyPalette.onSurfaceVariant,
-                          ),
-                        ),
-                      ),
-                    ],
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  displaySubtitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: CozyPalette.onSurfaceVariant,
                   ),
                 ),
               ],
             ),
+          ),
+          const SizedBox(width: 10),
+          // Right: Status Badge & Edit Button
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFECFDF5), // emerald-50
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(color: const Color(0xFFA7F3D0)), // emerald-200
+                ),
+                child: const Text(
+                  '营业中',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF047857), // emerald-700
+                  ),
+                ),
+              ),
+              const SizedBox(height: 4),
+              GestureDetector(
+                onTap: onEdit,
+                child: Text(
+                  '编辑店铺',
+                  style: TextStyle(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w800,
+                    color: CozyPalette.primary,
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -795,83 +862,165 @@ class _ShopSettingsStrip extends StatelessWidget {
   }
 }
 
-// ══════════════════════════════════════════════════════════════════════════════
-//  CategoryManagementBento（MenuManagementScreen.kt:475）
-// ══════════════════════════════════════════════════════════════════════════════
 class _CategoryManagementBento extends StatelessWidget {
   const _CategoryManagementBento({
     required this.categories,
     required this.dishCountByCategory,
+    required this.selectedCategory,
+    required this.onSelectCategory,
     required this.onManageCategoriesClick,
     required this.onCreateCategoryClick,
   });
 
   final List<String> categories;
   final Map<String, int> dishCountByCategory;
+  final String selectedCategory;
+  final ValueChanged<String> onSelectCategory;
   final VoidCallback onManageCategoriesClick;
   final VoidCallback onCreateCategoryClick;
 
   @override
   Widget build(BuildContext context) {
+    final int totalDishes = dishCountByCategory.values.fold(0, (int a, int b) => a + b);
+    final String currentHint = selectedCategory.isEmpty ? '全部菜品 ($totalDishes)' : '$selectedCategory (${dishCountByCategory[selectedCategory] ?? 0})';
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
+        // Header Row
         Row(
           children: <Widget>[
-            Expanded(
-              child: Text(
-                '分类管理',
-                style: _fit(Theme.of(context).textTheme.headlineMedium, 24, 32,
-                    FontWeight.bold),
+            const Text('📑', style: TextStyle(fontSize: 12)),
+            const SizedBox(width: 4),
+            Text(
+              '菜单分类筛选与管理：',
+              style: TextStyle(
+                fontSize: 11.5,
+                fontWeight: FontWeight.w800,
+                color: CozyPalette.onSurfaceVariant,
               ),
             ),
-            // 原生 M3 TextButton（默认 contentPadding h12 / v8）
-            TextButton(
-              onPressed: onManageCategoriesClick,
-              style: TextButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                minimumSize: Size.zero,
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            const Spacer(),
+            Text(
+              currentHint,
+              style: TextStyle(
+                fontSize: 10.5,
+                fontWeight: FontWeight.w700,
+                color: CozyPalette.primary,
               ),
-              child: Row(
-                children: <Widget>[
-                  Text(
-                    '管理全部分类',
-                    style: _fit(Theme.of(context).textTheme.labelLarge, 14, 18,
-                            FontWeight.bold)
-                        .copyWith(color: CozyPalette.primary),
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    '›',
-                    style: _fit(Theme.of(context).textTheme.headlineMedium, 22,
-                            28, FontWeight.bold)
-                        .copyWith(color: CozyPalette.primary),
-                  ),
-                ],
+            ),
+            const SizedBox(width: 6),
+            GestureDetector(
+              onTap: onManageCategoriesClick,
+              child: Text(
+                '管理 ›',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                  color: CozyPalette.primary,
+                ),
               ),
             ),
           ],
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 8),
+        // Horizontal Pills
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.only(right: 4),
           child: Row(
             children: <Widget>[
-              for (final String category in categories) ...<Widget>[
-                _CategoryBentoCard(
-                  isCreate: false,
-                  category: category,
-                  dishCount: dishCountByCategory[category] ?? 0,
+              // '全部' pill
+              GestureDetector(
+                onTap: () => onSelectCategory(''),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: selectedCategory.isEmpty
+                        ? CozyPalette.primary
+                        : CozyPalette.surface,
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(
+                      color: selectedCategory.isEmpty
+                          ? CozyPalette.primary
+                          : CozyPalette.outlineVariant.withValues(alpha: 0.6),
+                    ),
+                  ),
+                  child: Text(
+                    '全部 ($totalDishes)',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: selectedCategory.isEmpty
+                          ? FontWeight.w900
+                          : FontWeight.w600,
+                      color: selectedCategory.isEmpty
+                          ? Colors.white
+                          : CozyPalette.onSurface,
+                    ),
+                  ),
                 ),
-                const SizedBox(width: 12),
+              ),
+              for (final String cat in categories) ...<Widget>[
+                const SizedBox(width: 6),
+                GestureDetector(
+                  onTap: () => onSelectCategory(cat),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: selectedCategory == cat
+                          ? CozyPalette.primary
+                          : CozyPalette.surface,
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(
+                        color: selectedCategory == cat
+                            ? CozyPalette.primary
+                            : CozyPalette.outlineVariant.withValues(alpha: 0.6),
+                      ),
+                    ),
+                    child: Text(
+                      '$cat (${dishCountByCategory[cat] ?? 0})',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: selectedCategory == cat
+                            ? FontWeight.w900
+                            : FontWeight.w600,
+                        color: selectedCategory == cat
+                            ? Colors.white
+                            : CozyPalette.onSurface,
+                      ),
+                    ),
+                  ),
+                ),
               ],
-              _CategoryBentoCard(
-                isCreate: true,
-                category: '',
-                dishCount: 0,
+              const SizedBox(width: 6),
+              // '+ 添加分类' pill
+              GestureDetector(
                 onTap: onCreateCategoryClick,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: CozyPalette.surface,
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(
+                      color: CozyPalette.primary.withValues(alpha: 0.4),
+                      style: BorderStyle.solid,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      Icon(Icons.add, size: 12, color: CozyPalette.primary),
+                      const SizedBox(width: 2),
+                      Text(
+                        '添加分类',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          color: CozyPalette.primary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ],
           ),
@@ -881,336 +1030,116 @@ class _CategoryManagementBento extends StatelessWidget {
   }
 }
 
-/// 原生 `CategoryBentoCard`（MenuManagementScreen.kt:525）
-///
-/// 这两个卡片是自绘 Surface（新增卡是 1.5dp 虚线描边、分类卡是 2dp 主色描边），
-/// `CozyCard` 只能画固定 1px 实线发丝边，所以这里按原生自绘 + 设计系统的卡片投影。
-class _CategoryBentoCard extends StatelessWidget {
-  const _CategoryBentoCard({
-    required this.isCreate,
-    required this.category,
-    required this.dishCount,
-    this.onTap,
-  });
 
-  final bool isCreate;
-  final String category;
-  final int dishCount;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final Widget card = Container(
-      width: 154,
-      height: 152,
-      decoration: BoxDecoration(
-        color: CozyPalette.surface,
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: CozyLight.cardShadow,
-      ),
-      child: CustomPaint(
-        foregroundPainter: isCreate
-            ? _DashedBorderPainter(
-                color: CozyPalette.outlineVariant.withValues(alpha: 0.72),
-                radius: 14,
-              )
-            : _SolidBorderPainter(
-                color: CozyPalette.primary.withValues(alpha: 0.74),
-                radius: 14,
-                width: 2,
-              ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: <Widget>[
-              Container(
-                width: 48,
-                height: 48,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: isCreate
-                      ? CozyPalette.surface
-                      : _categoryAccent(category).withValues(alpha: 0.72),
-                  border: isCreate
-                      ? Border.all(color: CozyPalette.primary, width: 2)
-                      : null,
-                ),
-                child: Icon(
-                  isCreate ? Icons.add : _categoryIcon(category),
-                  size: isCreate ? 26 : 23,
-                  color: CozyPalette.primary,
-                ),
-              ),
-              const SizedBox(height: 10),
-              Text(
-                isCreate ? '新增分类' : category,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: _fit(Theme.of(context).textTheme.titleLarge, 15, 20,
-                        FontWeight.bold)
-                    .copyWith(color: CozyPalette.primary),
-              ),
-              if (!isCreate) ...<Widget>[
-                const SizedBox(height: 3),
-                Text(
-                  '$dishCount款菜品',
-                  style: _fit(Theme.of(context).textTheme.bodySmall, 12, 18)
-                      .copyWith(color: CozyPalette.onSurfaceVariant),
-                ),
-              ],
-            ],
-          ),
-        ),
-      ),
-    );
-    if (onTap == null) return card;
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: onTap,
-      child: card,
-    );
-  }
-}
 
 /// 原生 `Modifier.dashedCategoryBorder`（MenuManagementScreen.kt:569）：
 /// 1.5dp、dash [10dp, 7dp]、圆角 14。
-class _DashedBorderPainter extends CustomPainter {
-  const _DashedBorderPainter({required this.color, required this.radius});
 
-  final Color color;
-  final double radius;
 
-  @override
-  void paint(Canvas canvas, Size size) {
-    const double strokeWidth = 1.5;
-    const double inset = strokeWidth / 2;
-    final Paint paint = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = strokeWidth;
-    final Path path = Path()
-      ..addRRect(RRect.fromRectAndRadius(
-        Rect.fromLTWH(
-            inset, inset, size.width - strokeWidth, size.height - strokeWidth),
-        Radius.circular(radius),
-      ));
-    for (final metric in path.computeMetrics()) {
-      double distance = 0;
-      while (distance < metric.length) {
-        final double next = distance + 10;
-        final double end = next < metric.length ? next : metric.length;
-        canvas.drawPath(metric.extractPath(distance, end), paint);
-        distance = next + 7;
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(_DashedBorderPainter oldDelegate) =>
-      oldDelegate.color != color || oldDelegate.radius != radius;
-}
-
-/// 原生 `Surface(border = BorderStroke(width, color))` 的实线描边（可指定宽度）
-class _SolidBorderPainter extends CustomPainter {
-  const _SolidBorderPainter({
-    required this.color,
-    required this.radius,
-    required this.width,
-  });
-
-  final Color color;
-  final double radius;
-  final double width;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final double inset = width / 2;
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromLTWH(inset, inset, size.width - width, size.height - width),
-        Radius.circular(radius),
-      ),
-      Paint()
-        ..color = color
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = width,
-    );
-  }
-
-  @override
-  bool shouldRepaint(_SolidBorderPainter oldDelegate) =>
-      oldDelegate.color != color ||
-      oldDelegate.radius != radius ||
-      oldDelegate.width != width;
-}
-
-/// 原生 `categoryIcon()`（MenuManagementScreen.kt:627）只认三档：
-/// 披萨/主食、蛋糕/甜、饮/咖啡/茶，其余一律落到 `restaurant_outlined`，
-/// 所以「招牌必吃」「暖心硬菜」这类常见分类在原生里也是同一把叉勺。
-/// 【审查修正】这里把关键词铺细，未命中的再按名字哈希取一枚，避免整排卡片同图。
-IconData _categoryIcon(String category) {
-  final String c = category.trim();
-  if (c.contains('披萨') || c.contains('主食')) {
-    return Icons.local_pizza_outlined;
-  }
-  if (c.contains('面包') || c.contains('烘焙')) {
-    return Icons.bakery_dining_outlined;
-  }
-  if (c.contains('蛋糕') || c.contains('甜') || c.contains('点')) {
-    return Icons.cake_outlined;
-  }
-  if (c.contains('饮') || c.contains('咖啡') || c.contains('茶') || c.contains('酒')) {
-    return Icons.local_cafe_outlined;
-  }
-  if (c.contains('面') || c.contains('粉')) {
-    return Icons.ramen_dining_outlined;
-  }
-  if (c.contains('饭') || c.contains('中餐') || c.contains('家常')) {
-    return Icons.rice_bowl_outlined;
-  }
-  if (c.contains('汤') || c.contains('煲') || c.contains('炖') || c.contains('粥')) {
-    return Icons.soup_kitchen_outlined;
-  }
-  if (c.contains('火锅')) {
-    return Icons.local_fire_department_outlined;
-  }
-  if (c.contains('烧烤') || c.contains('烤') || c.contains('炸')) {
-    return Icons.outdoor_grill_outlined;
-  }
-  if (c.contains('海鲜') || c.contains('鱼') || c.contains('虾') || c.contains('蟹')) {
-    return Icons.set_meal_outlined;
-  }
-  if (c.contains('西餐') || c.contains('牛排') || c.contains('意')) {
-    return Icons.lunch_dining_outlined;
-  }
-  if (c.contains('素') || c.contains('凉') || c.contains('沙拉')) {
-    return Icons.eco_outlined;
-  }
-  if (c.contains('冰') || c.contains('雪糕')) {
-    return Icons.icecream_outlined;
-  }
-  if (c.contains('招牌') || c.contains('推荐') || c.contains('必吃')) {
-    return Icons.local_fire_department_outlined;
-  }
-  if (c.contains('硬菜') || c.contains('暖')) {
-    return Icons.soup_kitchen_outlined;
-  }
-  return _kFoodIcons[_categorySeed(c) % _kFoodIcons.length];
-}
-
-/// 关键词都没命中时的备选图标（按名字哈希取一枚，同一名字永远同一枚）。
-const List<IconData> _kFoodIcons = <IconData>[
-  Icons.restaurant_outlined,
-  Icons.dinner_dining_outlined,
-  Icons.ramen_dining_outlined,
-  Icons.rice_bowl_outlined,
-  Icons.soup_kitchen_outlined,
-  Icons.local_pizza_outlined,
-  Icons.set_meal_outlined,
-  Icons.bakery_dining_outlined,
-  Icons.icecream_outlined,
-  Icons.local_cafe_outlined,
-];
-
-/// 分类名的稳定哈希（不随列表顺序变，同一分类每次渲染都同图同色）。
-int _categorySeed(String category) {
-  int seed = 7;
-  for (final int unit in category.trim().codeUnits) {
-    seed = (seed * 31 + unit) % 1000003;
-  }
-  return seed;
-}
-
-/// 原生 `categoryAccent()`（MenuManagementScreen.kt:634）同样只有三档。
-/// 【审查修正】这里跟着上面选出来的图标走：同类同色，未命中的按同一个哈希取色。
-Color _categoryAccent(String category) {
-  final IconData icon = _categoryIcon(category);
-  if (icon == Icons.cake_outlined ||
-      icon == Icons.icecream_outlined ||
-      icon == Icons.bakery_dining_outlined ||
-      icon == Icons.local_cafe_outlined ||
-      icon == Icons.eco_outlined) {
-    return CozyPalette.secondaryContainer; // #FFD1DC
-  }
-  if (icon == Icons.soup_kitchen_outlined ||
-      icon == Icons.outdoor_grill_outlined ||
-      icon == Icons.set_meal_outlined ||
-      icon == Icons.lunch_dining_outlined) {
-    return CozyPalette.tertiaryContainer; // #F8A98E
-  }
-  if (_kFoodIcons.contains(icon)) {
-    const List<Color> tints = <Color>[
-      CozyPalette.primaryContainer,
-      CozyPalette.secondaryContainer,
-      CozyPalette.tertiaryContainer,
-    ];
-    return tints[_categorySeed(category) % tints.length];
-  }
-  return CozyPalette.primaryContainer; // #F4A7B9
-}
-
-// ══════════════════════════════════════════════════════════════════════════════
-//  DishManagementHeader（MenuManagementScreen.kt:641）
-// ══════════════════════════════════════════════════════════════════════════════
 class _DishManagementHeader extends StatelessWidget {
   const _DishManagementHeader({
+    required this.dishCount,
     required this.selectedFilter,
     required this.onFilterSelected,
+    required this.onNewDish,
   });
 
+  final int dishCount;
   final _MenuFilter selectedFilter;
   final ValueChanged<_MenuFilter> onFilterSelected;
+  final VoidCallback onNewDish;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return Row(
       children: <Widget>[
         Text(
-          '菜品管理',
-          style: _fit(
-              Theme.of(context).textTheme.headlineMedium, 24, 32, FontWeight.bold),
+          '在售私房菜清单 ($dishCount)',
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w900,
+            color: CozyPalette.onSurface,
+          ),
         ),
-        const SizedBox(height: 12),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            children: <Widget>[
-              // 【自查修正】原来这三个筛选用本文件自绘的 _FilterChip（带 7×7
-              // 前导圆点、选中是 12% 淡底 + 彩字），订单页却用共享的 CozyPill
-              // （无圆点、选中是实心 + 白字）。同一件事两种长相，统一到 CozyPill。
-              CozyPill(
-                text: '全部',
-                selected: selectedFilter == _MenuFilter.all,
-                onTap: () => onFilterSelected(_MenuFilter.all),
+        const Spacer(),
+        // Filter pills
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            _smallFilterPill('全部', selectedFilter == _MenuFilter.all, () => onFilterSelected(_MenuFilter.all)),
+            const SizedBox(width: 4),
+            _smallFilterPill('已上架', selectedFilter == _MenuFilter.available, () => onFilterSelected(_MenuFilter.available)),
+            const SizedBox(width: 4),
+            _smallFilterPill('已下架', selectedFilter == _MenuFilter.unavailable, () => onFilterSelected(_MenuFilter.unavailable)),
+          ],
+        ),
+        const SizedBox(width: 8),
+        // '+ 新增菜品' button
+        GestureDetector(
+          onTap: onNewDish,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: <Color>[
+                  CozyPalette.primary,
+                  Color(0xFFF59E0B),
+                ],
               ),
-              const SizedBox(width: 8),
-              CozyPill(
-                text: '已上架',
-                selected: selectedFilter == _MenuFilter.available,
-                onTap: () => onFilterSelected(_MenuFilter.available),
-              ),
-              const SizedBox(width: 8),
-              CozyPill(
-                text: '已下架',
-                selected: selectedFilter == _MenuFilter.unavailable,
-                color: CozyPalette.onSurfaceVariant,
-                onTap: () => onFilterSelected(_MenuFilter.unavailable),
-              ),
-            ],
+              borderRadius: BorderRadius.circular(10),
+              boxShadow: const <BoxShadow>[
+                BoxShadow(
+                  color: Color(0x33E06D53),
+                  blurRadius: 6,
+                  offset: Offset(0, 2),
+                ),
+              ],
+            ),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                Icon(Icons.add, size: 13, color: Colors.white),
+                SizedBox(width: 3),
+                Text(
+                  '新增菜品',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ],
     );
   }
+
+  Widget _smallFilterPill(String text, bool selected, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+        decoration: BoxDecoration(
+          color: selected ? CozyPalette.primary.withValues(alpha: 0.12) : Colors.transparent,
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: Text(
+          text,
+          style: TextStyle(
+            fontSize: 10,
+            fontWeight: selected ? FontWeight.w800 : FontWeight.w500,
+            color: selected ? CozyPalette.primary : const Color(0xFF888888),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
-// ══════════════════════════════════════════════════════════════════════════════
-//  FloatingAddDishButton（MenuManagementScreen.kt:678）
-// ══════════════════════════════════════════════════════════════════════════════
 class _FloatingAddDishButton extends StatelessWidget {
+
   const _FloatingAddDishButton({required this.onTap});
 
   final VoidCallback onTap;
@@ -1377,15 +1306,52 @@ class _EmptyMenuCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 原生外层 Box 还有 fillMaxHeight()，但在 LazyColumn item 里高度无界；
-    // Flutter 的 ListView 同样无界，所以只保留 28 内边距 + 居中。
     return Padding(
-      padding: const EdgeInsets.all(28),
-      child: _OrderGuidanceEmptyState(
-        title: '当前分类暂无菜品',
-        subtitle: '点击添加菜品，补充菜名、价格、分类和图片后即可上架。',
-        actionText: '+ 添加菜品',
-        onAction: onShowAddSheet,
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 28),
+      child: Column(
+        children: <Widget>[
+          _OrderGuidanceEmptyState(
+            title: '当前分类暂无菜品',
+            subtitle: '可快速载入情侣私房菜谱，或手动补充菜名、价格和图片后上架。',
+            actionText: '+ 添加私房菜',
+            onAction: onShowAddSheet,
+          ),
+          const SizedBox(height: 14),
+          _PressScale(
+            onTap: () {
+              HapticFeedback.mediumImpact();
+              AppState.instance.menu = List<MenuItem>.from(kDefaultSeedDishes);
+              AppState.instance.notify();
+            },
+            child: Container(
+              height: 40,
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              decoration: BoxDecoration(
+                color: CozyPalette.primaryContainer.withValues(alpha: 0.45),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: CozyPalette.primary.withValues(alpha: 0.3),
+                  width: 0.8,
+                ),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  Text('✨', style: TextStyle(fontSize: 16)),
+                  SizedBox(width: 6),
+                  Text(
+                    '一键导入招牌菜谱',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: CozyPalette.primary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

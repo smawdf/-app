@@ -7,8 +7,7 @@ import '../pages/home_page.dart';
 import '../pages/ordering_page.dart';
 import '../pages/orders_page.dart';
 import '../pages/profile_page.dart';
-import '../theme/cozy_glass.dart';
-import '../widgets/cozy_toast.dart';
+import '../theme/couple_theme.dart';
 import 'cozy_glass_dock.dart';
 
 /// 主界面外壳
@@ -31,60 +30,57 @@ class _MainShellState extends State<MainShell>
   int _tab = 0;
   String? _lastToast;
 
-  /// 【动效】切 tab 时让正文淡入 + 轻微上移。
-  /// 用 IndexedStack 保活五个页面，所以不能换成 AnimatedSwitcher（会丢状态），
-  /// 改成「同一个 Stack 整体重播一次入场动画」。
-  late final AnimationController _bodyCtrl = AnimationController(
+  late final AnimationController _anim = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 260),
-    value: 1,
+    duration: const Duration(milliseconds: 220),
   );
-  late final Animation<double> _bodyCurve =
-      CurvedAnimation(parent: _bodyCtrl, curve: Curves.easeOutCubic);
-
-  @override
-  void dispose() {
-    _bodyCtrl.dispose();
-    super.dispose();
-  }
+  late final CurvedAnimation _bodyCurve = CurvedAnimation(
+    parent: _anim,
+    curve: Curves.easeOutCubic,
+  );
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      AppState.instance.refreshAll();
-    });
+    _anim.value = 1.0;
   }
 
-  void _onTabTap(int index) {
-    final bool changed = index != _tab;
-    setState(() => _tab = index);
-    if (changed) _bodyCtrl.forward(from: 0);
-    final state = AppState.instance;
-    if (index == 0) state.loadMe();
-    if (index == 1) state.refreshMenu();
-    if (index == 3) state.refreshOrders();
-    if (index == 4) state.refreshTransactions();
+  @override
+  void dispose() {
+    _anim.dispose();
+    super.dispose();
+  }
+
+  void _onTabTap(int idx) {
+    if (idx == _tab) return;
+    setState(() => _tab = idx);
+    _anim.forward(from: 0.0);
+  }
+
+  /// 供全页面共用的轻量 Toast
+  void showShellToast(String msg) {
+    if (!mounted) return;
+    if (_lastToast == msg) return;
+    _lastToast = msg;
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(msg),
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(milliseconds: 1400),
+      ),
+    );
+    Future.delayed(const Duration(milliseconds: 1500), () {
+      if (mounted && _lastToast == msg) _lastToast = null;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    final state = AppState.instance;
-
     return ListenableBuilder(
-      listenable: state,
+      listenable: Listenable.merge([AppState.instance, CoupleThemeManager.instance]),
       builder: (context, _) {
-        // 实时推送提示
-        final toast = state.toast;
-        if (toast != null && toast != _lastToast) {
-          _lastToast = toast;
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (!mounted) return;
-            showCozyToast(context, toast, duration: const Duration(seconds: 3));
-            AppState.instance.clearToast();
-          });
-        }
-
+        // 5 个 Tab 页面（原生有 5 个：小饭桌 / 点餐 / 发现 / 订单 / 我的）
         final pages = <Widget>[
           HomePage(onNavigateTab: (idx) => _onTabTap(idx)),
           const OrderingPage(),
@@ -93,9 +89,12 @@ class _MainShellState extends State<MainShell>
           ProfilePage(onNavigateTab: (idx) => _onTabTap(idx)),
         ];
 
+        final theme = context.coupleTheme;
+
         return GlassScaffold(
-          backgroundColor: CozyPalette.background,
+          backgroundColor: theme.bgPage,
           statusBarStyle: GlassStatusBarStyle.dark,
+          resizeToAvoidBottomInset: false,
           bottomBar: Material(
             type: MaterialType.transparency,
             child: CozyBottomBarLayer(

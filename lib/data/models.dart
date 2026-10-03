@@ -131,7 +131,7 @@ class Shop {
   final String announcement;
   final String coverUrl;
 
-  Shop({required this.id, required this.name, required this.announcement, required this.coverUrl});
+  const Shop({required this.id, required this.name, required this.announcement, required this.coverUrl});
 
   factory Shop.fromJson(Map<String, dynamic> j) => Shop(
         id: j['id'] ?? '',
@@ -157,7 +157,7 @@ class MenuItem {
   /// 「分类管理」永远是空的、点餐页分类栏永远为空。这里补齐后彻底对齐原生。
   final String category;
 
-  MenuItem({
+  const MenuItem({
     required this.id,
     required this.name,
     required this.description,

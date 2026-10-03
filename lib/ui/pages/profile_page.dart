@@ -6,10 +6,12 @@ import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../data/app_state.dart';
+import '../auth/auth_screen.dart';
 import '../candy/candy_coins_page.dart';
 import '../couple/anniversary_page.dart';
 import '../menu/menu_management_page.dart';
 import '../theme/cozy_glass.dart';
+import '../theme/couple_theme.dart';
 import '../widgets/cozy_celebration.dart';
 import '../widgets/cozy_count_up.dart';
 import '../widgets/cozy_toast.dart';
@@ -19,7 +21,7 @@ import 'avatar_crop_page.dart';
 /// 【真机修正】pubspec.yaml:17 实际是 `version: 2.0.0+56`，这里却写着 3.0.1，
 /// 「我的 → 版本与更新 / 关于」显示的是不存在的版本号。改回与 pubspec 一致；
 /// 以后改版本号时这两处必须同步（未引入 package_info_plus，避免多加依赖）。
-const String _appVersion = '2.0.0';
+const String _appVersion = '2.0.0+61';
 
 /// Compose 的 `fontSize.sp + lineHeight.sp` 在 Flutter 里要换算成 `height` 倍率。
 /// 全页字号/行高一律走这里，字体族由全局 `ThemeData.textTheme` 提供（RomanticRound）。
@@ -135,12 +137,31 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
+  /// 打开【情侣空间 · 主题工坊】弹窗
+  void _openCoupleThemeModal() {
+    HapticFeedback.lightImpact();
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (_) => const _CoupleThemeModal(),
+    );
+  }
+
   /// demo「纪念日日历」设置项：原页面没有这个入口（只在首页有），按 demo 补上。
   void _openAnniversary() {
     HapticFeedback.lightImpact();
     Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => const AnniversaryPage()),
+    );
+  }
+
+  void _openAuth({bool register = false}) {
+    HapticFeedback.lightImpact();
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => AuthScreen(initialRegister: register)),
     );
   }
 
@@ -197,22 +218,56 @@ class _ProfilePageState extends State<ProfilePage> {
                         ),
                       ),
                       const SizedBox(height: 12),
+                      // ---- 云端同步与账号登录/注册卡片 ----
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: _CloudAuthCard(
+                          isGuest: state.isGuest,
+                          isLoggedIn: state.isLoggedIn && !state.isGuest,
+                          email: state.user?.username ?? '',
+                          onLogin: () => _openAuth(register: false),
+                          onRegister: () => _openAuth(register: true),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
                       // ---- demo「Couple Connection Tile」（本页原先没有这一块）----
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 20),
                         child: _PairTile(
                           isPaired: state.isPaired,
                           isFullyBound: state.pair?.isFullyBound ?? false,
+                          partnerName: state.pair?.partnerName ?? '',
                           inviteCode: inviteCode,
                           onTap: _openPairDialog,
                         ),
                       ),
                       const SizedBox(height: 12),
-                      // ---- demo「Settings List」：一张白卡 + 三行 ----
+                      // ---- demo「Settings List」：一张白卡 + 四行 ----
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 20),
                         child: _SettingsCard(
                           rows: <Widget>[
+                            _SettingRow(
+                              icon: _RowIcon(
+                                background: context.coupleTheme.primaryLight,
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: Image.asset(
+                                    context.coupleTheme.loveAnimAsset,
+                                    width: 26,
+                                    height: 26,
+                                    fit: BoxFit.contain,
+                                    errorBuilder: (_, _, _) => const Text('🎨', style: TextStyle(fontSize: 18)),
+                                  ),
+                                ),
+                              ),
+                              title: '情侣空间 · 主题工坊',
+                              subtitle: '一二布布 / 线条小狗 / 噜噜噜妹',
+                              trailing: _TrailingPill(
+                                text: context.coupleTheme.tag,
+                              ),
+                              onTap: _openCoupleThemeModal,
+                            ),
                             _SettingRow(
                               icon: _RowIcon(
                                 background: const Color(0xFFFDF0D5),
@@ -578,6 +633,270 @@ class _ProfileCard extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
+// 云端同步与账号登录/注册卡片
+// ---------------------------------------------------------------------------
+
+class _CloudAuthCard extends StatelessWidget {
+  const _CloudAuthCard({
+    required this.isGuest,
+    required this.isLoggedIn,
+    required this.email,
+    required this.onLogin,
+    required this.onRegister,
+  });
+
+  final bool isGuest;
+  final bool isLoggedIn;
+  final String email;
+  final VoidCallback onLogin;
+  final VoidCallback onRegister;
+
+  @override
+  Widget build(BuildContext context) {
+    if (isLoggedIn) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: CozyPalette.primary.withValues(alpha: 0.18),
+            width: 0.8,
+          ),
+          boxShadow: <BoxShadow>[
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.03),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          children: <Widget>[
+            Container(
+              width: 38,
+              height: 38,
+              decoration: const BoxDecoration(
+                color: Color(0xFFE8F5E9),
+                shape: BoxShape.circle,
+              ),
+              child: const Center(
+                child: Icon(Icons.cloud_done_rounded, color: Color(0xFF2E7D32), size: 20),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  const Row(
+                    children: <Widget>[
+                      Text(
+                        '云端实时同步已开启',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                          color: CozyPalette.onSurface,
+                        ),
+                      ),
+                      SizedBox(width: 4),
+                      Text('🟢', style: TextStyle(fontSize: 10)),
+                    ],
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    email.isNotEmpty ? email : '数据已安全同步至云端小饭桌',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: CozyPalette.onSurfaceVariant,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: onLogin,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: CozyPalette.surfaceContainerLow,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: CozyPalette.outlineVariant.withValues(alpha: 0.4),
+                  ),
+                ),
+                child: const Text(
+                  '切换账号',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: CozyPalette.primary,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Guest / Not logged in banner
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: <Color>[
+            Color(0xFFFFF7ED),
+            Color(0xFFFFF1F2),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: CozyPalette.primary.withValues(alpha: 0.25),
+          width: 1,
+        ),
+        boxShadow: <BoxShadow>[
+          BoxShadow(
+            color: CozyPalette.primary.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Row(
+            children: <Widget>[
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: CozyPalette.primary.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Center(
+                  child: Icon(
+                    Icons.cloud_sync_rounded,
+                    color: CozyPalette.primary,
+                    size: 20,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      '登录云端小店 · 开启双人同步',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w900,
+                        color: CozyPalette.onSurface,
+                      ),
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      '跨设备实时同步菜单、订单与甜蜜纪念日',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: CozyPalette.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: <Widget>[
+              Expanded(
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: onLogin,
+                  child: Container(
+                    height: 38,
+                    decoration: BoxDecoration(
+                      color: CozyPalette.primary,
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: <BoxShadow>[
+                        BoxShadow(
+                          color: CozyPalette.primary.withValues(alpha: 0.28),
+                          blurRadius: 6,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    alignment: Alignment.center,
+                    child: const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: <Widget>[
+                        Icon(Icons.login_rounded, size: 16, color: Colors.white),
+                        SizedBox(width: 6),
+                        Text(
+                          '账号登录',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: onRegister,
+                  child: Container(
+                    height: 38,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: CozyPalette.primary.withValues(alpha: 0.45),
+                        width: 1,
+                      ),
+                    ),
+                    alignment: Alignment.center,
+                    child: const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: <Widget>[
+                        Icon(Icons.person_add_alt_1_rounded, size: 16, color: CozyPalette.primary),
+                        SizedBox(width: 6),
+                        Text(
+                          '新店注册',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800,
+                            color: CozyPalette.primary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
 // demo「Couple Connection Tile」伴侣绑定卡（邀请码 + 复制）
 // ---------------------------------------------------------------------------
 
@@ -586,22 +905,37 @@ class _PairTile extends StatelessWidget {
     required this.isPaired,
     required this.isFullyBound,
     required this.inviteCode,
+    required this.partnerName,
     required this.onTap,
   });
 
   final bool isPaired;
   final bool isFullyBound;
   final String inviteCode;
+  final String partnerName;
   final VoidCallback onTap;
 
-  /// 邀请码行：有码显示码 + 真实绑定状态，没有码就是引导文案（块不消失）。
+  String get _titleLine {
+    if (isPaired) {
+      return partnerName.isNotEmpty ? '伴侣小饭桌（已绑定 $partnerName）' : '伴侣小饭桌（已绑定）';
+    }
+    return '伴侣邀请码 (Pair ID)';
+  }
+
+  /// 邀请码行：已绑定时明确提示绑定成功，不再展示生成邀请码文案；未绑定时引导生成。
   String get _codeLine {
+    if (isPaired) {
+      return '双人小饭桌已成功绑定，数据实时同步 💕';
+    }
     if (inviteCode.isEmpty) return '还没有邀请码 · 点右侧生成一个';
-    if (!isPaired) return '#$inviteCode （等待绑定）';
-    return isFullyBound ? '#$inviteCode （双人绑定成功）' : '#$inviteCode （等待对方输入）';
+    return '#$inviteCode （等待对方输入）';
   }
 
   void _copy(BuildContext context) {
+    if (isPaired) {
+      onTap();
+      return;
+    }
     if (inviteCode.isEmpty) {
       onTap();
       return;
@@ -655,7 +989,7 @@ class _PairTile extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
                   Text(
-                    '伴侣邀请码 (Pair ID)',
+                    _titleLine,
                     style: _ts(12, 16, FontWeight.w900, CozyPalette.onSurface),
                   ),
                   const SizedBox(height: 2),
@@ -675,13 +1009,15 @@ class _PairTile extends StatelessWidget {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: isPaired ? CozyPalette.primary.withValues(alpha: 0.12) : Colors.white,
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: CozyPalette.secondaryContainer),
-                  boxShadow: CozyLight.cardShadow,
+                  border: Border.all(
+                    color: isPaired ? CozyPalette.primary.withValues(alpha: 0.3) : CozyPalette.secondaryContainer,
+                  ),
+                  boxShadow: isPaired ? null : CozyLight.cardShadow,
                 ),
                 child: Text(
-                  inviteCode.isEmpty ? '去生成' : '复制',
+                  isPaired ? '已绑定' : (inviteCode.isEmpty ? '去生成' : '复制'),
                   style: _ts(12, 16, FontWeight.w900, CozyPalette.primary),
                 ),
               ),
@@ -912,6 +1248,144 @@ class _LogoutButton extends StatelessWidget {
 // ProfileEditDialog (ProfileScreen.kt:1185-1308)
 // ---------------------------------------------------------------------------
 
+class _PresetAvatar {
+  const _PresetAvatar({
+    required this.name,
+    required this.category,
+    required this.assetPath,
+    required this.roleHint,
+    this.tag,
+  });
+
+  final String name;
+  final String category;
+  final String assetPath;
+  final String roleHint;
+  final String? tag;
+}
+
+const List<_PresetAvatar> _kPresetAvatars = <_PresetAvatar>[
+  // 一二布布（布布大厨·男 / 一二吃货·女）
+  _PresetAvatar(
+    name: '布布 (官方大厨)',
+    category: '一二布布',
+    assetPath: 'asset:assets/images/avatars/theme_chef_bubu.png',
+    roleHint: '👦 掌勺大厨推荐',
+    tag: '布布',
+  ),
+  _PresetAvatar(
+    name: '一二 (官方吃货)',
+    category: '一二布布',
+    assetPath: 'asset:assets/images/avatars/theme_eater_yier.png',
+    roleHint: '👧 首席吃货推荐',
+    tag: '一二',
+  ),
+  _PresetAvatar(
+    name: '布布 (可爱经典)',
+    category: '一二布布',
+    assetPath: 'asset:assets/images/avatars/couple_bubu.jpg',
+    roleHint: '👦 棕熊大厨',
+    tag: '布布',
+  ),
+  _PresetAvatar(
+    name: '一二 (萌萌经典)',
+    category: '一二布布',
+    assetPath: 'asset:assets/images/avatars/couple_yier.jpg',
+    roleHint: '👧 白熊吃货',
+    tag: '一二',
+  ),
+
+  // 小鸡毛 & 小白（小鸡毛金毛大厨·男 / 小白纯白吃货·女）
+  _PresetAvatar(
+    name: '小鸡毛 (官方大厨)',
+    category: '小鸡毛&小白',
+    assetPath: 'asset:assets/images/avatars/theme_chef_xiaojimao.png',
+    roleHint: '🐶 金毛大厨推荐',
+    tag: '小鸡毛',
+  ),
+  _PresetAvatar(
+    name: '小白 (官方吃货)',
+    category: '小鸡毛&小白',
+    assetPath: 'asset:assets/images/avatars/theme_eater_xiaobai.png',
+    roleHint: '🐩 纯白吃货推荐',
+    tag: '小白',
+  ),
+  _PresetAvatar(
+    name: '小鸡毛 (开心经典)',
+    category: '小鸡毛&小白',
+    assetPath: 'asset:assets/images/avatars/couple_xiaojimao.jpg',
+    roleHint: '🐶 掌勺修勾',
+    tag: '小鸡毛',
+  ),
+  _PresetAvatar(
+    name: '小白 (甜心经典)',
+    category: '小鸡毛&小白',
+    assetPath: 'asset:assets/images/avatars/couple_xiaobai.jpg',
+    roleHint: '🐩 傲娇吃货',
+    tag: '小白',
+  ),
+
+  // 噜噜 & 噜妹（水豚噜噜大厨·男 / 水豚噜妹宝宝裙·女）
+  _PresetAvatar(
+    name: '噜噜 (官方大厨)',
+    category: '噜噜&噜妹',
+    assetPath: 'asset:assets/images/avatars/theme_chef_lulu.png',
+    roleHint: '🍊 水豚大厨推荐',
+    tag: '噜噜',
+  ),
+  _PresetAvatar(
+    name: '噜妹 (宝宝衣服吃货)',
+    category: '噜噜&噜妹',
+    assetPath: 'asset:assets/images/avatars/theme_eater_lumei.png',
+    roleHint: '🎀 宝宝小噜妹推荐',
+    tag: '噜妹',
+  ),
+  _PresetAvatar(
+    name: '噜噜 (抱抱经典)',
+    category: '噜噜&噜妹',
+    assetPath: 'asset:assets/images/avatars/lulu_2.jpg',
+    roleHint: '🐷 噜噜大厨',
+    tag: '噜噜',
+  ),
+  _PresetAvatar(
+    name: '噜妹 (爱心经典)',
+    category: '噜噜&噜妹',
+    assetPath: 'asset:assets/images/avatars/lumei_2.jpg',
+    roleHint: '🌸 噜妹吃货',
+    tag: '噜妹',
+  ),
+
+  // 萌宠治愈
+  _PresetAvatar(
+    name: '奶茶喵 (男款)',
+    category: '萌宠治愈',
+    assetPath: 'asset:assets/images/avatars/cat_boy.jpg',
+    roleHint: '🐱 喵大厨',
+    tag: '小猫',
+  ),
+  _PresetAvatar(
+    name: '奶茶喵 (女款)',
+    category: '萌宠治愈',
+    assetPath: 'asset:assets/images/avatars/cat_girl.jpg',
+    roleHint: '🐱 喵吃货',
+    tag: '小猫',
+  ),
+  _PresetAvatar(
+    name: '呆萌柴 (男款)',
+    category: '萌宠治愈',
+    assetPath: 'asset:assets/images/avatars/shiba_boy.jpg',
+    roleHint: '🐕 柴柴',
+    tag: '柴犬',
+  ),
+  _PresetAvatar(
+    name: '呆萌柴 (女款)',
+    category: '萌宠治愈',
+    assetPath: 'asset:assets/images/avatars/shiba_girl.jpg',
+    roleHint: '🐕 柴柴',
+    tag: '柴犬',
+  ),
+];
+
 class _ProfileEditDialog extends StatefulWidget {
   const _ProfileEditDialog({required this.name, required this.avatarUrl});
 
@@ -925,8 +1399,9 @@ class _ProfileEditDialog extends StatefulWidget {
 class _ProfileEditDialogState extends State<_ProfileEditDialog> {
   late final TextEditingController _name = TextEditingController(text: widget.name);
 
-  /// 当前生效的头像（打开时=云端值；选图后=刚选的那张 data URI）
+  /// 当前生效的头像（打开时=云端值；选图后=刚选的那张 data URI / asset URI）
   late String _avatarUrl = widget.avatarUrl;
+  String _selectedCategory = '全部';
   bool _saving = false;
   String? _message;
   bool _failed = false;
@@ -952,20 +1427,17 @@ class _ProfileEditDialogState extends State<_ProfileEditDialog> {
 
   bool get _locked => _saving || _picking;
 
-  /// 相册选图 → 裁剪页（方形取景 + 圆形预览，可拖可缩放）→ 256×256 JPEG q72
-  /// → data URI 存 `profiles.avatar_url`（项目没有 storage 桶，
-  /// 见 `SupabaseApi.updateProfile` 的说明）。
+  /// 相册选图 → 裁剪页
   Future<void> _pickAvatar() async {
     if (_locked) return;
     try {
       final XFile? picked = await ImagePicker().pickImage(
         source: ImageSource.gallery,
-        // 先在系统侧限一下尺寸（相册里动辄 4000px，裁剪页只用到 1600）
         maxWidth: 2000,
         maxHeight: 2000,
         imageQuality: 88,
       );
-      if (picked == null) return; // 用户取消
+      if (picked == null) return;
       final Uint8List raw = await picked.readAsBytes();
       if (raw.isEmpty) {
         setState(() {
@@ -983,15 +1455,14 @@ class _ProfileEditDialogState extends State<_ProfileEditDialog> {
     }
   }
 
-  /// 直接裁剪「当前这张」（刚选的 data URI，或云端存过的 data URI）。
-  /// 默认头像 / 旧 http 图没有可裁的本地字节，这时给一句提示。
+  /// 直接裁剪「当前这张」
   Future<void> _cropCurrent() async {
     if (_locked) return;
     final String url = _avatarUrl;
     if (!CozyAvatar.isDataUri(url)) {
       setState(() {
         _failed = false;
-        _message = '先点「更换」选一张照片，再裁剪';
+        _message = '先点「相册」选一张照片，再裁剪哦';
       });
       return;
     }
@@ -999,7 +1470,7 @@ class _ProfileEditDialogState extends State<_ProfileEditDialog> {
     if (bytes == null) {
       setState(() {
         _failed = true;
-        _message = '这张头像解不开，请重新「更换」一张';
+        _message = '这张头像解不开，请重新「相册」选一张';
       });
       return;
     }
@@ -1018,12 +1489,22 @@ class _ProfileEditDialogState extends State<_ProfileEditDialog> {
     } finally {
       if (mounted) setState(() => _picking = false);
     }
-    if (result == null || result.isEmpty) return; // 裁剪页取消
+    if (result == null || result.isEmpty) return;
     final Uint8List cropped = result;
     setState(() {
       _avatarUrl = 'data:image/jpeg;base64,${base64Encode(cropped)}';
       _failed = false;
-      _message = '已裁好新头像（${(cropped.length / 1024).toStringAsFixed(1)} KB），点「保存资料」同步给小饭桌';
+      _message = '已裁好新头像，点「保存资料」同步给小饭桌';
+    });
+  }
+
+  /// 选中预设表情包头像
+  void _selectPresetAvatar(_PresetAvatar preset) {
+    if (_locked) return;
+    setState(() {
+      _avatarUrl = preset.assetPath;
+      _failed = false;
+      _message = '已选【${preset.name}】，点「保存资料」同步给伴侣';
     });
   }
 
@@ -1032,16 +1513,16 @@ class _ProfileEditDialogState extends State<_ProfileEditDialog> {
     setState(() {
       _avatarUrl = '';
       _failed = false;
-      _message = '保存后就只剩小爪印啦';
+      _message = '保存后展示温暖的小爪印 🐾';
     });
   }
 
-  /// 恢复默认：换成随 App 打包的默认头像（写 `asset:` 标记，双方都能显示）
+  /// 恢复默认：换成随 App 打包的默认头像
   void _useDefaultAvatar() {
     setState(() {
       _avatarUrl = CozyAvatar.defaultAvatarMark;
       _failed = false;
-      _message = '保存后用小饭桌的默认头像';
+      _message = '保存后使用小饭桌专属狗狗头像 🐶';
     });
   }
 
@@ -1066,39 +1547,48 @@ class _ProfileEditDialogState extends State<_ProfileEditDialog> {
       return;
     }
     Navigator.of(context).pop();
-    showCozyToast(context, '资料已同步，伴侣那边也能看到新头像', duration: const Duration(seconds: 3));
+    showCozyToast(context, '资料已同步，伴侣端也能实时看到新头像 ✨', duration: const Duration(seconds: 3));
   }
 
-  /// 头像操作小胶囊（更换 / 裁剪 / 删除 / 恢复默认）
-  Widget _avatarAction(IconData icon, String label, VoidCallback onTap) {
+  /// 头像快捷小药丸按钮
+  Widget _quickAvatarButton({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+    Color? color,
+  }) {
     final bool on = !_locked;
-    return GestureDetector(
-      onTap: on ? onTap : null,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-        decoration: BoxDecoration(
-          color: CozyPalette.secondaryContainer.withValues(alpha: on ? 0.34 : 0.14),
-          borderRadius: BorderRadius.circular(999),
-          border: Border.all(
-            color: CozyPalette.outlineVariant.withValues(alpha: on ? 0.7 : 0.35),
-            width: 1,
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            Icon(icon, size: 14, color: CozyInk.rose),
-            const SizedBox(width: 5),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 12,
-                height: 16 / 12,
-                fontWeight: FontWeight.w900,
-                color: on ? CozyInk.rose : CozyInk.rose.withValues(alpha: 0.45),
-              ),
+    final Color tint = color ?? CozyInk.rose;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: on ? onTap : null,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: tint.withValues(alpha: on ? 0.08 : 0.04),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: tint.withValues(alpha: on ? 0.28 : 0.12),
+              width: 1,
             ),
-          ],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Icon(icon, size: 13, color: tint),
+              const SizedBox(width: 4),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: on ? tint : tint.withValues(alpha: 0.4),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -1106,160 +1596,557 @@ class _ProfileEditDialogState extends State<_ProfileEditDialog> {
 
   @override
   Widget build(BuildContext context) {
-    // 标题 / 头像 / 四个操作 / 昵称 / 提示 / 按钮全部放进同一个滚动容器。
-    // 曾用 AlertDialog 的 content + actions：内容一长（提示文案换成两行）时，
-    // 最后一个 Text 的布局盒会压到 actions 之上并吃掉点击 —— 真机实测
-    // 「保存资料 / 取消」在 y 1512~1599 全部点不动、y≥1600 才有反应。
-    // 内容与按钮同处一个 SingleChildScrollView 后不再有兄弟节点重叠，
-    // 并且弹层高度恒定：提示固定占一个 40px 槽、计数恒定显示、
-    // 昵称错误也走提示槽（不用会撑高输入框的 errorText）、转圈挪进头像里。
-    // 高度一变，真机上布局几何与绘制几何就会错位约 80px，按钮便点不动。
+    final List<String> categories = <String>['全部', '一二布布', '小鸡毛&小白', '噜噜&噜妹', '萌宠治愈'];
+    final List<_PresetAvatar> filteredAvatars = _selectedCategory == '全部'
+        ? _kPresetAvatars
+        : _kPresetAvatars.where((_PresetAvatar a) => a.category == _selectedCategory).toList();
+
     return Dialog(
-      backgroundColor: CozyPalette.surface,
+      backgroundColor: const Color(0xFFFFFDF8),
+      elevation: 12,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-      insetPadding: const EdgeInsets.symmetric(horizontal: 36, vertical: 24),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 420),
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(24, 22, 24, 14),
+        constraints: const BoxConstraints(maxWidth: 440, maxHeight: 680),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
-              Text(
-                '编辑个人资料',
-                textAlign: TextAlign.center,
-                style: _ts(18, 24, FontWeight.w900, CozyPalette.onSurface),
-              ),
-              const SizedBox(height: 10),
-              // 头像：白圆底 + 玫瑰描边；点右下角小铅笔 = 更换（选图 → 裁剪）
-              SizedBox(
-                width: 112,
-                height: 112,
-                child: Stack(
-                  children: <Widget>[
-                    Positioned.fill(
-                      child: Container(
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Colors.white,
-                          border: Border.all(
-                            color: CozyPalette.primaryContainer.withValues(alpha: 0.72),
-                            width: 3,
-                          ),
-                        ),
-                        child: ClipOval(
-                          child: CozyAvatar(
-                            url: _avatarUrl,
-                            size: 112,
-                            fallback: const Icon(Icons.pets, size: 46, color: CozyPalette.primary),
-                          ),
-                        ),
-                      ),
-                    ),
-                    Positioned(
-                      right: 0,
-                      bottom: 0,
-                      child: GestureDetector(
-                        onTap: _locked ? null : _pickAvatar,
-                        child: Container(
-                          width: 38,
-                          height: 38,
-                          alignment: Alignment.center,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: CozyInk.rose,
-                            border: Border.all(color: Colors.white, width: 3),
-                          ),
-                          child: const Icon(Icons.edit, size: 17, color: Colors.white),
-                        ),
-                      ),
-                    ),
-                    // 选图 / 裁剪 / 保存共用同一个转圈覆盖层：放进头像里，
-                    // 弹层高度不会因为「正在保存」而变化（高度一变，按钮就会跳）。
-                    if (_picking || _saving)
-                      const Positioned.fill(
-                        child: ColoredBox(
-                          color: Color(0x33FFFFFF),
-                          child: Center(
-                            child: SizedBox(
-                              width: 22,
-                              height: 22,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            ),
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 12),
-              // 四个头像操作：窄屏自动换行，不会挤出弹层（用户反馈过「适配」）
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                alignment: WrapAlignment.center,
-                children: <Widget>[
-                  _avatarAction(Icons.photo_library_outlined, '更换', _pickAvatar),
-                  _avatarAction(Icons.crop, '裁剪', _cropCurrent),
-                  _avatarAction(Icons.delete_outline, '删除', _removeAvatar),
-                  _avatarAction(Icons.restore, '恢复默认', _useDefaultAvatar),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Text(
-                '从相册选一张，拖动裁剪成头像；头像存在你们的小饭桌里',
-                textAlign: TextAlign.center,
-                style: _ts(11, 16, FontWeight.w400, CozyPalette.onSurfaceVariant),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _name,
-                onChanged: (_) => setState(() => _message = null),
-                decoration: cozyInputDecoration(labelText: '昵称'),
-              ),
-              const SizedBox(height: 6),
-              // 字数恒定显示：不再用 errorText（它会撑高输入框，连带把按钮顶下去）
-              Text(
-                '${_trimmed.length}/12',
-                style: _ts(12, 18, FontWeight.w400, CozyPalette.onSurfaceVariant),
-              ),
-              // 固定高度的提示槽：昵称错误 / 操作反馈都写在这里，
-              // 出现与消失都不会改变弹层高度 ⇒ 按钮位置始终不变（真机点击才可靠）。
-              SizedBox(
-                height: 40,
-                child: Center(
-                  child: Text(
-                    _nameError ?? _message ?? '',
-                    maxLines: 2,
-                    textAlign: TextAlign.center,
-                    style: _ts(
-                      12,
-                      18,
-                      FontWeight.w400,
-                      _nameError != null || _failed
-                          ? CozyPalette.error
-                          : CozyPalette.onSurfaceVariant,
-                    ),
-                  ),
-                ),
-              ),
+              // 顶部标题栏
               Row(
-                mainAxisAlignment: MainAxisAlignment.center,
                 children: <Widget>[
-                  TextButton(
-                    onPressed: _locked ? null : () => Navigator.of(context).pop(),
-                    child: Text('取消', style: _ts(14, 18, FontWeight.w500, CozyPalette.onSurfaceVariant)),
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFF1F2),
+                      shape: BoxShape.circle,
+                      border: Border.all(color: const Color(0xFFFFE4E6)),
+                    ),
+                    child: const Center(
+                      child: Text('✨', style: TextStyle(fontSize: 16)),
+                    ),
                   ),
                   const SizedBox(width: 10),
-                  FilledButton(
-                    onPressed: _nameError == null && !_locked ? _save : null,
-                    style: FilledButton.styleFrom(
-                      backgroundColor: CozyPalette.primary,
-                      foregroundColor: Colors.white,
-                      shape: const StadiumBorder(),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        const Text(
+                          '编辑个人资料',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w900,
+                            color: Color(0xFF2C1810),
+                            letterSpacing: -0.2,
+                          ),
+                        ),
+                        Text(
+                          '定制你在小饭桌里的专属形象与情头',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500,
+                            color: const Color(0xFF8C7E74).withValues(alpha: 0.85),
+                          ),
+                        ),
+                      ],
                     ),
-                    child: const Text('保存资料'),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded, size: 20, color: Color(0xFF8C7E74)),
+                    onPressed: _locked ? null : () => Navigator.of(context).pop(),
+                    tooltip: '关闭',
+                    splashRadius: 20,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+
+              Expanded(
+                child: SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  child: Column(
+                    children: <Widget>[
+                      // 1. 头像大预览区
+                      Center(
+                        child: SizedBox(
+                          width: 104,
+                          height: 104,
+                          child: Stack(
+                            children: <Widget>[
+                              Positioned.fill(
+                                child: Container(
+                                  padding: const EdgeInsets.all(3.5),
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    gradient: const LinearGradient(
+                                      colors: <Color>[Color(0xFFFDA4AF), Color(0xFFFDE68A), Color(0xFFF43F5E)],
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                    ),
+                                    boxShadow: <BoxShadow>[
+                                      BoxShadow(
+                                        color: const Color(0xFFF43F5E).withValues(alpha: 0.22),
+                                        blurRadius: 14,
+                                        offset: const Offset(0, 4),
+                                      ),
+                                    ],
+                                  ),
+                                  child: Container(
+                                    decoration: const BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: Colors.white,
+                                    ),
+                                    padding: const EdgeInsets.all(2),
+                                    child: ClipOval(
+                                      child: CozyAvatar(
+                                        url: _avatarUrl,
+                                        size: 96,
+                                        fallback: const Icon(Icons.pets, size: 42, color: Color(0xFFF43F5E)),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              Positioned(
+                                right: 0,
+                                bottom: 0,
+                                child: GestureDetector(
+                                  onTap: _locked ? null : _pickAvatar,
+                                  child: Container(
+                                    width: 34,
+                                    height: 34,
+                                    alignment: Alignment.center,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      gradient: const LinearGradient(
+                                        colors: <Color>[Color(0xFFFB7185), Color(0xFFE11D48)],
+                                      ),
+                                      border: Border.all(color: Colors.white, width: 2.5),
+                                      boxShadow: <BoxShadow>[
+                                        BoxShadow(
+                                          color: Colors.black.withValues(alpha: 0.15),
+                                          blurRadius: 6,
+                                          offset: const Offset(0, 2),
+                                        ),
+                                      ],
+                                    ),
+                                    child: const Icon(Icons.camera_alt_rounded, size: 16, color: Colors.white),
+                                  ),
+                                ),
+                              ),
+                              if (_picking || _saving)
+                                Positioned.fill(
+                                  child: ClipOval(
+                                    child: Container(
+                                      color: Colors.black.withValues(alpha: 0.35),
+                                      child: const Center(
+                                        child: SizedBox(
+                                          width: 24,
+                                          height: 24,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2.5,
+                                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+
+                      // 头像快捷操作按钮栏
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 6,
+                        alignment: WrapAlignment.center,
+                        children: <Widget>[
+                          _quickAvatarButton(
+                            icon: Icons.photo_library_rounded,
+                            label: '相册选图',
+                            onTap: _pickAvatar,
+                            color: const Color(0xFFE11D48),
+                          ),
+                          _quickAvatarButton(
+                            icon: Icons.crop_rounded,
+                            label: '重新裁剪',
+                            onTap: _cropCurrent,
+                            color: const Color(0xFFD97706),
+                          ),
+                          _quickAvatarButton(
+                            icon: Icons.favorite_rounded,
+                            label: '默认狗狗',
+                            onTap: _useDefaultAvatar,
+                            color: const Color(0xFF059669),
+                          ),
+                          _quickAvatarButton(
+                            icon: Icons.delete_outline_rounded,
+                            label: '清除头像',
+                            onTap: _removeAvatar,
+                            color: const Color(0xFF6B7280),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+
+                      // 2. 专属情侣表情包头像选择库
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFDF7F2),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: const Color(0xFFF3E8E2)),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: <Widget>[
+                            Row(
+                              children: <Widget>[
+                                const Text('💖', style: TextStyle(fontSize: 14)),
+                                const SizedBox(width: 6),
+                                const Text(
+                                  '情侣专属表情包头像库',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w900,
+                                    color: Color(0xFF2C1810),
+                                  ),
+                                ),
+                                const Spacer(),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFFFE4E6),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: const Text(
+                                    '一键换上',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w700,
+                                      color: Color(0xFFE11D48),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+
+                            // 分类切换 Pill
+                            SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              physics: const BouncingScrollPhysics(),
+                              child: Row(
+                                children: categories.map((String cat) {
+                                  final bool active = _selectedCategory == cat;
+                                  return GestureDetector(
+                                    onTap: () => setState(() => _selectedCategory = cat),
+                                    child: AnimatedContainer(
+                                      duration: const Duration(milliseconds: 200),
+                                      margin: const EdgeInsets.only(right: 6),
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: active ? const Color(0xFFE11D48) : Colors.white,
+                                        borderRadius: BorderRadius.circular(12),
+                                        border: Border.all(
+                                          color: active ? const Color(0xFFE11D48) : const Color(0xFFE5E7EB),
+                                        ),
+                                        boxShadow: active
+                                            ? <BoxShadow>[
+                                                BoxShadow(
+                                                  color: const Color(0xFFE11D48).withValues(alpha: 0.25),
+                                                  blurRadius: 4,
+                                                  offset: const Offset(0, 2),
+                                                ),
+                                              ]
+                                            : null,
+                                      ),
+                                      child: Text(
+                                        cat,
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: active ? FontWeight.w800 : FontWeight.w600,
+                                          color: active ? Colors.white : const Color(0xFF6B7280),
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                }).toList(),
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+
+                            // 头像网格
+                            GridView.builder(
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: 4,
+                                crossAxisSpacing: 8,
+                                mainAxisSpacing: 8,
+                                childAspectRatio: 0.76,
+                              ),
+                              itemCount: filteredAvatars.length,
+                              itemBuilder: (BuildContext context, int index) {
+                                final _PresetAvatar avatar = filteredAvatars[index];
+                                final bool isSelected = _avatarUrl == avatar.assetPath;
+                                return GestureDetector(
+                                  onTap: () => _selectPresetAvatar(avatar),
+                                  child: AnimatedContainer(
+                                    duration: const Duration(milliseconds: 200),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(14),
+                                      border: Border.all(
+                                        color: isSelected ? const Color(0xFFE11D48) : const Color(0xFFE5E7EB),
+                                        width: isSelected ? 2.2 : 1,
+                                      ),
+                                      boxShadow: isSelected
+                                          ? <BoxShadow>[
+                                              BoxShadow(
+                                                color: const Color(0xFFE11D48).withValues(alpha: 0.22),
+                                                blurRadius: 6,
+                                                offset: const Offset(0, 2),
+                                              ),
+                                            ]
+                                          : <BoxShadow>[
+                                              BoxShadow(
+                                                color: Colors.black.withValues(alpha: 0.03),
+                                                blurRadius: 3,
+                                                offset: const Offset(0, 1),
+                                              ),
+                                            ],
+                                    ),
+                                    padding: const EdgeInsets.all(4),
+                                    child: Column(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: <Widget>[
+                                        Expanded(
+                                          child: Stack(
+                                            children: <Widget>[
+                                              ClipRRect(
+                                                borderRadius: BorderRadius.circular(10),
+                                                child: Image.asset(
+                                                  avatar.assetPath.substring('asset:'.length),
+                                                  width: double.infinity,
+                                                  height: double.infinity,
+                                                  fit: BoxFit.cover,
+                                                  errorBuilder: (_, _, _) => const Center(
+                                                    child: Icon(Icons.pets, size: 20, color: Color(0xFFFDA4AF)),
+                                                  ),
+                                                ),
+                                              ),
+                                              if (isSelected)
+                                                Positioned(
+                                                  right: 2,
+                                                  top: 2,
+                                                  child: Container(
+                                                    padding: const EdgeInsets.all(2),
+                                                    decoration: const BoxDecoration(
+                                                      color: Color(0xFFE11D48),
+                                                      shape: BoxShape.circle,
+                                                    ),
+                                                    child: const Icon(Icons.check, size: 10, color: Colors.white),
+                                                  ),
+                                                ),
+                                            ],
+                                          ),
+                                        ),
+                                        const SizedBox(height: 3),
+                                        Text(
+                                          avatar.name,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          textAlign: TextAlign.center,
+                                          style: TextStyle(
+                                            fontSize: 9.5,
+                                            fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                                            color: isSelected ? const Color(0xFFE11D48) : const Color(0xFF374151),
+                                          ),
+                                        ),
+                                        Text(
+                                          avatar.roleHint,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          textAlign: TextAlign.center,
+                                          style: TextStyle(
+                                            fontSize: 8.5,
+                                            fontWeight: FontWeight.w500,
+                                            color: isSelected
+                                                ? const Color(0xFFE11D48).withValues(alpha: 0.85)
+                                                : const Color(0xFF9CA3AF),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
+                      // 3. 昵称输入框
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: const Color(0xFFE5E7EB)),
+                          boxShadow: <BoxShadow>[
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.02),
+                              blurRadius: 4,
+                              offset: const Offset(0, 1),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          children: <Widget>[
+                            const Icon(Icons.edit_note_rounded, size: 22, color: Color(0xFFE11D48)),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: TextField(
+                                controller: _name,
+                                onChanged: (_) => setState(() => _message = null),
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFF2C1810),
+                                ),
+                                decoration: const InputDecoration(
+                                  border: InputBorder.none,
+                                  hintText: '输入你的小饭桌昵称...',
+                                  hintStyle: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w400,
+                                    color: Color(0xFF9CA3AF),
+                                  ),
+                                  isDense: true,
+                                  contentPadding: EdgeInsets.symmetric(vertical: 10),
+                                ),
+                              ),
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF3F4F6),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                '${_trimmed.length}/12',
+                                style: const TextStyle(
+                                  fontSize: 10.5,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFF6B7280),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      // 提示槽：展示当前选中或错误
+                      Container(
+                        height: 32,
+                        alignment: Alignment.center,
+                        child: Text(
+                          _nameError ?? _message ?? '支持相册自选裁剪，或一键切换可爱表情包情侣头像',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500,
+                            color: _nameError != null || _failed
+                                ? const Color(0xFFEF4444)
+                                : const Color(0xFF8C7E74),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 8),
+              // 4. 底部操作按钮
+              Row(
+                children: <Widget>[
+                  Expanded(
+                    flex: 2,
+                    child: OutlinedButton(
+                      onPressed: _locked ? null : () => Navigator.of(context).pop(),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        side: const BorderSide(color: Color(0xFFE5E7EB)),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      ),
+                      child: const Text(
+                        '取消',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF6B7280),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    flex: 3,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: <Color>[Color(0xFFFB7185), Color(0xFFE11D48)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: <BoxShadow>[
+                          BoxShadow(
+                            color: const Color(0xFFE11D48).withValues(alpha: 0.32),
+                            blurRadius: 8,
+                            offset: const Offset(0, 3),
+                          ),
+                        ],
+                      ),
+                      child: ElevatedButton(
+                        onPressed: _nameError == null && !_locked ? _save : null,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.transparent,
+                          shadowColor: Colors.transparent,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        ),
+                        child: _saving
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                ),
+                              )
+                            : const Text(
+                                '保存资料',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w800,
+                                  color: Colors.white,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -1639,4 +2526,274 @@ DateTime? _parseDateSafely(String value) {
   final DateTime? dateOnly = DateTime.tryParse(head);
   if (dateOnly == null) return null;
   return DateTime(dateOnly.year, dateOnly.month, dateOnly.day);
+}
+
+/// 🎨 【情侣空间 · 主题工坊】底部选择抽屉
+class _CoupleThemeModal extends StatefulWidget {
+  const _CoupleThemeModal();
+
+  @override
+  State<_CoupleThemeModal> createState() => _CoupleThemeModalState();
+}
+
+class _CoupleThemeModalState extends State<_CoupleThemeModal> {
+  late CoupleTheme _selectedTheme;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedTheme = CoupleThemeManager.instance.currentTheme;
+  }
+
+  void _onSelect(CoupleTheme theme) {
+    HapticFeedback.mediumImpact();
+    setState(() => _selectedTheme = theme);
+  }
+
+  Future<void> _applyTheme() async {
+    HapticFeedback.heavyImpact();
+    await CoupleThemeManager.instance.setTheme(_selectedTheme);
+    if (!mounted) return;
+    Navigator.pop(context);
+    final spec = CoupleThemeSpec.fromTheme(_selectedTheme);
+    showCozyToast(context, '🎉 已换上【${spec.title}】专属情侣主题 ✨');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final currentSpec = CoupleThemeSpec.fromTheme(_selectedTheme);
+
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black12,
+            blurRadius: 24,
+            offset: Offset(0, -4),
+          ),
+        ],
+      ),
+      padding: EdgeInsets.fromLTRB(
+        24,
+        16,
+        24,
+        MediaQuery.paddingOf(context).bottom + 20,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // 拖拽把手
+          Center(
+            child: Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.black12,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // 标题栏
+          Row(
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: currentSpec.primaryLight,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Center(
+                  child: Text('🎨', style: TextStyle(fontSize: 20)),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '情侣空间 · 主题工坊',
+                      style: _ts(17, 22, FontWeight.w900, const Color(0xFF1F2937)),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '一键切换专属情侣表情包与甜蜜氛围',
+                      style: _ts(11, 15, FontWeight.w500, const Color(0xFF6B7280)),
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.close, size: 20, color: Color(0xFF9CA3AF)),
+                onPressed: () => Navigator.pop(context),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+
+          // 3 大情侣主题卡片列表
+          ...CoupleTheme.values.map((theme) {
+            final spec = CoupleThemeSpec.fromTheme(theme);
+            final isSelected = _selectedTheme == theme;
+
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: GestureDetector(
+                onTap: () => _onSelect(theme),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 250),
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: isSelected ? spec.primaryLight.withValues(alpha: 0.5) : Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: isSelected ? spec.primary : const Color(0xFFF3F4F6),
+                      width: isSelected ? 2 : 1,
+                    ),
+                    boxShadow: isSelected
+                        ? [
+                            BoxShadow(
+                              color: spec.shadowColor,
+                              blurRadius: 16,
+                              offset: const Offset(0, 4),
+                            ),
+                          ]
+                        : null,
+                  ),
+                  child: Row(
+                    children: [
+                      // 主题动图徽章
+                      Container(
+                        width: 50,
+                        height: 50,
+                        decoration: BoxDecoration(
+                          color: spec.primaryLight,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: spec.cardBorder, width: 1.2),
+                          boxShadow: [
+                            BoxShadow(
+                              color: spec.shadowColor,
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        padding: const EdgeInsets.all(2),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(13),
+                          child: Image.asset(
+                            spec.duoAnimationAsset,
+                            fit: BoxFit.contain,
+                            errorBuilder: (_, _, _) => Center(
+                              child: Text(spec.emoji, style: const TextStyle(fontSize: 24)),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+
+                      // 主题信息
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Text(
+                                  spec.title,
+                                  style: _ts(15, 20, FontWeight.w900, const Color(0xFF1F2937)),
+                                ),
+                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: spec.primaryLight,
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text(
+                                    spec.tag,
+                                    style: _ts(10, 12, FontWeight.w800, spec.primaryDark),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              spec.subtitle,
+                              style: _ts(11, 15, FontWeight.w500, const Color(0xFF6B7280)),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      // 选中勾选指示
+                      if (isSelected)
+                        Container(
+                          width: 22,
+                          height: 22,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: spec.primary,
+                          ),
+                          child: const Icon(Icons.check, size: 14, color: Colors.white),
+                        )
+                      else
+                        Container(
+                          width: 22,
+                          height: 22,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(color: const Color(0xFFD1D5DB)),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }),
+
+          const SizedBox(height: 12),
+
+          // 确认应用按钮
+          GestureDetector(
+            onTap: _applyTheme,
+            child: Container(
+              height: 48,
+              decoration: BoxDecoration(
+                gradient: currentSpec.primaryGradient,
+                borderRadius: BorderRadius.circular(24),
+                boxShadow: [
+                  BoxShadow(
+                    color: currentSpec.shadowColor,
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Center(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text('✨', style: TextStyle(fontSize: 14)),
+                    const SizedBox(width: 6),
+                    Text(
+                      '应用【${currentSpec.title}】情侣主题',
+                      style: _ts(14, 18, FontWeight.w900, Colors.white),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }

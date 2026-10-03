@@ -11,6 +11,7 @@ import '../candy/candy_coins_page.dart';
 import '../cart/cart_sheet.dart';
 import '../menu/menu_management_page.dart';
 import '../theme/cozy_glass.dart';
+import '../theme/couple_theme.dart';
 import '../widgets/cozy_celebration.dart';
 import '../widgets/cozy_skeletons.dart';
 import '../widgets/cozy_toast.dart';
@@ -198,6 +199,11 @@ class _OrderingPageState extends State<OrderingPage> {
 
   void _add(MenuItem item, {GlobalKey? fromKey}) {
     HapticFeedback.lightImpact();
+    final bool isEater = !AppState.instance.isCaretaker;
+    if (!isEater) {
+      showCozyToast(context, '👨‍🍳 饲养员负责掌勺做菜，由吃货负责点单加菜哦~');
+      return;
+    }
     setState(() {
       _cart[item.id] = item;
       _qty[item.id] = (_qty[item.id] ?? 0) + 1;
@@ -231,11 +237,15 @@ class _OrderingPageState extends State<OrderingPage> {
   /// 打开购物车清单半屏弹层
   void _openCartSheet() {
     HapticFeedback.lightImpact();
+    final bool isEater = !AppState.instance.isCaretaker;
+    if (!isEater) {
+      showCozyToast(context, '👨‍🍳 饲养员负责掌勺做菜，吃货加菜后可在订单中查看~');
+      return;
+    }
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
-      // 遮罩调浅，否则玻璃面板背后是死黑、看不出玻璃（见 `kCozyGlassSheetSettings`）。
-      barrierColor: Colors.black.withValues(alpha: 0.18),
+      barrierColor: Colors.black.withValues(alpha: 0.28),
       isScrollControlled: true,
       builder: (_) => CartDetailSheet(
         cart: _cart,
@@ -267,34 +277,40 @@ class _OrderingPageState extends State<OrderingPage> {
   }
 
   /// 菜品详情弹层（原生 `OrderingDishDetailSheet`）
-  ///
-  /// 【真机修正】这里原本没开 `isScrollControlled`，`showModalBottomSheet` 默认
-  /// 只给 9/16 屏高，而弹层内容约 490dp（图 210 + 文案 + 价格 + 两个按钮），
-  /// 结果「加入购物篮」整行被挤到屏幕外，点不到（证据 `C5-cart.png`：截图底部
-  /// 停在「暖心硬菜 / 小店在售」，价格与按钮全在屏外）。开成可滚动 + 包一层
-  /// 滚动容器后，内容按需撑高、超出时可滚，按钮永远可达。
   void _openDishDetail(MenuItem item) {
     HapticFeedback.selectionClick();
     final bool isEater = !AppState.instance.isCaretaker;
+    if (!isEater) {
+      showCozyToast(context, '👨‍🍳 饲养员负责掌勺做菜，由吃货负责点单加菜哦~');
+      return;
+    }
     showModalBottomSheet<void>(
       context: context,
-      // 【玻璃】弹层底色交给 `CozyGlassSheet` 画，这里必须透明，否则白底会盖住玻璃。
       backgroundColor: Colors.transparent,
-      // 遮罩调浅：背后太黑 -> 玻璃没有东西可折，只会变灰雾。
-      barrierColor: Colors.black.withValues(alpha: 0.18),
+      barrierColor: Colors.black.withValues(alpha: 0.28),
       showDragHandle: false,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
-      builder: (BuildContext sheetContext) => CozyGlassSheet(
-        padding: const EdgeInsets.fromLTRB(18, 4, 18, 20),
+      builder: (BuildContext sheetContext) => Container(
+        decoration: BoxDecoration(
+          color: CozyPalette.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+          boxShadow: <BoxShadow>[
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.12),
+              blurRadius: 24,
+              offset: const Offset(0, -4),
+            ),
+          ],
+        ),
+        padding: const EdgeInsets.fromLTRB(18, 12, 18, 20),
         child: _OrderingDishDetailSheet(
           item: item,
           canOrder: isEater,
           showDescription: isEater,
           onAdd: () {
-            // 原生：`if (viewModel.addToCart(item)) detailItem = null`
             Navigator.of(sheetContext).pop();
             _add(item);
           },
@@ -457,8 +473,13 @@ class _OrderingPageState extends State<OrderingPage> {
                                         loading: state.loadingMenu && items.isEmpty,
                                         addKeys: _addKeys,
                                         quantities: _qty,
-                                        onAdd: (MenuItem item, GlobalKey key) =>
-                                            _add(item, fromKey: key),
+                                        onAdd: (MenuItem item, GlobalKey key) {
+                                          if (caretakerMode) {
+                                            showCozyToast(context, '👨‍🍳 饲养员负责掌勺做菜，由吃货负责点单加菜哦~');
+                                            return;
+                                          }
+                                          _add(item, fromKey: key);
+                                        },
                                         onDecrement: _remove,
                                         onDishClick: _openDishDetail,
                                         onManageMenuClick: _openManageMenu,
@@ -491,7 +512,13 @@ class _OrderingPageState extends State<OrderingPage> {
                   totalPrice: _total,
                   // demo：`cart-submit-btn` 的文案随角色变（吃货=去结算 / 饲养员=管理·撒糖）
                   checkoutLabel: caretakerMode ? '管理 · 撒糖' : '去结算',
-                  onCartClick: _openCartSheet,
+                  onCartClick: () {
+                    if (caretakerMode) {
+                      showCozyToast(context, '👨‍🍳 饲养员负责掌勺做菜，吃货加菜后可在订单中查看~');
+                      return;
+                    }
+                    _openCartSheet();
+                  },
                   onCheckoutClick: () {
                     if (state.loadingOrders) return;
                     if (caretakerMode) {
@@ -623,18 +650,18 @@ class _ShopHeaderBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bool hasAnnouncement = announcement.isNotEmpty;
+    final theme = context.coupleTheme;
     return Container(
-      decoration: const BoxDecoration(
-        // demo: from-cozy-peach/50 via-cozy-pink-light/30 to-cozy-bg
+      decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           colors: <Color>[
-            Color(0x4DF8A98E), // tertiaryContainer(#F8A98E) @ 30%
-            Color(0x40F4A7B9), // primaryContainer(#F4A7B9) @ 25%
-            CozyPalette.background,
+            theme.primaryLight.withValues(alpha: 0.65),
+            theme.accentLight.withValues(alpha: 0.35),
+            theme.bgPage,
           ],
-          stops: <double>[0.0, 0.55, 1.0],
+          stops: const <double>[0.0, 0.55, 1.0],
         ),
       ),
       child: DecoratedBox(
@@ -729,16 +756,17 @@ class _CrestAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = context.coupleTheme;
     final String trimmed = url.trim();
     final Widget content;
     if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
       content = Image.network(
         trimmed,
         fit: BoxFit.cover,
-        errorBuilder: (_, _, _) => _fallback(),
+        errorBuilder: (_, _, _) => _fallback(theme),
         loadingBuilder:
             (BuildContext context, Widget child, ImageChunkEvent? progress) =>
-                progress == null ? child : _fallback(),
+                progress == null ? child : _fallback(theme),
       );
     } else if (trimmed.isNotEmpty && trimmed.runes.length <= 2) {
       // 只有极短的内容才当表情渲染，长文本直接走兜底，避免撑破 40dp 徽位。
@@ -746,30 +774,44 @@ class _CrestAvatar extends StatelessWidget {
         child: Text(trimmed, style: TextStyle(fontSize: size * 0.5)),
       );
     } else {
-      content = _fallback();
+      content = _fallback(theme);
     }
 
     return Container(
       width: size,
       height: size,
       decoration: BoxDecoration(
-        color: CozyPalette.primary,
+        color: theme.primaryLight,
         borderRadius: BorderRadius.circular(14),
-        boxShadow: CozyLight.cardShadow,
+        border: Border.all(color: theme.cardBorder, width: 1.2),
+        boxShadow: [
+          BoxShadow(
+            color: theme.shadowColor.withValues(alpha: 0.12),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
+      padding: const EdgeInsets.all(2),
       clipBehavior: Clip.antiAlias,
-      child: content,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(11),
+        child: content is SizedBox ? _fallback(theme) : content,
+      ),
     );
   }
 
-  Widget _fallback() => Center(
+  Widget _fallback(CoupleThemeSpec theme) => Center(
         child: Image.asset(
-          'assets/images/paw.png',
-          width: 24,
-          height: 24,
-          filterQuality: FilterQuality.high,
-          errorBuilder: (context, error, stackTrace) =>
-              const Text('🏡', style: TextStyle(fontSize: 18)),
+          theme.chefAnimAsset,
+          fit: BoxFit.contain,
+          errorBuilder: (context, error, stackTrace) => Image.asset(
+            'assets/images/paw.png',
+            width: 24,
+            height: 24,
+            filterQuality: FilterQuality.high,
+            errorBuilder: (_, _, _) => const Text('🏡', style: TextStyle(fontSize: 18)),
+          ),
         ),
       );
 }
@@ -983,13 +1025,12 @@ class _CategoryTab extends StatelessWidget {
         alignment: Alignment.center,
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 10),
         decoration: BoxDecoration(
-          // demo：`bg-cozy-pink-light/70` + `border-l-4 border-cozy-primary`
           color: selected
-              ? CozyPalette.secondaryContainer.withValues(alpha: 0.70)
+              ? context.coupleTheme.primaryLight.withValues(alpha: 0.75)
               : Colors.transparent,
           border: Border(
             left: BorderSide(
-              color: selected ? CozyPalette.primary : Colors.transparent,
+              color: selected ? context.coupleTheme.primary : Colors.transparent,
               width: 4,
             ),
           ),
@@ -1004,7 +1045,7 @@ class _CategoryTab extends StatelessWidget {
             height: 1.3,
             fontWeight: selected ? FontWeight.w900 : FontWeight.w600,
             color: selected
-                ? CozyPalette.primary
+                ? context.coupleTheme.primary
                 : CozyPalette.onSurfaceVariant,
           ),
         ),
@@ -1357,7 +1398,14 @@ class _DishImage extends StatelessWidget {
             (BuildContext context, Widget child, ImageChunkEvent? progress) =>
                 progress == null ? child : _placeholder(context),
       );
-    } else if (url.isNotEmpty) {
+    } else if (url.startsWith('assets/')) {
+      content = Image.asset(
+        url,
+        fit: fit,
+        semanticLabel: name,
+        errorBuilder: (_, _, _) => _placeholder(context),
+      );
+    } else if (url.isNotEmpty && url.runes.length <= 4) {
       content = Center(
         child: Text(url, style: TextStyle(fontSize: iconSize * 1.5)),
       );

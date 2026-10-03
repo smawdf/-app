@@ -1,32 +1,17 @@
-import 'dart:math' as math;
-
-import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/material.dart';
-import 'package:liquid_glass_widgets/liquid_glass_widgets.dart';
 
 import '../../data/app_state.dart';
 import '../../data/models.dart';
 import '../theme/cozy_glass.dart';
 import '../widgets/cozy_count_up.dart';
 
-/// 糖糖币管理页 —— 1:1 对照原生 `ui/candy/CandyCoinsScreen.kt`（共 448 行）
+/// 糖糖币中心页 —— 1:1 对齐 demo/index.html 中的 `#subpage-candy-coins`
 ///
-/// 私有 @Composable → 私有 Widget 的对应关系（层级与命名语义保持一致）：
-///
-///   CandyCoinsScreen()    → CandyCoinsPage / _CandyCoinsPageState   (:83)
-///   CandyTopBar           → _CandyTopBar                            (:166)
-///   CandyHeroCard         → _CandyHeroCard                          (:188)
-///   RechargePanel         → _RechargePanel                          (:219)
-///   RechargeButton        → _RechargeButton                         (:263)
-///   ChartControlCard      → _ChartControlCard                       (:287)
-///   SegmentedRow          → _SegmentedRow                           (:322)
-///   CandyChart            → _CandyChartPainter                      (:346)
-///   LedgerListCard        → _LedgerListCard + _LedgerRow            (:377)
-///   RechargeConfirmDialog → _RechargeConfirmDialog                  (:404)
-///   uiState.message 的 AlertDialog → _CandyMessageDialog            (:116)
-///
-/// 页面骨架、间距、圆角、配色、文案全部照抄原版；卡片容器换成设计系统的
-/// `CozyCard`（原版 CandyCard 描边 → hairline、无投影 → 双层投影，是被批准的偏离）。
+/// 结构分区：
+/// 1. 顶部返回栏：标题「糖糖币中心」
+/// 2. 糖币钱包主卡片（Balance Card）：金橙粉渐变 + 真实余额 + 累计消耗与撒糖
+/// 3. 专属撒糖通道（Quick Recharge）：4 档快捷投喂 + 自定义金额输入
+/// 4. 糖糖币账本明细卡片（Transaction History Ledger）：真实流水列表 + 温和空态
 class CandyCoinsPage extends StatefulWidget {
   const CandyCoinsPage({super.key});
 
@@ -34,29 +19,13 @@ class CandyCoinsPage extends StatefulWidget {
   State<CandyCoinsPage> createState() => _CandyCoinsPageState();
 }
 
-/// 原版页面顶部三个内联色常量（CandyCoinsScreen.kt:78-80）：
-///   CandySurface #FFFFFF → CozyPalette.background（CozyPage 已铺）
-///   CandyCard    #FFFCF8 → CozyCard 默认底色 CozyPalette.surface
-///   CandyLine    #D6C1C5 → CozyPalette.outlineVariant
-/// 只有这枚浅粉底在原版是内联字面量，保留同值常量。
-const Color _kCandyPink = Color(0xFFFFF3F6);
-
 class _CandyCoinsPageState extends State<CandyCoinsPage> {
-  /// 原版 `var chartMode by remember { mutableStateOf(ChartMode.Bar) }`（:94）
-  _ChartMode _chartMode = _ChartMode.bar;
-
-  /// 原版 `var period by remember { mutableStateOf(ChartPeriod.Week) }`（:95）
-  _ChartPeriod _period = _ChartPeriod.week;
-
-  /// 原版 `var customAmount by remember { mutableStateOf("") }`（:97）
-  /// 受控输入：`it.filter(Char::isDigit).take(4)`（:141）
   final TextEditingController _customAmountCtrl = TextEditingController();
   String _customAmount = '';
 
   @override
   void initState() {
     super.initState();
-    // 保留本文件原有的取数调用
     WidgetsBinding.instance.addPostFrameCallback((_) {
       AppState.instance.refreshTransactions();
     });
@@ -68,7 +37,7 @@ class _CandyCoinsPageState extends State<CandyCoinsPage> {
     super.dispose();
   }
 
-  /// 原版 `pendingRecharge?.let { RechargeConfirmDialog(...) }`（:104-113）
+  /// 充值确认对话框
   void _showRechargeConfirm(int amount) {
     showDialog<void>(
       context: context,
@@ -83,10 +52,7 @@ class _CandyCoinsPageState extends State<CandyCoinsPage> {
     );
   }
 
-  /// 原版 `viewModel.recharge(amount)`（CandyCoinsViewModel.kt:56-69）
-  /// 动作仍走 `AppState.instance.recharge`，提示文案逐字照抄原版：
-  ///   成功 → "已给吃货充值 $amount 枚糖糖币"
-  ///   失败 → "充值失败，请确认已登录、已绑定，并已执行糖糖币数据库脚本"
+  /// 执行真实充值
   Future<void> _recharge(int amount) async {
     final bool ok = await AppState.instance.recharge(amount: amount);
     if (!mounted) return;
@@ -102,7 +68,6 @@ class _CandyCoinsPageState extends State<CandyCoinsPage> {
     );
   }
 
-  /// 原版 `onCustomAmountChange = { customAmount = it.filter(Char::isDigit).take(4) }`（:141）
   void _handleCustomAmountChange(String value) {
     final String digits = value.replaceAll(RegExp(r'[^0-9]'), '');
     final String next = digits.length > 4 ? digits.substring(0, 4) : digits;
@@ -113,7 +78,6 @@ class _CandyCoinsPageState extends State<CandyCoinsPage> {
     setState(() => _customAmount = next);
   }
 
-  /// 原版 `onCustomRecharge = { customAmount.toIntOrNull()?.takeIf { it > 0 }?.let { pendingRecharge = it } }`（:143）
   void _handleCustomRecharge() {
     final int? amount = int.tryParse(_customAmount);
     if (amount == null || amount <= 0) return;
@@ -124,56 +88,36 @@ class _CandyCoinsPageState extends State<CandyCoinsPage> {
   Widget build(BuildContext context) {
     final AppState state = AppState.instance;
 
-    // 【性能 Phase 1】只关心糖币余额/流水与身份：订阅 candy+profile 域。
     return ListenableBuilder(
       listenable: state.listenFor(const {Domain.candy, Domain.profile}),
       builder: (BuildContext context, Widget? _) {
-        // 原版：`selectedRole == "caretaker"`（:93）
-        final bool isCaretaker = state.isCaretaker;
-        // 原版 `CandyCoinsUiState.walletBalance` 默认值 66（profiles.candy_coins 默认 66）
-        final int balance = state.pair?.candyCoins ?? 66;
-        // 原版 `visibleRecords`：饲养员只看 recharge，吃货看 recharge 以外的全部（:99-101）
-        final List<CandyTransaction> visibleRecords = state.transactions
-            .where((CandyTransaction r) =>
-                isCaretaker ? r.type == 'recharge' : r.type != 'recharge')
-            .toList(growable: false);
-        // 原版 `visibleRecords.toChartPoints(period)`（:102）
-        final List<_ChartPoint> chartPoints = _toChartPoints(visibleRecords, _period);
+        final int balance = state.candyBalance;
+        final List<CandyTransaction> transactions = state.transactions;
 
-        // 原版 LazyColumn 的 item 顺序（:134-159）
         final List<Widget> cards = <Widget>[
-          _CandyHeroCard(balance: balance, isCaretaker: isCaretaker),
-          if (isCaretaker)
-            _RechargePanel(
-              customAmount: _customAmount,
-              controller: _customAmountCtrl,
-              onCustomAmountChange: _handleCustomAmountChange,
-              onSelectAmount: _showRechargeConfirm,
-              onCustomRecharge: _handleCustomRecharge,
-            ),
-          _ChartControlCard(
-            chartMode: _chartMode,
-            period: _period,
-            onChartModeChange: (_ChartMode mode) => setState(() => _chartMode = mode),
-            onPeriodChange: (_ChartPeriod period) => setState(() => _period = period),
-            chartPoints: chartPoints,
-            isCaretaker: isCaretaker,
+          _CandyBalanceCard(
+            balance: balance,
+            transactions: transactions,
           ),
-          _LedgerListCard(records: visibleRecords, isCaretaker: isCaretaker),
+          _QuickRechargeCard(
+            customAmount: _customAmount,
+            controller: _customAmountCtrl,
+            onCustomAmountChange: _handleCustomAmountChange,
+            onSelectAmount: _showRechargeConfirm,
+            onCustomRecharge: _handleCustomRecharge,
+          ),
+          _LedgerListCard(records: transactions),
         ];
 
-        // 原版 Box(background(CandySurface)) + Column { CandyTopBar; LazyColumn(weight(1f)) }（:126-161）
         return CozyPage(
           child: Column(
             children: <Widget>[
               _CandyTopBar(onBack: () => Navigator.of(context).maybePop()),
               Expanded(
                 child: ListView.separated(
-                  // 原版 contentPadding = PaddingValues(start 20, top 16, end 20, bottom 104)（:131）
-                  padding: EdgeInsets.fromLTRB(20, 16, 20, CozyDock.clearanceOf(context)),
-                  // 原版 verticalArrangement = Arrangement.spacedBy(16.dp)（:132）
+                  padding: EdgeInsets.fromLTRB(16, 12, 16, CozyDock.clearanceOf(context)),
                   separatorBuilder: (BuildContext context, int index) =>
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 14),
                   itemCount: cards.length,
                   itemBuilder: (BuildContext context, int index) => cards[index],
                 ),
@@ -186,11 +130,7 @@ class _CandyCoinsPageState extends State<CandyCoinsPage> {
   }
 }
 
-/// 原版 `private fun CandyTopBar(onBack: () -> Unit)`（CandyCoinsScreen.kt:166-185）
-///
-/// `Box(fillMaxWidth + statusBarsPadding + heightIn(min = 64.dp) + padding(h 12, v 8))`：
-/// 返回键贴左、标题在**整条**顶栏里居中。这里用 Stack 复刻同样的居中基准
-/// （`CozyMainTopBar` 是 72 高 + 滚动发丝线的**主页面**顶栏，几何与语义都不对应）。
+/// 顶部返回栏：标题「糖糖币中心」
 class _CandyTopBar extends StatelessWidget {
   const _CandyTopBar({required this.onBack});
 
@@ -199,7 +139,6 @@ class _CandyTopBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      // 原版 heightIn(min = 64.dp)：8 + 48 + 8
       height: 64,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -216,7 +155,7 @@ class _CandyTopBar extends StatelessWidget {
               ),
             ),
             Text(
-              '糖糖币管理',
+              '糖糖币中心',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.headlineSmall!.copyWith(
                     color: CozyPalette.primary,
@@ -230,72 +169,200 @@ class _CandyTopBar extends StatelessWidget {
   }
 }
 
-/// 原版 `private fun CandyHeroCard(balance: Int, isCaretaker: Boolean)`（:188-216）
+/// 糖币钱包主卡片（Balance Card）
 ///
-/// 圆角 28 / 内边距 20 / 62 圆形粉底 + 56 糖币图 + 三条文案（间距 4）。
-class _CandyHeroCard extends StatelessWidget {
-  const _CandyHeroCard({required this.balance, required this.isCaretaker});
+/// 暖金/暖橙粉渐变背景 + 大投影 + 胶囊标签 + 主余额 + 累计消耗与撒糖双列统计
+class _CandyBalanceCard extends StatelessWidget {
+  const _CandyBalanceCard({
+    required this.balance,
+    required this.transactions,
+  });
 
   final int balance;
-  final bool isCaretaker;
+  final List<CandyTransaction> transactions;
 
   @override
   Widget build(BuildContext context) {
-    final TextTheme text = Theme.of(context).textTheme;
-    return CozyCard(
-      radius: 28,
-      padding: const EdgeInsets.all(20),
-      child: Row(
-        spacing: 14,
-        children: <Widget>[
-          Container(
-            width: 62,
-            height: 62,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              // 原版 #FFF3F6 @ 0.80
-              color: _kCandyPink.withValues(alpha: 0.80),
-            ),
-            child: const Center(child: _CandyCoinIcon(size: 56)),
-          ),
-          Expanded(
-            child: Column(
-              spacing: 4,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Text(
-                  isCaretaker ? '吃货糖糖币余额' : '我的糖糖币余额',
-                  style: text.bodySmall!.copyWith(color: CozyPalette.onSurfaceVariant),
-                ),
-                CozyCountUp(
-                  value: balance,
-                  suffix: ' 枚',
-                  // 原版 fontSize = 30.sp / lineHeight = 36.sp / FontWeight.Black
-                  style: text.bodyLarge!.copyWith(
-                    fontSize: 30,
-                    height: 36 / 30,
-                    fontWeight: FontWeight.w900,
-                    color: CozyPalette.onSurface,
-                  ),
-                ),
-                Text(
-                  isCaretaker ? '充值后吃货才能继续快乐点菜' : '点菜会真实消耗糖糖币',
-                  style: text.bodySmall!.copyWith(color: CozyPalette.onSurfaceVariant),
-                ),
-              ],
-            ),
+    // 从真实 transactions 中统计点餐累计消耗与饲养员累计撒糖
+    final int spentCost = transactions
+        .where((CandyTransaction t) => t.amount < 0)
+        .fold<int>(0, (int sum, CandyTransaction t) => sum + t.amount.abs());
+    final int rechargedTotal = transactions
+        .where((CandyTransaction t) => t.amount > 0)
+        .fold<int>(0, (int sum, CandyTransaction t) => sum + t.amount);
+
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(28),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: <Color>[
+            Color(0xFFFBBF24), // amber-400
+            Color(0xFFF59E0B), // amber-500
+            Color(0xFFFB7185), // rose-400
+          ],
+        ),
+        boxShadow: <BoxShadow>[
+          BoxShadow(
+            color: const Color(0xFFF59E0B).withValues(alpha: 0.35),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
           ),
         ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(28),
+        child: Stack(
+          children: <Widget>[
+            // 背景右下角水印装饰
+            const Positioned(
+              right: -12,
+              bottom: -16,
+              child: IgnorePointer(
+                child: Opacity(
+                  opacity: 0.18,
+                  child: _CandyCoinIcon(size: 110),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  // 胶囊标签
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.10),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: const Text(
+                      'CANDY COINS WALLET',
+                      style: TextStyle(
+                        fontSize: 10,
+                        letterSpacing: 1.2,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFFFEF3C7), // amber-100
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  // 主数值
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.baseline,
+                    textBaseline: TextBaseline.alphabetic,
+                    children: <Widget>[
+                      CozyCountUp(
+                        value: balance,
+                        style: const TextStyle(
+                          fontSize: 38,
+                          height: 1.1,
+                          fontWeight: FontWeight.w900,
+                          color: Colors.white,
+                          letterSpacing: -1,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      const Text(
+                        '糖糖币',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFFFEF3C7),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  // 副标题
+                  const Text(
+                    '双人小饭桌专属流通货币 · 甜甜蜜蜜每一餐',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: Color(0xE6FEF3C7),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  // 底部双列统计
+                  Container(
+                    padding: const EdgeInsets.only(top: 12),
+                    decoration: BoxDecoration(
+                      border: Border(
+                        top: BorderSide(
+                          color: Colors.white.withValues(alpha: 0.20),
+                          width: 1,
+                        ),
+                      ),
+                    ),
+                    child: Row(
+                      children: <Widget>[
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: <Widget>[
+                              const Text(
+                                '累计点餐消耗',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Color(0xFFFEF3C7),
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                '🍬 $spentCost 币',
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: <Widget>[
+                              const Text(
+                                '饲养员累计撒糖',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Color(0xFFFEF3C7),
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                '🍬 $rechargedTotal 币',
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 }
 
-/// 原版 `private fun RechargePanel(...)`（:219-260），仅饲养员可见。
+/// 专属撒糖通道（Quick Recharge）
 ///
-/// 快捷档位逐字照抄：`listOf(10, 50, 100, 150).chunked(2)` —— 两行两列。
-class _RechargePanel extends StatelessWidget {
-  const _RechargePanel({
+/// 4 档快捷网格按钮 + 自定义充值金额输入
+class _QuickRechargeCard extends StatelessWidget {
+  const _QuickRechargeCard({
     required this.customAmount,
     required this.controller,
     required this.onCustomAmountChange,
@@ -311,75 +378,132 @@ class _RechargePanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final TextTheme text = Theme.of(context).textTheme;
-    // 原版 `enabled = customAmount.toIntOrNull()?.let { it > 0 } == true`（:251）
-    final bool enabled = (int.tryParse(customAmount) ?? 0) > 0;
+    final bool customEnabled = (int.tryParse(customAmount) ?? 0) > 0;
 
     return CozyCard(
       radius: 28,
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(16),
       child: Column(
-        spacing: 12,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Text(
-            '给吃货充值',
-            style: text.titleMedium!.copyWith(
-              fontWeight: FontWeight.w900,
-              color: CozyPalette.onSurface,
-            ),
-          ),
+          // 标题行与特权胶囊
           Row(
-            spacing: 10,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: <Widget>[
-              Expanded(
-                child: _RechargeButton(amount: 10, onTap: () => onSelectAmount(10)),
+              const Text(
+                '投喂对方 · 专属撒糖通道',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w900,
+                  color: CozyPalette.onSurface,
+                ),
               ),
-              Expanded(
-                child: _RechargeButton(amount: 50, onTap: () => onSelectAmount(50)),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFFBEB), // amber-50
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(color: const Color(0xFFFDE68A), width: 1), // amber-200
+                ),
+                child: const Text(
+                  '饲养员特权',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFFB45309), // amber-700
+                  ),
+                ),
               ),
             ],
           ),
+          const SizedBox(height: 6),
+          // 提示文案
+          const Text(
+            '点菜前给吃货补充能量，点选金额立即入账：',
+            style: TextStyle(
+              fontSize: 11,
+              color: CozyPalette.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 12),
+          // 2x2 网格按钮
           Row(
-            spacing: 10,
             children: <Widget>[
               Expanded(
-                child: _RechargeButton(amount: 100, onTap: () => onSelectAmount(100)),
+                child: _QuickRechargeButton(
+                  amount: 10,
+                  subtitle: '随手投喂小点心',
+                  amountColor: const Color(0xFFE11D48), // rose-600
+                  onTap: () => onSelectAmount(10),
+                ),
               ),
+              const SizedBox(width: 8),
               Expanded(
-                child: _RechargeButton(amount: 150, onTap: () => onSelectAmount(150)),
+                child: _QuickRechargeButton(
+                  amount: 20,
+                  subtitle: '今晚加一份硬菜',
+                  amountColor: const Color(0xFFE11D48), // rose-600
+                  onTap: () => onSelectAmount(20),
+                ),
               ),
             ],
           ),
-          SizedBox(
-            width: double.infinity,
-            // 原版 OutlinedTextField(singleLine, Number, colors = cozyTextFieldColors())
-            child: TextField(
-              controller: controller,
-              onChanged: onCustomAmountChange,
-              keyboardType: TextInputType.number,
-              maxLines: 1,
-              decoration: cozyInputDecoration(hintText: '自定义金额'),
-            ),
+          const SizedBox(height: 8),
+          Row(
+            children: <Widget>[
+              Expanded(
+                child: _QuickRechargeButton(
+                  amount: 50,
+                  subtitle: '周末火锅/大餐基金',
+                  amountColor: const Color(0xFFD97706), // amber-600
+                  onTap: () => onSelectAmount(50),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _QuickRechargeButton(
+                  amount: 100,
+                  subtitle: '承包你整周的胃',
+                  amountColor: const Color(0xFFD97706), // amber-600
+                  onTap: () => onSelectAmount(100),
+                ),
+              ),
+            ],
           ),
-          SizedBox(
-            width: double.infinity,
-            // 原版 Modifier.fillMaxWidth().height(50.dp)
-            height: 50,
-            child: FilledButton(
-              onPressed: enabled ? onCustomRecharge : null,
-              style: FilledButton.styleFrom(
-                // 原版 ButtonDefaults.buttonColors(containerColor = CozyRose)，onPrimary = #FFFFFF
-                backgroundColor: CozyPalette.primary,
-                foregroundColor: Colors.white,
-                shape: const StadiumBorder(),
-                // 原版 RoundedCornerShape(999.dp)
+          const SizedBox(height: 14),
+          // 自定义金额输入与确认充值
+          Row(
+            children: <Widget>[
+              Expanded(
+                child: SizedBox(
+                  height: 44,
+                  child: TextField(
+                    controller: controller,
+                    onChanged: onCustomAmountChange,
+                    keyboardType: TextInputType.number,
+                    maxLines: 1,
+                    decoration: cozyInputDecoration(hintText: '自定义金额 (枚)'),
+                  ),
+                ),
               ),
-              child: const Text(
-                '确认自定义金额',
-                style: TextStyle(fontWeight: FontWeight.w900),
+              const SizedBox(width: 8),
+              SizedBox(
+                height: 44,
+                child: FilledButton(
+                  onPressed: customEnabled ? onCustomRecharge : null,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: CozyPalette.primary,
+                    foregroundColor: Colors.white,
+                    shape: const StadiumBorder(),
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                  ),
+                  child: const Text(
+                    '确认充值',
+                    style: TextStyle(fontWeight: FontWeight.w900),
+                  ),
+                ),
               ),
-            ),
+            ],
           ),
         ],
       ),
@@ -387,25 +511,29 @@ class _RechargePanel extends StatelessWidget {
   }
 }
 
-/// 原版 `private fun RechargeButton(amount: Int, modifier: Modifier, onClick: () -> Unit)`（:263-284）
-///
-/// 高 58 / 圆角 18 / 底色 #FFF3F6 / 描边 1dp CandyLine / 按下缩到 0.97。
-class _RechargeButton extends StatefulWidget {
-  const _RechargeButton({required this.amount, required this.onTap});
+/// 快捷撒糖按钮，带 active 按压触感
+class _QuickRechargeButton extends StatefulWidget {
+  const _QuickRechargeButton({
+    required this.amount,
+    required this.subtitle,
+    required this.amountColor,
+    required this.onTap,
+  });
 
   final int amount;
+  final String subtitle;
+  final Color amountColor;
   final VoidCallback onTap;
 
   @override
-  State<_RechargeButton> createState() => _RechargeButtonState();
+  State<_QuickRechargeButton> createState() => _QuickRechargeButtonState();
 }
 
-class _RechargeButtonState extends State<_RechargeButton> {
+class _QuickRechargeButtonState extends State<_QuickRechargeButton> {
   bool _pressed = false;
 
   @override
   Widget build(BuildContext context) {
-    final TextTheme text = Theme.of(context).textTheme;
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTapDown: (_) => setState(() => _pressed = true),
@@ -413,38 +541,40 @@ class _RechargeButtonState extends State<_RechargeButton> {
       onTapCancel: () => setState(() => _pressed = false),
       onTap: widget.onTap,
       child: AnimatedScale(
-        scale: _pressed ? 0.97 : 1.0,
-        duration: const Duration(milliseconds: 120),
+        scale: _pressed ? 0.95 : 1.0,
+        duration: const Duration(milliseconds: 100),
         curve: Curves.easeOut,
         child: Container(
-          height: 58,
+          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
           decoration: BoxDecoration(
-            color: _kCandyPink,
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: CozyPalette.outlineVariant, width: 1),
+            color: CozyPalette.surfaceVariant.withValues(alpha: 0.35),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: CozyPalette.outlineVariant.withValues(alpha: 0.7),
+              width: 1,
+            ),
           ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: <Widget>[
               Text(
-                '+${widget.amount}',
-                // 原版 fontSize = 20.sp / FontWeight.Black / CozyRose
-                style: text.bodyLarge!.copyWith(
-                  fontSize: 20,
+                '+${widget.amount} 币',
+                style: TextStyle(
+                  fontSize: 14,
                   fontWeight: FontWeight.w900,
-                  color: CozyPalette.primary,
+                  color: widget.amountColor,
                 ),
               ),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                spacing: 4,
-                children: <Widget>[
-                  const _CandyCoinIcon(size: 18),
-                  Text(
-                    '糖糖币',
-                    style: text.bodySmall!.copyWith(color: CozyPalette.onSurfaceVariant),
-                  ),
-                ],
+              const SizedBox(height: 2),
+              Text(
+                widget.subtitle,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w500,
+                  color: CozyPalette.onSurfaceVariant,
+                ),
               ),
             ],
           ),
@@ -454,359 +584,144 @@ class _RechargeButtonState extends State<_RechargeButton> {
   }
 }
 
-/// 原版 `private fun ChartControlCard(...)`（:287-319）
+/// 糖糖币账本明细卡片（Transaction History Ledger）
 ///
-/// 图标 SsidChart 22 + 标题 + 两组分段（柱状图/折线图、按周/按月）+ 168 高图表。
-class _ChartControlCard extends StatelessWidget {
-  const _ChartControlCard({
-    required this.chartMode,
-    required this.period,
-    required this.onChartModeChange,
-    required this.onPeriodChange,
-    required this.chartPoints,
-    required this.isCaretaker,
-  });
-
-  final _ChartMode chartMode;
-  final _ChartPeriod period;
-  final ValueChanged<_ChartMode> onChartModeChange;
-  final ValueChanged<_ChartPeriod> onPeriodChange;
-  final List<_ChartPoint> chartPoints;
-  final bool isCaretaker;
-
-  @override
-  Widget build(BuildContext context) {
-    final TextTheme text = Theme.of(context).textTheme;
-    return CozyCard(
-      radius: 28,
-      padding: const EdgeInsets.all(18),
-      child: Column(
-        spacing: 14,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Row(
-            spacing: 8,
-            children: <Widget>[
-              const Icon(Icons.ssid_chart, size: 22, color: CozyPalette.primary),
-              Text(
-                isCaretaker ? '充值趋势' : '消耗趋势',
-                style: text.titleMedium!.copyWith(
-                  fontWeight: FontWeight.w900,
-                  color: CozyPalette.onSurface,
-                ),
-              ),
-            ],
-          ),
-          // 【真机修正】原来是两行分段（柱状图/折线图 + 按周/按月），各占满宽度，
-          // 卡片上方被切成两大块；现在并成一行四段，两个维度各自高亮（见 `isSelected`）。
-          _SegmentedRow(
-            labels: <String>[
-              ..._ChartMode.values.map((_ChartMode e) => e.label),
-              ..._ChartPeriod.values.map((_ChartPeriod e) => e.label),
-            ],
-            isSelected: (int index) => index < _ChartMode.values.length
-                ? index == chartMode.index
-                : index - _ChartMode.values.length == period.index,
-            onSelected: (int index) {
-              if (index < _ChartMode.values.length) {
-                onChartModeChange(_ChartMode.values[index]);
-              } else {
-                onPeriodChange(
-                  _ChartPeriod.values[index - _ChartMode.values.length],
-                );
-              }
-            },
-          ),
-          SizedBox(
-            width: double.infinity,
-            // 原版 Modifier.fillMaxWidth().height(168.dp)
-            height: 168,
-            child: CustomPaint(
-              painter: _CandyChartPainter(points: chartPoints, mode: chartMode),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// 原版 `private fun SegmentedRow(labels, selectedIndex, onSelected)`（:322-343）
-///
-/// 每片等宽（weight 1f）、间距 8、全圆角、选中 CozyRose，文字上下留白 9。
-/// 【真机修正】`selectedIndex` 改为 `isSelected` 谓词：图表卡把「图形」与「周期」
-/// 两个维度并到同一行后，同一行里要能同时高亮两个互不相干的片段。
-class _SegmentedRow extends StatelessWidget {
-  const _SegmentedRow({
-    required this.labels,
-    required this.isSelected,
-    required this.onSelected,
-  });
-
-  final List<String> labels;
-  final bool Function(int index) isSelected;
-  final ValueChanged<int> onSelected;
-
-  @override
-  Widget build(BuildContext context) {
-    final TextTheme text = Theme.of(context).textTheme;
-    // 【本轮改动】原来是 4 个各自实心的白胶囊；用户要求「玻璃铺开」，这里换成
-    // 一整条玻璃轨道 + 选中片玫瑰实心（参数与底部 dock / 购物车条同一套，
-    // 见 `cozy_glass_dock.dart` 与 `ordering_page.dart` 的 GlassContainer）。
-    // 保留 isSelected 谓词：4 片里可以同时高亮「图形」与「周期」两片。
-    return GlassContainer(
-      shape: const LiquidRoundedSuperellipse(
-        borderRadius: GlassDefaults.capsuleRadius,
-      ),
-      quality: GlassQuality.premium,
-      clipBehavior: Clip.antiAlias,
-      padding: const EdgeInsets.all(4),
-      settings: const LiquidGlassSettings(
-        glassColor: Color(0x1FFFFFFF),
-        blur: 8.0,
-        thickness: 24.0,
-        refractiveIndex: 1.25,
-        chromaticAberration: 0.03,
-        saturation: 1.20,
-        lightIntensity: 0.65,
-        ambientRim: 0.0,
-      ),
-      child: Row(
-        spacing: 4,
-        children: <Widget>[
-          for (int index = 0; index < labels.length; index++)
-            Expanded(
-              child: GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: () => onSelected(index),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 180),
-                  curve: Curves.easeOut,
-                  padding: const EdgeInsets.symmetric(vertical: 9),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(999),
-                    color: isSelected(index)
-                        ? CozyPalette.primary
-                        : Colors.transparent,
-                  ),
-                  child: Text(
-                    labels[index],
-                    textAlign: TextAlign.center,
-                    style: text.bodyLarge!.copyWith(
-                      fontWeight: FontWeight.w900,
-                      color: isSelected(index)
-                          ? CozyPalette.surface
-                          : CozyPalette.onSurface,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-/// 原版 `private fun CandyChart(points, mode)`（:346-374）的 Canvas 绘制
-///
-/// 柱状图：CozyRose @ 0.72，宽 = slot * 0.40，左偏移 slot * 0.20
-/// 折线图：CozyRose 3dp 圆头折线
-/// 两种模式都画 4dp 的 #894C5C 数据点
-class _CandyChartPainter extends CustomPainter {
-  const _CandyChartPainter({required this.points, required this.mode});
-
-  final List<_ChartPoint> points;
-  final _ChartMode mode;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    // 原版 `max(points.maxOfOrNull { it.value } ?: 0, 1)`
-    final int maxValue = math.max(
-      points.fold<int>(0, (int acc, _ChartPoint p) => math.max(acc, p.value)),
-      1,
-    );
-    final double chartHeight = size.height - 32; // size.height - 32.dp.toPx()
-    final double bottom = size.height - 18; // size.height - 18.dp.toPx()
-    final double slot = size.width / math.max(points.length, 1);
-
-    double yOf(_ChartPoint point) => bottom - (point.value / maxValue) * chartHeight;
-
-    // 【真机修正】横轴基线：原来 7 个零点只是悬空的小圆点，看起来像没渲染完，
-    // 先补一条发丝基线让它们「落」在轴上。
-    canvas.drawLine(
-      Offset(0, bottom),
-      Offset(size.width, bottom),
-      Paint()
-        ..color = CozyPalette.outlineVariant.withValues(alpha: 0.6)
-        ..strokeWidth = 1,
-    );
-
-    for (int index = 0; index < points.length; index++) {
-      final double x = slot * index + slot / 2;
-      final double y = yOf(points[index]);
-      if (mode == _ChartMode.bar) {
-        canvas.drawRect(
-          Rect.fromLTWH(x - slot * 0.20, y, slot * 0.40, bottom - y),
-          Paint()..color = CozyPalette.primary.withValues(alpha: 0.72),
-        );
-      }
-      // 【真机修正】值为 0 的点不再画圆点：按月的 30 天里绝大多数是 0，
-      // 30 个圆点挤成一条虚线，看起来像进度条而不像图表；有数据的日子才留标记。
-      if (points[index].value > 0) {
-        canvas.drawCircle(Offset(x, y), 4, Paint()..color = CozyPalette.primary);
-      }
-    }
-
-    if (mode == _ChartMode.line && points.isNotEmpty) {
-      final Path path = Path();
-      for (int index = 0; index < points.length; index++) {
-        final double x = slot * index + slot / 2;
-        final double y = yOf(points[index]);
-        if (index == 0) {
-          path.moveTo(x, y);
-        } else {
-          path.lineTo(x, y);
-        }
-      }
-      canvas.drawPath(
-        path,
-        Paint()
-          ..color = CozyPalette.primary
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 3
-          ..strokeCap = StrokeCap.round,
-      );
-    }
-
-    // 【真机修正】横轴日期：原版与移植版都没画字（`ChartPoint.label` 两边都空着），
-    // 只有柱子没有横轴标签。这里在格子够宽时补上 `M/d`：按周 7 点（slot≈40）全画，
-    // 按月 30 点（slot≈24）每隔 5 格画一个，既读得出日期又不会挤成一团。
-    if (points.isNotEmpty) {
-      for (int index = 0; index < points.length; index++) {
-        if (slot < 34 && index % 5 != 0) continue;
-        final TextPainter label = TextPainter(
-          text: TextSpan(
-            text: points[index].label,
-            style: const TextStyle(
-              fontSize: 10,
-              height: 1.1,
-              fontWeight: FontWeight.w600,
-              color: CozyPalette.onSurfaceVariant,
-            ),
-          ),
-          textDirection: TextDirection.ltr,
-        )..layout();
-        label.paint(
-          canvas,
-          Offset(slot * index + slot / 2 - label.width / 2, size.height - 15),
-        );
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _CandyChartPainter oldDelegate) =>
-      oldDelegate.mode != mode || !listEquals(oldDelegate.points, points);
-}
-
-/// 原版 `private fun LedgerListCard(records, isCaretaker)`（:377-401）
-///
-/// 标题「充值明细 / 消耗明细」+ 最新 12 条流水；空态「还没有糖糖币记录」。
+/// 真实流水展示；若为空，保留骨架卡片并居中展示温和引导文案
 class _LedgerListCard extends StatelessWidget {
-  const _LedgerListCard({required this.records, required this.isCaretaker});
+  const _LedgerListCard({required this.records});
 
   final List<CandyTransaction> records;
-  final bool isCaretaker;
 
   @override
   Widget build(BuildContext context) {
     final TextTheme text = Theme.of(context).textTheme;
-    final List<Widget> rows = records.isEmpty
-        ? <Widget>[
-            Text(
-              '还没有糖糖币记录',
-              style: text.bodyLarge!.copyWith(color: CozyPalette.onSurfaceVariant),
-            ),
-          ]
-        // 原版 `records.take(12).forEach { ... }`
-        : records
-            .take(12)
-            .map<Widget>((CandyTransaction record) => _LedgerRow(record: record))
-            .toList(growable: false);
 
     return CozyCard(
       radius: 28,
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(16),
       child: Column(
-        spacing: 12,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Text(
-            isCaretaker ? '充值明细' : '消耗明细',
-            style: text.titleMedium!.copyWith(
+          const Text(
+            '糖糖币账本明细',
+            style: TextStyle(
+              fontSize: 13,
               fontWeight: FontWeight.w900,
               color: CozyPalette.onSurface,
             ),
           ),
-          ...rows,
+          const SizedBox(height: 12),
+          if (records.isEmpty)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 16),
+              alignment: Alignment.center,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  const Text('🍬', style: TextStyle(fontSize: 28)),
+                  const SizedBox(height: 8),
+                  Text(
+                    '暂无糖糖币明细，开始点餐或撒糖投喂吧~',
+                    textAlign: TextAlign.center,
+                    style: text.bodySmall!.copyWith(
+                      fontSize: 12,
+                      color: CozyPalette.onSurfaceVariant,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else
+            ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: records.length,
+              separatorBuilder: (BuildContext context, int index) => Divider(
+                height: 18,
+                thickness: 1,
+                color: CozyPalette.outlineVariant.withValues(alpha: 0.35),
+              ),
+              itemBuilder: (BuildContext context, int index) {
+                final CandyTransaction record = records[index];
+                final bool isPositive = record.amount >= 0;
+                final String title = record.description.trim().isNotEmpty
+                    ? record.description.trim()
+                    : record.typeLabel;
+                final String amountText = isPositive ? '+${record.amount} 币' : '${record.amount} 币';
+                final Color amountColor = isPositive
+                    ? const Color(0xFF059669) // emerald-600
+                    : const Color(0xFFE11D48); // rose-600
+
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: <Widget>[
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          Text(
+                            title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: CozyPalette.onSurface,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            _friendlyLedgerTime(record.createdAt),
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: CozyPalette.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      amountText,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w900,
+                        color: amountColor,
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
         ],
       ),
     );
   }
 }
 
-/// 原版 `LedgerListCard` 内联的单行流水（:390-396）
-///
-/// 左列备注（单行省略）+ yyyy-MM-dd HH:mm:ss；右侧带符号金额，
-/// 收入（>= 0）用 CozyRose，支出（< 0）用 CozyTerracotta。
-class _LedgerRow extends StatelessWidget {
-  const _LedgerRow({required this.record});
+/// 友好时间转换
+String _friendlyLedgerTime(DateTime value) {
+  final DateTime now = DateTime.now();
+  final DateTime local = value.toLocal();
+  final DateTime todayStart = DateTime(now.year, now.month, now.day);
+  final DateTime yesterdayStart = todayStart.subtract(const Duration(days: 1));
+  String two(int v) => v.toString().padLeft(2, '0');
+  final String timeStr = '${two(local.hour)}:${two(local.minute)}';
 
-  final CandyTransaction record;
-
-  @override
-  Widget build(BuildContext context) {
-    final TextTheme text = Theme.of(context).textTheme;
-    final bool income = record.amount >= 0;
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Text(
-                record.description,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: text.bodyLarge!.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: CozyPalette.onSurface,
-                ),
-              ),
-              Text(
-                _friendlySecondTime(record.createdAt),
-                style: text.bodySmall!.copyWith(color: CozyPalette.onSurfaceVariant),
-              ),
-            ],
-          ),
-        ),
-        Text(
-          _signedText(record.amount),
-          style: text.bodyLarge!.copyWith(
-            fontWeight: FontWeight.w900,
-            color: income ? CozyPalette.primary : CozyPalette.tertiary,
-          ),
-        ),
-      ],
-    );
+  if (local.isAfter(todayStart)) {
+    return '今天 $timeStr';
+  } else if (local.isAfter(yesterdayStart)) {
+    return '昨天 $timeStr';
+  } else if (local.year == now.year) {
+    return '${local.month}月${local.day}日 $timeStr';
+  } else {
+    return '${local.year}-${two(local.month)}-${two(local.day)} $timeStr';
   }
 }
 
-/// 原版 `private fun RechargeConfirmDialog(amount, onDismiss, onConfirm)`（:404-418）
-///
-/// AlertDialog 圆角 28 / 底色 CandyCard / 标题与正文居中 / 主按钮全圆角 CozyRose。
+/// 充值确认弹窗
 class _RechargeConfirmDialog extends StatelessWidget {
   const _RechargeConfirmDialog({
     required this.amount,
@@ -857,9 +772,7 @@ class _RechargeConfirmDialog extends StatelessWidget {
   }
 }
 
-/// 原版 `uiState.message?.let { AlertDialog(...) }`（:115-124）
-///
-/// 圆角 26 / 底色 CandyCard / 标题「糖糖币提醒」/ 确认「知道了」用 CozyRose。
+/// 提示弹窗
 class _CandyMessageDialog extends StatelessWidget {
   const _CandyMessageDialog({required this.message, required this.onDismiss});
 
@@ -894,8 +807,7 @@ class _CandyMessageDialog extends StatelessWidget {
   }
 }
 
-/// 原生 `CandyCoinIcon`（`ui/components/CandyCoinIcon.kt`）画的是 `R.drawable.candy_coin` 位图，
-/// 已按原图打包为 `assets/images/candy_coin.png`（原 drawable-nodpi 的 473KB PNG）。
+/// 糖币图标
 class _CandyCoinIcon extends StatelessWidget {
   const _CandyCoinIcon({this.size = 56});
 
@@ -922,71 +834,3 @@ class _CandyCoinIcon extends StatelessWidget {
     );
   }
 }
-
-/// 原版 `private enum class ChartMode(val label: String) { Bar("柱状图"), Line("折线图") }`（:420）
-enum _ChartMode {
-  bar('柱状图'),
-  line('折线图');
-
-  const _ChartMode(this.label);
-
-  final String label;
-}
-
-/// 原版 `private enum class ChartPeriod(val label: String) { Week("按周"), Month("按月") }`（:422）
-enum _ChartPeriod {
-  week('按周'),
-  month('按月');
-
-  const _ChartPeriod(this.label);
-
-  final String label;
-}
-
-/// 原版 `private data class ChartPoint(val label: String, val value: Int)`（:424）
-class _ChartPoint {
-  const _ChartPoint(this.label, this.value);
-
-  final String label;
-  final int value;
-
-  @override
-  bool operator ==(Object other) =>
-      other is _ChartPoint && other.label == label && other.value == value;
-
-  @override
-  int get hashCode => Object.hash(label, value);
-}
-
-/// 原版 `List<CandyCoinRecord>.toChartPoints(period)`（:426-437）
-///
-/// 按周取最近 7 天、按月取最近 30 天，每天汇总 `abs(amount)`。
-List<_ChartPoint> _toChartPoints(List<CandyTransaction> records, _ChartPeriod period) {
-  final DateTime now = DateTime.now();
-  final int span = period == _ChartPeriod.week ? 7 : 30;
-  final List<_ChartPoint> points = <_ChartPoint>[];
-  for (int offset = span - 1; offset >= 0; offset--) {
-    final DateTime date = DateTime(now.year, now.month, now.day - offset);
-    final int total = records
-        .where((CandyTransaction r) {
-          final DateTime local = r.createdAt.toLocal();
-          return local.year == date.year &&
-              local.month == date.month &&
-              local.day == date.day;
-        })
-        .fold<int>(0, (int sum, CandyTransaction r) => sum + r.amount.abs());
-    points.add(_ChartPoint('${date.month}/${date.day}', total));
-  }
-  return points;
-}
-
-/// 原版 `String.toFriendlySecondTime()`（:443-446）：yyyy-MM-dd HH:mm:ss
-String _friendlySecondTime(DateTime value) {
-  final DateTime t = value.toLocal();
-  String two(int v) => v.toString().padLeft(2, '0');
-  return '${t.year}-${two(t.month)}-${two(t.day)} '
-      '${two(t.hour)}:${two(t.minute)}:${two(t.second)}';
-}
-
-/// 原版 `Int.toSignedText()`（:448）
-String _signedText(int value) => value >= 0 ? '+$value' : '$value';

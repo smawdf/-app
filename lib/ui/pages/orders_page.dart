@@ -6,6 +6,7 @@ import '../../data/app_state.dart';
 import '../../data/models.dart';
 import '../orders/order_detail_page.dart';
 import '../theme/cozy_glass.dart';
+import '../theme/couple_theme.dart';
 import '../widgets/cozy_dish_photo.dart';
 import '../widgets/cozy_skeletons.dart';
 import '../widgets/cozy_toast.dart';
@@ -115,7 +116,7 @@ class _OrdersPageState extends State<OrdersPage> {
 
         return CozyPage(
           child: RefreshIndicator(
-            color: CozyTheme.primaryPink,
+            color: context.coupleTheme.primary,
             backgroundColor: CozyPalette.surface,
             onRefresh: () => state.refreshOrders(),
             child: ListView(
@@ -203,18 +204,7 @@ class _OrdersPageState extends State<OrdersPage> {
             ),
           ),
           const SizedBox(width: 8),
-          const Flexible(
-            flex: 2,
-            child: Padding(
-              padding: EdgeInsets.only(top: 4),
-              child: Text(
-                '推进状态: 仅饲养员可用',
-                textAlign: TextAlign.right,
-                maxLines: 2,
-                style: TextStyle(fontSize: 11, color: CozyPalette.onSurfaceVariant),
-              ),
-            ),
-          ),
+          const SizedBox.shrink(),
         ],
       ),
     );
@@ -259,7 +249,7 @@ class _OrdersPageState extends State<OrdersPage> {
         padding: const EdgeInsets.symmetric(vertical: 7),
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: selected ? CozyPalette.primary : Colors.transparent,
+          color: selected ? context.coupleTheme.primary : Colors.transparent,
           borderRadius: BorderRadius.circular(14),
         ),
         child: Text(
@@ -293,6 +283,7 @@ class _OrdersPageState extends State<OrdersPage> {
 
   /// 空态：demo 的列表区换成引导卡 —— 顶部标题区与筛选条不消失。
   Widget _buildEmptyState() {
+    final theme = context.coupleTheme;
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
       child: Container(
@@ -301,27 +292,38 @@ class _OrdersPageState extends State<OrdersPage> {
           color: Colors.white,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: CozyPalette.outlineVariant.withValues(alpha: 0.72),
+            color: theme.cardBorder,
+            width: 1.2,
           ),
-          boxShadow: CozyLight.cardShadow,
+          boxShadow: [
+            BoxShadow(
+              color: theme.shadowColor.withValues(alpha: 0.08),
+              blurRadius: 10,
+              offset: const Offset(0, 3),
+            ),
+          ],
         ),
         child: Column(
           children: <Widget>[
             Container(
-              width: 72,
-              height: 72,
+              width: 76,
+              height: 76,
               alignment: Alignment.center,
               decoration: BoxDecoration(
-                color: CozyPalette.primaryContainer.withValues(alpha: 0.45),
+                color: theme.primaryLight,
                 borderRadius: BorderRadius.circular(22),
+                border: Border.all(color: theme.cardBorder, width: 1.2),
               ),
-              child: Image.asset(
-                'assets/images/bowl.png',
-                width: 38,
-                height: 38,
-                filterQuality: FilterQuality.high,
-                errorBuilder: (context, error, stackTrace) =>
-                    const Icon(Icons.restaurant_outlined, size: 32, color: CozyPalette.primary),
+              padding: const EdgeInsets.all(4),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(18),
+                child: Image.asset(
+                  theme.chefAnimAsset,
+                  fit: BoxFit.contain,
+                  filterQuality: FilterQuality.high,
+                  errorBuilder: (context, error, stackTrace) =>
+                      const Icon(Icons.restaurant_outlined, size: 32, color: CozyPalette.primary),
+                ),
               ),
             ),
             const SizedBox(height: 12),

@@ -1,3 +1,5 @@
+import 'dart:math' show min;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -7,18 +9,28 @@ import '../../data/models.dart';
 import '../theme/cozy_glass.dart';
 import '../widgets/cozy_toast.dart';
 
-/// 订单详情 —— 1:1 移植原生 `OrderDetailScreen.kt`
+/// 订单详情页 —— 1:1 对齐 `demo/index.html` 中的 `#subpage-order-detail`
 ///
-/// 对照原生：
-///   - `OrderDetailScreen`（OrderDetailScreen.kt:73-143）：白色满屏 + 自绘顶栏 + 14dp 间距列表
-///   - `OrderDetailTopBar`（144-164）
-///   - `OrderSummaryCard`（166-246）
-///   - `CaretakerOnlyCard`（248-260）
-///   - `OrderActionRow`（262-288）/ `GradientOrderActionButton`（290-310）
-///   - `TimelineCard`（312-344）+ `progressTimelineEntries`（400-428）
-///   - `OrderItemsCard`（346-378）
-///   - 文本派生：`toOrderStatusText`（380-386）/ `nextActionText`（388-392）/
-///     `buyerDetailText`（430-434）/ `yuanText`（PriceText.kt:3）
+/// 严格实现 6 项核心结构：
+/// 1. 顶部返回栏：标题「订单详情」，返回上一页。
+/// 2. Order Stepper 卡片（白色圆角卡片，`CozyCard`）：
+///    - 顶部行：订单编号（`#${order.id.substring(0, min(8, order.id.length))}`）+ 状态胶囊（待确认/已接单/备餐中/上菜啦/已完成/已取消）
+///    - 5步流程时间轴（横向连线 Stepper）：
+///      1: 已下单
+///      2: 已接单
+///      3: 备餐中
+///      4: 上菜啦
+///      5: 打卡完成
+///      横向一条底线，激活部分为 primary 颜色，小圆圈显示序号 1-5，下方是阶段名称。
+/// 3. 饲养员出锅大照卡片（`📸 饲养员出锅大照` + `打卡回忆录` 胶囊）：
+///    - 真实图片（优先 momentImageUrl，其次菜品图）或大厨空态占位引导卡片。
+/// 4. 菜品清单与结算卡片（`菜品清单与结算`）：
+///    - 每道菜的名称、份数与价格，分隔线下方为实付糖糖币（🍬 ${order.candyCoinsSpent} 币）。
+/// 5. 吃货好评反馈卡片（`吃货好评反馈`）：
+///    - 真实评价或温和引导文案「等待吃货品尝后留下爱心小评价~」。
+/// 6. 底部操作行：
+///    - 饲养员角色：如果可以推进，显示渐变大按钮「推进状态：${_nextActionText(order.status)}」；
+///    - 允许取消时，提供「取消订单」按钮。
 class OrderDetailPage extends StatefulWidget {
   const OrderDetailPage({super.key, required this.order});
 
@@ -38,9 +50,7 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
     _currentOrder = widget.order;
   }
 
-  /// 原生 `OrderDetailViewModel.advanceStatus`（OrderDetailViewModel.kt:52-92）：
-  /// 守卫 + 目标态映射（submitted/confirmed → preparing，preparing/delivering → completed）。
-  /// Flutter 侧沿用文件原有的 `AppState.instance.advanceOrder` + 本地乐观副本。
+  /// 饲养员推进做饭状态
   Future<void> _advanceOrder() async {
     final String? next = _currentOrder.nextStatus;
     if (next == null) return;
@@ -59,9 +69,9 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
     );
   }
 
-  /// 原生 `OrderDetailViewModel.cancelOrder`（OrderDetailViewModel.kt:94-120）：
-  /// 仅 status 不在 (completed, cancelled) 时可取消。
+  /// 取消订单（仅在进行中有效）
   Future<void> _cancelOrder() async {
+    HapticFeedback.lightImpact();
     setState(() => _updating = true);
     final bool ok = await AppState.instance.cancelOrder(_currentOrder);
     if (!mounted) return;
@@ -81,14 +91,11 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
     final AppState state = AppState.instance;
     final Order order = _currentOrder;
 
-    // 原生额外要求 `!isHistoricalOrder`（OrderDetailScreen.kt:63-65），
-    // Flutter `Order` 没有 pairId，无法判断历史单，只能按角色判断。
-    final bool canAdvance = state.isCaretaker;
-    final String? nextActionText = canAdvance ? _nextActionText(order.status) : null;
+    final bool isCaretaker = state.isCaretaker;
+    final String? nextActionText = _nextActionText(order.status);
+    final bool canAdvance = isCaretaker && nextActionText != null;
     final bool canCancel = order.isActive;
-    final bool caretakerOnly =
-        !state.isCaretaker && (order.status == 'submitted' || order.status == 'confirmed');
-    final bool showActionRow = nextActionText != null || canCancel;
+    final bool showActionRow = canAdvance || canCancel || (!isCaretaker && order.isActive);
 
     return Scaffold(
       backgroundColor: CozyPalette.background,
@@ -98,21 +105,28 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
             _topBar(context),
             Expanded(
               child: ListView(
-                padding: EdgeInsets.fromLTRB(20, 8, 20, CozyDock.clearanceOf(context)),
+                padding: EdgeInsets.fromLTRB(16, 4, 16, CozyDock.clearanceOf(context) + 16),
                 children: <Widget>[
-                  _summaryCard(context, order, state),
-                  if (caretakerOnly) ...<Widget>[
-                    const SizedBox(height: 14),
-                    _caretakerOnlyCard(context),
-                  ],
+                  // 1. Order Stepper 卡片
+                  _stepperCard(context, order),
+                  const SizedBox(height: 14),
+
+                  // 2. 饲养员出锅大照卡片
+                  _photoCard(context, order),
+                  const SizedBox(height: 14),
+
+                  // 3. 菜品清单与结算卡片
+                  _dishItemsCard(context, order),
+                  const SizedBox(height: 14),
+
+                  // 4. 吃货好评反馈卡片
+                  _buyerFeedbackCard(context, order),
+
+                  // 5. 底部操作行
                   if (showActionRow) ...<Widget>[
-                    const SizedBox(height: 14),
-                    _actionRow(context, nextActionText),
+                    const SizedBox(height: 18),
+                    _bottomActions(context, order, isCaretaker, nextActionText, canCancel),
                   ],
-                  const SizedBox(height: 14),
-                  _timelineCard(context, order),
-                  const SizedBox(height: 14),
-                  _itemsCard(context, order),
                 ],
               ),
             ),
@@ -122,13 +136,12 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
     );
   }
 
-  /// 原生 `OrderDetailTopBar`（OrderDetailScreen.kt:144-164）：
-  /// 高度下限 64 / 左右 12 上下 8 / 返回按钮居中偏左 / 「订单详情」居中且 primary 色
+  /// 顶部返回栏：标题「订单详情」，返回上一页
   Widget _topBar(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       child: ConstrainedBox(
-        constraints: const BoxConstraints(minHeight: 64),
+        constraints: const BoxConstraints(minHeight: 56),
         child: Stack(
           alignment: Alignment.center,
           children: <Widget>[
@@ -152,367 +165,710 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
     );
   }
 
-  /// 原生 `OrderSummaryCard`（OrderDetailScreen.kt:166-246）
-  Widget _summaryCard(BuildContext context, Order order, AppState state) {
-    final TextTheme text = Theme.of(context).textTheme;
-    final bool cancelled = order.status == 'cancelled';
-    final String shopName =
-        (state.shop?.name.isNotEmpty ?? false) ? state.shop!.name : '我的店铺';
+  // ══════════════════════════════════════════════════════════════════════════════
+  //  1. Order Stepper 卡片 (白色圆角卡片，CozyCard)
+  // ══════════════════════════════════════════════════════════════════════════════
+  Widget _stepperCard(BuildContext context, Order order) {
+    final String shortId = order.id.substring(0, min(8, order.id.length));
 
     return CozyCard(
       radius: 24,
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Row(
-            children: <Widget>[
-              _ShopCover(coverUrl: state.shop?.coverUrl ?? '', shopName: shopName),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  shopName,
-                  style: text.bodyLarge!.copyWith(
-                    color: CozyPalette.onSurface,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              CozyPill(
-                text: _toOrderStatusText(order.status),
-                selected: true,
-                color: CozyPalette.primary,
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: <Widget>[
-              // 原生 buyerAvatarUrl 为空时兜底 Icons.Filled.RestaurantMenu（OrderDetailScreen.kt:207-219）；
-              // Flutter `Order` 没有 buyerAvatarUrl，直接走图标兜底。
-              Container(
-                width: 30,
-                height: 30,
-                decoration: const BoxDecoration(shape: BoxShape.circle, color: CozyPalette.surface),
-                child: const Center(
-                  child: Icon(Icons.restaurant_menu, size: 16, color: CozyPalette.primary),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  _buyerDetailText(order),
-                  style: text.bodyLarge!.copyWith(
-                    color: CozyPalette.primary,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          // 原生 `order.addressSnapshot.ifBlank { "小饭桌信息待补充" }`（OrderDetailScreen.kt:222-225）；
-          // Flutter `Order` 没有 addressSnapshot，只能常显兜底文案。
-          Text(
-            '小饭桌信息待补充',
-            style: text.bodyLarge!.copyWith(color: CozyPalette.onSurfaceVariant),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            order.buyerNote.isNotEmpty ? order.buyerNote : '暂无备注',
-            style: text.bodyLarge!.copyWith(color: CozyPalette.onSurfaceVariant),
-          ),
-          const SizedBox(height: 12),
+          // 顶部行：订单编号 + 状态胶囊
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: <Widget>[
               Text(
-                '合计',
-                style: text.bodyLarge!.copyWith(
-                  color: CozyPalette.onSurface,
-                  fontWeight: FontWeight.w900,
+                '#$shortId',
+                style: const TextStyle(
+                  fontFamily: 'monospace',
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF9CA3AF),
                 ),
               ),
-              Text(
-                _yuanText(order.totalPrice),
-                style: text.bodyLarge!.copyWith(
-                  color: CozyPalette.error,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
+              _statusBadge(order.status),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
+
+          // 5步流程时间轴（横向连线 Stepper）
+          _stepperTimeline(order.status),
+        ],
+      ),
+    );
+  }
+
+  /// 状态胶囊：根据状态着色（待确认/已接单/备餐中/上菜啦/已完成/已取消）
+  Widget _statusBadge(String status) {
+    final (String text, Color bg, Color textColor) = switch (status) {
+      'submitted' => ('待确认', const Color(0xFFFEF3C7), const Color(0xFF92400E)),
+      'confirmed' => ('已接单', const Color(0xFFEDE9FE), const Color(0xFF6D28D9)),
+      'preparing' => ('备餐中', const Color(0xFFFEF3C7), const Color(0xFF92400E)),
+      'delivering' => ('上菜啦', const Color(0xFFE0F2FE), const Color(0xFF0369A1)),
+      'completed' => ('已完成', const Color(0xFFD1FAE5), const Color(0xFF065F46)),
+      'cancelled' => ('已取消', const Color(0xFFF3F4F6), const Color(0xFF6B7280)),
+      _ => (status, const Color(0xFFF3F4F6), const Color(0xFF6B7280)),
+    };
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          color: textColor,
+        ),
+      ),
+    );
+  }
+
+  /// 5步流程时间轴（横向连线 Stepper）
+  Widget _stepperTimeline(String status) {
+    final int currentStep = switch (status) {
+      'submitted' => 1,
+      'confirmed' => 2,
+      'preparing' => 3,
+      'delivering' => 4,
+      'completed' => 5,
+      _ => 0, // cancelled
+    };
+    final bool isCancelled = status == 'cancelled';
+
+    const List<(int, String)> steps = <(int, String)>[
+      (1, '已下单'),
+      (2, '已接单'),
+      (3, '备餐中'),
+      (4, '上菜啦'),
+      (5, '打卡完成'),
+    ];
+
+    final double progress = (isCancelled || currentStep <= 1)
+        ? 0.0
+        : ((currentStep - 1) / 4.0).clamp(0.0, 1.0);
+
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        const double itemWidth = 44.0;
+        final double totalWidth = constraints.maxWidth;
+        final double startX = itemWidth / 2;
+        final double endX = totalWidth - itemWidth / 2;
+        final double lineSpan = endX - startX;
+
+        return Stack(
+          alignment: Alignment.topCenter,
+          children: <Widget>[
+            // 背景灰底线
+            Positioned(
+              top: 11,
+              left: startX,
+              width: lineSpan,
+              child: Container(
+                height: 2,
+                color: const Color(0xFFE5E7EB),
+              ),
+            ),
+            // 激活主色线
+            if (progress > 0)
+              Positioned(
+                top: 11,
+                left: startX,
+                width: lineSpan * progress,
+                child: Container(
+                  height: 2,
+                  color: CozyPalette.primary,
+                ),
+              ),
+            // 5个步骤圆圈与名称
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: steps.map(((int, String) step) {
+                final int stepNum = step.$1;
+                final String stepLabel = step.$2;
+                final bool isPassed = !isCancelled && stepNum <= currentStep;
+                final bool isCurrent = !isCancelled && stepNum == currentStep;
+
+                final Color circleBg = isPassed ? CozyPalette.primary : const Color(0xFFE5E7EB);
+                final Color circleText = isPassed ? Colors.white : const Color(0xFF9CA3AF);
+                final Color labelColor = isPassed ? CozyPalette.primary : const Color(0xFF9CA3AF);
+                final FontWeight labelWeight = isCurrent
+                    ? FontWeight.w800
+                    : (isPassed ? FontWeight.w700 : FontWeight.w500);
+
+                return SizedBox(
+                  width: itemWidth,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      Container(
+                        width: 24,
+                        height: 24,
+                        decoration: BoxDecoration(
+                          color: circleBg,
+                          shape: BoxShape.circle,
+                          boxShadow: isCurrent
+                              ? <BoxShadow>[
+                                  BoxShadow(
+                                    color: CozyPalette.primary.withValues(alpha: 0.35),
+                                    blurRadius: 6,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ]
+                              : null,
+                        ),
+                        alignment: Alignment.center,
+                        child: Text(
+                          '$stepNum',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            color: circleText,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 5),
+                      Text(
+                        stepLabel,
+                        maxLines: 1,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: labelWeight,
+                          color: labelColor,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════════
+  //  2. 饲养员出锅大照卡片 (📸 饲养员出锅大照 + 打卡回忆录 胶囊)
+  // ══════════════════════════════════════════════════════════════════════════════
+  Widget _photoCard(BuildContext context, Order order) {
+    final String? photoUrl = _resolveOrderPhoto(order);
+
+    return CozyCard(
+      radius: 24,
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          // 标题行
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: <Widget>[
-              Row(
+              const Row(
                 children: <Widget>[
-                  // 原生 `CandyCoinIcon(size = 20.dp)`
-                  Image.asset(
-                    'assets/images/candy_coin.png',
-                    width: 20,
-                    height: 20,
-                    fit: BoxFit.contain,
-                    errorBuilder: (_, _, _) =>
-                        const Text('🍬', style: TextStyle(fontSize: 20)),
-                  ),
-                  const SizedBox(width: 5),
+                  Text('📸', style: TextStyle(fontSize: 14)),
+                  SizedBox(width: 4),
                   Text(
-                    '糖糖币',
-                    style: text.bodyLarge!.copyWith(color: CozyPalette.onSurfaceVariant),
+                    '饲养员出锅大照',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w900,
+                      color: CozyPalette.onSurface,
+                    ),
                   ),
                 ],
               ),
-              Text(
-                cancelled ? '已返还 ${order.candyCoinsSpent} 枚' : '消耗 ${order.candyCoinsSpent} 枚',
-                style: text.bodyLarge!.copyWith(
-                  color: cancelled ? CozyPalette.onSurfaceVariant : CozyPalette.primary,
-                  fontWeight: FontWeight.w700,
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF1F2),
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(color: const Color(0xFFFECDD3)),
+                ),
+                child: const Text(
+                  '打卡回忆录',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFFE11D48),
+                  ),
                 ),
               ),
             ],
           ),
-        ],
-      ),
-    );
-  }
-
-  /// 原生 `CaretakerOnlyCard`（OrderDetailScreen.kt:248-260）
-  Widget _caretakerOnlyCard(BuildContext context) {
-    final TextTheme text = Theme.of(context).textTheme;
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: CozyPalette.secondaryContainer.withValues(alpha: 0.52),
-        borderRadius: BorderRadius.circular(24),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Text(
-            '待饲养员确认',
-            style: text.bodyLarge!.copyWith(
-              color: CozyPalette.onSurface,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            '订单已送达，只有饲养员可以确认接单并开始准备。',
-            style: text.bodySmall!.copyWith(color: CozyPalette.onSurfaceVariant),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// 原生 `OrderActionRow`（OrderDetailScreen.kt:262-288）：
-  /// 两个按钮各占 weight(1f)，间距 12
-  Widget _actionRow(BuildContext context, String? nextActionText) {
-    final bool canCancel = _currentOrder.isActive;
-    return Row(
-      children: <Widget>[
-        if (nextActionText != null)
-          Expanded(
-            child: CozyPrimaryButton(
-              text: nextActionText,
-              onTap: _advanceOrder,
-              enabled: !_updating,
-            ),
-          ),
-        if (nextActionText != null && canCancel) const SizedBox(width: 12),
-        if (canCancel) Expanded(child: _cancelButton(context)),
-      ],
-    );
-  }
-
-  /// 原生 `OrderActionRow` 里的取消 TextButton（contentColor = Color(0xFFB85C5C)，高 52，全圆角）。
-  /// 【审查修正】原来用 `CozyPalette.error`（#E54848）替代，比原生的 #B85C5C 亮一截，
-  /// 在浅底上显得刺眼。这里直接用原生那支色号。
-  Widget _cancelButton(BuildContext context) {
-    return SizedBox(
-      height: 52,
-      child: TextButton(
-        onPressed: _updating ? null : _cancelOrder,
-        style: TextButton.styleFrom(
-          foregroundColor: const Color(0xFFB85C5C),
-          shape: const RoundedRectangleBorder(
-            borderRadius: BorderRadius.all(Radius.circular(999)),
-          ),
-        ),
-        child: Text(
-          '取消订单',
-          style: Theme.of(context).textTheme.labelLarge!.copyWith(
-                fontWeight: FontWeight.w700,
-                // 注意：CozyType 把 onSurface 烤进了每个 TextStyle，子 Text 显式带上
-                // 颜色时会盖掉按钮的 foregroundColor；这里必须自己写一遍，
-                // 否则渲染出来是近黑色（真机实测 #1D1B18）。
-                color: const Color(0xFFB85C5C),
-              ),
-        ),
-      ),
-    );
-  }
-
-  /// 原生 `TimelineCard`（OrderDetailScreen.kt:312-344）
-  Widget _timelineCard(BuildContext context, Order order) {
-    final TextTheme text = Theme.of(context).textTheme;
-    final List<_TimelineEntry> entries = _progressTimelineEntries(order);
-
-    return CozyCard(
-      radius: 24,
-      padding: const EdgeInsets.all(18),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Text(
-            '订单进度',
-            style: text.bodyLarge!.copyWith(
-              color: CozyPalette.onSurface,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
           const SizedBox(height: 12),
-          if (entries.isEmpty)
-            Text(
-              '暂无进度记录',
-              style: text.bodyMedium!.copyWith(color: CozyPalette.onSurfaceVariant),
-            )
-          else
-            for (int i = 0; i < entries.length; i++) ...<Widget>[
-              if (i > 0) const SizedBox(height: 12),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Icon(
-                    entries[i].isCompleted ? Icons.check_circle : Icons.radio_button_unchecked,
-                    size: 20,
-                    color: entries[i].isCompleted
-                        ? CozyPalette.primary
-                        : CozyPalette.onSurfaceVariant,
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: <Widget>[
-                        Text(
-                          entries[i].title,
-                          style: text.bodyLarge!.copyWith(
-                            color: CozyPalette.onSurface,
-                            fontWeight: FontWeight.w600,
+
+          // 真实照片或优雅空态引导
+          Container(
+            width: double.infinity,
+            height: 176,
+            clipBehavior: Clip.antiAlias,
+            decoration: BoxDecoration(
+              color: CozyPalette.surfaceContainerLow,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: CozyPalette.outlineVariant.withValues(alpha: 0.3)),
+            ),
+            child: photoUrl != null
+                ? Stack(
+                    fit: StackFit.expand,
+                    children: <Widget>[
+                      Image.network(
+                        photoUrl,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, _, _) => _chefEmptyPlaceholder(),
+                      ),
+                      Positioned(
+                        bottom: 8,
+                        right: 8,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.6),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: <Widget>[
+                              Text('👨‍🍳', style: TextStyle(fontSize: 11)),
+                              SizedBox(width: 4),
+                              Text(
+                                '饲养员掌勺打卡',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w500,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                        if (entries[i].timestamp.isNotEmpty)
-                          Text(
-                            entries[i].timestamp,
-                            style: text.bodySmall!.copyWith(color: CozyPalette.onSurfaceVariant),
-                          ),
-                      ],
+                      ),
+                    ],
+                  )
+                : _chefEmptyPlaceholder(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 优雅的空态占位引导卡片（大厨图标 + 引导文案）
+  Widget _chefEmptyPlaceholder() {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: CozyPalette.primary.withValues(alpha: 0.08),
+              shape: BoxShape.circle,
+            ),
+            alignment: Alignment.center,
+            child: const Text('👨‍🍳', style: TextStyle(fontSize: 24)),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            '出锅后饲养员拍照打卡将展示在这里~',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: CozyPalette.onSurfaceVariant.withValues(alpha: 0.8),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 解析真实可用照片：优先打卡照片，其次菜品真实照片
+  String? _resolveOrderPhoto(Order order) {
+    if (isUsableDishPhoto(order.momentImageUrl)) {
+      return order.momentImageUrl.trim();
+    }
+    for (final OrderItem item in order.items) {
+      if (isUsableDishPhoto(item.imageUrl)) {
+        return item.imageUrl.trim();
+      }
+    }
+    for (final OrderItem item in order.items) {
+      if (item.name.trim().isNotEmpty) {
+        final String resolved = resolveDishImage(item.name.trim(), current: item.imageUrl);
+        if (isUsableDishPhoto(resolved)) {
+          return resolved;
+        }
+      }
+    }
+    return null;
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════════
+  //  3. 菜品清单与结算卡片 (菜品清单与结算)
+  // ══════════════════════════════════════════════════════════════════════════════
+  Widget _dishItemsCard(BuildContext context, Order order) {
+    return CozyCard(
+      radius: 24,
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          const Text(
+            '菜品清单与结算',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w900,
+              color: CozyPalette.onSurface,
+            ),
+          ),
+          const SizedBox(height: 10),
+
+          // 菜品清单
+          if (order.items.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Text(
+                '暂无菜品明细',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: CozyPalette.onSurfaceVariant.withValues(alpha: 0.7),
+                ),
+              ),
+            )
+          else
+            ...order.items.map((OrderItem item) {
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 5),
+                child: Row(
+                  children: <Widget>[
+                    _DishThumb(imageUrl: item.imageUrl, name: item.name),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        item.name,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: CozyPalette.onSurface,
+                        ),
+                      ),
+                    ),
+                    Text(
+                      'x${item.quantity}',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: CozyPalette.onSurfaceVariant,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Text(
+                      '¥${item.subtotal.toStringAsFixed(2)}',
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: CozyPalette.onSurface,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }),
+
+          const SizedBox(height: 10),
+          Container(
+            height: 1,
+            color: const Color(0xFFF0E3DB),
+          ),
+          const SizedBox(height: 10),
+
+          // 分隔线下方：实付糖糖币
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: <Widget>[
+              const Text(
+                '实付糖糖币',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: CozyPalette.onSurfaceVariant,
+                ),
+              ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  Image.asset(
+                    'assets/images/candy_coin.png',
+                    width: 15,
+                    height: 15,
+                    fit: BoxFit.contain,
+                    errorBuilder: (_, _, _) => const Text('🍬', style: TextStyle(fontSize: 13)),
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    '${order.candyCoinsSpent} 币',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w900,
+                      color: Color(0xFFE11D48),
                     ),
                   ),
                 ],
               ),
             ],
+          ),
         ],
       ),
     );
   }
 
-  /// 原生 `OrderItemsCard`（OrderDetailScreen.kt:346-378）
-  Widget _itemsCard(BuildContext context, Order order) {
-    final TextTheme text = Theme.of(context).textTheme;
-    final int total = order.items.fold<int>(0, (int sum, OrderItem it) => sum + it.quantity);
+  // ══════════════════════════════════════════════════════════════════════════════
+  //  4. 吃货点单备注卡片 (点单备注)
+  // ══════════════════════════════════════════════════════════════════════════════
+  Widget _buyerFeedbackCard(BuildContext context, Order order) {
+    final bool hasNote = order.buyerNote.trim().isNotEmpty;
 
-    final List<Widget> rows = <Widget>[];
-    for (int i = 0; i < order.items.length; i++) {
-      if (i > 0) {
-        // 原生 `Box(fillMaxWidth().height(1.dp), background = CozyRose.copy(alpha = 0.08f))`
-        rows.add(
-          Container(
-            width: double.infinity,
-            height: 1,
-            color: CozyPalette.primary.withValues(alpha: 0.08),
+    return Container(
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: <Color>[Colors.white, Color(0xFFFDF0F4)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: const Color(0xFFF0E3DB)),
+        boxShadow: const <BoxShadow>[
+          BoxShadow(
+            color: Color(0x0F1D1B18),
+            blurRadius: 16,
+            offset: Offset(0, 4),
           ),
-        );
-      }
-      rows.add(_itemRow(text, order.items[i]));
-    }
-
-    return CozyCard(
-      radius: 24,
-      padding: const EdgeInsets.all(24),
+        ],
+      ),
+      padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Row(
+          const Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: <Widget>[
-              Text(
-                '菜品明细',
-                style: text.bodyLarge!.copyWith(
-                  color: CozyPalette.onSurface,
-                  fontWeight: FontWeight.w900,
-                ),
+              Row(
+                children: <Widget>[
+                  Text('💌', style: TextStyle(fontSize: 14)),
+                  SizedBox(width: 4),
+                  Text(
+                    '吃货点单备注',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      color: CozyPalette.onSurface,
+                    ),
+                  ),
+                ],
               ),
               Text(
-                '共 $total 份',
-                style: text.bodySmall!.copyWith(color: CozyPalette.onSurfaceVariant),
+                '给后厨的悄悄话',
+                style: TextStyle(fontSize: 11, color: Color(0xFFE11D48)),
               ),
             ],
           ),
-          for (final Widget row in rows) ...<Widget>[
-            const SizedBox(height: 12),
-            row,
-          ],
+          const SizedBox(height: 10),
+
+          // 真实点单备注内容或默认文案
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.85),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFFF0E3DB)),
+            ),
+            child: Text(
+              hasNote ? '“${order.buyerNote.trim()}”' : '没有特殊忌口，尽情发挥饲养员的厨艺吧~',
+              style: TextStyle(
+                fontSize: 12,
+                height: 1.5,
+                fontStyle: hasNote ? FontStyle.italic : FontStyle.normal,
+                color: hasNote
+                    ? CozyPalette.onSurface
+                    : CozyPalette.onSurfaceVariant.withValues(alpha: 0.7),
+              ),
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _itemRow(TextTheme text, OrderItem item) {
-    return Row(
+  // ══════════════════════════════════════════════════════════════════════════════
+  //  5. 底部操作行
+  // ══════════════════════════════════════════════════════════════════════════════
+  Widget _bottomActions(
+    BuildContext context,
+    Order order,
+    bool isCaretaker,
+    String? nextActionText,
+    bool canCancel,
+  ) {
+    final bool canAdvance = isCaretaker && nextActionText != null;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
       children: <Widget>[
-        // 【图片适配】明细行原本只有菜名 + 价格，没有任何图片。这里补一个
-        // 与购物车一致的 44×44 菜品照片（下单前的菜品图是 emoji 时，
-        // 用菜名现解析一张真实照片）。
-        _DishThumb(imageUrl: item.imageUrl, name: item.name),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Text(
-                item.name,
-                style: text.bodyLarge!.copyWith(
-                  color: CozyPalette.onSurface,
-                  fontWeight: FontWeight.w600,
+        // 饲养员角色：如果可以推进，显示渐变大按钮
+        if (canAdvance) ...<Widget>[
+          _GradientAdvanceButton(
+            text: nextActionText,
+            onTap: _advanceOrder,
+            loading: _updating,
+          ),
+          if (canCancel) const SizedBox(height: 10),
+        ],
+
+        // 吃货角色提示卡片（进行中且不可推进时）
+        if (!isCaretaker && order.isActive) ...<Widget>[
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFFBEB),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFFFDE68A)),
+            ),
+            child: const Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: <Widget>[
+                Text('👨‍🍳', style: TextStyle(fontSize: 14)),
+                SizedBox(width: 6),
+                Flexible(
+                  child: Text(
+                    '饲养员正在厨房忙碌做饭中，稍候美味即来~',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF92400E),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (canCancel) const SizedBox(height: 10),
+        ],
+
+        // 允许取消时，提供「取消订单」按钮
+        if (canCancel)
+          SizedBox(
+            width: double.infinity,
+            height: 44,
+            child: TextButton(
+              onPressed: _updating ? null : _cancelOrder,
+              style: TextButton.styleFrom(
+                foregroundColor: const Color(0xFFB85C5C),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(999),
                 ),
               ),
-              Text(
-                '${item.quantity} 份 x ${_yuanText(item.unitPrice)}',
-                style: text.bodySmall!.copyWith(color: CozyPalette.onSurfaceVariant),
+              child: const Text(
+                '取消订单',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFFB85C5C),
+                ),
               ),
-            ],
+            ),
           ),
-        ),
-        Text(
-          _yuanText(item.subtotal),
-          style: text.bodyLarge!.copyWith(
-            color: CozyPalette.onSurface,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
       ],
+    );
+  }
+
+  /// 状态推进文案映射
+  String? _nextActionText(String status) {
+    switch (status) {
+      case 'submitted':
+      case 'confirmed':
+        return '确认接单';
+      case 'preparing':
+      case 'delivering':
+        return '完成这顿饭';
+      default:
+        return null;
+    }
+  }
+}
+
+/// 底部渐变大按钮：from CozyPalette.primary to Color(0xFFF59E0B)
+class _GradientAdvanceButton extends StatelessWidget {
+  const _GradientAdvanceButton({
+    required this.text,
+    required this.onTap,
+    this.loading = false,
+  });
+
+  final String text;
+  final VoidCallback onTap;
+  final bool loading;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      height: 50,
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: <Color>[CozyPalette.primary, Color(0xFFF59E0B)],
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+        ),
+        borderRadius: BorderRadius.circular(999),
+        boxShadow: <BoxShadow>[
+          BoxShadow(
+            color: CozyPalette.primary.withValues(alpha: 0.3),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(999),
+          onTap: loading ? null : onTap,
+          child: Center(
+            child: loading
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  )
+                : Text(
+                    text,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w900,
+                      color: Colors.white,
+                    ),
+                  ),
+          ),
+        ),
+      ),
     );
   }
 }
 
-/// 订单明细行里的 44×44 菜品照片。有图片地址就用，没有就用菜名解析一张，
-/// 再不行退回 emoji / 餐具占位。
+/// 菜品缩略小图
 class _DishThumb extends StatelessWidget {
   const _DishThumb({required this.imageUrl, required this.name});
 
@@ -521,21 +877,22 @@ class _DishThumb extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final String photo =
-        isUsableDishPhoto(imageUrl) ? imageUrl.trim() : resolveDishImage(name, current: imageUrl);
+    final String photo = isUsableDishPhoto(imageUrl)
+        ? imageUrl.trim()
+        : resolveDishImage(name, current: imageUrl);
     final Widget fallback = Center(
       child: Text(
         imageUrl.isNotEmpty && imageUrl.length <= 4 ? imageUrl : '🍽️',
-        style: const TextStyle(fontSize: 20),
+        style: const TextStyle(fontSize: 16),
       ),
     );
     return Container(
-      width: 44,
-      height: 44,
+      width: 40,
+      height: 40,
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        color: CozyPalette.secondaryContainer.withValues(alpha: 0.62),
-        borderRadius: BorderRadius.circular(14),
+        color: CozyPalette.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(10),
       ),
       child: isUsableDishPhoto(photo)
           ? Image.network(
@@ -546,133 +903,4 @@ class _DishThumb extends StatelessWidget {
           : fallback,
     );
   }
-}
-
-/// 原生 `OrderSummaryCard` 里的 52dp 店铺封面（OrderDetailScreen.kt:180-200），
-/// 兜底图 `R.drawable.shop_banner_stitch`（OrderDetailScreen.kt:186）已打包为资源。
-class _ShopCover extends StatelessWidget {  const _ShopCover({required this.coverUrl, required this.shopName});
-
-  final String coverUrl;
-  final String shopName;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 52,
-      height: 52,
-      clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(
-        color: CozyPalette.secondaryContainer.withValues(alpha: 0.62),
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: coverUrl.isNotEmpty
-          ? Image.network(
-              coverUrl,
-              // 原生 contentDescription = "${shopName.ifBlank{"店铺"}}的头像"（OrderDetailScreen.kt:190）
-              semanticLabel: '${shopName.isEmpty ? '店铺' : shopName}的头像',
-              fit: BoxFit.cover,
-              errorBuilder: (BuildContext context, Object error, StackTrace? stackTrace) =>
-                  _placeholder(),
-            )
-          : _placeholder(),
-    );
-  }
-
-  Widget _placeholder() => Image.asset(
-        'assets/images/shop_banner_stitch.png',
-        fit: BoxFit.cover,
-        semanticLabel: '店铺封面',
-      );
-}
-
-/// 原生 `OrderTimelineEntry`（domain model）等值物，只在详情页内部使用
-class _TimelineEntry {
-  const _TimelineEntry(this.title, this.timestamp, this.isCompleted);
-
-  final String title;
-  final String timestamp;
-  final bool isCompleted;
-}
-
-/// 原生 `toOrderStatusText`（OrderDetailScreen.kt:380-386）
-String _toOrderStatusText(String status) {
-  switch (status) {
-    case 'submitted':
-    case 'confirmed':
-      return '待饲养员确认';
-    case 'preparing':
-    case 'delivering':
-      return '准备中';
-    case 'completed':
-      return '已完成';
-    case 'cancelled':
-      return '已取消';
-    default:
-      return status;
-  }
-}
-
-/// 原生 `nextActionText`（OrderDetailScreen.kt:388-392）
-String? _nextActionText(String status) {
-  switch (status) {
-    case 'submitted':
-    case 'confirmed':
-      return '确认接单';
-    case 'preparing':
-    case 'delivering':
-      return '完成这顿饭';
-    default:
-      return null;
-  }
-}
-
-/// 原生 `orderProgressSteps`（OrderDetailScreen.kt:394-398）+ `progressTimelineEntries`（400-428）
-List<_TimelineEntry> _progressTimelineEntries(Order order) {
-  const List<List<String>> steps = <List<String>>[
-    <String>['submitted', '待饲养员确认'],
-    <String>['preparing', '准备中'],
-    <String>['completed', '已完成'],
-  ];
-
-  final String created = _timestampText(order.createdAt);
-  if (order.status == 'cancelled') {
-    return <_TimelineEntry>[
-      _TimelineEntry('待饲养员确认', created, true),
-      const _TimelineEntry('已取消', '', true),
-    ];
-  }
-
-  String normalized = order.status;
-  if (normalized == 'confirmed') normalized = 'submitted';
-  if (normalized == 'delivering') normalized = 'preparing';
-
-  int currentIndex = 0;
-  for (int i = 0; i < steps.length; i++) {
-    if (steps[i][0] == normalized) {
-      currentIndex = i;
-      break;
-    }
-  }
-
-  return <_TimelineEntry>[
-    for (int i = 0; i < steps.length; i++)
-      _TimelineEntry(steps[i][1], i == 0 ? created : '', i <= currentIndex),
-  ];
-}
-
-/// 原生 `buyerDetailText`（OrderDetailScreen.kt:430-434）
-String _buyerDetailText(Order order) {
-  final String buyer = order.buyerName.isNotEmpty ? order.buyerName : '对方';
-  int count = order.items.fold<int>(0, (int sum, OrderItem it) => sum + it.quantity);
-  if (count < order.items.length) count = order.items.length;
-  return '$buyer 点了 $count 道菜';
-}
-
-/// 原生 `yuanText`（PriceText.kt:3）："¥" + "%.2f"
-String _yuanText(double value) => '¥${value.toStringAsFixed(2)}';
-
-/// 原生 timeline 里的时间戳直接用 `createdAt` 串的前 16 位
-String _timestampText(DateTime time) {
-  final String text = time.toLocal().toString();
-  return text.length >= 16 ? text.substring(0, 16) : text;
 }

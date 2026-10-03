@@ -26,6 +26,7 @@ import '../../data/food_images.dart';
 import '../../data/image_cache.dart';
 import '../../data/xiachufang_client.dart';
 import '../theme/cozy_glass.dart';
+import '../theme/couple_theme.dart';
 import '../widgets/cozy_dish_photo.dart';
 import '../widgets/cozy_skeletons.dart';
 import '../widgets/cozy_toast.dart';
@@ -486,29 +487,114 @@ class _DiscoverPageState extends State<DiscoverPage> {
   }
 
   // 原生 openVideoAppSearch（L807-861）：跳抖音 / 哔站客户端内搜索。
-  // 本工程未依赖 url_launcher（也不允许新增依赖），无法拉起外部 App，故只提示。
-  void _openVideo(String platform, String query) {
-    _showToast('暂不支持跳转$platform，可在$platform里搜索「$query」');
+  // 通过原生 MethodChannel 可靠唤起对应客户端搜索，若未安装则在应用内优雅弹窗展示菜谱指引
+  void _openVideo(String platform, String query) async {
+    const channel = MethodChannel('com.myorderapp.orderdisk_flutter/app');
+    try {
+      final success = await channel.invokeMethod<bool>('openSearch', <String, dynamic>{
+        'platform': platform,
+        'keyword': query,
+      });
+      if (success != true) {
+        _showVideoFallbackDialog(platform, query);
+      }
+    } catch (_) {
+      _showVideoFallbackDialog(platform, query);
+    }
   }
 
-  // 原生 DiscoverDishDetailSheet（L863-909）
+  void _showVideoFallbackDialog(String platform, String query) {
+    showDialog<void>(
+      context: context,
+      builder: (dialogCtx) {
+        return AlertDialog(
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Row(
+            children: [
+              Text(platform.contains('抖音') ? '🎵' : '📺', style: const TextStyle(fontSize: 20)),
+              const SizedBox(width: 8),
+              Text('$platform 视频教程', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '小饭桌推荐在 $platform 搜索此道菜的详细图文与视频做法：',
+                style: const TextStyle(fontSize: 13, color: CozyPalette.onSurfaceVariant, height: 1.5),
+              ),
+              const SizedBox(height: 12),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: CozyPalette.surfaceVariant.withValues(alpha: 0.5),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: CozyPalette.outlineVariant.withValues(alpha: 0.5)),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        query,
+                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: CozyPalette.onSurface),
+                      ),
+                    ),
+                    InkWell(
+                      onTap: () {
+                        Clipboard.setData(ClipboardData(text: query));
+                        showCozyToast(context, '菜名已复制到剪贴板 ✨');
+                      },
+                      child: const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        child: Text(
+                          '复制',
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: _discoverPrimary),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogCtx).pop(),
+              child: const Text('我知道了', style: TextStyle(color: _discoverPrimary, fontWeight: FontWeight.w700)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // 原生 DiscoverDishDetailSheet：展示下厨房全套用料清单与详细烹饪步骤
   Future<void> _showDishDetail(Map<String, dynamic> recipe) async {
+    debugPrint('[DiscoverPage] _showDishDetail called for: ${recipe['name']}');
     final theme = Theme.of(context);
     final name = _name(recipe);
     final subtitle = _subtitle(recipe);
     final price = ((recipe['price'] as num?) ?? 12).toDouble();
+    final recipeId = (recipe['recipeId'] ?? recipe['id'] ?? '').toString();
+    final imageUrl = (recipe['coverUrl'] ?? recipe['imageUrl'] ?? '').toString();
+
+    // 异步拉取下厨房全套食材清单与做法步骤
+    final Future<XiachufangRecipeDetail> detailFuture =
+        XiachufangClient.fetchRecipeDetail(
+      recipeId: recipeId,
+      dishName: name,
+      imageUrl: imageUrl,
+    );
 
     await showModalBottomSheet<void>(
       context: context,
-      // 【真机修正】这里原本没开 `isScrollControlled`，`showModalBottomSheet` 默认
-      // 只给 9/16 屏高，而弹层内容（图 190 + 菜名 + 描述 + 售价 + 两个按钮）约 460dp，
-      // 于是底部「关闭 / 加入我的小店」被挤出屏外，而且弹层到顶就只能回缩、不能上拉。
-      // 开成可滚动 + 包一层滚动容器后，内容按需撑高、超出时可滚，按钮永远可达。
       isScrollControlled: true,
-      // 【玻璃】弹层底色交给 `CozyGlassSheet`，这里必须透明。
       backgroundColor: Colors.transparent,
-      // 遮罩调浅：背后太黑 -> 玻璃没有东西可折，只会变灰雾。
-      barrierColor: Colors.black.withValues(alpha: 0.18),
+      barrierColor: Colors.black.withValues(alpha: 0.35),
       showDragHandle: false,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
@@ -518,81 +604,394 @@ class _DiscoverPageState extends State<DiscoverPage> {
           listenable: AppState.instance,
           builder: (context, _) {
             final added = _isAdded(recipe);
-            return CozyGlassSheet(
-              padding: const EdgeInsets.fromLTRB(18, 4, 18, 20),
-              child: SafeArea(
-                top: false,
-                child: SingleChildScrollView(
-                  child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    width: double.infinity,
-                    height: 190,
-                    clipBehavior: Clip.antiAlias,
-                    decoration: BoxDecoration(
-                      color: _kSheetImageBg,
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: _DishImageOrPlaceholder(
-                      recipe: recipe,
-                      fit: BoxFit.cover,
-                      cssWidth: 320,
-                      emojiSize: 56,
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  Text(
-                    name,
-                    style: theme.textTheme.headlineSmall?.copyWith(
-                      color: CozyPalette.onSurface,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  Text(
-                    subtitle.isEmpty ? '暂无描述' : subtitle,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: CozyPalette.onSurfaceVariant,
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  CozyPill(
-                    text: '建议售价 ¥${price.toStringAsFixed(2)}',
-                    color: _discoverPrimary,
-                  ),
-                  const SizedBox(height: 14),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextButton(
-                          onPressed: () => Navigator.of(sheetContext).maybePop(),
-                          child: const Text('关闭'),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: FilledButton(
-                          onPressed: added ? null : () => _addToShop(recipe),
-                          style: FilledButton.styleFrom(
-                            backgroundColor: _discoverPrimary,
-                            foregroundColor: Colors.white,
-                            disabledBackgroundColor: _kDisabledBg,
-                            disabledForegroundColor: _kDisabledText,
-                            minimumSize: const Size(0, 44),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                          ),
-                          child: Text(added ? '已在我的小店' : '加入我的小店'),
-                        ),
-                      ),
-                    ],
+            return Container(
+              height: MediaQuery.of(sheetContext).size.height * 0.85,
+              decoration: const BoxDecoration(
+                color: Color(0xFFFBF8F5),
+                borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Color(0x33000000),
+                    blurRadius: 20,
+                    offset: Offset(0, -4),
                   ),
                 ],
-                ),
               ),
+              padding: const EdgeInsets.fromLTRB(18, 4, 18, 16),
+              child: SafeArea(
+                top: false,
+                child: Column(
+                  children: [
+                    // 顶部拖动小把手
+                    Center(
+                      child: Container(
+                        width: 40,
+                        height: 4.5,
+                        margin: const EdgeInsets.only(top: 8, bottom: 12),
+                        decoration: BoxDecoration(
+                          color: CozyPalette.onSurface.withValues(alpha: 0.22),
+                          borderRadius: BorderRadius.circular(3),
+                        ),
+                      ),
+                    ),
+                    // 中间可滚动区域（含大图、菜名、下厨房标签、食材用料清单、步骤制作过程）
+                    Expanded(
+                      child: SingleChildScrollView(
+                        physics: const BouncingScrollPhysics(),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              width: double.infinity,
+                              height: 210,
+                              clipBehavior: Clip.antiAlias,
+                              decoration: BoxDecoration(
+                                color: _kSheetImageBg,
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              child: _DishImageOrPlaceholder(
+                                recipe: recipe,
+                                fit: BoxFit.cover,
+                                cssWidth: 360,
+                                emojiSize: 64,
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    name,
+                                    style: theme.textTheme.headlineSmall?.copyWith(
+                                      color: CozyPalette.onSurface,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: _discoverPrimary.withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(6),
+                                    border: Border.all(
+                                      color: _discoverPrimary.withValues(alpha: 0.3),
+                                      width: 0.8,
+                                    ),
+                                  ),
+                                  child: const Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.restaurant_menu_rounded, size: 13, color: _discoverPrimary),
+                                      SizedBox(width: 3),
+                                      Text(
+                                        '下厨房菜谱',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w700,
+                                          color: _discoverPrimary,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                            if (subtitle.isNotEmpty) ...[
+                              const SizedBox(height: 6),
+                              Text(
+                                subtitle,
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  color: CozyPalette.onSurfaceVariant,
+                                  height: 1.35,
+                                ),
+                              ),
+                            ],
+                            const SizedBox(height: 12),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 6,
+                              children: [
+                                CozyPill(
+                                  text: '建议售价 ¥${price.toStringAsFixed(2)}',
+                                  color: _discoverPrimary,
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: CozyPalette.surfaceVariant.withValues(alpha: 0.7),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: const Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.timer_outlined, size: 13, color: CozyPalette.onSurfaceVariant),
+                                      SizedBox(width: 4),
+                                      Text(
+                                        '约 15-25 分钟',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: CozyPalette.onSurfaceVariant,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 16),
+                            const Divider(height: 1, color: Color(0x18000000)),
+                            const SizedBox(height: 14),
+
+                            // 下厨房用料与做法步骤
+                            FutureBuilder<XiachufangRecipeDetail>(
+                              future: detailFuture,
+                              builder: (context, snapshot) {
+                                if (snapshot.connectionState == ConnectionState.waiting) {
+                                  return const Padding(
+                                    padding: EdgeInsets.symmetric(vertical: 28),
+                                    child: Center(
+                                      child: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          SizedBox(
+                                            width: 24,
+                                            height: 24,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2.2,
+                                              color: _discoverPrimary,
+                                            ),
+                                          ),
+                                          SizedBox(height: 10),
+                                          Text(
+                                            '正在获取下厨房用料清单与做法...',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              color: CozyPalette.onSurfaceVariant,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                }
+
+                                final detail = snapshot.data;
+                                final ings = detail?.ingredients ?? <String>[];
+                                final steps = detail?.steps ?? <String>[];
+
+                                return Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    // ① 用料与食材清单
+                                    Row(
+                                      children: [
+                                        Container(
+                                          width: 3.5,
+                                          height: 15,
+                                          decoration: BoxDecoration(
+                                            color: _discoverPrimary,
+                                            borderRadius: BorderRadius.circular(2),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        const Text(
+                                          '用料与食材清单',
+                                          style: TextStyle(
+                                            fontSize: 15,
+                                            fontWeight: FontWeight.w700,
+                                            color: CozyPalette.onSurface,
+                                          ),
+                                        ),
+                                        const Spacer(),
+                                        Text(
+                                          '${ings.length} 项主辅料',
+                                          style: const TextStyle(
+                                            fontSize: 12,
+                                            color: CozyPalette.onSurfaceVariant,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 10),
+                                    if (ings.isEmpty)
+                                      const Text(
+                                        '主料、食用油、生抽、适量食盐调味',
+                                        style: TextStyle(fontSize: 13, color: CozyPalette.onSurfaceVariant),
+                                      )
+                                    else
+                                      Wrap(
+                                        spacing: 8,
+                                        runSpacing: 8,
+                                        children: [
+                                          for (final ing in ings)
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                              decoration: BoxDecoration(
+                                                color: Colors.white,
+                                                borderRadius: BorderRadius.circular(8),
+                                                border: Border.all(
+                                                  color: const Color(0x18000000),
+                                                  width: 0.8,
+                                                ),
+                                              ),
+                                              child: Text(
+                                                ing,
+                                                style: const TextStyle(
+                                                  fontSize: 12.5,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: CozyPalette.onSurface,
+                                                ),
+                                              ),
+                                            ),
+                                        ],
+                                      ),
+
+                                    const SizedBox(height: 20),
+
+                                    // ② 烹饪制作全过程
+                                    Row(
+                                      children: [
+                                        Container(
+                                          width: 3.5,
+                                          height: 15,
+                                          decoration: BoxDecoration(
+                                            color: _discoverPrimary,
+                                            borderRadius: BorderRadius.circular(2),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        const Text(
+                                          '烹饪制作过程',
+                                          style: TextStyle(
+                                            fontSize: 15,
+                                            fontWeight: FontWeight.w700,
+                                            color: CozyPalette.onSurface,
+                                          ),
+                                        ),
+                                        const Spacer(),
+                                        Text(
+                                          '共 ${steps.length} 个步骤',
+                                          style: const TextStyle(
+                                            fontSize: 12,
+                                            color: CozyPalette.onSurfaceVariant,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 12),
+                                    if (steps.isEmpty)
+                                      const Text(
+                                        '热锅起油，下入食材大火翻炒，加入适量生抽食盐调味，出锅装盘。',
+                                        style: TextStyle(fontSize: 13, color: CozyPalette.onSurfaceVariant),
+                                      )
+                                    else
+                                      Column(
+                                        children: [
+                                          for (int i = 0; i < steps.length; i++)
+                                            Padding(
+                                              padding: const EdgeInsets.only(bottom: 12),
+                                              child: Container(
+                                                padding: const EdgeInsets.all(12),
+                                                decoration: BoxDecoration(
+                                                  color: Colors.white,
+                                                  borderRadius: BorderRadius.circular(12),
+                                                  border: Border.all(
+                                                    color: const Color(0x14000000),
+                                                    width: 0.8,
+                                                  ),
+                                                ),
+                                                child: Row(
+                                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                                  children: [
+                                                    Container(
+                                                      width: 22,
+                                                      height: 22,
+                                                      alignment: Alignment.center,
+                                                      decoration: const BoxDecoration(
+                                                        color: _discoverPrimary,
+                                                        shape: BoxShape.circle,
+                                                      ),
+                                                      child: Text(
+                                                        '${i + 1}',
+                                                        style: const TextStyle(
+                                                          fontSize: 12,
+                                                          fontWeight: FontWeight.w700,
+                                                          color: Colors.white,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                    const SizedBox(width: 10),
+                                                    Expanded(
+                                                      child: Text(
+                                                        steps[i],
+                                                        style: const TextStyle(
+                                                          fontSize: 13.5,
+                                                          height: 1.45,
+                                                          color: CozyPalette.onSurface,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ),
+                                        ],
+                                      ),
+                                    const SizedBox(height: 16),
+                                  ],
+                                );
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+
+                    // 底部固定操作栏（加入小店 / 关闭）
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () => Navigator.of(sheetContext).maybePop(),
+                            style: OutlinedButton.styleFrom(
+                              minimumSize: const Size(0, 46),
+                              side: const BorderSide(color: Color(0x28000000)),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                            ),
+                            child: const Text('关闭'),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          flex: 2,
+                          child: FilledButton(
+                            onPressed: added ? null : () => _addToShop(recipe),
+                            style: FilledButton.styleFrom(
+                              backgroundColor: _discoverPrimary,
+                              foregroundColor: Colors.white,
+                              disabledBackgroundColor: _kDisabledBg,
+                              disabledForegroundColor: _kDisabledText,
+                              minimumSize: const Size(0, 46),
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                            ),
+                            child: Text(
+                              added ? '已在我的小店' : '加入我的小店',
+                              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             );
           },
@@ -630,7 +1029,7 @@ class _DiscoverPageState extends State<DiscoverPage> {
 
     return <Widget>[
       // ① 标题块（L130-149）
-      _buildTitleBlock(theme),
+      _buildTitleBlock(context, theme),
       // ② 搜索框（L151-160）
       _buildSearchField(theme),
       // ③ 推荐行（L162-171，仅空查询且推荐非空）
@@ -650,20 +1049,54 @@ class _DiscoverPageState extends State<DiscoverPage> {
   }
 
   // 原生 L130-149
-  Widget _buildTitleBlock(ThemeData theme) {
+  Widget _buildTitleBlock(BuildContext context, ThemeData theme) {
+    final coupleSpec = context.coupleTheme;
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          '发现 - 探索新菜谱',
-          style: TextStyle(
-            color: _discoverPrimary,
-            fontSize: 26,
-            height: 34 / 26,
-            fontWeight: FontWeight.w900,
-            letterSpacing: 0,
-          ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Expanded(
+              child: Text(
+                '发现 - 探索新菜谱',
+                style: TextStyle(
+                  color: coupleSpec.primary,
+                  fontSize: 26,
+                  height: 34 / 26,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0,
+                ),
+              ),
+            ),
+            Container(
+              width: 42,
+              height: 42,
+              padding: const EdgeInsets.all(2),
+              decoration: BoxDecoration(
+                color: coupleSpec.primaryLight,
+                borderRadius: BorderRadius.circular(13),
+                border: Border.all(color: coupleSpec.cardBorder, width: 1.2),
+                boxShadow: [
+                  BoxShadow(
+                    color: coupleSpec.shadowColor.withValues(alpha: 0.12),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: Image.asset(
+                  coupleSpec.eaterAnimAsset,
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, _, _) => Text(coupleSpec.emoji, style: const TextStyle(fontSize: 22)),
+                ),
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 6),
         Row(
@@ -833,7 +1266,7 @@ class _DiscoverPageState extends State<DiscoverPage> {
       return <Widget>[
         // 常搜热搜词标签
         _buildHotTags(),
-        _buildSearchPrompt(theme),
+        const SizedBox(height: 6),
         // 精选 10 道菜标题
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -843,11 +1276,11 @@ class _DiscoverPageState extends State<DiscoverPage> {
               style: TextStyle(
                 color: _discoverPrimary,
                 fontSize: 17,
-                fontWeight: FontWeight.w900,
+                fontWeight: FontWeight.w700,
               ),
             ),
             Text(
-              '下厨房精选 · 已去重',
+              '下厨房精选',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: CozyPalette.onSurfaceVariant,
               ),
@@ -887,58 +1320,7 @@ class _DiscoverPageState extends State<DiscoverPage> {
     ];
   }
 
-  // 原生 DiscoverSearchPrompt（L669-705）：原生是竖排居中大卡，太占高度，这里改横排一行
-  Widget _buildSearchPrompt(ThemeData theme) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: _discoverCreamCard.withValues(alpha: 0.84),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: _discoverCardBorder.withValues(alpha: 0.32),
-          width: 2,
-        ),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 48,
-            height: 48,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: _kSoftPinkBg,
-              borderRadius: BorderRadius.circular(18),
-            ),
-            child: const Icon(Icons.search, size: 24, color: _discoverPrimary),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '搜一搜新菜谱',
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    color: CozyPalette.onSurface,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  '输入菜名、食材或做法，找到合适的菜后加入我的小店。',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: CozyPalette.onSurfaceVariant,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+
 
   // 原生 DiscoverEmptyState（L707-747）：同样由竖排大卡改横排，省掉约 120dp 高度
   Widget _buildEmptyState(ThemeData theme) {
@@ -971,7 +1353,7 @@ class _DiscoverPageState extends State<DiscoverPage> {
                   '菜',
                   style: theme.textTheme.bodyLarge?.copyWith(
                     color: _discoverPrimary,
-                    fontWeight: FontWeight.w900,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
               ),
@@ -985,7 +1367,7 @@ class _DiscoverPageState extends State<DiscoverPage> {
                       '没有找到相关菜品',
                       style: theme.textTheme.titleMedium?.copyWith(
                         color: CozyPalette.onSurface,
-                        fontWeight: FontWeight.w900,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                     const SizedBox(height: 3),
@@ -1062,7 +1444,7 @@ class _DiscoverPageState extends State<DiscoverPage> {
                     color: CozyPalette.onPrimaryContainer,
                     fontSize: 18,
                     height: 24 / 18,
-                    fontWeight: FontWeight.w900,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
               ),
@@ -1174,7 +1556,7 @@ class _DiscoverPageState extends State<DiscoverPage> {
                             color: Color(0xFF1D1B18),
                             fontSize: 15,
                             height: 20 / 15,
-                            fontWeight: FontWeight.w900,
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
                       ),
@@ -1305,7 +1687,7 @@ class _DiscoverPageState extends State<DiscoverPage> {
               style: TextStyle(
                 color: CozyPalette.onSurface,
                 fontSize: 13,
-                fontWeight: FontWeight.w900,
+                fontWeight: FontWeight.w700,
               ),
             ),
             GestureDetector(
@@ -1374,23 +1756,25 @@ class _DiscoverPageState extends State<DiscoverPage> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              width: double.infinity,
-              height: 68,
-              clipBehavior: Clip.antiAlias,
-              decoration: BoxDecoration(
-                color: _kThumbBg,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(
-                  color: _discoverCardBorder.withValues(alpha: 0.34),
-                  width: 1,
+            AspectRatio(
+              aspectRatio: 1.0,
+              child: Container(
+                width: double.infinity,
+                clipBehavior: Clip.antiAlias,
+                decoration: BoxDecoration(
+                  color: _kThumbBg,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: _discoverCardBorder.withValues(alpha: 0.34),
+                    width: 1,
+                  ),
                 ),
-              ),
-              child: _DishImageOrPlaceholder(
-                recipe: recipe,
-                fit: BoxFit.cover,
-                cssWidth: 200,
-                emojiSize: 30,
+                child: _DishImageOrPlaceholder(
+                  recipe: recipe,
+                  fit: BoxFit.cover,
+                  cssWidth: 200,
+                  emojiSize: 42,
+                ),
               ),
             ),
             const SizedBox(height: 6),
@@ -1400,7 +1784,7 @@ class _DiscoverPageState extends State<DiscoverPage> {
               overflow: TextOverflow.ellipsis,
               style: theme.textTheme.labelLarge?.copyWith(
                 color: _discoverPrimary,
-                fontWeight: FontWeight.w900,
+                fontWeight: FontWeight.w700,
               ),
             ),
             const SizedBox(height: 5),
@@ -1416,7 +1800,7 @@ class _DiscoverPageState extends State<DiscoverPage> {
                   color: CozyPalette.onSurface,
                   fontSize: 15,
                   height: 20 / 15,
-                  fontWeight: FontWeight.w900,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
             ),
@@ -1737,7 +2121,7 @@ class _SquishyDiscoverButton extends StatelessWidget {
           textAlign: TextAlign.center,
           style: Theme.of(context).textTheme.labelMedium?.copyWith(
                 color: enabled ? Colors.white : _kDisabledText,
-                fontWeight: FontWeight.w900,
+                fontWeight: FontWeight.w700,
               ),
         ),
       ),

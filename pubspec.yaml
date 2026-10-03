@@ -14,7 +14,7 @@ publish_to: 'none'
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 2.0.0+60
+version: 2.0.0+62
 
 environment:
   sdk: ^3.13.2
@@ -45,6 +45,7 @@ dependencies:
   supabase_flutter: ^2.17.2
   image_picker: ^1.2.3
   image: ^4.10.1
+  shared_preferences: ^2.3.2
 
 dev_dependencies:
   flutter_test:
@@ -86,6 +87,12 @@ flutter:
   assets:
     - assets/images/
     - assets/images/dishes/
+    - assets/images/avatars/
+    - assets/images/animations/
+    - assets/images/theme_pack/
+    - assets/images/theme_pack/yier_bubu/
+    - assets/images/theme_pack/lines_puppy/
+    - assets/images/theme_pack/lulu_lumei/
     # 发现页「搜一搜」不打包任何菜谱数据：搜索时实时抓下厨房（见 lib/data/xiachufang_client.dart），
     # 只有用户点「加入我的小店」时才写进云端。
 
