@@ -45,5 +45,19 @@
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
         </intent>
+        <!-- 抖音原生客户端 -->
+        <package android:name="com.ss.android.ugc.aweme"/>
+        <package android:name="com.ss.android.ugc.aweme.lite"/>
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="snssdk1128"/>
+        </intent>
+        <!-- 哔哩哔哩原生客户端 -->
+        <package android:name="tv.danmaku.bili"/>
+        <package android:name="com.bilibili.app.in"/>
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="bilibili"/>
+        </intent>
     </queries>
 </manifest>

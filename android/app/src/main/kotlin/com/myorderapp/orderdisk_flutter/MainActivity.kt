@@ -71,37 +71,63 @@ class MainActivity : FlutterActivity() {
             val isBilibili = platform.contains("哔") || platform.contains("b站") || platform.contains("B站")
 
             if (isDouyin) {
-                // 抖音 Scheme 搜索
-                val appUri = Uri.parse("snssdk1128://search?keyword=$encoded")
-                val intent = Intent(Intent.ACTION_VIEW, appUri).apply {
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                // 1. 尝试直接以明确包名启动抖音/抖音极速版原生 SearchActivity
+                val douyinPackages = listOf("com.ss.android.ugc.aweme", "com.ss.android.ugc.aweme.lite")
+                for (pkg in douyinPackages) {
+                    try {
+                        val uri = Uri.parse("snssdk1128://search?keyword=$encoded")
+                        val intent = Intent(Intent.ACTION_VIEW, uri).apply {
+                            setPackage(pkg)
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        }
+                        startActivity(intent)
+                        return true
+                    } catch (_: Exception) {
+                    }
                 }
-                if (intent.resolveActivity(packageManager) != null) {
+
+                // 2. 尝试不指定包名的通用 Scheme
+                try {
+                    val appUri = Uri.parse("snssdk1128://search?keyword=$encoded")
+                    val intent = Intent(Intent.ACTION_VIEW, appUri).apply {
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
                     startActivity(intent)
                     return true
+                } catch (_: Exception) {
                 }
-                // 兜底打开抖音网页搜索
-                val webIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://www.douyin.com/search/$encoded")).apply {
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                }
-                startActivity(webIntent)
-                return true
+
+                // 3. 原生未安装或唤起失败时返回 false，由 Flutter 端弹窗温馨提示未安装
+                return false
             } else if (isBilibili) {
-                // 哔哩哔哩 Scheme 搜索
-                val appUri = Uri.parse("bilibili://search?keyword=$encoded")
-                val intent = Intent(Intent.ACTION_VIEW, appUri).apply {
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                // 1. 尝试直接以明确包名启动哔哩哔哩原生 SearchActivity
+                val biliPackages = listOf("tv.danmaku.bili", "com.bilibili.app.in")
+                for (pkg in biliPackages) {
+                    try {
+                        val uri = Uri.parse("bilibili://search?keyword=$encoded")
+                        val intent = Intent(Intent.ACTION_VIEW, uri).apply {
+                            setPackage(pkg)
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        }
+                        startActivity(intent)
+                        return true
+                    } catch (_: Exception) {
+                    }
                 }
-                if (intent.resolveActivity(packageManager) != null) {
+
+                // 2. 尝试不指定包名的通用 Scheme
+                try {
+                    val appUri = Uri.parse("bilibili://search?keyword=$encoded")
+                    val intent = Intent(Intent.ACTION_VIEW, appUri).apply {
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
                     startActivity(intent)
                     return true
+                } catch (_: Exception) {
                 }
-                // 兜底打开 B站网页搜索
-                val webIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://search.bilibili.com/all?keyword=$encoded")).apply {
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                }
-                startActivity(webIntent)
-                return true
+
+                // 3. 原生未安装或唤起失败时返回 false，由 Flutter 端弹窗温馨提示未安装
+                return false
             }
             false
         } catch (_: Exception) {

@@ -514,7 +514,7 @@ class _DiscoverPageState extends State<DiscoverPage> {
             children: [
               Text(platform.contains('抖音') ? '🎵' : '📺', style: const TextStyle(fontSize: 20)),
               const SizedBox(width: 8),
-              Text('$platform 视频教程', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+              Text('未检测到$platform APP', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
             ],
           ),
           content: Column(
@@ -522,7 +522,7 @@ class _DiscoverPageState extends State<DiscoverPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                '小饭桌推荐在 $platform 搜索此道菜的详细图文与视频做法：',
+                '手机尚未安装 $platform 客户端，已为您将菜名复制，安装后即可在搜索栏直接查看视频教程：',
                 style: const TextStyle(fontSize: 13, color: CozyPalette.onSurfaceVariant, height: 1.5),
               ),
               const SizedBox(height: 12),
@@ -582,7 +582,8 @@ class _DiscoverPageState extends State<DiscoverPage> {
     final recipeId = (recipe['recipeId'] ?? recipe['id'] ?? '').toString();
     final imageUrl = (recipe['coverUrl'] ?? recipe['imageUrl'] ?? '').toString();
 
-    // 异步拉取下厨房全套食材清单与做法步骤
+    // 优先同步生成智能菜谱，保证零延迟 100% 完整展示，同时异步尝试下厨房网络更新
+    final syncFallback = generateSmartCookingSteps(name);
     final Future<XiachufangRecipeDetail> detailFuture =
         XiachufangClient.fetchRecipeDetail(
       recipeId: recipeId,
@@ -747,39 +748,20 @@ class _DiscoverPageState extends State<DiscoverPage> {
                             // 下厨房用料与做法步骤
                             FutureBuilder<XiachufangRecipeDetail>(
                               future: detailFuture,
+                              initialData: XiachufangRecipeDetail(
+                                name: name,
+                                imageUrl: imageUrl,
+                                ingredients: syncFallback.ingredients,
+                                steps: syncFallback.steps,
+                              ),
                               builder: (context, snapshot) {
-                                if (snapshot.connectionState == ConnectionState.waiting) {
-                                  return const Padding(
-                                    padding: EdgeInsets.symmetric(vertical: 28),
-                                    child: Center(
-                                      child: Column(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          SizedBox(
-                                            width: 24,
-                                            height: 24,
-                                            child: CircularProgressIndicator(
-                                              strokeWidth: 2.2,
-                                              color: _discoverPrimary,
-                                            ),
-                                          ),
-                                          SizedBox(height: 10),
-                                          Text(
-                                            '正在获取下厨房用料清单与做法...',
-                                            style: TextStyle(
-                                              fontSize: 12,
-                                              color: CozyPalette.onSurfaceVariant,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  );
-                                }
-
                                 final detail = snapshot.data;
-                                final ings = detail?.ingredients ?? <String>[];
-                                final steps = detail?.steps ?? <String>[];
+                                final ings = (detail != null && detail.ingredients.isNotEmpty)
+                                    ? detail.ingredients
+                                    : syncFallback.ingredients;
+                                final steps = (detail != null && detail.steps.isNotEmpty)
+                                    ? detail.steps
+                                    : syncFallback.steps;
 
                                 return Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,

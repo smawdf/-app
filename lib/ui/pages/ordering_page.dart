@@ -7,6 +7,7 @@ import 'package:liquid_glass_widgets/liquid_glass_widgets.dart';
 
 import '../../data/app_state.dart';
 import '../../data/models.dart';
+import '../../data/xiachufang_client.dart';
 import '../candy/candy_coins_page.dart';
 import '../cart/cart_sheet.dart';
 import '../menu/menu_management_page.dart';
@@ -280,36 +281,33 @@ class _OrderingPageState extends State<OrderingPage> {
   void _openDishDetail(MenuItem item) {
     HapticFeedback.selectionClick();
     final bool isEater = !AppState.instance.isCaretaker;
-    if (!isEater) {
-      showCozyToast(context, '👨‍🍳 饲养员负责掌勺做菜，由吃货负责点单加菜哦~');
-      return;
-    }
     showModalBottomSheet<void>(
       context: context,
       backgroundColor: Colors.transparent,
-      barrierColor: Colors.black.withValues(alpha: 0.28),
+      barrierColor: Colors.black.withValues(alpha: 0.35),
       showDragHandle: false,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
       builder: (BuildContext sheetContext) => Container(
-        decoration: BoxDecoration(
-          color: CozyPalette.surface,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        height: MediaQuery.of(sheetContext).size.height * 0.85,
+        decoration: const BoxDecoration(
+          color: Color(0xFFFBF8F5),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
           boxShadow: <BoxShadow>[
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.12),
-              blurRadius: 24,
-              offset: const Offset(0, -4),
+              color: Color(0x33000000),
+              blurRadius: 20,
+              offset: Offset(0, -4),
             ),
           ],
         ),
-        padding: const EdgeInsets.fromLTRB(18, 12, 18, 20),
+        padding: const EdgeInsets.fromLTRB(18, 4, 18, 16),
         child: _OrderingDishDetailSheet(
           item: item,
           canOrder: isEater,
-          showDescription: isEater,
+          showDescription: true,
           onAdd: () {
             Navigator.of(sheetContext).pop();
             _add(item);
@@ -1934,129 +1932,361 @@ class _OrderingDishDetailSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final TextTheme text = Theme.of(context).textTheme;
+    final syncRecipe = generateSmartCookingSteps(item.name);
+    final ings = syncRecipe.ingredients;
+    final steps = syncRecipe.steps;
+
     return SafeArea(
       top: false,
-      child: SingleChildScrollView(
-        // 【玻璃】左右 20 + 底 28 的内边距已经交给外层 `CozyGlassSheet` 的
-        // padding，这里不能再加一遍，否则内容会被挤窄两倍。
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            _DishImage(
-              imageUrl: item.imageUrl,
-              name: item.name,
-              backgroundAlpha: 1,
-              radius: 24,
-              height: 210,
-              // 【好看】原来是 contain：竖图两侧露出粉底两条边（截图里很显眼）。
-              // 改成 cover 让图铺满整块 210 高的圆角框，和点菜列表里的菜品卡一致。
-              fit: BoxFit.cover,
-              iconSize: 44,
-              placeholderGap: 8,
-            ),
-            const SizedBox(height: 14),
-            Text(
-              item.name,
-              style: text.headlineSmall!.copyWith(
-                fontWeight: FontWeight.w900,
-                color: CozyPalette.onSurface,
+      child: Column(
+        children: <Widget>[
+          // 顶部拖动小把手
+          Center(
+            child: Container(
+              width: 40,
+              height: 4.5,
+              margin: const EdgeInsets.only(top: 8, bottom: 12),
+              decoration: BoxDecoration(
+                color: CozyPalette.onSurface.withValues(alpha: 0.22),
+                borderRadius: BorderRadius.circular(3),
               ),
             ),
-          if (showDescription) ...<Widget>[
-            const SizedBox(height: 14),
-            Text(
-              item.description.trim().isEmpty ? '暂无描述' : item.description.trim(),
-              style: text.bodyMedium!.copyWith(
-                color: CozyPalette.onSurfaceVariant,
-              ),
-            ),
-          ],
-          const SizedBox(height: 14),
-          // 原生这里是 Row[ CozyPill(item.categoryId, CozyTerracotta), Text("小店在售") ]。
-          // 【真机修正】`MenuItem` 现在带上 `category` 了，把分类胶囊补回来。
-          Row(
-            children: <Widget>[
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: CozyPalette.primary.withValues(alpha: 0.10),
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: Text(
-                  item.category.trim().isEmpty ? '未分类' : item.category.trim(),
-                  style: text.labelMedium!.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: CozyPalette.primary,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                '小店在售',
-                style: text.bodyMedium!.copyWith(
-                  color: CozyPalette.onSurfaceVariant,
-                ),
-              ),
-            ],
           ),
-          const SizedBox(height: 14),
-          // 价格与列表卡片同口径：糖币图标 + 数字，不再挂「¥」
-          // （价格本身就是糖糖币，`candyCoinsCost() = ceil(totalPrice)`）。
-          Row(
-            children: <Widget>[
-              Image.asset(
-                'assets/images/candy.png',
-                width: 22,
-                height: 22,
-                filterQuality: FilterQuality.high,
-                errorBuilder: (context, error, stackTrace) => const Icon(
-                  Icons.monetization_on_rounded,
-                  size: 20,
-                  color: _kCoinRose,
-                ),
-              ),
-              const SizedBox(width: 5),
-              Flexible(
-                child: Text(
-                  _coinText(item.price),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: text.headlineSmall!.copyWith(
-                    fontSize: 26,
-                    fontWeight: FontWeight.w900,
-                    color: _kCoinRose,
+          Expanded(
+            child: SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  _DishImage(
+                    imageUrl: item.imageUrl,
+                    name: item.name,
+                    backgroundAlpha: 1,
+                    radius: 24,
+                    height: 210,
+                    fit: BoxFit.cover,
+                    iconSize: 44,
+                    placeholderGap: 8,
                   ),
-                ),
+                  const SizedBox(height: 14),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: <Widget>[
+                      Expanded(
+                        child: Text(
+                          item.name,
+                          style: text.headlineSmall!.copyWith(
+                            fontWeight: FontWeight.w700,
+                            color: CozyPalette.onSurface,
+                          ),
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: CozyPalette.primary.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(
+                            color: CozyPalette.primary.withValues(alpha: 0.3),
+                            width: 0.8,
+                          ),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.restaurant_menu_rounded, size: 13, color: CozyPalette.primary),
+                            SizedBox(width: 3),
+                            Text(
+                              '下厨房菜谱',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: CozyPalette.primary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (showDescription) ...<Widget>[
+                    const SizedBox(height: 6),
+                    Text(
+                      item.description.trim().isEmpty ? '今天也很适合吃这道美味家常菜 ✨' : item.description.trim(),
+                      style: text.bodyMedium!.copyWith(
+                        color: CozyPalette.onSurfaceVariant,
+                        height: 1.35,
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 6,
+                    children: <Widget>[
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: CozyPalette.primary.withValues(alpha: 0.10),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Text(
+                          item.category.trim().isEmpty ? '经典家常' : item.category.trim(),
+                          style: text.labelMedium!.copyWith(
+                            fontWeight: FontWeight.w700,
+                            color: CozyPalette.primary,
+                          ),
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: CozyPalette.surfaceVariant.withValues(alpha: 0.7),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.timer_outlined, size: 13, color: CozyPalette.onSurfaceVariant),
+                            SizedBox(width: 4),
+                            Text(
+                              '约 15-25 分钟',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: CozyPalette.onSurfaceVariant,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: _kCoinRose.withValues(alpha: 0.10),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Image.asset(
+                              'assets/images/candy.png',
+                              width: 15,
+                              height: 15,
+                              filterQuality: FilterQuality.high,
+                              errorBuilder: (context, error, stackTrace) => const Icon(
+                                Icons.monetization_on_rounded,
+                                size: 14,
+                                color: _kCoinRose,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              '${_coinText(item.price)} 糖币',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: _kCoinRose,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  const Divider(height: 1, color: Color(0x18000000)),
+                  const SizedBox(height: 14),
+
+                  // ① 用料与食材清单
+                  Row(
+                    children: [
+                      Container(
+                        width: 3.5,
+                        height: 15,
+                        decoration: BoxDecoration(
+                          color: CozyPalette.primary,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      const Text(
+                        '用料与食材清单',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: CozyPalette.onSurface,
+                        ),
+                      ),
+                      const Spacer(),
+                      Text(
+                        '${ings.length} 项主辅料',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: CozyPalette.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      for (final ing in ings)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: const Color(0x18000000),
+                              width: 0.8,
+                            ),
+                          ),
+                          child: Text(
+                            ing,
+                            style: const TextStyle(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w600,
+                              color: CozyPalette.onSurface,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // ② 烹饪制作过程
+                  Row(
+                    children: [
+                      Container(
+                        width: 3.5,
+                        height: 15,
+                        decoration: BoxDecoration(
+                          color: CozyPalette.primary,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      const Text(
+                        '烹饪制作过程',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: CozyPalette.onSurface,
+                        ),
+                      ),
+                      const Spacer(),
+                      Text(
+                        '共 ${steps.length} 个步骤',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: CozyPalette.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Column(
+                    children: [
+                      for (int i = 0; i < steps.length; i++)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: const Color(0x14000000),
+                                width: 0.8,
+                              ),
+                            ),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Container(
+                                  width: 22,
+                                  height: 22,
+                                  alignment: Alignment.center,
+                                  decoration: const BoxDecoration(
+                                    color: CozyPalette.primary,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Text(
+                                    '${i + 1}',
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Text(
+                                    steps[i],
+                                    style: const TextStyle(
+                                      fontSize: 13.5,
+                                      height: 1.45,
+                                      color: CozyPalette.onSurface,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                ],
               ),
-            ],
+            ),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
           Row(
             children: <Widget>[
               Expanded(
-                child: TextButton(
+                child: OutlinedButton(
                   onPressed: onClose,
-                  child: Text(
-                    '关闭',
-                    style: text.bodyLarge!.copyWith(
-                      color: CozyPalette.onSurfaceVariant,
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size(0, 46),
+                    side: const BorderSide(color: Color(0x28000000)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
                     ),
                   ),
+                  child: const Text('关闭'),
                 ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 12),
               Expanded(
-                child: CozyPrimaryButton(
-                  text: canOrder ? '加入购物篮' : '吃货专属',
-                  onTap: onAdd,
-                  enabled: canOrder,
+                flex: 2,
+                child: FilledButton(
+                  onPressed: canOrder ? onAdd : null,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: CozyPalette.primary,
+                    foregroundColor: Colors.white,
+                    disabledBackgroundColor: CozyPalette.outlineVariant.withValues(alpha: 0.35),
+                    disabledForegroundColor: CozyPalette.onSurfaceVariant.withValues(alpha: 0.60),
+                    minimumSize: const Size(0, 46),
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  child: Text(
+                    canOrder ? '加入购物篮' : '吃货专属点单',
+                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                  ),
                 ),
               ),
             ],
           ),
-          ],
-        ),
+        ],
       ),
     );
   }
